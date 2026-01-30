@@ -2,6 +2,7 @@
 
 mod renderer;
 mod image;
+mod video;
 
 use std::sync::{Arc, Mutex};
 
