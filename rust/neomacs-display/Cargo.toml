@@ -50,7 +50,5 @@ video = ["gstreamer", "gstreamer-video", "gstreamer-app"]
 [profile.release]
 lto = true
 codegen-units = 1
-panic = "abort"
 
 [profile.dev]
-panic = "abort"

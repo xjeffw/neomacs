@@ -47,6 +47,12 @@ struct neomacs_display_info *neomacs_display_list = NULL;
 /* Forward declarations */
 extern frame_parm_handler neomacs_frame_parm_handlers[];
 
+/* Prototypes for internal functions */
+static void neomacs_initialize_display_info (struct neomacs_display_info *);
+static const char *neomacs_get_string_resource (void *, const char *, const char *);
+static void neomacs_make_frame_visible_invisible (struct frame *, bool);
+static void neomacs_after_update_window_line (struct window *, struct glyph_row *);
+
 /* The redisplay interface for Neomacs frames - statically initialized.
    All function pointers are declared extern in neomacsterm.h */
 static struct redisplay_interface neomacs_redisplay_interface = {
@@ -56,7 +62,7 @@ static struct redisplay_interface neomacs_redisplay_interface = {
   .insert_glyphs = gui_insert_glyphs,
   .clear_end_of_line = gui_clear_end_of_line,
   .scroll_run_hook = neomacs_scroll_run,
-  .after_update_window_line_hook = NULL,
+  .after_update_window_line_hook = neomacs_after_update_window_line,
   .update_window_begin_hook = NULL,
   .update_window_end_hook = NULL,
   .flush_display = neomacs_flush_display,
@@ -79,10 +85,6 @@ static struct redisplay_interface neomacs_redisplay_interface = {
   .hide_hourglass = NULL,
   .default_font_parameter = NULL,
 };
-
-/* Prototypes for internal functions */
-static void neomacs_initialize_display_info (struct neomacs_display_info *);
-static const char *neomacs_get_string_resource (void *, const char *, const char *);
 
 
 /* ============================================================================
@@ -146,6 +148,10 @@ neomacs_initialize_display_info (struct neomacs_display_info *dpyinfo)
   dpyinfo->supports_argb = true;
   dpyinfo->connection = -1;
   dpyinfo->gdpy = NULL;
+
+  /* Initialize DPI to a reasonable default - required for font sizing */
+  dpyinfo->resx = 96;
+  dpyinfo->resy = 96;
 
   /* Get the GDK display */
   GdkDisplay *gdpy = gdk_display_get_default ();
@@ -271,6 +277,7 @@ neomacs_create_terminal (struct neomacs_display_info *dpyinfo)
   terminal->get_string_resource_hook = neomacs_get_string_resource;
   terminal->set_new_font_hook = neomacs_new_font;
   terminal->read_socket_hook = neomacs_read_socket;
+  terminal->frame_visible_invisible_hook = neomacs_make_frame_visible_invisible;
 
   /* Register the display connection fd for event handling */
   if (dpyinfo->connection >= 0)
@@ -325,6 +332,30 @@ neomacs_flush_display (struct frame *f)
   /* Queue a redraw of the drawing area */
   if (output && output->drawing_area)
     gtk_widget_queue_draw (GTK_WIDGET (output->drawing_area));
+}
+
+/* Make frame visible or invisible */
+static void
+neomacs_make_frame_visible_invisible (struct frame *f, bool visible)
+{
+  struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+
+  if (!output || !output->widget)
+    return;
+
+  if (visible)
+    {
+      /* Show the window and mark frame visible */
+      gtk_widget_set_visible (GTK_WIDGET (output->widget), TRUE);
+      SET_FRAME_VISIBLE (f, 1);
+      SET_FRAME_ICONIFIED (f, false);
+    }
+  else
+    {
+      /* Hide the window */
+      gtk_widget_set_visible (GTK_WIDGET (output->widget), FALSE);
+      SET_FRAME_VISIBLE (f, 0);
+    }
 }
 
 /* Get a string resource value (for X resources / defaults) */
@@ -530,6 +561,36 @@ neomacs_draw_glyph_string (struct glyph_string *s)
 
     default:
       break;
+    }
+}
+
+/* Called after updating a window line */
+static void
+neomacs_after_update_window_line (struct window *w, struct glyph_row *desired_row)
+{
+  struct frame *f;
+  int width, height;
+
+  eassert (w);
+
+  if (!desired_row->mode_line_p && !w->pseudo_window_p)
+    desired_row->redraw_fringe_bitmaps_p = 1;
+
+  /* When a window has disappeared, make sure that no rest of
+     full-width rows stays visible in the internal border.  */
+  if (windows_or_buffers_changed
+      && desired_row->full_width_p
+      && (f = XFRAME (w->frame),
+	  width = FRAME_INTERNAL_BORDER_WIDTH (f),
+	  width != 0) && (height = desired_row->visible_height, height > 0))
+    {
+      int y = WINDOW_TO_FRAME_PIXEL_Y (w, max (0, desired_row->y));
+
+      block_input ();
+      neomacs_clear_frame_area (f, 0, y, width, height);
+      neomacs_clear_frame_area (f,
+			       FRAME_PIXEL_WIDTH (f) - width, y, width, height);
+      unblock_input ();
     }
 }
 

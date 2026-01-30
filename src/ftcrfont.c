@@ -592,7 +592,8 @@ ftcrfont_draw (struct glyph_string *s,
 #ifdef HAVE_X_WINDOWS
       x_set_cr_source_with_gc_background (f, s->gc, s->hl != DRAW_CURSOR);
 #elif defined (HAVE_NEOMACS)
-      neomacs_set_cr_source_with_color (f, s->gc->background,
+      /* Use face colors directly since gc might not be properly set up */
+      neomacs_set_cr_source_with_color (f, s->face->background,
 				     s->hl != DRAW_CURSOR);
 #else
       pgtk_set_cr_source_with_color (f, s->xgcv.background,
@@ -624,7 +625,8 @@ ftcrfont_draw (struct glyph_string *s,
 #ifdef HAVE_X_WINDOWS
   x_set_cr_source_with_gc_foreground (f, s->gc, false);
 #elif defined (HAVE_NEOMACS)
-  neomacs_set_cr_source_with_color (f, s->gc->foreground, false);
+  /* Use face colors directly since gc might not be properly set up */
+  neomacs_set_cr_source_with_color (f, s->face->foreground, false);
 #else
   pgtk_set_cr_source_with_color (f, s->xgcv.foreground, false);
 #endif

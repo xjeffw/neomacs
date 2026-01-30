@@ -466,9 +466,6 @@ neomacs_draw_cb (GtkDrawingArea *area, cairo_t *cr,
 
   output = FRAME_NEOMACS_OUTPUT (f);
 
-  if (0) fprintf (stderr, "DEBUG: neomacs_draw_cb called, frame %p, size %dx%d\n",
-	   (void *) f, width, height);
-
   /* Ensure we have a backing surface */
   neomacs_ensure_cr_surface (f, width, height);
 
@@ -496,16 +493,6 @@ neomacs_draw_cb (GtkDrawingArea *area, cairo_t *cr,
       cairo_set_source_rgb (cr, r, g, b);
       cairo_paint (cr);
     }
-
-  /* Draw a small status indicator in the corner - will be removed later */
-  cairo_set_source_rgba (cr, 0.0, 0.5, 0.0, 0.8);  /* Semi-transparent green */
-  cairo_rectangle (cr, width - 60, 5, 55, 16);
-  cairo_fill (cr);
-  cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);  /* White text */
-  cairo_select_font_face (cr, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-  cairo_set_font_size (cr, 10.0);
-  cairo_move_to (cr, width - 55, 16);
-  cairo_show_text (cr, "Neomacs");
 }
 
 /* Convert GDK keyval to Emacs keysym */
@@ -662,7 +649,6 @@ neomacs_create_frame_widgets (struct frame *f)
 
   /* Create main window */
   window = gtk_window_new ();
-  if (0) fprintf (stderr, "DEBUG: Window created: %p\n", (void *) window);
 
   gtk_window_set_title (GTK_WINDOW (window), "Emacs");
   gtk_window_set_default_size (GTK_WINDOW (window),
