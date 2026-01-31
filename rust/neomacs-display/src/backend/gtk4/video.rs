@@ -372,17 +372,16 @@ impl GpuVideoPlayer {
             .build()
             .map_err(|e| DisplayError::Backend(format!("Failed to create playbin: {}", e)))?;
 
-        // Create appsink that accepts DMA-BUF memory
-        // We request DMA_DRM format which indicates DMA-BUF with DRM modifier
+        // Create appsink - initially configured for software path
+        // We'll reconfigure for DMA-BUF if hardware path succeeds
         let appsink = gst_app::AppSink::builder()
             .caps(&gst::Caps::builder("video/x-raw")
-                .features(["memory:DMABuf"])
-                .field("format", "DMA_DRM")
+                .field("format", "BGRA")
                 .build())
             .build();
 
         // Create video post-processor for format conversion
-        // vapostproc converts VA memory to DMA-BUF
+        // vapostproc converts VA memory to regular memory with BGRA
         let vapostproc = gst::ElementFactory::make("vapostproc")
             .build()
             .ok(); // Optional - may not exist
@@ -397,6 +396,7 @@ impl GpuVideoPlayer {
 
         let hw_accel = if let Some(ref vapost) = vapostproc {
             // Hardware path: vapostproc -> appsink
+            // vapostproc will output BGRA in regular memory (copied from VA surfaces)
             sinkbin.add_many([vapost, appsink.upcast_ref()])
                 .map_err(|e| DisplayError::Backend(format!("Failed to add elements: {}", e)))?;
             gst::Element::link_many([vapost, appsink.upcast_ref()])
@@ -412,12 +412,7 @@ impl GpuVideoPlayer {
             eprintln!("[GpuVideoPlayer] Using VA-API hardware acceleration");
             true
         } else {
-            // Software fallback: videoconvert -> appsink (with regular memory)
-            // Reconfigure appsink for regular BGRA
-            appsink.set_caps(Some(&gst::Caps::builder("video/x-raw")
-                .field("format", "BGRA")
-                .build()));
-
+            // Software fallback: videoconvert -> appsink
             sinkbin.add_many([&videoconvert, appsink.upcast_ref()])
                 .map_err(|e| DisplayError::Backend(format!("Failed to add elements: {}", e)))?;
             gst::Element::link_many([&videoconvert, appsink.upcast_ref()])
@@ -461,7 +456,7 @@ impl GpuVideoPlayer {
 
                     // Create texture based on memory type
                     let texture = if hw_accel_clone {
-                        // Try DMA-BUF path
+                        // Try DMA-BUF path (falls back to MemoryTexture if not DMA-BUF)
                         Self::create_dmabuf_texture(buffer, width, height)
                     } else {
                         // Software path - create MemoryTexture
