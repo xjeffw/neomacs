@@ -223,6 +223,9 @@ pub struct GlyphRow {
 
     /// Frame counter when this row was last cleared (for incremental updates)
     pub last_frame_cleared: u64,
+    
+    /// Frame counter when this row was last touched (for stale row removal)
+    pub last_frame_touched: u64,
 }
 
 impl GlyphRow {

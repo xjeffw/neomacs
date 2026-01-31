@@ -300,6 +300,7 @@ pub unsafe extern "C" fn neomacs_display_begin_row(
         existing_row.ascent = ascent;
         existing_row.mode_line = mode_line != 0;
         existing_row.header_line = header_line != 0;
+        existing_row.last_frame_touched = current_frame;
     } else {
         // Add new row
         window.rows.push(GlyphRow {
@@ -313,6 +314,7 @@ pub unsafe extern "C" fn neomacs_display_begin_row(
             mode_line: mode_line != 0,
             header_line: header_line != 0,
             last_frame_cleared: current_frame,
+            last_frame_touched: current_frame,
         });
     }
 }

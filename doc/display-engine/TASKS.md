@@ -742,6 +742,119 @@ integrates gtk4paintablesink with Emacs rendering:
 
 ---
 
+## Phase 14: Frontend Comprehensive Testing 🧪
+
+Systematic testing of all Emacs frontend features with the new GPU display engine.
+
+### 14.1 Window Management
+| Test | Command | Expected | Status |
+|------|---------|----------|--------|
+| Split below | `C-x 2` | Two windows stacked vertically | ⬜ |
+| Split right | `C-x 3` | Two windows side by side | ⬜ |
+| Enlarge window | `C-x ^` | Active window gets taller | ⬜ |
+| Shrink window | `C-x v` | Active window gets shorter | ⬜ |
+| Enlarge horizontal | `C-x }` | Active window gets wider | ⬜ |
+| Shrink horizontal | `C-x {` | Active window gets narrower | ⬜ |
+| Delete window | `C-x 0` | Close current window | ⬜ |
+| Delete others | `C-x 1` | Keep only current window | ⬜ |
+| Other window | `C-x o` | Switch to other window | ⬜ |
+| Balance windows | `C-x +` | All windows equal size | ⬜ |
+
+### 14.2 Mode Line & Echo Area
+| Test | Action | Expected | Status |
+|------|--------|----------|--------|
+| Mode line display | Visual check | Shows buffer, line, mode | ⬜ |
+| Mode line update | Edit buffer | Mode line shows `**` (modified) | ⬜ |
+| Echo area message | `M-: (message "test")` | Shows "test" in echo area | ⬜ |
+| Minibuffer prompt | `M-x` | Shows "M-x" prompt | ⬜ |
+| Minibuffer completion | `M-x desc TAB` | Completion popup/inline | ⬜ |
+| Error messages | Invalid command | Error in echo area (red?) | ⬜ |
+
+### 14.3 Text Scaling & Fonts
+| Test | Command | Expected | Status |
+|------|---------|----------|--------|
+| Text scale increase | `C-x C-+` | Text gets larger | ⬜ |
+| Text scale decrease | `C-x C--` | Text gets smaller | ⬜ |
+| Text scale reset | `C-x C-0` | Text returns to default | ⬜ |
+| Bold face | `(insert (propertize "bold" 'face 'bold))` | Bold text renders | ⬜ |
+| Italic face | `(insert (propertize "italic" 'face 'italic))` | Italic text renders | ⬜ |
+| Custom color | `(insert (propertize "red" 'face '(:foreground "red")))` | Red text | ⬜ |
+| Different font | `M-x set-frame-font` | Font changes globally | ⬜ |
+| Mixed fonts | Buffer with multiple faces | All faces render correctly | ⬜ |
+
+### 14.4 Cursor & Point
+| Test | Action | Expected | Status |
+|------|--------|----------|--------|
+| Block cursor | Default | Solid block cursor | ⬜ |
+| Cursor movement | Arrow keys | Cursor moves smoothly | ⬜ |
+| Cursor at EOL | End of line | Cursor visible at line end | ⬜ |
+| Cursor in empty buffer | New buffer | Cursor at position 1 | ⬜ |
+| Cursor blink | Wait | Cursor blinks (if enabled) | ⬜ |
+| Bar cursor | `(setq cursor-type 'bar)` | Thin bar cursor | ⬜ |
+
+### 14.5 Selection & Region
+| Test | Action | Expected | Status |
+|------|--------|----------|--------|
+| Mark set | `C-SPC` | Mark set message | ⬜ |
+| Region highlight | `C-SPC`, move | Selection highlights | ⬜ |
+| Copy region | `M-w` | Region copied, highlight clears | ⬜ |
+| Kill region | `C-w` | Region deleted | ⬜ |
+| Rectangle select | `C-x SPC` | Rectangle mode | ⬜ |
+
+### 14.6 Scrolling
+| Test | Command | Expected | Status |
+|------|---------|----------|--------|
+| Scroll down | `C-v` | Content scrolls down | ⬜ |
+| Scroll up | `M-v` | Content scrolls up | ⬜ |
+| Line scroll | `C-n` at bottom | Single line scroll | ⬜ |
+| Scroll other window | `C-M-v` | Other window scrolls | ⬜ |
+| Mouse wheel | Scroll wheel | Smooth scrolling | ⬜ |
+| Horizontal scroll | Long line | Horizontal scroll works | ⬜ |
+
+### 14.7 Line Numbers & Margins
+| Test | Command | Expected | Status |
+|------|---------|----------|--------|
+| Line numbers | `M-x display-line-numbers-mode` | Numbers appear in margin | ⬜ |
+| Relative line numbers | `(setq display-line-numbers 'relative)` | Relative to cursor | ⬜ |
+| Fringe indicators | Git changes | Fringe shows indicators | ⬜ |
+| Left margin | `(setq left-margin-width 5)` | Left margin appears | ⬜ |
+
+### 14.8 Syntax Highlighting
+| Test | Action | Expected | Status |
+|------|--------|----------|--------|
+| Emacs Lisp | Open `.el` file | Keywords colored | ⬜ |
+| Comments | `;; comment` | Comments in distinct color | ⬜ |
+| Strings | `"string"` | Strings in distinct color | ⬜ |
+| Font-lock refresh | Edit code | Colors update correctly | ⬜ |
+
+### 14.9 Special Displays
+| Test | Action | Expected | Status |
+|------|--------|----------|--------|
+| Dired | `C-x d` | Directory listing | ⬜ |
+| Help buffer | `C-h f` | Help with links | ⬜ |
+| Compilation | `M-x compile` | Output with colors | ⬜ |
+| Shell | `M-x shell` | Interactive shell | ⬜ |
+| Term | `M-x term` | Terminal emulator | ⬜ |
+
+### 14.10 Mouse & Input
+| Test | Action | Expected | Status |
+|------|--------|----------|--------|
+| Click to position | Mouse click | Cursor moves to click | ⬜ |
+| Double-click select | Double-click word | Word selected | ⬜ |
+| Triple-click select | Triple-click line | Line selected | ⬜ |
+| Right-click menu | Right-click | Context menu appears | ⬜ |
+| Drag select | Click and drag | Selection follows | ⬜ |
+
+### 14.11 Frames
+| Test | Command | Expected | Status |
+|------|---------|----------|--------|
+| New frame | `C-x 5 2` | New window opens | ⬜ |
+| Delete frame | `C-x 5 0` | Frame closes | ⬜ |
+| Frame resize | Drag border | Frame resizes, content reflows | ⬜ |
+| Frame maximize | Window button | Full screen, content scales | ⬜ |
+
+---
+
 ## Milestones
 
 | Milestone | Phases | Status |
