@@ -352,6 +352,9 @@ pub struct GpuVideoPlayer {
 
     /// Whether hardware decoding is active
     pub hw_accel: bool,
+
+    /// Whether DMA-BUF zero-copy is being used
+    pub use_dmabuf: bool,
 }
 
 #[cfg(feature = "video")]
@@ -372,16 +375,8 @@ impl GpuVideoPlayer {
             .build()
             .map_err(|e| DisplayError::Backend(format!("Failed to create playbin: {}", e)))?;
 
-        // Create appsink - initially configured for software path
-        // We'll reconfigure for DMA-BUF if hardware path succeeds
-        let appsink = gst_app::AppSink::builder()
-            .caps(&gst::Caps::builder("video/x-raw")
-                .field("format", "BGRA")
-                .build())
-            .build();
-
         // Create video post-processor for format conversion
-        // vapostproc converts VA memory to regular memory with BGRA
+        // vapostproc can output DMA-BUF directly for zero-copy
         let vapostproc = gst::ElementFactory::make("vapostproc")
             .build()
             .ok(); // Optional - may not exist
@@ -394,9 +389,22 @@ impl GpuVideoPlayer {
         // Create bin for video sink
         let sinkbin = gst::Bin::new();
 
-        let hw_accel = if let Some(ref vapost) = vapostproc {
+        // Determine if we can use zero-copy DMA-BUF path
+        // NOTE: Full DMA-BUF zero-copy requires:
+        // 1. VideoMeta support in appsink buffer pool
+        // 2. Proper caps negotiation with vapostproc
+        // For now, use VA-API decode + BGRA output which is still GPU-accelerated
+        let (appsink, hw_accel, use_dmabuf) = if let Some(ref vapost) = vapostproc {
+            // Use BGRA output for compatibility
+            // VA-API decodes on GPU, vapostproc converts to BGRA on GPU,
+            // but the final output is in system memory
+            let appsink = gst_app::AppSink::builder()
+                .caps(&gst::Caps::builder("video/x-raw")
+                    .field("format", "BGRA")
+                    .build())
+                .build();
+
             // Hardware path: vapostproc -> appsink
-            // vapostproc will output BGRA in regular memory (copied from VA surfaces)
             sinkbin.add_many([vapost, appsink.upcast_ref()])
                 .map_err(|e| DisplayError::Backend(format!("Failed to add elements: {}", e)))?;
             gst::Element::link_many([vapost, appsink.upcast_ref()])
@@ -409,10 +417,17 @@ impl GpuVideoPlayer {
             sinkbin.add_pad(&ghost_pad)
                 .map_err(|e| DisplayError::Backend(format!("Failed to add ghost pad: {}", e)))?;
 
-            eprintln!("[GpuVideoPlayer] Using VA-API hardware acceleration");
-            true
+            eprintln!("[GpuVideoPlayer] Using VA-API hardware acceleration (GPU decode + GPU convert)");
+            // Mark as not using DMA-BUF since we're using system memory BGRA
+            (appsink, true, false)
         } else {
-            // Software fallback: videoconvert -> appsink
+            // Software fallback: videoconvert -> appsink (BGRA in system memory)
+            let appsink = gst_app::AppSink::builder()
+                .caps(&gst::Caps::builder("video/x-raw")
+                    .field("format", "BGRA")
+                    .build())
+                .build();
+
             sinkbin.add_many([&videoconvert, appsink.upcast_ref()])
                 .map_err(|e| DisplayError::Backend(format!("Failed to add elements: {}", e)))?;
             gst::Element::link_many([&videoconvert, appsink.upcast_ref()])
@@ -426,7 +441,7 @@ impl GpuVideoPlayer {
                 .map_err(|e| DisplayError::Backend(format!("Failed to add ghost pad: {}", e)))?;
 
             eprintln!("[GpuVideoPlayer] Falling back to software decoding");
-            false
+            (appsink, false, false)
         };
 
         // Set video sink on playbin
@@ -438,7 +453,11 @@ impl GpuVideoPlayer {
 
         let current_texture = Arc::new(Mutex::new(None));
         let texture_clone = current_texture.clone();
-        let hw_accel_clone = hw_accel;
+        let use_dmabuf_clone = use_dmabuf;
+
+        // Track whether we've logged the first frame info
+        let first_frame_logged = Arc::new(Mutex::new(false));
+        let first_frame_clone = first_frame_logged.clone();
 
         // Set up frame callback
         appsink.set_callbacks(
@@ -448,14 +467,27 @@ impl GpuVideoPlayer {
                     let buffer = sample.buffer().ok_or(gst::FlowError::Error)?;
                     let caps = sample.caps().ok_or(gst::FlowError::Error)?;
 
-                    let video_info = gst_video::VideoInfo::from_caps(caps)
-                        .map_err(|_| gst::FlowError::Error)?;
+                    // Log first frame info
+                    if let Ok(mut logged) = first_frame_clone.lock() {
+                        if !*logged {
+                            eprintln!("[GpuVideoPlayer] First frame caps: {}", caps.to_string());
+                            *logged = true;
+                        }
+                    }
 
-                    let width = video_info.width() as i32;
-                    let height = video_info.height() as i32;
+                    // Try to get video info - may fail for DMA_DRM format
+                    let (width, height) = if let Ok(video_info) = gst_video::VideoInfo::from_caps(caps) {
+                        (video_info.width() as i32, video_info.height() as i32)
+                    } else {
+                        // For DMA_DRM format, extract dimensions from caps structure
+                        let structure = caps.structure(0).ok_or(gst::FlowError::Error)?;
+                        let width = structure.get::<i32>("width").unwrap_or(1920);
+                        let height = structure.get::<i32>("height").unwrap_or(1080);
+                        (width, height)
+                    };
 
                     // Create texture based on memory type
-                    let texture = if hw_accel_clone {
+                    let texture = if use_dmabuf_clone {
                         // Try DMA-BUF path (falls back to MemoryTexture if not DMA-BUF)
                         Self::create_dmabuf_texture(buffer, width, height)
                     } else {
@@ -486,6 +518,7 @@ impl GpuVideoPlayer {
             looping: false,
             volume: 1.0,
             hw_accel,
+            use_dmabuf,
         })
     }
 
