@@ -1748,6 +1748,82 @@ BUTTON is 1 for left, 2 for middle, 3 for right.  */)
   return Qt;
 }
 
+DEFUN ("neomacs-webkit-get-title", Fneomacs_webkit_get_title, Sneomacs_webkit_get_title, 1, 1, 0,
+       doc: /* Get the title of WebKit VIEW-ID.
+Returns the page title as a string, or nil if not available.  */)
+  (Lisp_Object view_id)
+{
+  CHECK_FIXNUM (view_id);
+  
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+    
+  char *title = neomacs_display_webkit_get_title (dpyinfo->display_handle,
+                                                   (uint32_t) XFIXNUM (view_id));
+  if (!title)
+    return Qnil;
+    
+  Lisp_Object result = build_string (title);
+  neomacs_display_webkit_free_string (title);
+  return result;
+}
+
+DEFUN ("neomacs-webkit-get-url", Fneomacs_webkit_get_url, Sneomacs_webkit_get_url, 1, 1, 0,
+       doc: /* Get the current URL of WebKit VIEW-ID.
+Returns the URL as a string, or nil if not available.  */)
+  (Lisp_Object view_id)
+{
+  CHECK_FIXNUM (view_id);
+  
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+    
+  char *url = neomacs_display_webkit_get_url (dpyinfo->display_handle,
+                                               (uint32_t) XFIXNUM (view_id));
+  if (!url)
+    return Qnil;
+    
+  Lisp_Object result = build_string (url);
+  neomacs_display_webkit_free_string (url);
+  return result;
+}
+
+DEFUN ("neomacs-webkit-get-progress", Fneomacs_webkit_get_progress, Sneomacs_webkit_get_progress, 1, 1, 0,
+       doc: /* Get the loading progress of WebKit VIEW-ID.
+Returns a float from 0.0 to 1.0, or nil if view not found.  */)
+  (Lisp_Object view_id)
+{
+  CHECK_FIXNUM (view_id);
+  
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+    
+  double progress = neomacs_display_webkit_get_progress (dpyinfo->display_handle,
+                                                          (uint32_t) XFIXNUM (view_id));
+  if (progress < 0)
+    return Qnil;
+    
+  return make_float (progress);
+}
+
+DEFUN ("neomacs-webkit-loading-p", Fneomacs_webkit_loading_p, Sneomacs_webkit_loading_p, 1, 1, 0,
+       doc: /* Return non-nil if WebKit VIEW-ID is currently loading.  */)
+  (Lisp_Object view_id)
+{
+  CHECK_FIXNUM (view_id);
+  
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+    
+  int loading = neomacs_display_webkit_is_loading (dpyinfo->display_handle,
+                                                    (uint32_t) XFIXNUM (view_id));
+  return loading == 1 ? Qt : Qnil;
+}
+
 
 /* ============================================================================
  * Miscellaneous Functions
@@ -1873,6 +1949,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_webkit_send_pointer);
   defsubr (&Sneomacs_webkit_send_scroll);
   defsubr (&Sneomacs_webkit_click);
+  defsubr (&Sneomacs_webkit_get_title);
+  defsubr (&Sneomacs_webkit_get_url);
+  defsubr (&Sneomacs_webkit_get_progress);
+  defsubr (&Sneomacs_webkit_loading_p);
 
   DEFSYM (Qneomacs, "neomacs");
 

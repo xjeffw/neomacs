@@ -137,6 +137,26 @@ impl WebKitCache {
         view.click(x, y, button);
         Ok(())
     }
+
+    /// Get view title
+    pub fn get_title(&self, id: u32) -> Option<String> {
+        self.views.get(&id).and_then(|v| v.title().map(|s| s.to_string()))
+    }
+
+    /// Get view URL
+    pub fn get_url(&self, id: u32) -> Option<String> {
+        self.views.get(&id).map(|v| v.url().to_string())
+    }
+
+    /// Get view loading progress (0.0 - 1.0)
+    pub fn get_progress(&self, id: u32) -> Option<f64> {
+        self.views.get(&id).map(|v| v.progress())
+    }
+
+    /// Check if view is loading
+    pub fn is_loading(&self, id: u32) -> Option<bool> {
+        self.views.get(&id).map(|v| v.state() == WebKitState::Loading)
+    }
 }
 
 #[cfg(test)]

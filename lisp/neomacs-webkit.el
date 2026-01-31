@@ -143,10 +143,32 @@ Optional WIDTH and HEIGHT override stored dimensions."
     map)
   "Keymap for `neomacs-webkit-mode'.")
 
+(defvar neomacs-webkit-mode-line-format
+  '(:eval (neomacs-webkit--mode-line-string))
+  "Mode line format for WebKit buffers.")
+
+(defun neomacs-webkit--mode-line-string ()
+  "Generate mode line string for WebKit buffer."
+  (if neomacs-webkit-buffer-view-id
+      (let ((title (neomacs-webkit-get-title neomacs-webkit-buffer-view-id))
+            (progress (neomacs-webkit-get-progress neomacs-webkit-buffer-view-id))
+            (loading (neomacs-webkit-loading-p neomacs-webkit-buffer-view-id)))
+        (format " [%s%s]"
+                (or title "WebKit")
+                (if loading
+                    (format " %.0f%%" (* 100 (or progress 0)))
+                  "")))
+    " [WebKit]"))
+
 (define-derived-mode neomacs-webkit-mode special-mode "WebKit"
   "Major mode for browsing the web with WebKit.
 \\{neomacs-webkit-mode-map}"
-  (setq buffer-read-only t))
+  (setq buffer-read-only t)
+  (setq mode-line-format
+        (list "%e" mode-line-front-space
+              neomacs-webkit-mode-line-format
+              " " mode-line-buffer-identification
+              mode-line-end-spaces)))
 
 (defun neomacs-webkit-mode-reload ()
   "Reload the current page."
@@ -171,6 +193,7 @@ Optional WIDTH and HEIGHT override stored dimensions."
   "Close the WebKit browser buffer."
   (interactive)
   (when neomacs-webkit-buffer-view-id
+    (neomacs-webkit-floating-clear neomacs-webkit-buffer-view-id)
     (neomacs-webkit-close neomacs-webkit-buffer-view-id)
     (setq neomacs-webkit-buffer-view-id nil))
   (kill-buffer))

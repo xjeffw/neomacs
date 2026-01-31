@@ -420,6 +420,31 @@ void neomacs_display_webkit_click(struct NeomacsDisplay *handle,
                                   uint32_t button);
 
 /**
+ * Get WebKit view title (returns null-terminated string, caller must free)
+ */
+char *neomacs_display_webkit_get_title(struct NeomacsDisplay *handle, uint32_t webkitId);
+
+/**
+ * Get WebKit view URL (returns null-terminated string, caller must free)
+ */
+char *neomacs_display_webkit_get_url(struct NeomacsDisplay *handle, uint32_t webkitId);
+
+/**
+ * Get WebKit view loading progress (0.0 - 1.0), returns -1 if view not found
+ */
+double neomacs_display_webkit_get_progress(struct NeomacsDisplay *handle, uint32_t webkitId);
+
+/**
+ * Check if WebKit view is loading (1=loading, 0=not loading, -1=not found)
+ */
+int neomacs_display_webkit_is_loading(struct NeomacsDisplay *handle, uint32_t webkitId);
+
+/**
+ * Free a string returned by webkit_get_title or webkit_get_url
+ */
+void neomacs_display_webkit_free_string(char *s);
+
+/**
  * Add a WPE glyph to the current row
  */
 void neomacs_display_add_wpe_glyph(struct NeomacsDisplay *handle,

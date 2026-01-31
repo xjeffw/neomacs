@@ -1,6 +1,6 @@
 //! C FFI layer for integration with Emacs.
 
-use std::ffi::{c_char, c_int, c_void, CStr};
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr;
 
 use crate::backend::{BackendType, DisplayBackend};
@@ -1625,6 +1625,134 @@ pub unsafe extern "C" fn neomacs_display_webkit_click(
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = (webkit_id, x, y, button);
+    }
+}
+
+/// Get WebKit view title (returns null-terminated string, caller must free)
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_webkit_get_title(
+    _handle: *mut NeomacsDisplay,
+    webkit_id: u32,
+) -> *mut c_char {
+    #[cfg(feature = "wpe-webkit")]
+    {
+        let result = WEBKIT_CACHE.with(|cache| {
+            if let Some(ref c) = *cache.borrow() {
+                c.get_title(webkit_id)
+            } else {
+                None
+            }
+        });
+        
+        match result {
+            Some(title) => {
+                match CString::new(title) {
+                    Ok(cstr) => cstr.into_raw(),
+                    Err(_) => std::ptr::null_mut(),
+                }
+            }
+            None => std::ptr::null_mut(),
+        }
+    }
+
+    #[cfg(not(feature = "wpe-webkit"))]
+    {
+        let _ = webkit_id;
+        std::ptr::null_mut()
+    }
+}
+
+/// Get WebKit view URL (returns null-terminated string, caller must free)
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_webkit_get_url(
+    _handle: *mut NeomacsDisplay,
+    webkit_id: u32,
+) -> *mut c_char {
+    #[cfg(feature = "wpe-webkit")]
+    {
+        let result = WEBKIT_CACHE.with(|cache| {
+            if let Some(ref c) = *cache.borrow() {
+                c.get_url(webkit_id)
+            } else {
+                None
+            }
+        });
+        
+        match result {
+            Some(url) => {
+                match CString::new(url) {
+                    Ok(cstr) => cstr.into_raw(),
+                    Err(_) => std::ptr::null_mut(),
+                }
+            }
+            None => std::ptr::null_mut(),
+        }
+    }
+
+    #[cfg(not(feature = "wpe-webkit"))]
+    {
+        let _ = webkit_id;
+        std::ptr::null_mut()
+    }
+}
+
+/// Get WebKit view loading progress (0.0 - 1.0), returns -1 if view not found
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_webkit_get_progress(
+    _handle: *mut NeomacsDisplay,
+    webkit_id: u32,
+) -> f64 {
+    #[cfg(feature = "wpe-webkit")]
+    {
+        WEBKIT_CACHE.with(|cache| {
+            if let Some(ref c) = *cache.borrow() {
+                c.get_progress(webkit_id).unwrap_or(-1.0)
+            } else {
+                -1.0
+            }
+        })
+    }
+
+    #[cfg(not(feature = "wpe-webkit"))]
+    {
+        let _ = webkit_id;
+        -1.0
+    }
+}
+
+/// Check if WebKit view is loading (1=loading, 0=not loading, -1=not found)
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_webkit_is_loading(
+    _handle: *mut NeomacsDisplay,
+    webkit_id: u32,
+) -> c_int {
+    #[cfg(feature = "wpe-webkit")]
+    {
+        WEBKIT_CACHE.with(|cache| {
+            if let Some(ref c) = *cache.borrow() {
+                match c.is_loading(webkit_id) {
+                    Some(true) => 1,
+                    Some(false) => 0,
+                    None => -1,
+                }
+            } else {
+                -1
+            }
+        })
+    }
+
+    #[cfg(not(feature = "wpe-webkit"))]
+    {
+        let _ = webkit_id;
+        -1
+    }
+}
+
+/// Free a string returned by webkit_get_title or webkit_get_url
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_webkit_free_string(s: *mut c_char) {
+    if !s.is_null() {
+        let _ = CString::from_raw(s);
     }
 }
 
