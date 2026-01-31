@@ -591,11 +591,16 @@ a `GdkPaintable` that can be snapshotted directly into our render tree.
 - [x] Snapshot paintable/texture at glyph position
 - [x] Fall back to placeholder if no texture available
 - [x] Wire video/image caches through thread-local for widget path
+- [x] Connect paintable's invalidate-contents signal to trigger widget redraw
+- [x] Set VIDEO_WIDGET in render_to_widget for signal callbacks
+- [x] Verified working with SMPTE color bars test video
 
-**Note:** Video frames require gtk4paintablesink to be integrated with
-GTK's frame clock for frame production. Currently renders placeholder
-until frames are produced. This needs further investigation of GTK
-main loop integration with Emacs event loop.
+**Video playback is now working!** The signal-based approach successfully
+integrates gtk4paintablesink with Emacs rendering:
+1. GStreamer produces frames via gtk4paintablesink
+2. Paintable emits `invalidate-contents` signal
+3. Signal handler calls `widget.queue_draw()`
+4. Widget redraws with new video frame via GSK
 
 ### 9.7 Future Enhancements
 - [ ] Dynamic dimension retrieval from cache instead of display property
