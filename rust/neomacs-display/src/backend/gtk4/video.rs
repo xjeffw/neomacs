@@ -14,6 +14,8 @@ use gstreamer_video as gst_video;
 #[cfg(feature = "video")]
 use gstreamer_app as gst_app;
 #[cfg(feature = "video")]
+use gstreamer_allocators as gst_allocators;
+#[cfg(feature = "video")]
 use gtk4::cairo;
 #[cfg(feature = "video")]
 use gtk4::gdk;
@@ -490,15 +492,25 @@ impl GpuVideoPlayer {
     
     /// Create GdkDmabufTexture from GStreamer DMA-BUF buffer
     fn create_dmabuf_texture(buffer: &gst::BufferRef, width: i32, height: i32) -> Option<gdk::Texture> {
-        // For now, fall back to memory texture
-        // Full DMA-BUF zero-copy requires:
-        // 1. gstreamer-allocators crate for gst_dmabuf_memory_get_fd()
-        // 2. GdkDmabufTextureBuilder to create texture from FD
-        // 
-        // The pipeline uses VA-API for hardware decoding, which is the main
-        // performance win. The memory copy to texture is relatively fast.
-        //
-        // TODO: Implement true zero-copy when gstreamer-allocators is available
+        // Try to detect if this is DMA-BUF memory
+        // The gstreamer-allocators crate provides DmaBufMemory type
+        // but the conversion is complex. For now, we try a simple approach.
+        
+        let memory = buffer.memory(0)?;
+        
+        // Check allocator name to see if it's DMA-BUF
+        if let Some(allocator) = memory.allocator() {
+            // DMA-BUF allocators typically have "dmabuf" in their name
+            // This is a heuristic check
+            if allocator.type_().name().contains("DmaBuf") {
+                eprintln!("[GpuVideoPlayer] DMA-BUF memory detected! True zero-copy pending implementation");
+                // TODO: Implement proper DMA-BUF FD extraction and GdkDmabufTexture creation
+            }
+        }
+        
+        // Fall back to memory texture copy
+        // This still benefits from VA-API hardware decoding - only the final
+        // texture copy goes through CPU
         Self::create_memory_texture(buffer, width, height)
     }
     
