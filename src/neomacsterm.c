@@ -1103,6 +1103,9 @@ neomacs_draw_window_cursor (struct window *w, struct glyph_row *row,
       int style;
       switch (cursor_type)
         {
+        case NO_CURSOR:
+          /* Don't draw any cursor */
+          return;
         case DEFAULT_CURSOR:
         case FILLED_BOX_CURSOR:
           style = 0;  /* Box */
@@ -1124,7 +1127,11 @@ neomacs_draw_window_cursor (struct window *w, struct glyph_row *row,
       /* Convert color to RGBA format (0xAARRGGBB) */
       uint32_t rgba = 0xFF000000 | (cursor_color & 0xFFFFFF);
       
+      /* Pass window pointer as ID so cursor is set on correct window */
+      fprintf(stderr, "DEBUG set_cursor: win=%p, x=%d, y=%d, style=%d (type=%d)\n",
+              (void*)w, x, y, style, cursor_type);
       neomacs_display_set_cursor (dpyinfo->display_handle,
+                                  (int)(intptr_t) w,
                                   (float) x, (float) y,
                                   (float) char_width, (float) char_height,
                                   style, rgba, 1);

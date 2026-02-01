@@ -635,6 +635,7 @@ neomacs_focus_enter_cb (GtkEventControllerFocus *controller, gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
   struct input_event ie;
+  struct neomacs_display_info *dpyinfo;
   GtkWidget *widget = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller));
 
   if (!FRAME_LIVE_P (f))
@@ -645,12 +646,22 @@ neomacs_focus_enter_cb (GtkEventControllerFocus *controller, gpointer user_data)
            gtk_widget_get_focusable (widget),
            gtk_widget_has_focus (widget));
 
-  /* Temporarily disabled to debug exit-on-focus issue
+  /* Set this frame as the focus and highlight frame */
+  dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  if (dpyinfo)
+    {
+      dpyinfo->focus_frame = f;
+      dpyinfo->x_focus_frame = f;
+      dpyinfo->highlight_frame = f;
+      dpyinfo->x_highlight_frame = f;
+      fprintf (stderr, "DEBUG: Set highlight_frame to %p\n", (void *) f);
+    }
+
+  /* Send focus-in event to Emacs */
   EVENT_INIT (ie);
   ie.kind = FOCUS_IN_EVENT;
   XSETFRAME (ie.frame_or_window, f);
   kbd_buffer_store_event (&ie);
-  */
 }
 
 /* Callback for focus leave */
@@ -659,18 +670,27 @@ neomacs_focus_leave_cb (GtkEventControllerFocus *controller, gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
   struct input_event ie;
+  struct neomacs_display_info *dpyinfo;
 
   if (!FRAME_LIVE_P (f))
     return;
 
   fprintf (stderr, "DEBUG: Focus left frame %p\n", (void *) f);
 
-  /* Temporarily disabled to debug exit-on-focus issue
+  /* Clear highlight frame if it was this frame */
+  dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  if (dpyinfo && dpyinfo->highlight_frame == f)
+    {
+      dpyinfo->highlight_frame = NULL;
+      dpyinfo->x_highlight_frame = NULL;
+      fprintf (stderr, "DEBUG: Cleared highlight_frame\n");
+    }
+
+  /* Send focus-out event to Emacs */
   EVENT_INIT (ie);
   ie.kind = FOCUS_OUT_EVENT;
   XSETFRAME (ie.frame_or_window, f);
   kbd_buffer_store_event (&ie);
-  */
 }
 
 /* Callback for widget realize - grab focus when ready */

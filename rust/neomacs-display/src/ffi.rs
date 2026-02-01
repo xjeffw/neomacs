@@ -222,10 +222,11 @@ pub unsafe extern "C" fn neomacs_display_add_window(
     }
 }
 
-/// Set cursor for the most recently added window
+/// Set cursor for a specific window
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_cursor(
     handle: *mut NeomacsDisplay,
+    window_id: c_int,
     x: f32,
     y: f32,
     width: f32,
@@ -239,10 +240,9 @@ pub unsafe extern "C" fn neomacs_display_set_cursor(
     }
 
     let display = &mut *handle;
-    let current_window_id = display.current_window_id;
 
-    // Find the current window by ID
-    if let Some(window) = display.scene.windows.iter_mut().find(|w| w.window_id == current_window_id) {
+    // Find the window by ID
+    if let Some(window) = display.scene.windows.iter_mut().find(|w| w.window_id == window_id) {
         window.cursor = Some(CursorState {
             x,
             y,
@@ -1083,8 +1083,17 @@ pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) 
     // Reset frame flag
     display.in_frame = false;
 
-    // Remove stale windows (not touched this frame)
-    display.scene.windows.retain(|w| w.last_frame_touched == current_frame);
+    // NOTE: Don't remove stale windows - Emacs uses incremental redisplay
+    // which may not touch unchanged windows. Windows are only removed when
+    // Emacs explicitly deletes them and does a full redisplay.
+    // The stale window logic was causing C-x 3 right window to disappear.
+    //
+    // For C-x 1 (delete-other-windows), a full redisplay happens which
+    // touches all remaining windows. Deleted windows will have their bounds
+    // updated to 0x0 or be completely replaced.
+    //
+    // TODO: Consider adding explicit window deletion tracking if needed.
+    // display.scene.windows.retain(|w| w.last_frame_touched == current_frame);
 
     // Build scene if it has content
     let scene_rows: usize = display.scene.windows.iter().map(|w| w.rows.len()).sum();

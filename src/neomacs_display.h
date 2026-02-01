@@ -73,9 +73,10 @@ void neomacs_display_add_window(struct NeomacsDisplay *handle,
                                 int selected);
 
 /**
- * Set cursor for the most recently added window
+ * Set cursor for a specific window
  */
 void neomacs_display_set_cursor(struct NeomacsDisplay *handle,
+                                int windowId,
                                 float x,
                                 float y,
                                 float width,
