@@ -329,6 +329,16 @@ neomacs_delete_terminal (struct terminal *terminal)
   xfree (dpyinfo);
 }
 
+/* Stub for popup menus - not yet implemented for Neomacs */
+static Lisp_Object
+neomacs_menu_show (struct frame *f, int x, int y, int menuflags,
+                   Lisp_Object title, const char **error_name)
+{
+  /* For now, just return Qnil to indicate no selection */
+  *error_name = "Popup menus not yet implemented for Neomacs";
+  return Qnil;
+}
+
 /* Create a terminal for a Neomacs display */
 struct terminal *
 neomacs_create_terminal (struct neomacs_display_info *dpyinfo)
@@ -358,6 +368,7 @@ neomacs_create_terminal (struct neomacs_display_info *dpyinfo)
   terminal->set_new_font_hook = neomacs_new_font;
   terminal->read_socket_hook = neomacs_read_socket;
   terminal->frame_visible_invisible_hook = neomacs_make_frame_visible_invisible;
+  terminal->menu_show_hook = neomacs_menu_show;
 
   /* Register the display connection fd for event handling */
   if (dpyinfo->connection >= 0)
