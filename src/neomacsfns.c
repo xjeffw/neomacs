@@ -522,11 +522,11 @@ neomacs_translate_key (guint keyval, GdkModifierType state)
     case GDK_KEY_ISO_Left_Tab:
       return 0x09;  /* Tab */
     case GDK_KEY_BackSpace:
-      return 0x08;  /* Backspace */
+      return 0;  /* Handle as function key, not ASCII 0x08 which conflicts with C-h */
     case GDK_KEY_Escape:
       return 0x1B;  /* Escape */
     case GDK_KEY_Delete:
-      return 0x7F;  /* Delete */
+      return 0;  /* Handle as function key */
     default:
       if (keyval >= 0x20 && keyval <= 0x7E)
 	return keyval;  /* Printable ASCII */
@@ -541,7 +541,7 @@ neomacs_translate_key (guint keyval, GdkModifierType state)
 static void
 neomacs_im_commit_cb (GtkIMContext *ctx, const char *str, gpointer user_data)
 {
-  fprintf (stderr, "DEBUG: IM commit: '%s'\n", str);
+  if (0) fprintf (stderr, "DEBUG: IM commit: '%s'\n", str);
 }
 
 static gboolean
@@ -556,7 +556,7 @@ neomacs_key_pressed_cb (GtkEventControllerKey *controller,
   if (!FRAME_LIVE_P (f))
     return FALSE;
 
-  fprintf (stderr, "DEBUG: Key pressed: keyval=%u (0x%x), keycode=%u, state=%u\n",
+  if (0) fprintf (stderr, "DEBUG: Key pressed: keyval=%u (0x%x), keycode=%u, state=%u\n",
 	   keyval, keyval, keycode, state);
 
   /* Ignore modifier-only key presses - they are only used as modifiers */
@@ -621,7 +621,7 @@ neomacs_key_pressed_cb (GtkEventControllerKey *controller,
 	inev.ie.modifiers |= meta_modifier;
       inev.ie.timestamp = 0;
       XSETFRAME (inev.ie.frame_or_window, f);
-      fprintf (stderr, "DEBUG: Enqueueing ASCII key event: code=%u, modifiers=%d\n", c, inev.ie.modifiers);
+      if (0) fprintf (stderr, "DEBUG: Enqueueing ASCII key event: code=%u, modifiers=%d\n", c, inev.ie.modifiers);
       neomacs_evq_enqueue (&inev);
       return TRUE;
     }
