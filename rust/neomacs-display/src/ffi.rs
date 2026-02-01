@@ -183,14 +183,15 @@ pub unsafe extern "C" fn neomacs_display_begin_frame(handle: *mut NeomacsDisplay
 
     debug!("begin_frame: frame={}, hybrid={}", display.frame_counter, display.use_hybrid);
 
-    // Hybrid path: DON'T clear glyphs - Emacs uses incremental redisplay
-    // Only update frame dimensions. Glyphs accumulate and overlap handling
-    // happens in add_char_glyph/add_stretch_glyph.
+    // Hybrid path: Update dimensions but preserve glyphs for incremental redisplay
+    // Window region tracking happens in add_window, stale glyph cleanup in end_frame
     if display.use_hybrid {
         display.frame_glyphs.width = display.scene.width;
         display.frame_glyphs.height = display.scene.height;
         display.frame_glyphs.background = display.scene.background;
-        // Clear only backgrounds, cursors, and borders - these are redrawn each frame
+        // Clear window regions from previous frame - will be rebuilt by add_window calls
+        display.frame_glyphs.window_regions.clear();
+        // Clear backgrounds, cursors, and borders - they're redrawn each frame
         display.frame_glyphs.glyphs.retain(|g| {
             matches!(g, crate::core::frame_glyphs::FrameGlyph::Char { .. }
                      | crate::core::frame_glyphs::FrameGlyph::Stretch { .. }
@@ -200,9 +201,7 @@ pub unsafe extern "C" fn neomacs_display_begin_frame(handle: *mut NeomacsDisplay
         });
     }
 
-    // NOTE: Don't clear borders here - borders persist across window updates
-    // They will be redrawn when needed and the scene clone handles refresh
-    // Don't clear rows here - Emacs does incremental updates
+    // NOTE: Don't clear rows here - Emacs does incremental updates
     // Rows will be cleared individually when begin_row is called
 }
 
@@ -1228,6 +1227,12 @@ pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) 
 
     // Reset frame flag
     display.in_frame = false;
+
+    // Hybrid path: remove glyphs outside current window regions
+    // This cleans up stale glyphs from deleted windows (C-x 0, C-x 1)
+    if display.use_hybrid {
+        display.frame_glyphs.remove_stale_glyphs();
+    }
 
     debug!("end_frame: frame={}, glyphs={}", current_frame, display.frame_glyphs.len());
 

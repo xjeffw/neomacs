@@ -115,6 +115,9 @@ pub struct FrameGlyphBuffer {
     /// All glyphs to render this frame
     pub glyphs: Vec<FrameGlyph>,
 
+    /// Window regions for this frame (used to detect stale glyphs)
+    pub window_regions: Vec<Rect>,
+
     /// Current face attributes (set before adding char glyphs)
     current_face_id: u32,
     current_fg: Color,
@@ -132,6 +135,7 @@ impl FrameGlyphBuffer {
             height: 0.0,
             background: Color::WHITE,
             glyphs: Vec::with_capacity(10000), // Pre-allocate for typical frame
+            window_regions: Vec::with_capacity(16),
             current_face_id: 0,
             current_fg: Color::BLACK,
             current_bg: None,
@@ -162,11 +166,40 @@ impl FrameGlyphBuffer {
         self.current_underline_color = underline_color;
     }
 
-    /// Add a window background rectangle
+    /// Add a window background rectangle and record the window region
     pub fn add_background(&mut self, x: f32, y: f32, width: f32, height: f32, color: Color) {
+        // Record this window region for stale glyph detection
+        self.window_regions.push(Rect::new(x, y, width, height));
+
         self.glyphs.push(FrameGlyph::Background {
             bounds: Rect::new(x, y, width, height),
             color,
+        });
+    }
+
+    /// Remove glyphs that are outside all current window regions
+    /// Call this at end of frame to clean up stale glyphs from deleted windows
+    pub fn remove_stale_glyphs(&mut self) {
+        if self.window_regions.is_empty() {
+            return;
+        }
+
+        self.glyphs.retain(|g| {
+            let (gx, gy) = match g {
+                FrameGlyph::Char { x, y, .. } => (*x, *y),
+                FrameGlyph::Stretch { x, y, .. } => (*x, *y),
+                FrameGlyph::Image { x, y, .. } => (*x, *y),
+                FrameGlyph::Video { x, y, .. } => (*x, *y),
+                FrameGlyph::WebKit { x, y, .. } => (*x, *y),
+                // Keep backgrounds, cursors, borders - they're added fresh each frame
+                _ => return true,
+            };
+
+            // Keep if glyph is inside ANY window region
+            self.window_regions.iter().any(|r| {
+                gx >= r.x && gx < r.x + r.width &&
+                gy >= r.y && gy < r.y + r.height
+            })
         });
     }
 

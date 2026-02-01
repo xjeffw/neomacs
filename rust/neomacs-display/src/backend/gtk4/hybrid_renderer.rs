@@ -189,11 +189,11 @@ impl HybridRenderer {
                         continue;
                     }
 
-                    // Only log first few chars at each Y
-                    if x < 50.0 {
+                    // Log all chars on first line (y=0) to debug duplication
+                    if y < 1.0 {
                         warn!(
-                            "Char '{}' at ({:.1},{:.1}) fg=({:.2},{:.2},{:.2},{:.2})",
-                            char, x, y, fg.r, fg.g, fg.b, fg.a
+                            "LINE1 Char '{}' at x={:.1}",
+                            char, x
                         );
                     }
 
