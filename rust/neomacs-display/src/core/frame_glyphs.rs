@@ -186,20 +186,13 @@ impl FrameGlyphBuffer {
     /// End frame - remove glyphs when layout changes
     /// Returns true if glyphs were cleared (caller should force Emacs to resend)
     pub fn end_frame(&mut self) -> bool {
-        let prev_count = self.prev_window_regions.len();
-        let curr_count = self.window_regions.len();
-        
-        // If window count decreased (C-x 1, C-x 0), clear ALL glyphs
-        // Emacs will need to resend content on next frame
-        if prev_count > 1 && curr_count < prev_count {
-            self.glyphs.clear();
-            self.layout_changed = true;  // Signal that we need refresh
-            return true;
-        }
-        
-        // NOTE: Don't clean up glyphs outside window regions here - 
-        // it causes flickering because regions aren't always populated correctly
-        // during incremental updates. The overlapping removal in add_char handles updates.
+        // NOTE: We can't rely on window_regions count because Emacs does incremental
+        // updates - only changed windows call update_window_begin. So during a cursor
+        // blink, only 1 window might be updated even though 3 exist.
+        //
+        // For now, don't auto-clear based on region count. The overlapping removal
+        // in add_char handles content updates, and explicit resize/clear operations
+        // handle layout changes.
         
         false
     }
