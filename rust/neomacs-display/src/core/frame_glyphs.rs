@@ -205,6 +205,11 @@ impl FrameGlyphBuffer {
         self.current_underline_color = underline_color;
     }
 
+    /// Get current face background color (for stretch glyphs)
+    pub fn get_current_bg(&self) -> Option<Color> {
+        self.current_bg
+    }
+
     /// Add a window background rectangle and record the window region
     pub fn add_background(&mut self, x: f32, y: f32, width: f32, height: f32, color: Color) {
         // Record this window region

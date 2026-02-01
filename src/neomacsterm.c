@@ -619,14 +619,6 @@ neomacs_draw_glyph_string (struct glyph_string *s)
           int window_top = WINDOW_TOP_EDGE_Y (w);
           int row_y = window_top + s->row->y;
           
-          static int debug_count = 0;
-          if (debug_count < 100)
-            {
-              fprintf (stderr, "DEBUG draw_glyph: window_top=%d, row->y=%d, row_y=%d, x=%d, nchars=%d\n",
-                       window_top, s->row->y, row_y, s->x, s->nchars);
-              debug_count++;
-            }
-          
           neomacs_display_begin_row (dpyinfo->display_handle,
                                      row_y,
                                      s->x,  /* Starting X position for this glyph string */
@@ -650,16 +642,6 @@ neomacs_draw_glyph_string (struct glyph_string *s)
                 fg = FRAME_FOREGROUND_PIXEL(s->f);
               if (face->background_defaulted_p)
                 bg = FRAME_BACKGROUND_PIXEL(s->f);
-              
-              static int face_debug = 0;
-              if (face_debug < 20)
-                {
-                  fprintf (stderr, "DEBUG face: id=%d, face->fg=%08lx, face->bg=%08lx, fg_default=%d, bg_default=%d, frame_fg=%08lx, frame_bg=%08lx\n",
-                           face_id, face->foreground, face->background,
-                           face->foreground_defaulted_p, face->background_defaulted_p,
-                           FRAME_FOREGROUND_PIXEL(s->f), FRAME_BACKGROUND_PIXEL(s->f));
-                  face_debug++;
-                }
               
               /* Convert Emacs colors to 0xRRGGBB format */
               uint32_t fg_rgb = ((RED_FROM_ULONG(fg) << 16) |

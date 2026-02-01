@@ -580,14 +580,16 @@ pub unsafe extern "C" fn neomacs_display_add_stretch_glyph(
 
         // Hybrid path: append directly to frame glyph buffer
         if display.use_hybrid {
-            // For stretch glyphs, we need the background color from the face
-            // For now, use a default - we'll get face info from set_face later
+            // Get the background color from the current face
+            let bg_color = display.frame_glyphs.get_current_bg()
+                .unwrap_or(display.frame_glyphs.background);
+            
             display.frame_glyphs.add_stretch(
                 current_x as f32,
                 current_y as f32,
                 pixel_width as f32,
                 height as f32,
-                Color::from_u8(255, 255, 255, 255), // Will be updated when face system integrated
+                bg_color,
             );
             display.current_row_x += pixel_width;
             return;
