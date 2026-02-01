@@ -176,6 +176,11 @@ impl FrameGlyphBuffer {
             self.layout_changed = true;  // Signal that we need refresh
             return true;
         }
+        
+        // NOTE: Don't clean up glyphs outside window regions here - 
+        // it causes flickering because regions aren't always populated correctly
+        // during incremental updates. The overlapping removal in add_char handles updates.
+        
         false
     }
     
