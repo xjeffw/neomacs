@@ -159,7 +159,7 @@ impl HybridRenderer {
         // Process regular glyphs (excluding backgrounds, which were handled above)
         let mut char_count = 0;
         for glyph in regular_glyphs {
-            self.render_glyph(&glyph, &mut nodes, &mut video_cache, &mut char_count, false);
+            self.render_glyph(&glyph, &mut nodes, &mut video_cache, &mut image_cache, &mut char_count, false);
         }
 
         // Process overlay glyphs LAST so they render on top
@@ -171,7 +171,7 @@ impl HybridRenderer {
             }
         }
         for glyph in overlay_glyphs {
-            self.render_glyph(&glyph, &mut nodes, &mut video_cache, &mut char_count, true);
+            self.render_glyph(&glyph, &mut nodes, &mut video_cache, &mut image_cache, &mut char_count, true);
         }
 
         // Render floating images on top
@@ -215,6 +215,7 @@ impl HybridRenderer {
         glyph: &FrameGlyph,
         nodes: &mut Vec<gsk::RenderNode>,
         video_cache: &mut Option<&mut VideoCache>,
+        image_cache: &mut Option<&mut ImageCache>,
         char_count: &mut usize,
         _is_overlay_pass: bool,
     ) {
@@ -332,16 +333,37 @@ impl HybridRenderer {
             }
 
             FrameGlyph::Image {
-                image_id: _,
+                image_id,
                 x,
                 y,
                 width,
                 height,
             } => {
-                // TODO: Look up image from cache and render
-                let rect = graphene::Rect::new(*x, *y, *width, *height);
-                let placeholder = gdk::RGBA::new(0.3, 0.3, 0.4, 1.0);
-                nodes.push(gsk::ColorNode::new(&placeholder, &rect).upcast());
+                // Render image from cache
+                if let Some(ref mut cache) = image_cache {
+                    if let Some(img) = cache.get_mut(*image_id) {
+                        if let Some(texture) = img.get_texture() {
+                            let rect = graphene::Rect::new(*x, *y, *width, *height);
+                            let texture_node = gsk::TextureNode::new(&texture, &rect);
+                            nodes.push(texture_node.upcast());
+                        } else {
+                            // No texture yet - render placeholder
+                            let rect = graphene::Rect::new(*x, *y, *width, *height);
+                            let placeholder = gdk::RGBA::new(0.5, 0.3, 0.3, 1.0);
+                            nodes.push(gsk::ColorNode::new(&placeholder, &rect).upcast());
+                        }
+                    } else {
+                        // Image not in cache - render placeholder
+                        let rect = graphene::Rect::new(*x, *y, *width, *height);
+                        let placeholder = gdk::RGBA::new(0.3, 0.3, 0.4, 1.0);
+                        nodes.push(gsk::ColorNode::new(&placeholder, &rect).upcast());
+                    }
+                } else {
+                    // No image cache - render placeholder
+                    let rect = graphene::Rect::new(*x, *y, *width, *height);
+                    let placeholder = gdk::RGBA::new(0.3, 0.3, 0.4, 1.0);
+                    nodes.push(gsk::ColorNode::new(&placeholder, &rect).upcast());
+                }
             }
 
             FrameGlyph::Video {

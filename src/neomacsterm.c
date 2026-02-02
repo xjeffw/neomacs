@@ -1366,7 +1366,7 @@ neomacs_get_or_load_image (struct neomacs_display_info *dpyinfo, struct image *i
   /* Not in cache - load the image */
   uint32_t gpu_id = 0;
 
-  /* Try to load from pixmap data if available */
+  /* Try to load from pixmap data if available (Emacs decoded it) */
   if (img->pixmap && img->pixmap->data)
     {
       /* Emacs Cairo uses ARGB32 or RGB24 format */
@@ -1387,11 +1387,71 @@ neomacs_get_or_load_image (struct neomacs_display_info *dpyinfo, struct image *i
                                                       data, width, height, stride);
         }
     }
+  else if (CONSP (img->spec))
+    {
+      /* Pixmap not available - Emacs couldn't decode (missing libpng/libjpeg etc.)
+         or this is a neomacs image type. Try to load via gdk-pixbuf.
+         Image spec format: (image :type TYPE :file PATH :width W :height H ...) */
+
+      /* First check for :neomacs-id (pre-loaded by neomacs-insert-image) */
+      Lisp_Object neomacs_id_sym = intern (":neomacs-id");
+      Lisp_Object neomacs_id = plist_get (XCDR (img->spec), neomacs_id_sym);
+      if (FIXNUMP (neomacs_id))
+        {
+          /* Image was already loaded by neomacs-insert-image */
+          gpu_id = (uint32_t) XFIXNUM (neomacs_id);
+        }
+      else
+        {
+          /* Try to load from :file */
+          Lisp_Object file = plist_get (XCDR (img->spec), QCfile);
+          if (STRINGP (file))
+            {
+              const char *path = SSDATA (file);
+
+          /* Check for max-width/max-height constraints for scaled loading */
+          Lisp_Object max_width = plist_get (XCDR (img->spec), QCmax_width);
+          Lisp_Object max_height = plist_get (XCDR (img->spec), QCmax_height);
+
+          int mw = FIXNUMP (max_width) ? XFIXNUM (max_width) : 0;
+          int mh = FIXNUMP (max_height) ? XFIXNUM (max_height) : 0;
+
+          if (mw > 0 || mh > 0)
+            {
+              /* Load with scaling - memory efficient for large images */
+              gpu_id = neomacs_display_load_image_file_scaled (dpyinfo->display_handle,
+                                                                path, mw, mh);
+            }
+          else
+            {
+              /* Load at full resolution */
+              gpu_id = neomacs_display_load_image_file (dpyinfo->display_handle, path);
+            }
+
+          if (gpu_id != 0)
+            {
+              /* Get actual dimensions from GPU cache for later use */
+              int actual_w, actual_h;
+              if (neomacs_display_get_image_size (dpyinfo->display_handle, gpu_id,
+                                                   &actual_w, &actual_h) == 0)
+                {
+                  /* Update img dimensions if not set */
+                  if (img->width == 0)
+                    img->width = actual_w;
+                  if (img->height == 0)
+                    img->height = actual_h;
+                }
+            }
+        }
+      }  /* end else (load from file) */
+    }
 
   if (gpu_id == 0)
     {
-      fprintf (stderr, "neomacs: Failed to load image %dx%d\n",
-               img->width, img->height);
+      /* Only warn if we actually tried to load something */
+      if (img->width > 0 && img->height > 0)
+        fprintf (stderr, "neomacs: Failed to load image %dx%d\n",
+                 img->width, img->height);
       return 0;
     }
 
@@ -2092,6 +2152,74 @@ DEFUN ("neomacs-image-floating-clear", Fneomacs_image_floating_clear, Sneomacs_i
   return Qt;
 }
 
+DEFUN ("neomacs-insert-image", Fneomacs_insert_image, Sneomacs_insert_image, 1, 3, 0,
+       doc: /* Insert image from FILE at point as an inline image.
+Optional MAX-WIDTH and MAX-HEIGHT limit the image dimensions (scales to fit).
+The image is loaded via GPU and displayed inline with text.
+Returns the neomacs image ID on success, nil on failure.
+
+This function bypasses Emacs's native image library requirements,
+using gdk-pixbuf to load PNG, JPEG, GIF, WebP, SVG, and other formats.  */)
+  (Lisp_Object file, Lisp_Object max_width, Lisp_Object max_height)
+{
+  CHECK_STRING (file);
+
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    {
+      error ("No neomacs display available");
+      return Qnil;
+    }
+
+  const char *path = SSDATA (file);
+  int mw = FIXNUMP (max_width) ? XFIXNUM (max_width) : 0;
+  int mh = FIXNUMP (max_height) ? XFIXNUM (max_height) : 0;
+
+  /* Load image via GPU backend */
+  uint32_t image_id;
+  if (mw > 0 || mh > 0)
+    image_id = neomacs_display_load_image_file_scaled (dpyinfo->display_handle, path, mw, mh);
+  else
+    image_id = neomacs_display_load_image_file (dpyinfo->display_handle, path);
+
+  if (image_id == 0)
+    {
+      error ("Failed to load image: %s", path);
+      return Qnil;
+    }
+
+  /* Get actual image dimensions */
+  int width, height;
+  if (neomacs_display_get_image_size (dpyinfo->display_handle, image_id, &width, &height) != 0)
+    {
+      error ("Failed to get image size");
+      return Qnil;
+    }
+
+  /* Create image spec for display property
+     Format: (image :type neomacs :neomacs-id ID :width W :height H :file PATH) */
+  Lisp_Object neomacs_id_sym = intern (":neomacs-id");
+
+  /* Build the plist manually */
+  Lisp_Object plist = Qnil;
+  plist = Fcons (file, plist);
+  plist = Fcons (QCfile, plist);
+  plist = Fcons (make_fixnum (height), plist);
+  plist = Fcons (QCheight, plist);
+  plist = Fcons (make_fixnum (width), plist);
+  plist = Fcons (QCwidth, plist);
+  plist = Fcons (make_fixnum (image_id), plist);
+  plist = Fcons (neomacs_id_sym, plist);
+  plist = Fcons (Qneomacs, plist);
+  plist = Fcons (QCtype, plist);
+
+  /* Final spec is (image :type neomacs ...) */
+  Lisp_Object spec = Fcons (Qimage, plist);
+
+  /* Just return the spec - let elisp do the insertion */
+  return spec;
+}
+
 
 /* ============================================================================
  * WebKit API
@@ -2618,6 +2746,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_image_free);
   defsubr (&Sneomacs_image_floating);
   defsubr (&Sneomacs_image_floating_clear);
+  defsubr (&Sneomacs_insert_image);
 
   /* WebKit browser functions */
   defsubr (&Sneomacs_webkit_init);

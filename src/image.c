@@ -1439,7 +1439,7 @@ image_size_error (void)
   image_error ("Invalid image size (see `max-image-size')");
 }
 
-
+
 /***********************************************************************
 			 Image specifications
  ***********************************************************************/
@@ -1736,7 +1736,7 @@ or omitted means use the selected frame.  */)
   return ext;
 }
 
-
+
 /***********************************************************************
 		 Image type independent image structures
  ***********************************************************************/
@@ -1860,15 +1860,26 @@ prepare_image_for_display (struct frame *f, struct image *img)
       if (img->cr_data == NULL || (cairo_pattern_get_type (img->cr_data)
 				   != CAIRO_PATTERN_TYPE_SURFACE))
 	{
-	  /* Fill in the background/background_transparent field while
-	     we have img->pixmap->data/img->mask->data.  */
-	  IMAGE_BACKGROUND (img, f, img->pixmap);
-	  IMAGE_BACKGROUND_TRANSPARENT (img, f, img->mask);
-	  cr_put_image_to_cr_data (img);
-	  if (img->cr_data == NULL)
+#ifdef HAVE_NEOMACS
+	  /* Neomacs images don't use Cairo pixmaps - GPU handles rendering.
+	     Skip Cairo-specific processing for neomacs image type.  */
+	  if (EQ (image_spec_value (img->spec, QCtype, NULL), Qneomacs))
 	    {
-	      img->load_failed_p = 1;
-	      img->type->free_img (f, img);
+	      /* Nothing to do - GPU will handle the image in neomacsterm.c */
+	    }
+	  else
+#endif
+	    {
+	      /* Fill in the background/background_transparent field while
+		 we have img->pixmap->data/img->mask->data.  */
+	      IMAGE_BACKGROUND (img, f, img->pixmap);
+	      IMAGE_BACKGROUND_TRANSPARENT (img, f, img->mask);
+	      cr_put_image_to_cr_data (img);
+	      if (img->cr_data == NULL)
+		{
+		  img->load_failed_p = 1;
+		  img->type->free_img (f, img);
+		}
 	    }
 	}
       unblock_input ();
@@ -1927,7 +1938,7 @@ image_ascent (struct image *img, struct face *face, struct glyph_slice *slice)
   return ascent;
 }
 
-
+
 /* Image background colors.  */
 
 /* Find the "best" corner color of a bitmap.
@@ -2182,7 +2193,7 @@ image_alloc_image_color (struct frame *f, struct image *img,
 }
 
 
-
+
 /***********************************************************************
 			     Image Cache
  ***********************************************************************/
@@ -3847,7 +3858,7 @@ mark_image_cache (struct image_cache *c)
 }
 
 
-
+
 /***********************************************************************
 			  X / NS / W32 support code
              Most of this code is shared with Android to make
@@ -4399,7 +4410,7 @@ image_unget_x_image (struct image *img, bool mask_p, Emacs_Pix_Container ximg)
 }
 #endif	/* !HAVE_NTGUI */
 
-
+
 /***********************************************************************
 			      File Handling
  ***********************************************************************/
@@ -4573,7 +4584,7 @@ slurp_image (Lisp_Object filename, ptrdiff_t *size, const char *image_type)
   return result;
 }
 
-
+
 /***********************************************************************
 			      XBM images
  ***********************************************************************/
@@ -5408,7 +5419,7 @@ xbm_load (struct frame *f, struct image *img)
 }
 
 
-
+
 /***********************************************************************
 			      XPM images
  ***********************************************************************/
@@ -6625,7 +6636,7 @@ xpm_load (struct frame *f,
 #endif /* HAVE_NS && !HAVE_XPM */
 
 
-
+
 /***********************************************************************
 			     Color table
  ***********************************************************************/
@@ -6898,7 +6909,7 @@ init_color_table (void)
 }
 #endif /* COLOR_TABLE_SUPPORT */
 
-
+
 /***********************************************************************
 			      Algorithms
  ***********************************************************************/
@@ -7469,7 +7480,7 @@ image_build_heuristic_mask (struct frame *f, struct image *img,
   image_unget_x_image_or_dc (img, 0, ximg, prev);
 }
 
-
+
 /***********************************************************************
 		       PBM (mono, gray, color)
  ***********************************************************************/
@@ -7850,7 +7861,7 @@ pbm_load (struct frame *f, struct image *img)
   return 1;
 }
 
-
+
 /***********************************************************************
 			    NATIVE IMAGE HANDLING
  ***********************************************************************/
@@ -7948,7 +7959,7 @@ native_image_load (struct frame *f, struct image *img)
 
 #endif	/* HAVE_NATIVE_IMAGE_API */
 
-
+
 /***********************************************************************
 				 PNG
  ***********************************************************************/
@@ -8612,7 +8623,7 @@ png_load (struct frame *f, struct image *img)
 #endif /* HAVE_PNG */
 
 
-
+
 /***********************************************************************
 				 JPEG
  ***********************************************************************/
@@ -9179,7 +9190,7 @@ jpeg_load (struct frame *f, struct image *img)
 #endif /* !HAVE_JPEG */
 
 
-
+
 /***********************************************************************
 				 TIFF
  ***********************************************************************/
@@ -9615,7 +9626,7 @@ tiff_load (struct frame *f, struct image *img)
 #endif
 
 
-
+
 /***********************************************************************
 				 GIF
  ***********************************************************************/
@@ -10349,7 +10360,7 @@ gif_load (struct frame *f, struct image *img)
 
 #ifdef HAVE_WEBP
 
-
+
 /***********************************************************************
 				 WebP
  ***********************************************************************/
@@ -10834,7 +10845,7 @@ webp_load (struct frame *f, struct image *img)
 
 #ifdef HAVE_IMAGEMAGICK
 
-
+
 /***********************************************************************
 				 ImageMagick
 ***********************************************************************/
@@ -11654,7 +11665,7 @@ and `imagemagick-types-inhibit'.  */)
 #endif	/* defined (HAVE_IMAGEMAGICK) */
 
 
-
+
 /***********************************************************************
 				 SVG
  ***********************************************************************/
@@ -12540,7 +12551,7 @@ svg_load_image (struct frame *f, struct image *img, char *contents,
 
 
 
-
+
 /***********************************************************************
 				Ghostscript
  ***********************************************************************/
@@ -12794,7 +12805,7 @@ x_kill_gs_process (Pixmap pixmap, struct frame *f)
 
 #endif /* HAVE_GHOSTSCRIPT */
 
-
+
 /***********************************************************************
 				Tests
  ***********************************************************************/
@@ -12923,6 +12934,100 @@ initialize_image_type (struct image_type const *type)
   return true;
 }
 
+#ifdef HAVE_NEOMACS
+/* Neomacs image type - images loaded via GPU backend (gdk-pixbuf).
+   This allows PNG, JPEG, GIF, WebP, SVG support without native libraries.
+   The actual image loading is done by neomacsterm.c via the Rust backend. */
+
+/* Indices of keywords in neomacs_format.  */
+enum neomacs_keyword_index
+{
+  NEOMACS_TYPE,
+  NEOMACS_FILE,
+  NEOMACS_DATA,
+  NEOMACS_ID,
+  NEOMACS_WIDTH,
+  NEOMACS_HEIGHT,
+  NEOMACS_MAX_WIDTH,
+  NEOMACS_MAX_HEIGHT,
+  NEOMACS_LAST
+};
+
+static const struct image_keyword neomacs_format[NEOMACS_LAST] =
+{
+  {":type",       IMAGE_SYMBOL_VALUE,                   1},
+  {":file",       IMAGE_STRING_VALUE,                   0},
+  {":data",       IMAGE_STRING_VALUE,                   0},
+  {":neomacs-id", IMAGE_POSITIVE_INTEGER_VALUE,         0},
+  {":width",      IMAGE_POSITIVE_INTEGER_VALUE,         0},
+  {":height",     IMAGE_POSITIVE_INTEGER_VALUE,         0},
+  {":max-width",  IMAGE_POSITIVE_INTEGER_VALUE,         0},
+  {":max-height", IMAGE_POSITIVE_INTEGER_VALUE,         0},
+};
+
+/* Return true if OBJECT is a valid neomacs image specification.  */
+static bool
+neomacs_image_p (Lisp_Object object)
+{
+  struct image_keyword kw[NEOMACS_LAST];
+  memcpy (kw, neomacs_format, sizeof kw);
+
+  if (!parse_image_spec (object, kw, NEOMACS_LAST, Qneomacs))
+    return 0;
+
+  /* Must have either :file, :data, or :neomacs-id.  */
+  if (!kw[NEOMACS_FILE].count && !kw[NEOMACS_DATA].count && !kw[NEOMACS_ID].count)
+    return 0;
+
+  return 1;
+}
+
+/* Load a neomacs image.
+   The actual GPU loading is deferred to neomacsterm.c when rendering.
+   Here we just mark the image as valid and set dimensions if known.  */
+static bool
+neomacs_load (struct frame *f, struct image *img)
+{
+  (void) f;  /* Unused for now, GPU loading deferred to neomacsterm.c */
+
+  Lisp_Object neomacs_id = image_spec_value (img->spec, intern (":neomacs-id"), NULL);
+  Lisp_Object width = image_spec_value (img->spec, QCwidth, NULL);
+  Lisp_Object height = image_spec_value (img->spec, QCheight, NULL);
+
+  /* If dimensions are specified, use them.  */
+  if (FIXNUMP (width) && FIXNUMP (height))
+    {
+      img->width = XFIXNUM (width);
+      img->height = XFIXNUM (height);
+    }
+  else if (FIXNUMP (neomacs_id))
+    {
+      /* Dimensions should have been set by neomacs-insert-image.
+         If not, use defaults.  */
+      img->width = img->width > 0 ? img->width : 100;
+      img->height = img->height > 0 ? img->height : 100;
+    }
+  else
+    {
+      /* No dimensions known - use defaults. The GPU backend will determine
+         actual size when loading.  */
+      img->width = 100;
+      img->height = 100;
+    }
+
+  /* Mark background as valid to prevent IMAGE_BACKGROUND macro from calling
+     image_background() which crashes with NULL pixmap. Neomacs doesn't use
+     traditional pixmaps - GPU handles everything.  */
+  img->background_valid = 1;
+  img->background = 0;  /* Default to black/transparent */
+  img->background_transparent_valid = 1;
+  img->background_transparent = 1;  /* Assume transparency support */
+
+  /* Mark as successfully loaded - actual GPU loading happens in neomacsterm.c */
+  return true;
+}
+#endif /* HAVE_NEOMACS */
+
 /* Array of supported image types.  */
 
 static struct image_type const image_types[] =
@@ -12962,6 +13067,9 @@ static struct image_type const image_types[] =
 #if defined HAVE_WEBP
  { SYMBOL_INDEX (Qwebp), webp_image_p, webp_load, image_clear_image,
    IMAGE_TYPE_INIT (init_webp_functions) },
+#endif
+#ifdef HAVE_NEOMACS
+ { SYMBOL_INDEX (Qneomacs), neomacs_image_p, neomacs_load, image_clear_image },
 #endif
  { SYMBOL_INDEX (Qxbm), xbm_image_p, xbm_load, image_clear_image },
  { SYMBOL_INDEX (Qpbm), pbm_image_p, pbm_load, image_clear_image },
@@ -13120,6 +13228,11 @@ non-numeric, there is no explicit limit on the size of images.  */);
 
   DEFSYM (Qxbm, "xbm");
   add_image_type (Qxbm);
+
+#ifdef HAVE_NEOMACS
+  DEFSYM (Qneomacs, "neomacs");
+  add_image_type (Qneomacs);
+#endif
 
 #if defined (HAVE_XPM) || defined (HAVE_NS) \
   || defined (HAVE_HAIKU) || defined (HAVE_PGTK) \

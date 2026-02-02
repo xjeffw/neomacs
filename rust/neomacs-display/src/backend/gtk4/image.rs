@@ -82,9 +82,59 @@ impl ImageCache {
     }
 
     /// Load an image from file path
-    pub fn load_from_file(&mut self, path: &Path) -> DisplayResult<u32> {
-        let pixbuf = Pixbuf::from_file(path)
+    pub fn load_from_file<P: AsRef<Path>>(&mut self, path: P) -> DisplayResult<u32> {
+        let pixbuf = Pixbuf::from_file(path.as_ref())
             .map_err(|e| DisplayError::Backend(format!("Failed to load image: {}", e)))?;
+
+        let surface = pixbuf_to_surface(&pixbuf)?;
+
+        let id = self.next_id;
+        self.next_id += 1;
+
+        self.images.insert(id, CachedImage {
+            width: pixbuf.width(),
+            height: pixbuf.height(),
+            surface,
+            texture: None,
+            frames: None,
+            current_frame: 0,
+            is_animated: false,
+        });
+
+        Ok(id)
+    }
+
+    /// Load an image from file path with optional scaling
+    /// If max_width or max_height is None, that dimension is not constrained
+    /// The image maintains aspect ratio
+    pub fn load_from_file_scaled<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        max_width: Option<i32>,
+        max_height: Option<i32>,
+    ) -> DisplayResult<u32> {
+        let pixbuf = match (max_width, max_height) {
+            (Some(w), Some(h)) => {
+                // Scale to fit within bounds, preserving aspect ratio
+                Pixbuf::from_file_at_scale(path.as_ref(), w, h, true)
+                    .map_err(|e| DisplayError::Backend(format!("Failed to load scaled image: {}", e)))?
+            }
+            (Some(w), None) => {
+                // Scale by width only
+                Pixbuf::from_file_at_scale(path.as_ref(), w, -1, true)
+                    .map_err(|e| DisplayError::Backend(format!("Failed to load scaled image: {}", e)))?
+            }
+            (None, Some(h)) => {
+                // Scale by height only
+                Pixbuf::from_file_at_scale(path.as_ref(), -1, h, true)
+                    .map_err(|e| DisplayError::Backend(format!("Failed to load scaled image: {}", e)))?
+            }
+            (None, None) => {
+                // No scaling - load at full resolution
+                Pixbuf::from_file(path.as_ref())
+                    .map_err(|e| DisplayError::Backend(format!("Failed to load image: {}", e)))?
+            }
+        };
 
         let surface = pixbuf_to_surface(&pixbuf)?;
 

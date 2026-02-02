@@ -658,6 +658,21 @@ pub unsafe extern "C" fn neomacs_display_add_image_glyph(
     let display = &mut *handle;
     let current_y = display.current_row_y;  // Frame-absolute Y
     let current_x = display.current_row_x;
+
+    // Hybrid path: append directly to frame glyph buffer
+    if display.use_hybrid {
+        display.frame_glyphs.add_image(
+            image_id,
+            current_x as f32,
+            current_y as f32,
+            pixel_width as f32,
+            pixel_height as f32,
+        );
+        display.current_row_x += pixel_width;
+        return;
+    }
+
+    // Legacy scene graph path
     let current_window_id = display.current_window_id;
 
     // Find the correct window by ID
@@ -1190,6 +1205,64 @@ pub unsafe extern "C" fn neomacs_display_load_image_rgb24(
         Ok(id) => id,
         Err(e) => {
             eprintln!("Failed to load RGB24 image: {}", e);
+            0
+        }
+    }
+}
+
+/// Load an image from a file path
+/// Returns image_id on success, 0 on failure
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_load_image_file(
+    handle: *mut NeomacsDisplay,
+    path: *const c_char,
+) -> u32 {
+    if handle.is_null() || path.is_null() {
+        return 0;
+    }
+
+    let display = &mut *handle;
+    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+
+    match display.image_cache.load_from_file(path_str) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("Failed to load image file '{}': {}", path_str, e);
+            0
+        }
+    }
+}
+
+/// Load an image from a file path with scaling
+/// If max_width or max_height is 0, that dimension is not constrained
+/// Returns image_id on success, 0 on failure
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_load_image_file_scaled(
+    handle: *mut NeomacsDisplay,
+    path: *const c_char,
+    max_width: c_int,
+    max_height: c_int,
+) -> u32 {
+    if handle.is_null() || path.is_null() {
+        return 0;
+    }
+
+    let display = &mut *handle;
+    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+
+    let max_w = if max_width > 0 { Some(max_width) } else { None };
+    let max_h = if max_height > 0 { Some(max_height) } else { None };
+
+    match display.image_cache.load_from_file_scaled(path_str, max_w, max_h) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("Failed to load scaled image file '{}': {}", path_str, e);
             0
         }
     }

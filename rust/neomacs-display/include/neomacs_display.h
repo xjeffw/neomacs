@@ -236,6 +236,22 @@ uint32_t neomacs_display_load_image_rgb24(struct NeomacsDisplay *handle,
                                           int stride);
 
 /**
+ * Load an image from a file path
+ * Returns image_id on success, 0 on failure
+ */
+uint32_t neomacs_display_load_image_file(struct NeomacsDisplay *handle, const char *path);
+
+/**
+ * Load an image from a file path with scaling
+ * If max_width or max_height is 0, that dimension is not constrained
+ * Returns image_id on success, 0 on failure
+ */
+uint32_t neomacs_display_load_image_file_scaled(struct NeomacsDisplay *handle,
+                                                const char *path,
+                                                int maxWidth,
+                                                int maxHeight);
+
+/**
  * Get image dimensions
  * Returns 0 on success, -1 on failure
  */

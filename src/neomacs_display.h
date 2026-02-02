@@ -12,6 +12,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/* Type for resize callback function pointer */
+typedef void (*ResizeCallbackFn)(void *user_data, int width, int height);
+
 #define DRM_FORMAT_ARGB8888 875713089
 
 #define DRM_FORMAT_XRGB8888 875713112
@@ -19,11 +22,6 @@
 #define DRM_FORMAT_ABGR8888 875708993
 
 #define DRM_FORMAT_XBGR8888 875709016
-
-/**
- * Type for the resize callback function pointer from C
- */
-typedef void (*ResizeCallbackFn)(void *user_data, int width, int height);
 
 /**
  * Backend type selection
@@ -239,6 +237,22 @@ uint32_t neomacs_display_load_image_rgb24(struct NeomacsDisplay *handle,
                                           int width,
                                           int height,
                                           int stride);
+
+/**
+ * Load an image from a file path
+ * Returns image_id on success, 0 on failure
+ */
+uint32_t neomacs_display_load_image_file(struct NeomacsDisplay *handle, const char *path);
+
+/**
+ * Load an image from a file path with scaling
+ * If max_width or max_height is 0, that dimension is not constrained
+ * Returns image_id on success, 0 on failure
+ */
+uint32_t neomacs_display_load_image_file_scaled(struct NeomacsDisplay *handle,
+                                                const char *path,
+                                                int maxWidth,
+                                                int maxHeight);
 
 /**
  * Get image dimensions
