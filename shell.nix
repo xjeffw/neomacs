@@ -55,6 +55,9 @@ pkgs.mkShell {
     # libsoup for HTTP
     libsoup_3
     
+    # GLib networking for TLS/HTTPS support
+    glib-networking
+    
     # Image libraries
     libjpeg
     libtiff
@@ -169,6 +172,9 @@ pkgs.mkShell {
     # Use wpebackend-fdo as the default backend
     export WPE_BACKEND_LIBRARY="${wpebackendFdo}/lib/libWPEBackend-fdo-1.0.so"
     
+    # GIO modules for TLS/HTTPS support (glib-networking)
+    export GIO_MODULE_DIR="${pkgs.glib-networking}/lib/gio/modules"
+    
     # Disable WebKit sandbox (needed for Nix environment)
     export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
     
@@ -187,6 +193,7 @@ pkgs.mkShell {
     ${if wpewebkit != null then ''
     echo "WPE WebKit environment ready"
     echo "  WPE_BACKEND_LIBRARY=$WPE_BACKEND_LIBRARY"
+    echo "  GIO_MODULE_DIR=$GIO_MODULE_DIR"
     '' else ""}
   '';
 }
