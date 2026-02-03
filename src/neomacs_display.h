@@ -426,6 +426,20 @@ void neomacs_display_clear_all_borders(struct NeomacsDisplay *handle);
 int neomacs_display_end_frame(struct NeomacsDisplay *handle);
 
 /**
+ * Begin a frame for a specific window.
+ *
+ * Clears the window's scene to prepare for new content.
+ */
+void neomacs_display_begin_frame_window(struct NeomacsDisplay *handle, uint32_t windowId);
+
+/**
+ * End a frame for a specific window and present it.
+ *
+ * Renders the window's scene to its surface and presents it.
+ */
+void neomacs_display_end_frame_window(struct NeomacsDisplay *handle, uint32_t windowId);
+
+/**
  * Render the scene to an external Cairo context (stub)
  */
 int neomacs_display_render_to_cairo(struct NeomacsDisplay *handle, void *cairoContext);

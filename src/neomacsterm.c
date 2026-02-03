@@ -524,7 +524,12 @@ neomacs_update_begin (struct frame *f)
       if (windows_or_buffers_changed)
         neomacs_display_clear_all_borders (dpyinfo->display_handle);
 
-      neomacs_display_begin_frame (dpyinfo->display_handle);
+      /* Use window-targeted begin_frame if we have a winit window */
+      struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
+      if (output && output->window_id > 0)
+        neomacs_display_begin_frame_window (dpyinfo->display_handle, output->window_id);
+      else
+        neomacs_display_begin_frame (dpyinfo->display_handle);
     }
 }
 
@@ -537,7 +542,13 @@ neomacs_update_end (struct frame *f)
   int result = 0;
 
   if (dpyinfo && dpyinfo->display_handle)
-    result = neomacs_display_end_frame (dpyinfo->display_handle);
+    {
+      /* Use window-targeted end_frame if we have a winit window */
+      if (output && output->window_id > 0)
+        neomacs_display_end_frame_window (dpyinfo->display_handle, output->window_id);
+      else
+        result = neomacs_display_end_frame (dpyinfo->display_handle);
+    }
 
   /* If Rust cleared glyphs due to layout change (result=1), mark windows inaccurate
      so Emacs will resend all content on the next frame.  */
