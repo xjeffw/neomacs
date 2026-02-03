@@ -50,6 +50,15 @@ pub struct Callbacks {
     pub on_close: Option<Box<dyn Fn() + Send>>,
 }
 
+/// Pending window creation request.
+#[derive(Debug)]
+pub struct PendingWindowRequest {
+    pub width: u32,
+    pub height: u32,
+    pub title: String,
+    pub assigned_id: u32,
+}
+
 /// Winit-based window and input backend.
 pub struct WinitBackend {
     /// Whether the backend has been initialized.
@@ -78,6 +87,8 @@ pub struct WinitBackend {
     instance: Option<wgpu::Instance>,
     /// The wgpu device for GPU operations.
     device: Option<Arc<wgpu::Device>>,
+    /// The wgpu queue for GPU operations.
+    queue: Option<Arc<wgpu::Queue>>,
     /// The surface format for rendering.
     surface_format: wgpu::TextureFormat,
     /// The active event loop reference (only valid during event handling).
@@ -92,6 +103,10 @@ pub struct WinitBackend {
     current_modifiers: u32,
     /// Current mouse position.
     mouse_position: (i32, i32),
+    /// Pending window creation requests.
+    pending_windows: Vec<PendingWindowRequest>,
+    /// Whether wgpu has been initialized.
+    wgpu_initialized: bool,
 }
 
 impl WinitBackend {
@@ -111,6 +126,7 @@ impl WinitBackend {
             cursor_position: (0.0, 0.0),
             instance: None,
             device: None,
+            queue: None,
             surface_format: wgpu::TextureFormat::Bgra8UnormSrgb,
             event_loop: None,
             windows: HashMap::new(),
@@ -118,6 +134,133 @@ impl WinitBackend {
             event_queue: VecDeque::new(),
             current_modifiers: 0,
             mouse_position: (0, 0),
+            pending_windows: Vec::new(),
+            wgpu_initialized: false,
+        }
+    }
+
+    /// Initialize wgpu without a window (headless mode).
+    /// This allows us to create devices and surfaces when windows are created later.
+    pub fn init_wgpu_headless(&mut self) -> DisplayResult<()> {
+        if self.wgpu_initialized {
+            return Ok(());
+        }
+
+        // Create wgpu instance
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        });
+
+        // Request adapter without a surface (headless)
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: None,
+            force_fallback_adapter: false,
+        }))
+        .ok_or_else(|| DisplayError::InitFailed("Failed to find a suitable GPU adapter".to_string()))?;
+
+        // Request device and queue
+        let (device, queue) = pollster::block_on(adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                label: Some("Neomacs Device"),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+                memory_hints: Default::default(),
+            },
+            None,
+        ))
+        .map_err(|e| DisplayError::InitFailed(format!("Failed to create device: {}", e)))?;
+
+        let device = Arc::new(device);
+        let queue = Arc::new(queue);
+
+        // Get preferred surface format
+        let caps = adapter.get_texture_format_features(wgpu::TextureFormat::Bgra8UnormSrgb);
+        let format = if caps.allowed_usages.contains(wgpu::TextureUsages::RENDER_ATTACHMENT) {
+            wgpu::TextureFormat::Bgra8UnormSrgb
+        } else {
+            wgpu::TextureFormat::Rgba8UnormSrgb
+        };
+
+        self.instance = Some(instance);
+        self.device = Some(device);
+        self.queue = Some(queue);
+        self.surface_format = format;
+        self.wgpu_initialized = true;
+        self.initialized = true;
+
+        log::info!("wgpu initialized in headless mode");
+        Ok(())
+    }
+
+    /// Queue a window creation request. The window will be created during the next poll_events call.
+    pub fn queue_window_request(&mut self, width: u32, height: u32, title: &str) -> u32 {
+        let window_id = self.next_window_id;
+        self.next_window_id += 1;
+
+        self.pending_windows.push(PendingWindowRequest {
+            width,
+            height,
+            title: title.to_string(),
+            assigned_id: window_id,
+        });
+
+        log::info!("Queued window creation request: id={}, {}x{}, title={}", window_id, width, height, title);
+        window_id
+    }
+
+    /// Process pending window creation requests.
+    /// This should be called when the ActiveEventLoop is available.
+    pub fn process_pending_windows(&mut self, event_loop: &ActiveEventLoop) {
+        let pending = std::mem::take(&mut self.pending_windows);
+
+        for req in pending {
+            log::info!("Processing pending window: id={}", req.assigned_id);
+
+            let window_attrs = winit::window::WindowAttributes::default()
+                .with_title(&req.title)
+                .with_inner_size(winit::dpi::PhysicalSize::new(req.width, req.height));
+
+            match event_loop.create_window(window_attrs) {
+                Ok(window) => {
+                    let window = Arc::new(window);
+
+                    if let (Some(instance), Some(device)) = (&self.instance, &self.device) {
+                        match instance.create_surface(window.clone()) {
+                            Ok(surface) => {
+                                let config = wgpu::SurfaceConfiguration {
+                                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                                    format: self.surface_format,
+                                    width: req.width,
+                                    height: req.height,
+                                    present_mode: wgpu::PresentMode::Fifo,
+                                    alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+                                    view_formats: vec![],
+                                    desired_maximum_frame_latency: 2,
+                                };
+                                surface.configure(device, &config);
+
+                                let state = WindowState::new(window.clone(), surface, config, req.width, req.height);
+                                self.windows.insert(req.assigned_id, state);
+
+                                // Show the window
+                                window.set_visible(true);
+
+                                log::info!("Window {} created successfully", req.assigned_id);
+                            }
+                            Err(e) => {
+                                log::error!("Failed to create surface for window {}: {}", req.assigned_id, e);
+                            }
+                        }
+                    } else {
+                        log::error!("wgpu not initialized, cannot create window surface");
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to create window {}: {}", req.assigned_id, e);
+                }
+            }
         }
     }
 
@@ -483,6 +626,47 @@ impl WinitBackend {
     /// Get a mutable reference to a window's scene.
     pub fn get_scene_mut(&mut self, window_id: u32) -> Option<&mut crate::core::scene::Scene> {
         self.windows.get_mut(&window_id).map(|s| &mut s.scene)
+    }
+
+    /// Public wrapper for translate_key.
+    pub fn translate_key_public(&self, key: &Key) -> u32 {
+        self.translate_key(key)
+    }
+
+    /// Get current modifier key state.
+    pub fn get_current_modifiers(&self) -> u32 {
+        self.current_modifiers
+    }
+
+    /// Update modifier key state from winit ModifiersState.
+    pub fn update_modifiers(&mut self, modifiers: &winit::event::Modifiers) {
+        use super::events::*;
+
+        let state = modifiers.state();
+        let mut result = 0u32;
+        if state.shift_key() {
+            result |= NEOMACS_SHIFT_MASK;
+        }
+        if state.control_key() {
+            result |= NEOMACS_CTRL_MASK;
+        }
+        if state.alt_key() {
+            result |= NEOMACS_META_MASK;
+        }
+        if state.super_key() {
+            result |= NEOMACS_SUPER_MASK;
+        }
+        self.current_modifiers = result;
+    }
+
+    /// Update mouse position.
+    pub fn update_mouse_position(&mut self, x: i32, y: i32) {
+        self.mouse_position = (x, y);
+    }
+
+    /// Get current mouse position.
+    pub fn get_mouse_position(&self) -> (i32, i32) {
+        self.mouse_position
     }
 }
 

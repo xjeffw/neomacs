@@ -23,19 +23,25 @@
 
 #define NEOMACS_SUPER_MASK (1 << 3)
 
-/**
- * Event kinds for NeomacsInputEvent.kind
- */
-#define NEOMACS_EVENT_KEY_PRESS     1
-#define NEOMACS_EVENT_KEY_RELEASE   2
-#define NEOMACS_EVENT_MOUSE_PRESS   3
-#define NEOMACS_EVENT_MOUSE_RELEASE 4
-#define NEOMACS_EVENT_MOUSE_MOVE    5
-#define NEOMACS_EVENT_SCROLL        6
-#define NEOMACS_EVENT_RESIZE        7
-#define NEOMACS_EVENT_CLOSE_REQUEST 8
-#define NEOMACS_EVENT_FOCUS_IN      9
-#define NEOMACS_EVENT_FOCUS_OUT     10
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #define DRM_FORMAT_ARGB8888 875713089
 
@@ -674,7 +680,8 @@ void neomacs_display_add_wpe_glyph(struct NeomacsDisplay *handle,
 /**
  * Create a new window with the specified dimensions and title.
  *
- * Returns the window ID if successful, or 0 if creation failed.
+ * Returns the window ID. The window will be created during the next poll_events call.
+ * Returns 0 if the backend is not available.
  */
 uint32_t neomacs_display_create_window(struct NeomacsDisplay *handle,
                                        int32_t width,
@@ -729,6 +736,9 @@ void neomacs_display_set_event_callback(EventCallback callback);
 
 /**
  * Poll for input events and invoke the callback for each event.
+ *
+ * This uses winit's pump_events to process the event loop non-blocking,
+ * creates any pending windows, and delivers input events via callback.
  *
  * Returns the number of events processed.
  */

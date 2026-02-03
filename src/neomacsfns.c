@@ -1154,6 +1154,9 @@ neomacs_create_frame_widgets (struct frame *f)
           output->window_id = window_id;
           output->window_desc = (Window) window_id;
 
+          /* Process the event loop to actually create the window */
+          neomacs_display_poll_events (dpyinfo->display_handle);
+
           /* Show the window */
           neomacs_display_show_window (dpyinfo->display_handle, window_id, true);
 
@@ -1182,7 +1185,7 @@ neomacs_create_frame_widgets (struct frame *f)
   /* GTK fallback path - only used if winit is disabled or fails */
   if (use_gtk_fallback)
     {
-      GtkWidget *window, *drawing_area;
+      GtkWidget *window, *drawing_area = NULL;
       GtkEventController *key_controller, *focus_controller, *motion_controller, *scroll_controller;
       int use_gpu_widget = 1;
 
@@ -1209,6 +1212,11 @@ neomacs_create_frame_widgets (struct frame *f)
               fprintf (stderr, "Failed to create NeomacsWidget, falling back to DrawingArea\n");
               use_gpu_widget = 0;
             }
+        }
+      else
+        {
+          /* dpyinfo not available, fall back to DrawingArea */
+          use_gpu_widget = 0;
         }
 
       if (!use_gpu_widget)

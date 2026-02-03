@@ -40,7 +40,15 @@ pub use transition::{TransitionType, BufferTransition, TransitionManager};
 #[cfg(feature = "winit-backend")]
 pub use window_state::WindowState;
 #[cfg(feature = "winit-backend")]
-pub use events::{EventKind, NeomacsInputEvent, NEOMACS_SHIFT_MASK, NEOMACS_CTRL_MASK, NEOMACS_META_MASK, NEOMACS_SUPER_MASK};
+pub use events::{
+    EventKind, NeomacsInputEvent,
+    NEOMACS_SHIFT_MASK, NEOMACS_CTRL_MASK, NEOMACS_META_MASK, NEOMACS_SUPER_MASK,
+    NEOMACS_EVENT_KEY_PRESS, NEOMACS_EVENT_KEY_RELEASE,
+    NEOMACS_EVENT_BUTTON_PRESS, NEOMACS_EVENT_BUTTON_RELEASE,
+    NEOMACS_EVENT_MOUSE_MOVE, NEOMACS_EVENT_SCROLL,
+    NEOMACS_EVENT_RESIZE, NEOMACS_EVENT_CLOSE,
+    NEOMACS_EVENT_FOCUS_IN, NEOMACS_EVENT_FOCUS_OUT,
+};
 
 #[cfg(all(feature = "wpe-webkit", target_os = "linux"))]
 mod webkit_cache;

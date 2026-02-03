@@ -294,7 +294,7 @@ neomacs_open_display (const char *display_name)
   neomacs_initialize_display_info (dpyinfo);
 
   /* Initialize the Rust display engine */
-  dpyinfo->display_handle = neomacs_display_init (BACKEND_TYPE_GTK4);
+  dpyinfo->display_handle = neomacs_display_init (BACKEND_TYPE_WGPU);
 
   if (!dpyinfo->display_handle)
     {
