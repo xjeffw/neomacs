@@ -440,6 +440,50 @@ impl WinitBackend {
             _ => 0,
         }
     }
+
+    /// Begin a frame for a specific window.
+    ///
+    /// Clears the window's scene to prepare for new content.
+    pub fn begin_frame_for_window(&mut self, window_id: u32) {
+        if let Some(state) = self.windows.get_mut(&window_id) {
+            state.scene.clear();
+        }
+    }
+
+    /// End a frame for a specific window and present it.
+    ///
+    /// Renders the window's scene to its surface and presents it.
+    pub fn end_frame_for_window(&mut self, window_id: u32) {
+        let renderer = match &self.renderer {
+            Some(r) => r,
+            None => return,
+        };
+
+        let state = match self.windows.get_mut(&window_id) {
+            Some(s) => s,
+            None => return,
+        };
+
+        let output = match state.surface.get_current_texture() {
+            Ok(t) => t,
+            Err(e) => {
+                log::warn!("Failed to get surface texture: {:?}", e);
+                return;
+            }
+        };
+
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        renderer.render_to_view(&view, &state.scene);
+
+        output.present();
+        state.window.request_redraw();
+    }
+
+    /// Get a mutable reference to a window's scene.
+    pub fn get_scene_mut(&mut self, window_id: u32) -> Option<&mut crate::core::scene::Scene> {
+        self.windows.get_mut(&window_id).map(|s| &mut s.scene)
+    }
 }
 
 impl Default for WinitBackend {

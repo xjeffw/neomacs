@@ -2450,6 +2450,42 @@ pub extern "C" fn neomacs_display_set_window_size(
 }
 
 // ============================================================================
+// Window-Targeted Rendering FFI Functions
+// ============================================================================
+
+/// Begin a frame for a specific window.
+///
+/// Clears the window's scene to prepare for new content.
+#[no_mangle]
+pub extern "C" fn neomacs_display_begin_frame_window(
+    handle: *mut NeomacsDisplay,
+    window_id: u32,
+) {
+    let display = unsafe { &mut *handle };
+
+    #[cfg(feature = "winit-backend")]
+    if let Some(ref mut backend) = display.winit_backend {
+        backend.begin_frame_for_window(window_id);
+    }
+}
+
+/// End a frame for a specific window and present it.
+///
+/// Renders the window's scene to its surface and presents it.
+#[no_mangle]
+pub extern "C" fn neomacs_display_end_frame_window(
+    handle: *mut NeomacsDisplay,
+    window_id: u32,
+) {
+    let display = unsafe { &mut *handle };
+
+    #[cfg(feature = "winit-backend")]
+    if let Some(ref mut backend) = display.winit_backend {
+        backend.end_frame_for_window(window_id);
+    }
+}
+
+// ============================================================================
 // Event Polling FFI Functions
 // ============================================================================
 

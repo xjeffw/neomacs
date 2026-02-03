@@ -707,6 +707,20 @@ void neomacs_display_set_window_size(struct NeomacsDisplay *handle,
                                      int32_t height);
 
 /**
+ * Begin a frame for a specific window.
+ *
+ * Clears the window's scene to prepare for new content.
+ */
+void neomacs_display_begin_frame_window(struct NeomacsDisplay *handle, uint32_t windowId);
+
+/**
+ * End a frame for a specific window and present it.
+ *
+ * Renders the window's scene to its surface and presents it.
+ */
+void neomacs_display_end_frame_window(struct NeomacsDisplay *handle, uint32_t windowId);
+
+/**
  * Set the event callback function.
  *
  * The callback will be invoked for each input event when polling.
