@@ -28,6 +28,7 @@ pub enum UserEvent {
 }
 
 /// Callbacks for handling window events.
+#[derive(Default)]
 pub struct Callbacks {
     /// Called when a keyboard event occurs.
     pub on_key: Option<Box<dyn Fn(KeyEvent) + Send>>,
@@ -39,18 +40,6 @@ pub struct Callbacks {
     pub on_resize: Option<Box<dyn Fn(u32, u32) + Send>>,
     /// Called when the window close is requested.
     pub on_close: Option<Box<dyn Fn() + Send>>,
-}
-
-impl Default for Callbacks {
-    fn default() -> Self {
-        Self {
-            on_key: None,
-            on_mouse_button: None,
-            on_mouse_move: None,
-            on_resize: None,
-            on_close: None,
-        }
-    }
 }
 
 /// Winit-based window and input backend.
@@ -284,8 +273,9 @@ impl WinitBackend {
             renderer.resize(size.width, size.height);
         }
 
-        // Update scene dimensions
-        self.scene = Scene::new(size.width as f32, size.height as f32);
+        // Update scene dimensions without discarding content
+        self.scene.width = size.width as f32;
+        self.scene.height = size.height as f32;
 
         // Call the resize callback
         if let Some(ref callback) = self.callbacks.on_resize {
