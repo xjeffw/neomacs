@@ -2221,12 +2221,12 @@ using gdk-pixbuf to load PNG, JPEG, GIF, WebP, SVG, and other formats.  */)
   int mw = FIXNUMP (max_width) ? XFIXNUM (max_width) : 0;
   int mh = FIXNUMP (max_height) ? XFIXNUM (max_height) : 0;
 
-  /* Load image via GPU backend */
+  /* Load image via GPU backend using direct GdkTexture path */
   uint32_t image_id;
   if (mw > 0 || mh > 0)
-    image_id = neomacs_display_load_image_file_scaled (dpyinfo->display_handle, path, mw, mh);
+    image_id = neomacs_display_load_image_file_direct_scaled (dpyinfo->display_handle, path, mw, mh);
   else
-    image_id = neomacs_display_load_image_file (dpyinfo->display_handle, path);
+    image_id = neomacs_display_load_image_file_direct (dpyinfo->display_handle, path);
 
   if (image_id == 0)
     {

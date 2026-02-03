@@ -1314,6 +1314,64 @@ pub unsafe extern "C" fn neomacs_display_load_image_file_scaled(
     }
 }
 
+/// Load an image directly as GdkTexture (potentially faster, GPU-optimized)
+/// Skips Pixbuf → Cairo Surface intermediate conversions
+/// Returns image_id on success, 0 on failure
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_load_image_file_direct(
+    handle: *mut NeomacsDisplay,
+    path: *const c_char,
+) -> u32 {
+    if handle.is_null() || path.is_null() {
+        return 0;
+    }
+
+    let display = &mut *handle;
+    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+
+    match display.image_cache.load_from_file_direct(path_str) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("Failed to load image file direct '{}': {}", path_str, e);
+            0
+        }
+    }
+}
+
+/// Load an image directly as GdkTexture with scaling
+/// Returns image_id on success, 0 on failure
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_load_image_file_direct_scaled(
+    handle: *mut NeomacsDisplay,
+    path: *const c_char,
+    max_width: c_int,
+    max_height: c_int,
+) -> u32 {
+    if handle.is_null() || path.is_null() {
+        return 0;
+    }
+
+    let display = &mut *handle;
+    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+
+    let max_w = if max_width > 0 { Some(max_width) } else { None };
+    let max_h = if max_height > 0 { Some(max_height) } else { None };
+
+    match display.image_cache.load_from_file_direct_scaled(path_str, max_w, max_h) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("Failed to load direct scaled image '{}': {}", path_str, e);
+            0
+        }
+    }
+}
+
 /// Get image dimensions
 /// Returns 0 on success, -1 on failure
 #[no_mangle]

@@ -263,6 +263,22 @@ uint32_t neomacs_display_load_image_file_scaled(struct NeomacsDisplay *handle,
                                                 int maxHeight);
 
 /**
+ * Load an image directly as GdkTexture (potentially faster, GPU-optimized)
+ * Skips Pixbuf → Cairo Surface intermediate conversions
+ * Returns image_id on success, 0 on failure
+ */
+uint32_t neomacs_display_load_image_file_direct(struct NeomacsDisplay *handle, const char *path);
+
+/**
+ * Load an image directly as GdkTexture with scaling
+ * Returns image_id on success, 0 on failure
+ */
+uint32_t neomacs_display_load_image_file_direct_scaled(struct NeomacsDisplay *handle,
+                                                       const char *path,
+                                                       int maxWidth,
+                                                       int maxHeight);
+
+/**
  * Get image dimensions
  * Returns 0 on success, -1 on failure
  */

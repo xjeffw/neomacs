@@ -7,6 +7,7 @@ use gtk4::cairo;
 use gtk4::gdk;
 use gtk4::gdk_pixbuf::{InterpType, Pixbuf, PixbufLoader};
 use gtk4::gdk_pixbuf::prelude::*;
+use gtk4::prelude::TextureExt;
 use gtk4::glib;
 
 use crate::core::error::{DisplayError, DisplayResult};
@@ -430,6 +431,91 @@ impl ImageCache {
         }
 
         Some(delay_ms)
+    }
+
+    /// Load an image directly as GdkTexture (potentially more efficient)
+    /// Skips Pixbuf → Cairo Surface intermediate steps
+    pub fn load_from_file_direct<P: AsRef<Path>>(&mut self, path: P) -> DisplayResult<u32> {
+        use gtk4::gio;
+
+        let file = gio::File::for_path(path.as_ref());
+        let texture = gdk::Texture::from_file(&file)
+            .map_err(|e| DisplayError::Backend(format!("Failed to load texture: {}", e)))?;
+
+        let width = texture.width();
+        let height = texture.height();
+
+        // Create a minimal Cairo surface (1x1) as placeholder since CachedImage requires it
+        // The actual rendering will use the texture directly
+        let surface = cairo::ImageSurface::create(cairo::Format::ARgb32, 1, 1)
+            .map_err(|e| DisplayError::Backend(format!("Failed to create surface: {}", e)))?;
+
+        let id = self.next_id;
+        self.next_id += 1;
+
+        self.images.insert(id, CachedImage {
+            width,
+            height,
+            surface,
+            texture: Some(texture.clone()),  // Store texture directly
+            frames: None,
+            current_frame: 0,
+            is_animated: false,
+        });
+
+        Ok(id)
+    }
+
+    /// Load an image directly as GdkTexture with scaling
+    pub fn load_from_file_direct_scaled<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        max_width: Option<i32>,
+        max_height: Option<i32>,
+    ) -> DisplayResult<u32> {
+        use gtk4::gio;
+
+        // GdkTexture::from_file doesn't support scaling, so we need to:
+        // 1. Load the texture
+        // 2. If scaling needed, fall back to pixbuf path
+
+        let file = gio::File::for_path(path.as_ref());
+        let texture = gdk::Texture::from_file(&file)
+            .map_err(|e| DisplayError::Backend(format!("Failed to load texture: {}", e)))?;
+
+        let orig_w = texture.width();
+        let orig_h = texture.height();
+
+        // Check if scaling is needed
+        let needs_scale = match (max_width, max_height) {
+            (Some(mw), _) if orig_w > mw => true,
+            (_, Some(mh)) if orig_h > mh => true,
+            _ => false,
+        };
+
+        if needs_scale {
+            // Fall back to pixbuf path for scaling
+            return self.load_from_file_scaled(path, max_width, max_height);
+        }
+
+        // No scaling needed, use texture directly
+        let surface = cairo::ImageSurface::create(cairo::Format::ARgb32, 1, 1)
+            .map_err(|e| DisplayError::Backend(format!("Failed to create surface: {}", e)))?;
+
+        let id = self.next_id;
+        self.next_id += 1;
+
+        self.images.insert(id, CachedImage {
+            width: orig_w,
+            height: orig_h,
+            surface,
+            texture: Some(texture.clone()),
+            frames: None,
+            current_frame: 0,
+            is_animated: false,
+        });
+
+        Ok(id)
     }
 
     /// Remove an image from cache
