@@ -14,8 +14,10 @@ include_version = false
 # Only export items marked with #[no_mangle]
 prefix = ""
 include = []
-exclude = []
-item_types = ["functions", "enums", "structs", "constants"]
+# Exclude internal types that conflict with system headers
+exclude = ["GMainContext", "g_main_context_default", "g_main_context_iteration"]
+# Include typedefs for callback functions
+item_types = ["functions", "enums", "structs", "constants", "typedefs"]
 
 [parse]
 parse_deps = false

@@ -2458,6 +2458,26 @@ Returns t on success, nil on failure.  */)
   return result == 0 ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-webkit-resize", Fneomacs_webkit_resize, Sneomacs_webkit_resize, 3, 3, 0,
+       doc: /* Resize WebKit view VIEW-ID to WIDTH x HEIGHT pixels.
+Returns t on success, nil on failure.  */)
+  (Lisp_Object view_id, Lisp_Object width, Lisp_Object height)
+{
+  CHECK_FIXNUM (view_id);
+  CHECK_FIXNUM (width);
+  CHECK_FIXNUM (height);
+
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int result = neomacs_display_webkit_resize (dpyinfo->display_handle,
+                                              (uint32_t) XFIXNUM (view_id),
+                                              (int) XFIXNUM (width),
+                                              (int) XFIXNUM (height));
+  return result == 0 ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-webkit-execute-js", Fneomacs_webkit_execute_js, Sneomacs_webkit_execute_js, 2, 2, 0,
        doc: /* Execute JavaScript SCRIPT in WebKit view VIEW-ID.
 Returns t on success, nil on failure.  */)
@@ -3168,6 +3188,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_webkit_go_back);
   defsubr (&Sneomacs_webkit_go_forward);
   defsubr (&Sneomacs_webkit_reload);
+  defsubr (&Sneomacs_webkit_resize);
   defsubr (&Sneomacs_webkit_execute_js);
   defsubr (&Sneomacs_webkit_floating);
   defsubr (&Sneomacs_webkit_floating_clear);

@@ -17,14 +17,14 @@
 
 ;;; Code:
 
-(defvar neomacs-webkit-test-url "https://youtube.com"
+(defvar neomacs-webkit-test-url "https://www.google.com/"
   "URL to load for testing.")
 
-(defvar neomacs-webkit-test-width 800
-  "Width of test WebKit view.")
+(defvar neomacs-webkit-test-width 0
+  "Width of test WebKit view (0 = auto-fit to window).")
 
-(defvar neomacs-webkit-test-height 600
-  "Height of test WebKit view.")
+(defvar neomacs-webkit-test-height 0
+  "Height of test WebKit view (0 = auto from aspect ratio).")
 
 (defun neomacs-webkit-test-run ()
   "Run the inline WebKit rendering test."
@@ -40,26 +40,37 @@
         (neomacs-webkit-init)
         (insert "WebKit initialized.\n\n")
 
-        (insert (format "Loading %s inline...\n\n" neomacs-webkit-test-url))
+        ;; Calculate dimensions (0 = auto-fit to window)
+        (let* ((margin 16)
+               (aspect-ratio (/ 16.0 9.0))
+               (width (if (and neomacs-webkit-test-width (> neomacs-webkit-test-width 0))
+                          neomacs-webkit-test-width
+                        (- (window-body-width nil t) margin)))
+               (height (if (and neomacs-webkit-test-height (> neomacs-webkit-test-height 0))
+                           neomacs-webkit-test-height
+                         (round (/ width aspect-ratio)))))
+          (insert (format "Loading %s inline (%dx%d)...\n\n"
+                          neomacs-webkit-test-url width height))
 
-        ;; Create inline webkit view
-        (let ((spec (neomacs-insert-webkit neomacs-webkit-test-url
-                                           neomacs-webkit-test-width
-                                           neomacs-webkit-test-height
-                                           t)))
-          (if spec
-              (progn
-                ;; Insert the webkit view inline
-                (insert (propertize " " 'display spec))
-                (insert "\n\n")
-                (insert (format "WebKit spec: %S\n\n" spec))
-                (insert "SUCCESS! Inline WebKit rendering works.\n")
-                (insert "\nControls (use view ID from spec above):\n")
-                (insert "  (neomacs-webkit-load-uri ID \"url\") - load new URL\n")
-                (insert "  (neomacs-webkit-go-back ID) - go back\n")
-                (insert "  (neomacs-webkit-go-forward ID) - go forward\n")
-                (insert "  (neomacs-webkit-reload ID) - reload\n"))
-            (insert "FAILED: neomacs-insert-webkit returned nil\n"))))
+          ;; Create inline webkit view
+          (let ((spec (neomacs-insert-webkit neomacs-webkit-test-url
+                                             width
+                                             height
+                                             t)))
+            (if spec
+                (progn
+                  ;; Insert the webkit view inline
+                  (insert (propertize " " 'display spec))
+                  (insert "\n\n")
+                  (insert (format "WebKit spec: %S\n\n" spec))
+                  (insert "SUCCESS! Inline WebKit rendering works.\n")
+                  (insert "\nControls (use view ID from spec above):\n")
+                  (insert "  (neomacs-webkit-load-uri ID \"url\") - load new URL\n")
+                  (insert "  (neomacs-webkit-go-back ID) - go back\n")
+                  (insert "  (neomacs-webkit-go-forward ID) - go forward\n")
+                  (insert "  (neomacs-webkit-resize ID w h) - resize view\n")
+                  (insert "  (neomacs-webkit-reload ID) - reload\n"))
+              (insert "FAILED: neomacs-insert-webkit returned nil\n")))))
     (error
      (insert (format "ERROR: %S\n" err))))
 

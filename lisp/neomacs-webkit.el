@@ -43,13 +43,20 @@
   :prefix "neomacs-webkit-")
 
 (defcustom neomacs-webkit-default-width 800
-  "Default width for WebKit views."
-  :type 'integer
+  "Default width for WebKit views.
+If set to 0 or nil, auto-calculate from window width."
+  :type '(choice integer (const nil))
   :group 'neomacs-webkit)
 
 (defcustom neomacs-webkit-default-height 600
-  "Default height for WebKit views."
-  :type 'integer
+  "Default height for WebKit views.
+If set to 0 or nil, auto-calculate from width using aspect ratio."
+  :type '(choice integer (const nil))
+  :group 'neomacs-webkit)
+
+(defcustom neomacs-webkit-default-aspect-ratio (/ 16.0 9.0)
+  "Default aspect ratio (width/height) for auto-calculated heights."
+  :type 'float
   :group 'neomacs-webkit)
 
 (defvar neomacs-webkit--views (make-hash-table :test 'eq)
@@ -131,19 +138,38 @@ URL is the requested URL, FRAME-NAME is the target attribute (e.g., \"_blank\").
       (neomacs-webkit-set-new-window-function #'neomacs-webkit--handle-new-window)
       (setq neomacs-webkit--initialized t))))
 
+(defun neomacs-webkit--calculate-dimensions (width height)
+  "Calculate actual dimensions from WIDTH and HEIGHT.
+If WIDTH is 0 or nil, use window body width minus margin.
+If HEIGHT is 0 or nil, calculate from width using aspect ratio.
+Returns (WIDTH . HEIGHT) cons cell."
+  (let* ((margin 16)
+         (w (if (and width (> width 0))
+                width
+              (- (window-body-width nil t) margin)))
+         (h (if (and height (> height 0))
+                height
+              (round (/ w neomacs-webkit-default-aspect-ratio)))))
+    (cons w h)))
+
 (defun neomacs-webkit-browse (url &optional width height)
   "Open URL in a new WebKit browser view.
 Optional WIDTH and HEIGHT specify view dimensions.
+If WIDTH is 0 or nil, auto-calculate from window width.
+If HEIGHT is 0 or nil, auto-calculate using aspect ratio.
 Returns the view ID on success, nil on failure."
   (interactive "sURL: ")
   (neomacs-webkit--ensure-initialized)
-  (let* ((w (or width neomacs-webkit-default-width))
-         (h (or height neomacs-webkit-default-height))
+  (let* ((dims (neomacs-webkit--calculate-dimensions
+                (or width neomacs-webkit-default-width)
+                (or height neomacs-webkit-default-height)))
+         (w (car dims))
+         (h (cdr dims))
          (view-id (neomacs-webkit-create w h)))
     (when view-id
       (neomacs-webkit-load-uri view-id url)
       (puthash view-id `(:url ,url :width ,w :height ,h) neomacs-webkit--views)
-      (message "WebKit view %d: %s" view-id url))
+      (message "WebKit view %d: %s (%dx%d)" view-id url w h))
     view-id))
 
 (defun neomacs-webkit-back (view-id)
@@ -167,6 +193,18 @@ Returns the view ID on success, nil on failure."
   (when (neomacs-webkit-destroy view-id)
     (remhash view-id neomacs-webkit--views)
     (message "WebKit view %d closed" view-id)))
+
+(defun neomacs-webkit-resize-view (view-id width height)
+  "Resize WebKit view VIEW-ID to WIDTH x HEIGHT pixels.
+Returns t on success, nil on failure."
+  (interactive "nView ID: \nnWidth: \nnHeight: ")
+  (when (neomacs-webkit-resize view-id width height)
+    ;; Update stored dimensions
+    (let ((info (gethash view-id neomacs-webkit--views)))
+      (when info
+        (plist-put info :width width)
+        (plist-put info :height height)))
+    t))
 
 (defun neomacs-webkit-close-all ()
   "Close all WebKit views."

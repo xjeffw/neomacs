@@ -12,23 +12,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-/* Type for resize callback function pointer */
-typedef void (*ResizeCallbackFn)(void *user_data, int width, int height);
-
-/* Type for mouse button callback: (user_data, x, y, button, pressed, modifiers, time) */
-typedef void (*MouseButtonCallbackFn)(void *user_data, double x, double y,
-                                       unsigned int button, int pressed,
-                                       unsigned int modifiers, unsigned int time);
-
-/* Type for mouse motion callback: (user_data, x, y, modifiers, time) */
-typedef void (*MouseMotionCallbackFn)(void *user_data, double x, double y,
-                                       unsigned int modifiers, unsigned int time);
-
-/* Type for mouse scroll callback: (user_data, x, y, delta_x, delta_y, modifiers, time) */
-typedef void (*MouseScrollCallbackFn)(void *user_data, double x, double y,
-                                       double delta_x, double delta_y,
-                                       unsigned int modifiers, unsigned int time);
-
 #define DRM_FORMAT_ARGB8888 875713089
 
 #define DRM_FORMAT_XRGB8888 875713112
@@ -50,6 +33,42 @@ typedef enum BackendType {
    */
   BACKEND_TYPE_TTY = 1,
 } BackendType;
+
+/**
+ * Type for the resize callback function pointer from C
+ */
+typedef void (*ResizeCallbackFn)(void *user_data, int width, int height);
+
+/**
+ * Type for mouse button callback: (user_data, x, y, button, pressed, modifiers, time)
+ */
+typedef void (*MouseButtonCallbackFn)(void *user_data,
+                                      double x,
+                                      double y,
+                                      unsigned int button,
+                                      int pressed,
+                                      unsigned int modifiers,
+                                      unsigned int time);
+
+/**
+ * Type for mouse motion callback: (user_data, x, y, modifiers, time)
+ */
+typedef void (*MouseMotionCallbackFn)(void *user_data,
+                                      double x,
+                                      double y,
+                                      unsigned int modifiers,
+                                      unsigned int time);
+
+/**
+ * Type for mouse scroll callback: (user_data, x, y, delta_x, delta_y, modifiers, time)
+ */
+typedef void (*MouseScrollCallbackFn)(void *user_data,
+                                      double x,
+                                      double y,
+                                      double delta_x,
+                                      double delta_y,
+                                      unsigned int modifiers,
+                                      unsigned int time);
 
 /**
  * Initialize the display engine
@@ -240,8 +259,8 @@ uint32_t neomacs_display_load_image_data(struct NeomacsDisplay *handle,
 uint32_t neomacs_display_load_image_data_scaled(struct NeomacsDisplay *handle,
                                                 const uint8_t *data,
                                                 uintptr_t len,
-                                                int max_width,
-                                                int max_height);
+                                                int maxWidth,
+                                                int maxHeight);
 
 /**
  * Load an image from raw ARGB32 pixel data (Cairo/Emacs format)
@@ -486,6 +505,20 @@ void neomacs_display_set_mouse_motion_callback(MouseMotionCallbackFn callback, v
 void neomacs_display_set_mouse_scroll_callback(MouseScrollCallbackFn callback, void *userData);
 
 /**
+ * Set callback for WebKit new window/tab requests (target="_blank", window.open(), etc.)
+ * Pass null to clear the callback.
+ */
+void neomacs_display_webkit_set_new_window_callback(bool (*callback)(uint32_t,
+                                                                     const char*,
+                                                                     const char*));
+
+/**
+ * Set callback for WebKit page load events
+ * Pass null to clear the callback.
+ */
+void neomacs_display_webkit_set_load_callback(void (*callback)(uint32_t, int, const char*));
+
+/**
  * Initialize WebKit subsystem with EGL display
  * Must be called before creating WebKit views
  */
@@ -525,6 +558,14 @@ int neomacs_display_webkit_go_forward(struct NeomacsDisplay *handle, uint32_t vi
 int neomacs_display_webkit_reload(struct NeomacsDisplay *handle, uint32_t viewId);
 
 /**
+ * Resize a WebKit view
+ */
+int neomacs_display_webkit_resize(struct NeomacsDisplay *handle,
+                                  uint32_t viewId,
+                                  int width,
+                                  int height);
+
+/**
  * Execute JavaScript in a WebKit view
  */
 int neomacs_display_webkit_execute_js(struct NeomacsDisplay *handle,
@@ -545,6 +586,18 @@ void neomacs_display_set_floating_webkit(struct NeomacsDisplay *handle,
  * Hide a floating WebKit view
  */
 void neomacs_display_hide_floating_webkit(struct NeomacsDisplay *handle, uint32_t webkitId);
+
+/**
+ * Find which floating webkit view (if any) is at the given coordinates.
+ * Returns the webkit_id if found, 0 if no webkit at that position.
+ * Also returns the relative x,y within the webkit view via out parameters.
+ */
+int neomacs_display_webkit_at_position(struct NeomacsDisplay *handle,
+                                       int x,
+                                       int y,
+                                       uint32_t *outWebkitId,
+                                       int *outRelX,
+                                       int *outRelY);
 
 /**
  * Send keyboard event to WebKit view
@@ -613,54 +666,12 @@ int neomacs_display_webkit_is_loading(struct NeomacsDisplay *handle, uint32_t we
 void neomacs_display_webkit_free_string(char *s);
 
 /**
- * Callback type for WebKit new window requests (target="_blank", window.open(), etc.)
- * Parameters: (view_id, url, frame_name)
- * Returns: true if Emacs handled it (will open in new buffer), false to ignore
- */
-typedef bool (*WebKitNewWindowCallbackFn)(uint32_t view_id,
-                                          const char *url,
-                                          const char *frame_name);
-
-/**
- * Set callback for WebKit new window/tab requests
- * Pass NULL to clear the callback.
- */
-void neomacs_display_webkit_set_new_window_callback(WebKitNewWindowCallbackFn callback);
-
-/**
- * Callback type for WebKit load events
- * Parameters: view_id, load_event (0=started, 1=redirected, 2=committed, 3=finished, 4=failed), uri
- */
-typedef void (*WebKitLoadCallbackFn)(uint32_t view_id, int load_event, const char *uri);
-
-/**
- * Set callback for WebKit page load events
- * Pass NULL to clear the callback.
- */
-void neomacs_display_webkit_set_load_callback(WebKitLoadCallbackFn callback);
-
-/**
- * Find which floating webkit view (if any) is at the given coordinates.
- * Returns 1 if found, 0 if no webkit at that position.
- * out_webkit_id receives the webkit view ID if found.
- * out_rel_x and out_rel_y receive the coordinates relative to the webkit view.
- */
-int neomacs_display_webkit_at_position(struct NeomacsDisplay *handle,
-                                       int x, int y,
-                                       uint32_t *out_webkit_id,
-                                       int *out_rel_x, int *out_rel_y);
-
-/**
  * Add a WPE glyph to the current row
  */
 void neomacs_display_add_wpe_glyph(struct NeomacsDisplay *handle,
                                    uint32_t viewId,
                                    int pixelWidth,
                                    int pixelHeight);
-
-/* ============================================================================
- * Animation API
- * ============================================================================ */
 
 /**
  * Set an animation configuration option

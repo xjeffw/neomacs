@@ -2174,24 +2174,22 @@ pub type WebKitNewWindowCallback = extern "C" fn(u32, *const c_char, *const c_ch
 /// Set callback for WebKit new window/tab requests (target="_blank", window.open(), etc.)
 /// Pass null to clear the callback.
 #[no_mangle]
-#[cfg(feature = "wpe-webkit")]
 pub unsafe extern "C" fn neomacs_display_webkit_set_new_window_callback(
-    callback: Option<WebKitNewWindowCallback>,
+    callback: Option<extern "C" fn(u32, *const c_char, *const c_char) -> bool>,
 ) {
-    crate::backend::wpe::set_new_window_callback(callback);
-    if callback.is_some() {
-        log::info!("WebKit new window callback set");
-    } else {
-        log::info!("WebKit new window callback cleared");
+    #[cfg(feature = "wpe-webkit")]
+    {
+        crate::backend::wpe::set_new_window_callback(callback);
+        if callback.is_some() {
+            log::info!("WebKit new window callback set");
+        } else {
+            log::info!("WebKit new window callback cleared");
+        }
     }
-}
-
-#[no_mangle]
-#[cfg(not(feature = "wpe-webkit"))]
-pub unsafe extern "C" fn neomacs_display_webkit_set_new_window_callback(
-    _callback: Option<extern "C" fn(u32, *const c_char, *const c_char) -> bool>,
-) {
-    // No-op when webkit not available
+    #[cfg(not(feature = "wpe-webkit"))]
+    {
+        let _ = callback;
+    }
 }
 
 /// Callback type for WebKit page load events
@@ -2201,24 +2199,22 @@ pub type WebKitLoadCallback = extern "C" fn(u32, c_int, *const c_char);
 /// Set callback for WebKit page load events
 /// Pass null to clear the callback.
 #[no_mangle]
-#[cfg(feature = "wpe-webkit")]
 pub unsafe extern "C" fn neomacs_display_webkit_set_load_callback(
-    callback: Option<WebKitLoadCallback>,
+    callback: Option<extern "C" fn(u32, c_int, *const c_char)>,
 ) {
-    crate::backend::wpe::set_load_callback(callback);
-    if callback.is_some() {
-        log::info!("WebKit load callback set");
-    } else {
-        log::info!("WebKit load callback cleared");
+    #[cfg(feature = "wpe-webkit")]
+    {
+        crate::backend::wpe::set_load_callback(callback);
+        if callback.is_some() {
+            log::info!("WebKit load callback set");
+        } else {
+            log::info!("WebKit load callback cleared");
+        }
     }
-}
-
-#[no_mangle]
-#[cfg(not(feature = "wpe-webkit"))]
-pub unsafe extern "C" fn neomacs_display_webkit_set_load_callback(
-    _callback: Option<extern "C" fn(u32, c_int, *const c_char)>,
-) {
-    // No-op when webkit not available
+    #[cfg(not(feature = "wpe-webkit"))]
+    {
+        let _ = callback;
+    }
 }
 
 /// Initialize WebKit subsystem with EGL display
@@ -2468,6 +2464,35 @@ pub unsafe extern "C" fn neomacs_display_webkit_reload(
     #[cfg(not(feature = "wpe-webkit"))]
     {
         let _ = view_id;
+        -1
+    }
+}
+
+/// Resize a WebKit view
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_webkit_resize(
+    _handle: *mut NeomacsDisplay,
+    view_id: u32,
+    width: c_int,
+    height: c_int,
+) -> c_int {
+    #[cfg(feature = "wpe-webkit")]
+    {
+        return WEBKIT_CACHE.with(|cache_cell| {
+            let mut cache_borrow = cache_cell.borrow_mut();
+            if let Some(cache) = cache_borrow.as_mut() {
+                if let Some(view) = cache.get_mut(view_id) {
+                    view.resize(width as i32, height as i32);
+                    return 0;
+                }
+            }
+            -1
+        });
+    }
+
+    #[cfg(not(feature = "wpe-webkit"))]
+    {
+        let _ = (view_id, width, height);
         -1
     }
 }

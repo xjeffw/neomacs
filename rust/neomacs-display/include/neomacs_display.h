@@ -34,13 +34,41 @@ typedef enum BackendType {
   BACKEND_TYPE_TTY = 1,
 } BackendType;
 
-typedef struct GMainContext {
-  uint8_t unused[0];
-} GMainContext;
+/**
+ * Type for the resize callback function pointer from C
+ */
+typedef void (*ResizeCallbackFn)(void *user_data, int width, int height);
 
-extern struct GMainContext *g_main_context_default(void);
+/**
+ * Type for mouse button callback: (user_data, x, y, button, pressed, modifiers, time)
+ */
+typedef void (*MouseButtonCallbackFn)(void *user_data,
+                                      double x,
+                                      double y,
+                                      unsigned int button,
+                                      int pressed,
+                                      unsigned int modifiers,
+                                      unsigned int time);
 
-extern int32_t g_main_context_iteration(struct GMainContext *context, int32_t mayBlock);
+/**
+ * Type for mouse motion callback: (user_data, x, y, modifiers, time)
+ */
+typedef void (*MouseMotionCallbackFn)(void *user_data,
+                                      double x,
+                                      double y,
+                                      unsigned int modifiers,
+                                      unsigned int time);
+
+/**
+ * Type for mouse scroll callback: (user_data, x, y, delta_x, delta_y, modifiers, time)
+ */
+typedef void (*MouseScrollCallbackFn)(void *user_data,
+                                      double x,
+                                      double y,
+                                      double delta_x,
+                                      double delta_y,
+                                      unsigned int modifiers,
+                                      unsigned int time);
 
 /**
  * Initialize the display engine
@@ -480,8 +508,6 @@ void neomacs_display_set_mouse_scroll_callback(MouseScrollCallbackFn callback, v
  * Set callback for WebKit new window/tab requests (target="_blank", window.open(), etc.)
  * Pass null to clear the callback.
  */
-void neomacs_display_webkit_set_new_window_callback(Option<WebKitNewWindowCallback> callback);
-
 void neomacs_display_webkit_set_new_window_callback(bool (*callback)(uint32_t,
                                                                      const char*,
                                                                      const char*));
@@ -490,8 +516,6 @@ void neomacs_display_webkit_set_new_window_callback(bool (*callback)(uint32_t,
  * Set callback for WebKit page load events
  * Pass null to clear the callback.
  */
-void neomacs_display_webkit_set_load_callback(Option<WebKitLoadCallback> callback);
-
 void neomacs_display_webkit_set_load_callback(void (*callback)(uint32_t, int, const char*));
 
 /**
@@ -532,6 +556,14 @@ int neomacs_display_webkit_go_forward(struct NeomacsDisplay *handle, uint32_t vi
  * Reload a WebKit view
  */
 int neomacs_display_webkit_reload(struct NeomacsDisplay *handle, uint32_t viewId);
+
+/**
+ * Resize a WebKit view
+ */
+int neomacs_display_webkit_resize(struct NeomacsDisplay *handle,
+                                  uint32_t viewId,
+                                  int width,
+                                  int height);
 
 /**
  * Execute JavaScript in a WebKit view
