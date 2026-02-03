@@ -6380,6 +6380,19 @@ buffer_posn_from_coords (struct window *w, int *x, int *y, struct display_pos *p
 	*object = img->spec;
     }
 #endif
+#ifdef HAVE_NEOMACS
+  if (it.what == IT_WEBKIT)
+    {
+      /* Return webkit display spec as the object, similar to images.
+	 This allows posn-object and posn-object-x-y to work for
+	 webkit views embedded in buffer text.
+	 Format: (webkit :id N :width W :height H) */
+      *object = CALLN (Flist, Qwebkit,
+		       QCid, make_fixnum (it.webkit_id),
+		       QCwidth, make_fixnum (it.video_width),
+		       QCheight, make_fixnum (it.video_height));
+    }
+#endif
 
   /* IT's vpos counts from the glyph row that includes the window's
      start position, i.e. it excludes the header-line row, but
@@ -6403,6 +6416,17 @@ buffer_posn_from_coords (struct window *w, int *x, int *y, struct display_pos *p
 	      /* Image slices positions are still relative to the entire image */
 	      *width = img->width;
 	      *height = img->height;
+	    }
+	  else
+#endif
+#ifdef HAVE_NEOMACS
+	  if (glyph->type == WEBKIT_GLYPH)
+	    {
+	      /* For webkit glyphs, adjust dy for baseline and return
+		 the webkit view dimensions.  */
+	      *dy -= row->ascent - glyph->ascent;
+	      *width = glyph->pixel_width;
+	      *height = glyph->ascent + glyph->descent;
 	    }
 	  else
 #endif
