@@ -886,12 +886,29 @@ neomacs_legacy_event_cb (GtkEventControllerLegacy *controller,
   /* Handle button press */
   if (event_type == GDK_BUTTON_PRESS)
     {
+      struct neomacs_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
       button = gdk_button_event_get_button (event);
 
       /* Deduplicate - multiple controllers may receive same event */
       if (time == mouse_drag_state.last_press_time)
         return FALSE;
       mouse_drag_state.last_press_time = time;
+
+      /* Check if click is on a floating webkit view */
+      if (dpyinfo && dpyinfo->display_handle)
+        {
+          uint32_t webkit_id = 0;
+          int rel_x = 0, rel_y = 0;
+          if (neomacs_display_webkit_at_position (dpyinfo->display_handle,
+                                                   (int) x, (int) y,
+                                                   &webkit_id, &rel_x, &rel_y))
+            {
+              /* Forward click to webkit view */
+              neomacs_display_webkit_click (dpyinfo->display_handle,
+                                            webkit_id, rel_x, rel_y, button);
+              return TRUE;  /* Event handled by webkit */
+            }
+        }
 
       /* Track drag state */
       mouse_drag_state.button_pressed = true;
@@ -983,6 +1000,28 @@ neomacs_motion_cb (GtkEventControllerMotion *controller,
   if (!dpyinfo)
     return;
 
+  /* Check if hovering over a floating webkit view - forward motion */
+  if (dpyinfo->display_handle)
+    {
+      uint32_t webkit_id = 0;
+      int rel_x = 0, rel_y = 0;
+      if (neomacs_display_webkit_at_position (dpyinfo->display_handle,
+                                               (int) x, (int) y,
+                                               &webkit_id, &rel_x, &rel_y))
+        {
+          /* Forward motion to webkit (event_type=1 for motion) */
+          neomacs_display_webkit_send_pointer (dpyinfo->display_handle,
+                                               webkit_id,
+                                               1,  /* motion */
+                                               rel_x, rel_y,
+                                               0,  /* no button */
+                                               0,  /* no state */
+                                               0); /* no modifiers */
+          /* Don't update Emacs mouse tracking for webkit areas */
+          return;
+        }
+    }
+
   /* Update last mouse position - used by Emacs for tracking */
   f->mouse_moved = true;
   dpyinfo->last_mouse_frame = f;
@@ -994,15 +1033,40 @@ neomacs_scroll_cb (GtkEventControllerScroll *controller,
                    double dx, double dy, gpointer user_data)
 {
   struct frame *f = (struct frame *) user_data;
+  struct neomacs_display_info *dpyinfo;
   struct input_event ie;
   GdkEvent *event;
+  double scroll_x = 0, scroll_y = 0;
 
   if (!FRAME_LIVE_P (f))
     return FALSE;
 
+  dpyinfo = FRAME_DISPLAY_INFO (f);
   event = gtk_event_controller_get_current_event (GTK_EVENT_CONTROLLER (controller));
   if (!event)
     return FALSE;
+
+  /* Get mouse position for webkit check */
+  gdk_event_get_position (event, &scroll_x, &scroll_y);
+
+  /* Check if scrolling over a floating webkit view */
+  if (dpyinfo && dpyinfo->display_handle)
+    {
+      uint32_t webkit_id = 0;
+      int rel_x = 0, rel_y = 0;
+      if (neomacs_display_webkit_at_position (dpyinfo->display_handle,
+                                               (int) scroll_x, (int) scroll_y,
+                                               &webkit_id, &rel_x, &rel_y))
+        {
+          /* Forward scroll to webkit */
+          neomacs_display_webkit_send_scroll (dpyinfo->display_handle,
+                                              webkit_id,
+                                              rel_x, rel_y,
+                                              (int) (dx * 50),  /* Scale for reasonable scroll speed */
+                                              (int) (dy * 50));
+          return TRUE;  /* Event handled by webkit */
+        }
+    }
 
   EVENT_INIT (ie);
   ie.timestamp = gdk_event_get_time (event);

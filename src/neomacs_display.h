@@ -615,6 +615,17 @@ typedef void (*WebKitLoadCallbackFn)(uint32_t view_id, int load_event, const cha
 void neomacs_display_webkit_set_load_callback(WebKitLoadCallbackFn callback);
 
 /**
+ * Find which floating webkit view (if any) is at the given coordinates.
+ * Returns 1 if found, 0 if no webkit at that position.
+ * out_webkit_id receives the webkit view ID if found.
+ * out_rel_x and out_rel_y receive the coordinates relative to the webkit view.
+ */
+int neomacs_display_webkit_at_position(struct NeomacsDisplay *handle,
+                                       int x, int y,
+                                       uint32_t *out_webkit_id,
+                                       int *out_rel_x, int *out_rel_y);
+
+/**
  * Add a WPE glyph to the current row
  */
 void neomacs_display_add_wpe_glyph(struct NeomacsDisplay *handle,

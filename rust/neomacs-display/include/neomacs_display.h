@@ -523,6 +523,18 @@ void neomacs_display_set_floating_webkit(struct NeomacsDisplay *handle,
 void neomacs_display_hide_floating_webkit(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
+ * Find which floating webkit view (if any) is at the given coordinates.
+ * Returns the webkit_id if found, 0 if no webkit at that position.
+ * Also returns the relative x,y within the webkit view via out parameters.
+ */
+int neomacs_display_webkit_at_position(struct NeomacsDisplay *handle,
+                                       int x,
+                                       int y,
+                                       uint32_t *outWebkitId,
+                                       int *outRelX,
+                                       int *outRelY);
+
+/**
  * Send keyboard event to WebKit view
  */
 void neomacs_display_webkit_send_key(struct NeomacsDisplay *handle,

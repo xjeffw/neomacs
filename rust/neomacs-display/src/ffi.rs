@@ -2454,6 +2454,48 @@ pub unsafe extern "C" fn neomacs_display_hide_floating_webkit(
     display.scene.remove_floating_webkit(webkit_id);
 }
 
+/// Find which floating webkit view (if any) is at the given coordinates.
+/// Returns the webkit_id if found, 0 if no webkit at that position.
+/// Also returns the relative x,y within the webkit view via out parameters.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_webkit_at_position(
+    handle: *mut NeomacsDisplay,
+    x: c_int,
+    y: c_int,
+    out_webkit_id: *mut u32,
+    out_rel_x: *mut c_int,
+    out_rel_y: *mut c_int,
+) -> c_int {
+    if handle.is_null() {
+        return 0;
+    }
+
+    let display = &*handle;
+    
+    // Check floating webkits in reverse order (top-most first)
+    for webkit in display.scene.floating_webkits.iter().rev() {
+        let wx = webkit.x as i32;
+        let wy = webkit.y as i32;
+        let ww = webkit.width as i32;
+        let wh = webkit.height as i32;
+        
+        if x >= wx && x < wx + ww && y >= wy && y < wy + wh {
+            if !out_webkit_id.is_null() {
+                *out_webkit_id = webkit.webkit_id;
+            }
+            if !out_rel_x.is_null() {
+                *out_rel_x = x - wx;
+            }
+            if !out_rel_y.is_null() {
+                *out_rel_y = y - wy;
+            }
+            return 1;
+        }
+    }
+    
+    0 // No webkit at position
+}
+
 /// Send keyboard event to WebKit view
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_send_key(
