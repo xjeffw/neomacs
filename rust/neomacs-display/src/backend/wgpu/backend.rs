@@ -1,5 +1,6 @@
 //! Winit window and event handling backend.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use winit::application::ApplicationHandler;
@@ -12,6 +13,7 @@ use crate::backend::DisplayBackend;
 use crate::core::error::{DisplayError, DisplayResult};
 use crate::core::scene::Scene;
 
+use super::window_state::WindowState;
 use super::WgpuRenderer;
 
 /// Custom user events for the event loop.
@@ -66,6 +68,18 @@ pub struct WinitBackend {
     callbacks: Callbacks,
     /// Current cursor position.
     cursor_position: (f64, f64),
+    /// The wgpu instance for creating surfaces.
+    instance: Option<wgpu::Instance>,
+    /// The wgpu device for GPU operations.
+    device: Option<Arc<wgpu::Device>>,
+    /// The surface format for rendering.
+    surface_format: wgpu::TextureFormat,
+    /// The active event loop reference (only valid during event handling).
+    event_loop: Option<*const ActiveEventLoop>,
+    /// Window states for multi-window support.
+    windows: HashMap<u32, WindowState>,
+    /// Next window ID to assign.
+    next_window_id: u32,
 }
 
 impl WinitBackend {
@@ -83,13 +97,19 @@ impl WinitBackend {
             scene: Scene::new(800.0, 600.0),
             callbacks: Callbacks::default(),
             cursor_position: (0.0, 0.0),
+            instance: None,
+            device: None,
+            surface_format: wgpu::TextureFormat::Bgra8UnormSrgb,
+            event_loop: None,
+            windows: HashMap::new(),
+            next_window_id: 1,
         }
     }
 
-    /// Create the window and initialize the wgpu surface.
+    /// Create the main window and initialize the wgpu surface.
     ///
     /// This should be called from the event loop's `resumed` event.
-    pub fn create_window(&mut self, event_loop: &ActiveEventLoop) -> DisplayResult<()> {
+    pub fn init_main_window(&mut self, event_loop: &ActiveEventLoop) -> DisplayResult<()> {
         let window_attributes = Window::default_attributes()
             .with_title("Neomacs")
             .with_inner_size(LogicalSize::new(self.width, self.height));
@@ -164,6 +184,11 @@ impl WinitBackend {
 
         // Create renderer
         let renderer = WgpuRenderer::new(None, self.width, self.height);
+
+        // Store the wgpu infrastructure for multi-window support
+        self.instance = Some(instance);
+        self.device = Some(device.clone());
+        self.surface_format = format;
 
         self.window = Some(window);
         self.surface = Some(surface);
@@ -292,6 +317,60 @@ impl WinitBackend {
     pub fn window(&self) -> Option<&Arc<Window>> {
         self.window.as_ref()
     }
+
+    /// Create a new window with the specified dimensions and title.
+    ///
+    /// Returns the window ID if successful, or None if creation failed.
+    /// This requires the event loop to be active (event_loop field must be set).
+    pub fn create_window(&mut self, width: u32, height: u32, title: &str) -> Option<u32> {
+        let event_loop = self.event_loop.as_ref()?;
+        let event_loop = unsafe { &**event_loop };
+
+        let window_attrs = winit::window::WindowAttributes::default()
+            .with_title(title)
+            .with_inner_size(winit::dpi::PhysicalSize::new(width, height));
+
+        let window = Arc::new(event_loop.create_window(window_attrs).ok()?);
+
+        let instance = self.instance.as_ref()?;
+        let device = self.device.as_ref()?;
+
+        let surface = instance.create_surface(window.clone()).ok()?;
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: self.surface_format,
+            width,
+            height,
+            present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+        surface.configure(device, &config);
+
+        let window_id = self.next_window_id;
+        self.next_window_id += 1;
+
+        let state = WindowState::new(window, surface, config, width, height);
+        self.windows.insert(window_id, state);
+
+        Some(window_id)
+    }
+
+    /// Destroy a window by its ID.
+    pub fn destroy_window(&mut self, window_id: u32) {
+        self.windows.remove(&window_id);
+    }
+
+    /// Get a reference to a window state by ID.
+    pub fn get_window(&self, window_id: u32) -> Option<&WindowState> {
+        self.windows.get(&window_id)
+    }
+
+    /// Get a mutable reference to a window state by ID.
+    pub fn get_window_mut(&mut self, window_id: u32) -> Option<&mut WindowState> {
+        self.windows.get_mut(&window_id)
+    }
 }
 
 impl Default for WinitBackend {
@@ -368,7 +447,7 @@ impl ApplicationHandler<UserEvent> for NeomacsApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         // Create the window if it doesn't exist
         if self.backend.window.is_none() {
-            if let Err(e) = self.backend.create_window(event_loop) {
+            if let Err(e) = self.backend.init_main_window(event_loop) {
                 log::error!("Failed to create window: {}", e);
                 event_loop.exit();
                 return;
