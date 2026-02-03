@@ -1418,41 +1418,74 @@ neomacs_get_or_load_image (struct neomacs_display_info *dpyinfo, struct image *i
             {
               const char *path = SSDATA (file);
 
-          /* Check for max-width/max-height constraints for scaled loading */
-          Lisp_Object max_width = plist_get (XCDR (img->spec), QCmax_width);
-          Lisp_Object max_height = plist_get (XCDR (img->spec), QCmax_height);
+              /* Check for dimension constraints */
+              Lisp_Object max_width = plist_get (XCDR (img->spec), QCmax_width);
+              Lisp_Object max_height = plist_get (XCDR (img->spec), QCmax_height);
+              Lisp_Object width = plist_get (XCDR (img->spec), QCwidth);
+              Lisp_Object height = plist_get (XCDR (img->spec), QCheight);
+              Lisp_Object scale = plist_get (XCDR (img->spec), QCscale);
 
-          int mw = FIXNUMP (max_width) ? XFIXNUM (max_width) : 0;
-          int mh = FIXNUMP (max_height) ? XFIXNUM (max_height) : 0;
+              int mw = FIXNUMP (max_width) ? XFIXNUM (max_width) : 0;
+              int mh = FIXNUMP (max_height) ? XFIXNUM (max_height) : 0;
+              int tw = FIXNUMP (width) ? XFIXNUM (width) : 0;  /* target width */
+              int th = FIXNUMP (height) ? XFIXNUM (height) : 0; /* target height */
+              double sc = NUMBERP (scale) ? XFLOATINT (scale) : 1.0;
 
-          if (mw > 0 || mh > 0)
-            {
-              /* Load with scaling - memory efficient for large images */
-              gpu_id = neomacs_display_load_image_file_scaled (dpyinfo->display_handle,
-                                                                path, mw, mh);
-            }
-          else
-            {
-              /* Load at full resolution */
-              gpu_id = neomacs_display_load_image_file (dpyinfo->display_handle, path);
-            }
-
-          if (gpu_id != 0)
-            {
-              /* Get actual dimensions from GPU cache for later use */
-              int actual_w, actual_h;
-              if (neomacs_display_get_image_size (dpyinfo->display_handle, gpu_id,
-                                                   &actual_w, &actual_h) == 0)
+              if (mw > 0 || mh > 0)
                 {
-                  /* Update img dimensions if not set */
-                  if (img->width == 0)
-                    img->width = actual_w;
-                  if (img->height == 0)
-                    img->height = actual_h;
+                  /* Load with max constraints - memory efficient for large images */
+                  gpu_id = neomacs_display_load_image_file_scaled (dpyinfo->display_handle,
+                                                                    path, mw, mh);
+                }
+              else
+                {
+                  /* Load at full resolution */
+                  gpu_id = neomacs_display_load_image_file (dpyinfo->display_handle, path);
+                }
+
+              if (gpu_id != 0)
+                {
+                  /* Get actual dimensions from GPU cache */
+                  int actual_w, actual_h;
+                  if (neomacs_display_get_image_size (dpyinfo->display_handle, gpu_id,
+                                                       &actual_w, &actual_h) == 0)
+                    {
+                      /* Apply :scale if specified */
+                      if (sc != 1.0 && sc > 0)
+                        {
+                          actual_w = (int)(actual_w * sc);
+                          actual_h = (int)(actual_h * sc);
+                        }
+
+                      /* Compute final dimensions respecting :width/:height with aspect ratio */
+                      if (tw > 0 && th > 0)
+                        {
+                          /* Both specified - use as-is */
+                          img->width = tw;
+                          img->height = th;
+                        }
+                      else if (tw > 0)
+                        {
+                          /* Width specified - compute height preserving aspect ratio */
+                          img->width = tw;
+                          img->height = (int)((double)tw * actual_h / actual_w);
+                        }
+                      else if (th > 0)
+                        {
+                          /* Height specified - compute width preserving aspect ratio */
+                          img->height = th;
+                          img->width = (int)((double)th * actual_w / actual_h);
+                        }
+                      else
+                        {
+                          /* Use (possibly scaled) actual dimensions */
+                          img->width = actual_w;
+                          img->height = actual_h;
+                        }
+                    }
                 }
             }
-        }
-      }  /* end else (load from file) */
+        }  /* end else (load from file) */
     }
 
   if (gpu_id == 0)

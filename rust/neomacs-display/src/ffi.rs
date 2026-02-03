@@ -1338,6 +1338,47 @@ pub unsafe extern "C" fn neomacs_display_get_image_size(
     -1
 }
 
+/// Query image file dimensions without loading into cache
+/// Returns 0 on success, -1 on failure
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_query_image_file_size(
+    _handle: *mut NeomacsDisplay,
+    path: *const c_char,
+    width: *mut c_int,
+    height: *mut c_int,
+) -> c_int {
+    use gtk4::gdk_pixbuf::Pixbuf;
+
+    if path.is_null() || width.is_null() || height.is_null() {
+        return -1;
+    }
+
+    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+
+    // Use get_file_info to read just the header (fast, no full decode)
+    match Pixbuf::file_info(path_str) {
+        Some((_, w, h)) => {
+            *width = w;
+            *height = h;
+            0
+        }
+        None => {
+            // Fallback: try loading to get dimensions
+            match Pixbuf::from_file(path_str) {
+                Ok(pixbuf) => {
+                    *width = pixbuf.width();
+                    *height = pixbuf.height();
+                    0
+                }
+                Err(_) => -1,
+            }
+        }
+    }
+}
+
 /// Free an image from cache
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_free_image(

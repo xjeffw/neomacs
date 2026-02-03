@@ -152,6 +152,8 @@ typedef struct pgtk_bitmap_record Bitmap_Record;
 
 #ifdef HAVE_NEOMACS
 typedef struct neomacs_bitmap_record Bitmap_Record;
+#include "neomacsterm.h"
+#include "neomacs_display.h"
 #endif /* HAVE_NEOMACS */
 
 #if (defined HAVE_X_WINDOWS \
@@ -12950,6 +12952,7 @@ enum neomacs_keyword_index
   NEOMACS_HEIGHT,
   NEOMACS_MAX_WIDTH,
   NEOMACS_MAX_HEIGHT,
+  NEOMACS_SCALE,
   NEOMACS_LAST
 };
 
@@ -12963,6 +12966,7 @@ static const struct image_keyword neomacs_format[NEOMACS_LAST] =
   {":height",     IMAGE_POSITIVE_INTEGER_VALUE,         0},
   {":max-width",  IMAGE_POSITIVE_INTEGER_VALUE,         0},
   {":max-height", IMAGE_POSITIVE_INTEGER_VALUE,         0},
+  {":scale",      IMAGE_DONT_CHECK_VALUE_TYPE,          0},
 };
 
 /* Return true if OBJECT is a valid neomacs image specification.  */
@@ -12983,47 +12987,127 @@ neomacs_image_p (Lisp_Object object)
 }
 
 /* Load a neomacs image.
-   The actual GPU loading is deferred to neomacsterm.c when rendering.
-   Here we just mark the image as valid and set dimensions if known.  */
+   Query dimensions from GPU backend for proper scaling.  */
 static bool
 neomacs_load (struct frame *f, struct image *img)
 {
-  (void) f;  /* Unused for now, GPU loading deferred to neomacsterm.c */
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    {
+      /* No display - use defaults */
+      img->width = 100;
+      img->height = 100;
+      img->background_valid = 1;
+      img->background = 0;
+      img->background_transparent_valid = 1;
+      img->background_transparent = 1;
+      return true;
+    }
 
+  /* Get image spec properties */
   Lisp_Object neomacs_id = image_spec_value (img->spec, intern (":neomacs-id"), NULL);
+  Lisp_Object file = image_spec_value (img->spec, QCfile, NULL);
   Lisp_Object width = image_spec_value (img->spec, QCwidth, NULL);
   Lisp_Object height = image_spec_value (img->spec, QCheight, NULL);
+  Lisp_Object max_width = image_spec_value (img->spec, QCmax_width, NULL);
+  Lisp_Object max_height = image_spec_value (img->spec, QCmax_height, NULL);
+  Lisp_Object scale = image_spec_value (img->spec, QCscale, NULL);
 
-  /* If dimensions are specified, use them.  */
-  if (FIXNUMP (width) && FIXNUMP (height))
+  int tw = FIXNUMP (width) ? XFIXNUM (width) : 0;      /* target width */
+  int th = FIXNUMP (height) ? XFIXNUM (height) : 0;    /* target height */
+  int mw = FIXNUMP (max_width) ? XFIXNUM (max_width) : 0;
+  int mh = FIXNUMP (max_height) ? XFIXNUM (max_height) : 0;
+  double sc = NUMBERP (scale) ? XFLOATINT (scale) : 1.0;
+
+  int actual_w = 0, actual_h = 0;
+
+  if (FIXNUMP (neomacs_id))
     {
-      img->width = XFIXNUM (width);
-      img->height = XFIXNUM (height);
+      /* Pre-loaded by neomacs-insert-image - get dimensions from cache */
+      uint32_t gpu_id = (uint32_t) XFIXNUM (neomacs_id);
+      neomacs_display_get_image_size (dpyinfo->display_handle, gpu_id,
+                                       &actual_w, &actual_h);
     }
-  else if (FIXNUMP (neomacs_id))
+  else if (STRINGP (file))
     {
-      /* Dimensions should have been set by neomacs-insert-image.
-         If not, use defaults.  */
-      img->width = img->width > 0 ? img->width : 100;
-      img->height = img->height > 0 ? img->height : 100;
+      /* Query image dimensions without loading into cache */
+      const char *path = SSDATA (file);
+      neomacs_display_query_image_file_size (dpyinfo->display_handle, path,
+                                              &actual_w, &actual_h);
+
+      /* Apply max constraints if specified */
+      if (actual_w > 0 && actual_h > 0 && (mw > 0 || mh > 0))
+        {
+          double ratio = (double)actual_w / actual_h;
+          if (mw > 0 && actual_w > mw)
+            {
+              actual_w = mw;
+              actual_h = (int)(mw / ratio);
+            }
+          if (mh > 0 && actual_h > mh)
+            {
+              actual_h = mh;
+              actual_w = (int)(mh * ratio);
+            }
+        }
+    }
+
+  if (actual_w > 0 && actual_h > 0)
+    {
+      /* Apply :scale if specified */
+      if (sc != 1.0 && sc > 0)
+        {
+          actual_w = (int)(actual_w * sc);
+          actual_h = (int)(actual_h * sc);
+        }
+
+      /* Compute final dimensions respecting :width/:height with aspect ratio */
+      if (tw > 0 && th > 0)
+        {
+          /* Both specified - use as-is */
+          img->width = tw;
+          img->height = th;
+        }
+      else if (tw > 0)
+        {
+          /* Width specified - compute height preserving aspect ratio */
+          img->width = tw;
+          img->height = (actual_h > 0) ? (int)((double)tw * actual_h / actual_w) : tw;
+        }
+      else if (th > 0)
+        {
+          /* Height specified - compute width preserving aspect ratio */
+          img->height = th;
+          img->width = (actual_w > 0) ? (int)((double)th * actual_w / actual_h) : th;
+        }
+      else
+        {
+          /* Use (possibly scaled) actual dimensions */
+          img->width = actual_w;
+          img->height = actual_h;
+        }
     }
   else
     {
-      /* No dimensions known - use defaults. The GPU backend will determine
-         actual size when loading.  */
-      img->width = 100;
-      img->height = 100;
+      /* Fallback to explicit dimensions or defaults */
+      if (tw > 0 && th > 0)
+        {
+          img->width = tw;
+          img->height = th;
+        }
+      else
+        {
+          img->width = 100;
+          img->height = 100;
+        }
     }
 
-  /* Mark background as valid to prevent IMAGE_BACKGROUND macro from calling
-     image_background() which crashes with NULL pixmap. Neomacs doesn't use
-     traditional pixmaps - GPU handles everything.  */
+  /* Mark background as valid */
   img->background_valid = 1;
-  img->background = 0;  /* Default to black/transparent */
+  img->background = 0;
   img->background_transparent_valid = 1;
-  img->background_transparent = 1;  /* Assume transparency support */
+  img->background_transparent = 1;
 
-  /* Mark as successfully loaded - actual GPU loading happens in neomacsterm.c */
   return true;
 }
 #endif /* HAVE_NEOMACS */
