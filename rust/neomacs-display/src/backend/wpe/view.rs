@@ -72,12 +72,30 @@ pub enum WpeViewState {
     Error,
 }
 
+/// Raw pixel data from WebKit buffer (thread-safe transfer)
+/// We store raw pixel data instead of GdkTexture because textures must be
+/// created on the main GTK thread. Creating them on WebKit's render thread
+/// causes reference counting corruption.
+struct RawFrameData {
+    /// Raw BGRA pixel data
+    pixels: Vec<u8>,
+    /// Frame width in pixels
+    width: u32,
+    /// Frame height in pixels
+    height: u32,
+}
+
 /// Callback data for buffer-rendered signal
 struct BufferCallbackData {
     /// View ID for callbacks to Emacs
     view_id: u32,
-    /// Latest rendered texture (Mutex for thread safety)
-    latest_texture: Mutex<Option<Texture>>,
+    /// Latest raw frame data (Mutex for thread safety)
+    /// Contains raw pixel data that will be converted to texture on main thread
+    latest_frame: Mutex<Option<RawFrameData>>,
+    /// Cached texture created on main thread (kept alive for GSK rendering)
+    /// We keep the current and previous textures to avoid use-after-free when
+    /// GSK is still rendering the previous frame
+    cached_textures: Mutex<Vec<Texture>>,
     /// Flag indicating new frame available
     frame_available: AtomicBool,
     /// WPE Platform display for buffer import
@@ -219,9 +237,11 @@ impl WpeWebView {
                 .unwrap_or(0);
 
             // Allocate callback data
+            // Store raw pixel data in callback, create textures on main thread
             let callback_data = Box::into_raw(Box::new(BufferCallbackData {
                 view_id,
-                latest_texture: Mutex::new(None),
+                latest_frame: Mutex::new(None),
+                cached_textures: Mutex::new(Vec::with_capacity(8)),
                 frame_available: AtomicBool::new(false),
                 display,
                 egl_display,
@@ -432,20 +452,11 @@ impl WpeWebView {
             if let Some(callback_data) = self.callback_data.as_ref() {
                 let frame_avail = callback_data.frame_available.load(Ordering::Acquire);
                 log::trace!("WPE update: frame_available = {}", frame_avail);
-                if callback_data.frame_available.swap(false, Ordering::Acquire) {
+                if frame_avail {
+                    // New frame available - texture will be created lazily in texture() method
+                    // on the main thread to avoid GdkTexture threading issues
                     self.needs_redraw = true;
-
-                    // Get texture from callback data (thread-safe)
-                    if let Ok(mut guard) = callback_data.latest_texture.lock() {
-                        if let Some(texture) = guard.take() {
-                            log::info!("WPE update: Got new texture {}x{}", texture.width(), texture.height());
-                            self.texture = Some(texture);
-                        } else {
-                            log::warn!("WPE update: frame_available was true but no texture in guard");
-                        }
-                    } else {
-                        log::warn!("WPE update: failed to lock latest_texture mutex");
-                    }
+                    log::info!("WPE update: new frame available, triggering redraw");
                 }
             } else {
                 log::warn!("WPE update: callback_data.as_ref() returned None");
@@ -465,31 +476,69 @@ impl WpeWebView {
     }
 
     /// Get the current texture (latest rendered frame)
-    /// This checks callback_data directly to get the most recent frame
+    /// This creates the texture on the main thread from raw pixel data
+    /// to avoid GdkTexture reference counting issues across threads.
+    /// Textures are cached to keep them alive while GSK renders them.
     pub fn texture(&self) -> Option<Texture> {
-        // First check if there's a newer texture in callback_data
+        // Check if there's a new frame in callback_data
         unsafe {
             log::trace!("texture(): callback_data ptr = {:?}", self.callback_data);
             if let Some(callback_data) = self.callback_data.as_ref() {
-                log::trace!("texture(): trying to lock latest_texture");
-                match callback_data.latest_texture.lock() {
-                    Ok(guard) => {
-                        log::trace!("texture(): lock acquired, has_texture = {}", guard.is_some());
-                        if let Some(ref tex) = *guard {
-                            log::trace!("texture(): returning texture {}x{}", tex.width(), tex.height());
-                            return Some(tex.clone());
+                log::trace!("texture(): trying to lock latest_frame");
+                match callback_data.latest_frame.lock() {
+                    Ok(mut guard) => {
+                        log::trace!("texture(): lock acquired, has_frame = {}", guard.is_some());
+                        if let Some(frame_data) = guard.take() {
+                            // Create texture on main thread from raw pixel data
+                            log::trace!("texture(): creating texture from raw data {}x{}",
+                                       frame_data.width, frame_data.height);
+
+                            let glib_bytes = glib::Bytes::from(&frame_data.pixels);
+                            let stride = (frame_data.width * 4) as usize;
+
+                            let texture: Texture = gdk4::MemoryTexture::new(
+                                frame_data.width as i32,
+                                frame_data.height as i32,
+                                gdk4::MemoryFormat::B8g8r8a8,
+                                &glib_bytes,
+                                stride,
+                            ).upcast();
+
+                            // Cache the texture to keep it alive while GSK renders
+                            // Keep more textures alive (30 frames ~= 0.5s at 60fps)
+                            // to ensure GSK's frame clock has finished with old textures
+                            if let Ok(mut cache) = callback_data.cached_textures.lock() {
+                                cache.push(texture.clone());
+                                // Limit memory usage but keep enough for GSK frame pipeline
+                                while cache.len() > 30 {
+                                    cache.remove(0);
+                                }
+                                log::trace!("texture(): cached texture, cache size = {}", cache.len());
+                            }
+
+                            log::trace!("texture(): returning new texture {}x{}",
+                                       texture.width(), texture.height());
+                            return Some(texture);
                         }
                     }
                     Err(e) => {
                         log::warn!("texture(): failed to lock: {:?}", e);
                     }
                 }
+
+                // No new frame - return most recent cached texture
+                if let Ok(cache) = callback_data.cached_textures.lock() {
+                    if let Some(tex) = cache.last() {
+                        log::trace!("texture(): returning cached texture");
+                        return Some(tex.clone());
+                    }
+                }
             } else {
                 log::trace!("texture(): callback_data is null");
             }
         }
-        // Fall back to cached texture
-        log::trace!("texture(): falling back to cached texture, has_texture = {}", self.texture.is_some());
+        // Fall back to cached texture in view
+        log::trace!("texture(): falling back to view cached texture, has_texture = {}", self.texture.is_some());
         self.texture.clone()
     }
 
@@ -733,12 +782,11 @@ impl Drop for WpeWebView {
 
 /// C callback for buffer-rendered signal from WPEView
 unsafe extern "C" fn buffer_rendered_callback(
-    wpe_view: *mut plat::WPEView,
+    _wpe_view: *mut plat::WPEView,
     buffer: *mut plat::WPEBuffer,
     user_data: *mut libc::c_void,
 ) {
-    use super::platform::{buffer_dmabuf_info, dmabuf_to_texture};
-
+    // Step 1: Basic validation only
     if user_data.is_null() || buffer.is_null() {
         log::warn!("buffer_rendered_callback: null user_data or buffer");
         return;
@@ -757,45 +805,7 @@ unsafe extern "C" fn buffer_rendered_callback(
 
     log::debug!("buffer_rendered_callback: received buffer {}x{}", width, height);
 
-    // Try DMA-BUF zero-copy path first
-    // TEMPORARILY DISABLED for debugging - force pixel fallback
-    let use_dmabuf = false;
-    if use_dmabuf && callback_data.gdk_display_ptr != 0 {
-        if let Some(dmabuf_info) = buffer_dmabuf_info(buffer) {
-            // Reconstruct GdkDisplay from pointer
-            let gdk_display: gdk4::Display = glib::translate::from_glib_none(
-                callback_data.gdk_display_ptr as *mut gdk4::ffi::GdkDisplay
-            );
-
-            match dmabuf_to_texture(&dmabuf_info, &gdk_display) {
-                Ok(texture) => {
-                    log::info!("buffer_rendered_callback: DMA-BUF zero-copy texture {}x{}", width, height);
-                    if let Ok(mut guard) = callback_data.latest_texture.lock() {
-                        *guard = Some(texture);
-                    }
-                    callback_data.frame_available.store(true, Ordering::Release);
-                    
-                    // Queue widget redraw on main thread
-                    glib::MainContext::default().invoke(|| {
-                        if let Some(widget) = crate::backend::gtk4::get_video_widget() {
-                            use gtk4::prelude::WidgetExt;
-                            widget.queue_draw();
-                        }
-                    });
-                    
-                    return;
-                }
-                Err(e) => {
-                    log::debug!("DMA-BUF texture creation failed: {}, falling back to pixels", e);
-                }
-            }
-        }
-    }
-
-    // Fallback: Import buffer to pixels
-    // Take a reference to the buffer to prevent WPE from recycling it during our processing
-    plat::g_object_ref(buffer as *mut _);
-
+    // Test step: Import pixels but don't process them
     let mut error: *mut plat::GError = ptr::null_mut();
     let bytes = plat::wpe_buffer_import_to_pixels(buffer, &mut error);
 
@@ -806,18 +816,17 @@ unsafe extern "C" fn buffer_rendered_callback(
             log::warn!("buffer_rendered_callback: pixel import failed: {}", msg);
             plat::g_error_free(error);
         }
-        plat::g_object_unref(buffer as *mut _);
         return;
     }
 
-    // Get pixel data
+    // Get pixel data from GBytes - note: we do NOT unref the GBytes
+    // The GBytes returned by wpe_buffer_import_to_pixels is managed by WPE
+    // and will be cleaned up when the callback returns
     let mut size: plat::gsize = 0;
     let data = plat::g_bytes_get_data(bytes, &mut size);
 
     if data.is_null() || size == 0 {
         log::warn!("buffer_rendered_callback: empty pixel data");
-        plat::g_bytes_unref(bytes);
-        plat::g_object_unref(buffer as *mut _);
         return;
     }
 
@@ -828,17 +837,12 @@ unsafe extern "C" fn buffer_rendered_callback(
     if size < expected_size || size > expected_size * 2 {
         log::warn!("buffer_rendered_callback: suspicious size {} for {}x{} (expected ~{})",
                    size, width, height, expected_size);
-        plat::g_bytes_unref(bytes);
-        plat::g_object_unref(buffer as *mut _);
         return;
     }
 
-    // Copy pixel data IMMEDIATELY before WPE can reclaim the buffer
+    // Copy pixel data IMMEDIATELY before the callback returns
+    // The GBytes memory may be invalidated after the callback
     let pixel_data: Vec<u8> = std::slice::from_raw_parts(data as *const u8, size).to_vec();
-
-    // Free the GBytes and release the buffer reference
-    plat::g_bytes_unref(bytes);
-    plat::g_object_unref(buffer as *mut _);
 
     // Calculate stride
     let actual_stride = size / (height as usize);
@@ -867,31 +871,21 @@ unsafe extern "C" fn buffer_rendered_callback(
         }
     }
 
-    // Create GdkMemoryTexture
-    // Now using BGRA with alpha=255 (opaque), and correct stride
-    let glib_bytes = glib::Bytes::from(&pixels_with_alpha);
-    let new_stride = (width * 4) as usize; // No padding in our output
+    log::info!("buffer_rendered_callback: prepared raw frame data {}x{}", width, height);
 
-    let texture = gdk4::MemoryTexture::new(
-        width as i32,
-        height as i32,
-        gdk4::MemoryFormat::B8g8r8a8,  // Non-premultiplied since alpha is always 255
-        &glib_bytes,
-        new_stride,
-    );
-
-    log::info!("buffer_rendered_callback: created texture {}x{}", width, height);
-
-    // Store the texture (thread-safe)
-    log::info!("buffer_rendered_callback: storing texture in callback_data ptr={:p}", callback_data);
-    if let Ok(mut guard) = callback_data.latest_texture.lock() {
-        *guard = Some(texture.upcast());
-        log::info!("buffer_rendered_callback: texture stored successfully");
+    // Store raw pixel data (thread-safe)
+    if let Ok(mut guard) = callback_data.latest_frame.lock() {
+        *guard = Some(RawFrameData {
+            pixels: pixels_with_alpha,
+            width,
+            height,
+        });
+        log::info!("buffer_rendered_callback: raw frame stored successfully");
     } else {
-        log::warn!("buffer_rendered_callback: failed to lock latest_texture mutex");
+        log::warn!("buffer_rendered_callback: failed to lock latest_frame mutex");
     }
     callback_data.frame_available.store(true, Ordering::Release);
-    
+
     // Queue widget redraw on main thread
     glib::MainContext::default().invoke(|| {
         if let Some(widget) = crate::backend::gtk4::get_video_widget() {
@@ -899,6 +893,10 @@ unsafe extern "C" fn buffer_rendered_callback(
             widget.queue_draw();
         }
     });
+
+    // Note: Do NOT unref the GBytes - WPE manages its lifecycle
+    // The GBytes returned by wpe_buffer_import_to_pixels is internally linked
+    // to the WPE buffer and will be cleaned up when the callback returns
 }
 
 /// C callback for decide-policy signal from WebKitWebView

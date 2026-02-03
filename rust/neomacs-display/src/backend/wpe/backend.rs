@@ -5,6 +5,7 @@
 
 use std::ptr;
 use std::sync::Once;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::core::error::{DisplayError, DisplayResult};
 
@@ -14,6 +15,64 @@ use super::platform::WpePlatformDisplay;
 static WPE_INIT: Once = Once::new();
 static mut WPE_PLATFORM_DISPLAY: Option<WpePlatformDisplay> = None;
 static mut WPE_INIT_ERROR: Option<String> = None;
+
+/// Flag to track if WebKit encountered a fatal error
+static WEBKIT_FATAL_ERROR: AtomicBool = AtomicBool::new(false);
+/// Store the last WebKit error message
+static mut WEBKIT_ERROR_MESSAGE: Option<String> = None;
+
+/// Check if required sandbox tools are available
+fn check_sandbox_prerequisites() -> Result<(), String> {
+    // Check for bubblewrap
+    let bwrap_available = std::process::Command::new("bwrap")
+        .arg("--version")
+        .output()
+        .is_ok();
+
+    // Check for xdg-dbus-proxy
+    let dbus_proxy_available = std::process::Command::new("xdg-dbus-proxy")
+        .arg("--version")
+        .output()
+        .is_ok();
+
+    if !bwrap_available || !dbus_proxy_available {
+        let mut missing = Vec::new();
+        if !bwrap_available {
+            missing.push("bubblewrap (bwrap)");
+        }
+        if !dbus_proxy_available {
+            missing.push("xdg-dbus-proxy");
+        }
+
+        // Check if sandbox is disabled
+        if std::env::var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS").is_ok() {
+            log::warn!("WebKit sandbox disabled - missing: {}", missing.join(", "));
+            return Ok(());
+        }
+
+        return Err(format!(
+            "WebKit requires sandbox tools: {}. \
+             Install them or set WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 to disable sandbox (not recommended).",
+            missing.join(", ")
+        ));
+    }
+
+    Ok(())
+}
+
+/// Check if WebKit has encountered a fatal error
+pub fn has_webkit_error() -> bool {
+    WEBKIT_FATAL_ERROR.load(Ordering::SeqCst)
+}
+
+/// Get and clear the last WebKit error message
+pub fn take_webkit_error() -> Option<String> {
+    if WEBKIT_FATAL_ERROR.swap(false, Ordering::SeqCst) {
+        unsafe { WEBKIT_ERROR_MESSAGE.take() }
+    } else {
+        None
+    }
+}
 
 /// WPE Backend manager using WPE Platform API.
 ///
@@ -33,7 +92,14 @@ impl WpeBackend {
     pub unsafe fn new(_egl_display_hint: *mut libc::c_void) -> DisplayResult<Self> {
         WPE_INIT.call_once(|| {
             eprintln!("WpeBackend: Initializing WPE Platform API...");
-            
+
+            // Check sandbox prerequisites first
+            if let Err(msg) = check_sandbox_prerequisites() {
+                eprintln!("WpeBackend: ERROR - {}", msg);
+                WPE_INIT_ERROR = Some(msg);
+                return;
+            }
+
             match WpePlatformDisplay::new_headless() {
                 Ok(display) => {
                     eprintln!("WpeBackend: WPE Platform display created successfully");
