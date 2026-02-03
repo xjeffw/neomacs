@@ -6,13 +6,9 @@ use std::ffi::{c_char, c_int, c_uint, c_double, c_void, CStr, CString};
 use std::panic;
 use std::ptr;
 
-#[cfg(feature = "gtk4-backend")]
-use gtk4::prelude::TextureExt;
 use log::{debug, trace, warn, info, error};
 
 use crate::backend::{BackendType, DisplayBackend};
-#[cfg(feature = "gtk4-backend")]
-use crate::backend::gtk4::{Gtk4Backend, Gtk4Renderer, GskRenderer, HybridRenderer, VideoCache, ImageCache, set_video_widget};
 use crate::backend::tty::TtyBackend;
 #[cfg(feature = "winit-backend")]
 use crate::backend::wgpu::WinitBackend;
@@ -25,8 +21,6 @@ use crate::core::frame_glyphs::{FrameGlyphBuffer, FrameGlyph};
 /// Opaque handle to the display engine
 pub struct NeomacsDisplay {
     backend_type: BackendType,
-    #[cfg(feature = "gtk4-backend")]
-    gtk4_backend: Option<Gtk4Backend>,
     tty_backend: Option<TtyBackend>,
     #[cfg(feature = "winit-backend")]
     winit_backend: Option<WinitBackend>,
@@ -34,18 +28,6 @@ pub struct NeomacsDisplay {
     frame_glyphs: FrameGlyphBuffer,  // Hybrid approach: direct glyph buffer
     use_hybrid: bool,       // Whether to use hybrid rendering (default: true)
     animations: AnimationManager,
-    #[cfg(feature = "gtk4-backend")]
-    renderer: Gtk4Renderer,  // Cairo renderer for external Cairo context
-    #[cfg(feature = "gtk4-backend")]
-    gsk_renderer: GskRenderer, // GSK renderer for GPU-accelerated rendering
-    #[cfg(feature = "gtk4-backend")]
-    hybrid_renderer: HybridRenderer, // Hybrid renderer for direct GSK rendering
-    #[cfg(feature = "gtk4-backend")]
-    use_gsk: bool,          // Whether to use GSK rendering
-    #[cfg(feature = "gtk4-backend")]
-    video_cache: VideoCache, // Video player cache
-    #[cfg(feature = "gtk4-backend")]
-    image_cache: ImageCache, // Image cache
     current_row_y: i32,     // Y position of current row being built
     current_row_x: i32,     // X position for next glyph in current row
     current_row_height: i32, // Height of current row
@@ -59,8 +41,6 @@ pub struct NeomacsDisplay {
 impl NeomacsDisplay {
     fn get_backend(&mut self) -> Option<&mut dyn DisplayBackend> {
         match self.backend_type {
-            #[cfg(feature = "gtk4-backend")]
-            BackendType::Gtk4 => self.gtk4_backend.as_mut().map(|b| b as &mut dyn DisplayBackend),
             BackendType::Tty => self.tty_backend.as_mut().map(|b| b as &mut dyn DisplayBackend),
             #[cfg(feature = "winit-backend")]
             BackendType::Wgpu => self.winit_backend.as_mut().map(|b| b as &mut dyn DisplayBackend),
@@ -94,8 +74,6 @@ pub unsafe extern "C" fn neomacs_display_init(backend: BackendType) -> *mut Neom
 
     let mut display = Box::new(NeomacsDisplay {
         backend_type: backend,
-        #[cfg(feature = "gtk4-backend")]
-        gtk4_backend: None,
         tty_backend: None,
         #[cfg(feature = "winit-backend")]
         winit_backend: None,
@@ -103,18 +81,6 @@ pub unsafe extern "C" fn neomacs_display_init(backend: BackendType) -> *mut Neom
         frame_glyphs: FrameGlyphBuffer::with_size(800.0, 600.0),  // Match initial scene size
         use_hybrid,
         animations: AnimationManager::new(),
-        #[cfg(feature = "gtk4-backend")]
-        renderer: Gtk4Renderer::new(),
-        #[cfg(feature = "gtk4-backend")]
-        gsk_renderer: GskRenderer::new(),
-        #[cfg(feature = "gtk4-backend")]
-        hybrid_renderer: HybridRenderer::new(),
-        #[cfg(feature = "gtk4-backend")]
-        use_gsk: true,  // Enable GSK rendering by default
-        #[cfg(feature = "gtk4-backend")]
-        video_cache: VideoCache::new(),
-        #[cfg(feature = "gtk4-backend")]
-        image_cache: ImageCache::new(),
         current_row_y: -1,
         current_row_x: 0,
         current_row_height: 0,
@@ -127,21 +93,6 @@ pub unsafe extern "C" fn neomacs_display_init(backend: BackendType) -> *mut Neom
 
     // Create the backend
     match backend {
-        #[cfg(feature = "gtk4-backend")]
-        BackendType::Gtk4 => {
-            // Initialize GTK4 library first
-            if let Err(e) = gtk4::init() {
-                eprintln!("Failed to initialize GTK4: {}", e);
-                return ptr::null_mut();
-            }
-
-            let mut gtk4 = Gtk4Backend::new();
-            if let Err(e) = gtk4.init() {
-                eprintln!("Failed to initialize GTK4 backend: {}", e);
-                return ptr::null_mut();
-            }
-            display.gtk4_backend = Some(gtk4);
-        }
         BackendType::Tty => {
             let mut tty = TtyBackend::new();
             if let Err(e) = tty.init() {
@@ -225,10 +176,6 @@ pub unsafe extern "C" fn neomacs_display_begin_frame(handle: *mut NeomacsDisplay
     display.frame_counter += 1;
     // Mark that we're in a frame update cycle
     display.in_frame = true;
-
-    // Share the hybrid renderer with the widget for animation state sharing
-    #[cfg(feature = "gtk4-backend")]
-    crate::backend::gtk4::set_widget_hybrid_renderer(&mut display.hybrid_renderer);
 
     debug!("begin_frame: frame={}, hybrid={}, glyphs={}",
            display.frame_counter, display.use_hybrid, display.frame_glyphs.len());
@@ -907,11 +854,8 @@ pub unsafe extern "C" fn neomacs_display_set_face(
         );
     }
 
-    // Register face both in the renderer's cache AND in the scene
-    // The scene will be cloned to the widget which has its own renderer
+    // Register face in the scene
     display.scene.set_face(face.clone());
-    #[cfg(feature = "gtk4-backend")]
-    display.gsk_renderer.face_cache_mut().insert(face);
 }
 
 /// Set the frame/scene background color
@@ -942,7 +886,7 @@ pub unsafe extern "C" fn neomacs_display_set_background(
 }
 
 // ============================================================================
-// Image Management
+// Image Management (stubs - no GTK4 backend)
 // ============================================================================
 
 /// Add a video glyph to the current row
@@ -1015,35 +959,7 @@ pub unsafe extern "C" fn neomacs_display_add_video_glyph(
     }
 }
 
-/// Load a video from URI
-/// Returns video_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_video(
-    handle: *mut NeomacsDisplay,
-    uri: *const c_char,
-) -> u32 {
-    if handle.is_null() || uri.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let uri_str = match CStr::from_ptr(uri).to_str() {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    match display.video_cache.load(uri_str) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load video: {}", e);
-            0
-        }
-    }
-}
-
-/// Load a video from URI (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load a video from URI (stub - video not supported without GTK4)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_video(
     _handle: *mut NeomacsDisplay,
@@ -1052,32 +968,7 @@ pub unsafe extern "C" fn neomacs_display_load_video(
     0
 }
 
-/// Play a loaded video
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_video_play(
-    handle: *mut NeomacsDisplay,
-    video_id: u32,
-) -> c_int {
-    if handle.is_null() {
-        return -1;
-    }
-
-    let display = &mut *handle;
-
-    #[cfg(feature = "video")]
-    if let Some(player) = display.video_cache.get_mut(video_id) {
-        return match player.play() {
-            Ok(()) => 0,
-            Err(_) => -1,
-        };
-    }
-
-    -1
-}
-
-/// Play a loaded video (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Play a loaded video (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_video_play(
     _handle: *mut NeomacsDisplay,
@@ -1086,32 +977,7 @@ pub unsafe extern "C" fn neomacs_display_video_play(
     -1
 }
 
-/// Pause a video
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_video_pause(
-    handle: *mut NeomacsDisplay,
-    video_id: u32,
-) -> c_int {
-    if handle.is_null() {
-        return -1;
-    }
-
-    let display = &mut *handle;
-
-    #[cfg(feature = "video")]
-    if let Some(player) = display.video_cache.get_mut(video_id) {
-        return match player.pause() {
-            Ok(()) => 0,
-            Err(_) => -1,
-        };
-    }
-
-    -1
-}
-
-/// Pause a video (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Pause a video (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_video_pause(
     _handle: *mut NeomacsDisplay,
@@ -1120,32 +986,7 @@ pub unsafe extern "C" fn neomacs_display_video_pause(
     -1
 }
 
-/// Stop a video
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_video_stop(
-    handle: *mut NeomacsDisplay,
-    video_id: u32,
-) -> c_int {
-    if handle.is_null() {
-        return -1;
-    }
-
-    let display = &mut *handle;
-
-    #[cfg(feature = "video")]
-    if let Some(player) = display.video_cache.get_mut(video_id) {
-        return match player.stop() {
-            Ok(()) => 0,
-            Err(_) => -1,
-        };
-    }
-
-    -1
-}
-
-/// Stop a video (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Stop a video (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_video_stop(
     _handle: *mut NeomacsDisplay,
@@ -1154,33 +995,7 @@ pub unsafe extern "C" fn neomacs_display_video_stop(
     -1
 }
 
-/// Set video loop mode
-/// count: -1 = infinite loop, 0 = no loop, n > 0 = loop n times
-/// Returns 0 on success, -1 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_video_set_loop(
-    handle: *mut NeomacsDisplay,
-    video_id: u32,
-    loop_count: c_int,
-) -> c_int {
-    if handle.is_null() {
-        return -1;
-    }
-
-    let display = &mut *handle;
-
-    #[cfg(feature = "video")]
-    if let Some(player) = display.video_cache.get_mut(video_id) {
-        player.set_looping(loop_count);
-        return 0;
-    }
-
-    -1
-}
-
-/// Set video loop mode (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Set video loop mode (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_video_set_loop(
     _handle: *mut NeomacsDisplay,
@@ -1190,31 +1005,7 @@ pub unsafe extern "C" fn neomacs_display_video_set_loop(
     -1
 }
 
-/// Update video frame (called from Emacs redisplay)
-/// Returns 0 on success, -1 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_video_update(
-    handle: *mut NeomacsDisplay,
-    video_id: u32,
-) -> c_int {
-    if handle.is_null() {
-        return -1;
-    }
-
-    let display = &mut *handle;
-
-    #[cfg(feature = "video")]
-    if let Some(player) = display.video_cache.get_mut(video_id) {
-        player.update();
-        return 0;
-    }
-
-    -1
-}
-
-/// Update video frame (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Update video frame (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_video_update(
     _handle: *mut NeomacsDisplay,
@@ -1224,69 +1015,17 @@ pub unsafe extern "C" fn neomacs_display_video_update(
 }
 
 // ============================================================================
-// Image Functions (GTK4 backend only)
+// Image Functions (stubs - no GTK4 backend)
 // ============================================================================
 
-/// Load an image from a file path
-/// Returns image_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_image(
-    handle: *mut NeomacsDisplay,
-    path: *const c_char,
-) -> u32 {
-    if handle.is_null() || path.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let path_str = match CStr::from_ptr(path).to_str() {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    match display.image_cache.load_from_file(std::path::Path::new(path_str)) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load image: {}", e);
-            0
-        }
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load an image from a file path (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image(
     _handle: *mut NeomacsDisplay,
     _path: *const c_char,
 ) -> u32 { 0 }
 
-/// Load an image from raw bytes
-/// Returns image_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_image_data(
-    handle: *mut NeomacsDisplay,
-    data: *const u8,
-    len: usize,
-) -> u32 {
-    if handle.is_null() || data.is_null() || len == 0 {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let bytes = std::slice::from_raw_parts(data, len);
-
-    match display.image_cache.load_from_bytes(bytes) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load image data: {}", e);
-            0
-        }
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load an image from raw bytes (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image_data(
     _handle: *mut NeomacsDisplay,
@@ -1294,37 +1033,7 @@ pub unsafe extern "C" fn neomacs_display_load_image_data(
     _len: usize,
 ) -> u32 { 0 }
 
-/// Load an image from raw bytes with optional scaling
-/// Returns image_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_image_data_scaled(
-    handle: *mut NeomacsDisplay,
-    data: *const u8,
-    len: usize,
-    max_width: c_int,
-    max_height: c_int,
-) -> u32 {
-    if handle.is_null() || data.is_null() || len == 0 {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let bytes = std::slice::from_raw_parts(data, len);
-
-    let mw = if max_width > 0 { Some(max_width) } else { None };
-    let mh = if max_height > 0 { Some(max_height) } else { None };
-
-    match display.image_cache.load_from_bytes_scaled(bytes, mw, mh) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load image data: {}", e);
-            0
-        }
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load an image from raw bytes with optional scaling (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image_data_scaled(
     _handle: *mut NeomacsDisplay,
@@ -1334,35 +1043,7 @@ pub unsafe extern "C" fn neomacs_display_load_image_data_scaled(
     _max_height: c_int,
 ) -> u32 { 0 }
 
-/// Load an image from raw ARGB32 pixel data (Cairo/Emacs format)
-/// Returns image_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_image_argb32(
-    handle: *mut NeomacsDisplay,
-    data: *const u8,
-    width: c_int,
-    height: c_int,
-    stride: c_int,
-) -> u32 {
-    if handle.is_null() || data.is_null() || width <= 0 || height <= 0 || stride <= 0 {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let data_len = (stride * height) as usize;
-    let bytes = std::slice::from_raw_parts(data, data_len);
-
-    match display.image_cache.load_from_argb32(bytes, width, height, stride) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load ARGB32 image: {}", e);
-            0
-        }
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load an image from raw ARGB32 pixel data (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image_argb32(
     _handle: *mut NeomacsDisplay,
@@ -1372,35 +1053,7 @@ pub unsafe extern "C" fn neomacs_display_load_image_argb32(
     _stride: c_int,
 ) -> u32 { 0 }
 
-/// Load an image from raw RGB24 pixel data (no alpha)
-/// Returns image_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_image_rgb24(
-    handle: *mut NeomacsDisplay,
-    data: *const u8,
-    width: c_int,
-    height: c_int,
-    stride: c_int,
-) -> u32 {
-    if handle.is_null() || data.is_null() || width <= 0 || height <= 0 || stride <= 0 {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let data_len = (stride * height) as usize;
-    let bytes = std::slice::from_raw_parts(data, data_len);
-
-    match display.image_cache.load_from_rgb24(bytes, width, height, stride) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load RGB24 image: {}", e);
-            0
-        }
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load an image from raw RGB24 pixel data (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image_rgb24(
     _handle: *mut NeomacsDisplay,
@@ -1410,74 +1063,14 @@ pub unsafe extern "C" fn neomacs_display_load_image_rgb24(
     _stride: c_int,
 ) -> u32 { 0 }
 
-/// Load an image from a file path
-/// Returns image_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_image_file(
-    handle: *mut NeomacsDisplay,
-    path: *const c_char,
-) -> u32 {
-    if handle.is_null() || path.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    match display.image_cache.load_from_file(path_str) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load image file '{}': {}", path_str, e);
-            0
-        }
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load an image from a file path (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image_file(
     _handle: *mut NeomacsDisplay,
     _path: *const c_char,
 ) -> u32 { 0 }
 
-/// Load an image from a file path with scaling
-/// If max_width or max_height is 0, that dimension is not constrained
-/// Returns image_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_image_file_scaled(
-    handle: *mut NeomacsDisplay,
-    path: *const c_char,
-    max_width: c_int,
-    max_height: c_int,
-) -> u32 {
-    if handle.is_null() || path.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    let max_w = if max_width > 0 { Some(max_width) } else { None };
-    let max_h = if max_height > 0 { Some(max_height) } else { None };
-
-    match display.image_cache.load_from_file_scaled(path_str, max_w, max_h) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load scaled image file '{}': {}", path_str, e);
-            0
-        }
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load an image from a file path with scaling (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image_file_scaled(
     _handle: *mut NeomacsDisplay,
@@ -1486,74 +1079,14 @@ pub unsafe extern "C" fn neomacs_display_load_image_file_scaled(
     _max_height: c_int,
 ) -> u32 { 0 }
 
-/// Load an image directly as GdkTexture (potentially faster, GPU-optimized)
-/// Skips Pixbuf → Cairo Surface intermediate conversions
-/// Returns image_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_image_file_direct(
-    handle: *mut NeomacsDisplay,
-    path: *const c_char,
-) -> u32 {
-    if handle.is_null() || path.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    match display.image_cache.load_from_file_direct(path_str) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load image file direct '{}': {}", path_str, e);
-            0
-        }
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load an image directly as texture (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image_file_direct(
     _handle: *mut NeomacsDisplay,
     _path: *const c_char,
 ) -> u32 { 0 }
 
-/// Load an image directly as GdkTexture with scaling
-/// Returns image_id on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_load_image_file_direct_scaled(
-    handle: *mut NeomacsDisplay,
-    path: *const c_char,
-    max_width: c_int,
-    max_height: c_int,
-) -> u32 {
-    if handle.is_null() || path.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    let max_w = if max_width > 0 { Some(max_width) } else { None };
-    let max_h = if max_height > 0 { Some(max_height) } else { None };
-
-    match display.image_cache.load_from_file_direct_scaled(path_str, max_w, max_h) {
-        Ok(id) => id,
-        Err(e) => {
-            eprintln!("Failed to load direct scaled image '{}': {}", path_str, e);
-            0
-        }
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Load an image directly as texture with scaling (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_load_image_file_direct_scaled(
     _handle: *mut NeomacsDisplay,
@@ -1562,32 +1095,7 @@ pub unsafe extern "C" fn neomacs_display_load_image_file_direct_scaled(
     _max_height: c_int,
 ) -> u32 { 0 }
 
-/// Get image dimensions
-/// Returns 0 on success, -1 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_get_image_size(
-    handle: *mut NeomacsDisplay,
-    image_id: u32,
-    width: *mut c_int,
-    height: *mut c_int,
-) -> c_int {
-    if handle.is_null() || width.is_null() || height.is_null() {
-        return -1;
-    }
-
-    let display = &mut *handle;
-
-    if let Some(img) = display.image_cache.get(image_id) {
-        *width = img.width;
-        *height = img.height;
-        return 0;
-    }
-
-    -1
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Get image dimensions (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_get_image_size(
     _handle: *mut NeomacsDisplay,
@@ -1596,51 +1104,7 @@ pub unsafe extern "C" fn neomacs_display_get_image_size(
     _height: *mut c_int,
 ) -> c_int { -1 }
 
-/// Query image file dimensions without loading into cache
-/// Returns 0 on success, -1 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_query_image_file_size(
-    _handle: *mut NeomacsDisplay,
-    path: *const c_char,
-    width: *mut c_int,
-    height: *mut c_int,
-) -> c_int {
-    use gtk4::gdk_pixbuf::Pixbuf;
-
-    if path.is_null() || width.is_null() || height.is_null() {
-        return -1;
-    }
-
-    let path_str = match std::ffi::CStr::from_ptr(path).to_str() {
-        Ok(s) => s,
-        Err(_) => return -1,
-    };
-
-    // Use get_file_info to read just the header (fast, no full decode)
-    match Pixbuf::file_info(path_str) {
-        Some((_, w, h)) => {
-            *width = w;
-            *height = h;
-            0
-        }
-        None => {
-            // Fallback: try loading to get dimensions
-            match Pixbuf::from_file(path_str) {
-                Ok(pixbuf) => {
-                    *width = pixbuf.width();
-                    *height = pixbuf.height();
-                    0
-                }
-                Err(_) => -1,
-            }
-        }
-    }
-}
-
-/// Query image file dimensions without loading into cache (stub when gtk4 not available)
-/// Returns -1 (not implemented)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Query image file dimensions without loading (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_query_image_file_size(
     _handle: *mut NeomacsDisplay,
@@ -1648,30 +1112,10 @@ pub unsafe extern "C" fn neomacs_display_query_image_file_size(
     _width: *mut c_int,
     _height: *mut c_int,
 ) -> c_int {
-    // Not implemented without GTK4
     -1
 }
 
-/// Free an image from cache
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_free_image(
-    handle: *mut NeomacsDisplay,
-    image_id: u32,
-) -> c_int {
-    if handle.is_null() {
-        return -1;
-    }
-
-    let display = &mut *handle;
-    if display.image_cache.remove(image_id) {
-        0
-    } else {
-        -1
-    }
-}
-
-#[cfg(not(feature = "gtk4-backend"))]
+/// Free an image from cache (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_free_image(
     _handle: *mut NeomacsDisplay,
@@ -1679,7 +1123,6 @@ pub unsafe extern "C" fn neomacs_display_free_image(
 ) -> c_int { -1 }
 
 /// Set a floating video at a specific screen position
-/// The video will be rendered on top of the frame
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_floating_video(
     handle: *mut NeomacsDisplay,
@@ -1723,7 +1166,6 @@ pub unsafe extern "C" fn neomacs_display_clear_floating_video(
 }
 
 /// Set a floating image at a specific screen position
-/// The image will be rendered on top of the frame
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_floating_image(
     handle: *mut NeomacsDisplay,
@@ -1767,7 +1209,6 @@ pub unsafe extern "C" fn neomacs_display_clear_floating_image(
 }
 
 /// Clear a rectangular area of the display
-/// Used by gui_clear_end_of_line and related functions
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_clear_area(
     handle: *mut NeomacsDisplay,
@@ -1793,7 +1234,7 @@ pub unsafe extern "C" fn neomacs_display_clear_area(
     }
 }
 
-/// Clear all glyphs - used when frame layout changes (e.g., tab-bar-mode toggle)
+/// Clear all glyphs - used when frame layout changes
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_clear_all_glyphs(handle: *mut NeomacsDisplay) {
     if handle.is_null() {
@@ -1806,8 +1247,7 @@ pub unsafe extern "C" fn neomacs_display_clear_all_glyphs(handle: *mut NeomacsDi
     display.frame_glyphs.prev_window_regions.clear();
 }
 
-/// Clear all cursors - called at start of each frame to prevent ghost cursors
-/// when focus changes between windows (e.g., buffer <-> minibuffer)
+/// Clear all cursors
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_clear_all_cursors(handle: *mut NeomacsDisplay) {
     if handle.is_null() {
@@ -1818,8 +1258,7 @@ pub unsafe extern "C" fn neomacs_display_clear_all_cursors(handle: *mut NeomacsD
     display.frame_glyphs.glyphs.retain(|g| !matches!(g, FrameGlyph::Cursor { .. }));
 }
 
-/// Clear all borders (window dividers) - called at start of each frame
-/// to prevent stale dividers when windows are deleted
+/// Clear all borders (window dividers)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_clear_all_borders(handle: *mut NeomacsDisplay) {
     if handle.is_null() {
@@ -1831,7 +1270,7 @@ pub unsafe extern "C" fn neomacs_display_clear_all_borders(handle: *mut NeomacsD
 }
 
 /// End frame and render
-/// Returns 0 on success, 1 if layout changed (Emacs should force refresh), -1 on error
+/// Returns 0 on success, 1 if layout changed, -1 on error
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) -> c_int {
     if handle.is_null() {
@@ -1867,15 +1306,6 @@ pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) 
 
     // Render - we need to match backend type explicitly to avoid borrow conflict
     let result = match display.backend_type {
-        #[cfg(feature = "gtk4-backend")]
-        BackendType::Gtk4 => {
-            if let Some(backend) = display.gtk4_backend.as_mut() {
-                backend.render(&display.scene)
-                    .and_then(|_| backend.present())
-            } else {
-                Ok(())
-            }
-        }
         BackendType::Tty => {
             if let Some(backend) = display.tty_backend.as_mut() {
                 backend.render(&display.scene)
@@ -1905,75 +1335,7 @@ pub unsafe extern "C" fn neomacs_display_end_frame(handle: *mut NeomacsDisplay) 
     if layout_cleared { 1 } else { 0 }
 }
 
-/// Render the scene to an external Cairo context
-///
-/// # Safety
-/// The cairo_context must be a valid cairo_t pointer from C.
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_render_to_cairo(
-    handle: *mut NeomacsDisplay,
-    cairo_context: *mut c_void,
-) -> c_int {
-    if handle.is_null() || cairo_context.is_null() {
-        return -1;
-    }
-
-    let display = &mut *handle;
-
-    // Convert the C cairo_t pointer to a Rust Cairo context
-    // This is safe because we're wrapping an existing context, not creating one
-    let cr = match gtk4::cairo::Context::from_raw_borrow(cairo_context as *mut _) {
-        cr => cr,
-    };
-
-    // Build the scene graph from accumulated data
-    display.scene.build();
-
-    // Render using GSK renderer (GPU-accelerated scene graph) or Cairo renderer
-    if display.use_gsk {
-        // Try to get webkit cache from thread-local storage
-        #[cfg(feature = "wpe-webkit")]
-        {
-            WEBKIT_CACHE.with(|cache| {
-                let cache_ref = cache.borrow();
-                if let Some(webkit_cache) = cache_ref.as_ref() {
-                    display.gsk_renderer.render_to_cairo_with_all_caches(
-                        &cr,
-                        &display.scene,
-                        &display.video_cache,
-                        &mut display.image_cache,
-                        webkit_cache,
-                    );
-                } else {
-                    display.gsk_renderer.render_to_cairo_with_caches(
-                        &cr,
-                        &display.scene,
-                        &display.video_cache,
-                        &mut display.image_cache,
-                    );
-                }
-            });
-        }
-
-        #[cfg(not(feature = "wpe-webkit"))]
-        {
-            display.gsk_renderer.render_to_cairo_with_caches(
-                &cr,
-                &display.scene,
-                &display.video_cache,
-                &mut display.image_cache,
-            );
-        }
-    } else {
-        display.renderer.render(&cr, &display.scene);
-    }
-
-    0
-}
-
-/// Render the scene to an external Cairo context (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Render the scene to an external Cairo context (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_render_to_cairo(
     _handle: *mut NeomacsDisplay,
@@ -1983,29 +1345,7 @@ pub unsafe extern "C" fn neomacs_display_render_to_cairo(
     -1
 }
 
-/// Initialize the renderer with a Pango context (call after widget is realized)
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_init_pango(
-    handle: *mut NeomacsDisplay,
-    pango_context: *mut c_void,
-) {
-    if handle.is_null() || pango_context.is_null() {
-        return;
-    }
-
-    let display = &mut *handle;
-
-    // Convert C PangoContext to Rust
-    let context: gtk4::pango::Context = gtk4::glib::translate::from_glib_none(pango_context as *mut _);
-
-    // Initialize both renderers with the Pango context
-    display.renderer.init_with_context(context.clone());
-    display.gsk_renderer.init_with_context(context);
-}
-
-/// Initialize the renderer with a Pango context (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Initialize the renderer with a Pango context (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_init_pango(
     _handle: *mut NeomacsDisplay,
@@ -2014,23 +1354,7 @@ pub unsafe extern "C" fn neomacs_display_init_pango(
     // Not implemented without GTK4
 }
 
-/// Enable or disable GSK rendering
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_gsk_enabled(
-    handle: *mut NeomacsDisplay,
-    enabled: c_int,
-) {
-    if handle.is_null() {
-        return;
-    }
-
-    let display = &mut *handle;
-    display.use_gsk = enabled != 0;
-}
-
-/// Enable or disable GSK rendering (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Enable or disable GSK rendering (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_gsk_enabled(
     _handle: *mut NeomacsDisplay,
@@ -2116,72 +1440,16 @@ pub unsafe extern "C" fn neomacs_display_is_initialized(handle: *mut NeomacsDisp
 }
 
 // ============================================================================
-// GPU-Accelerated Widget (GSK) - GTK4 backend only
+// Widget Functions (stubs - no GTK4 backend)
 // ============================================================================
 
-#[cfg(feature = "gtk4-backend")]
-use crate::backend::gtk4::{NeomacsWidget, set_widget_video_cache, set_widget_image_cache, set_widget_frame_glyphs, set_widget_use_hybrid, set_widget_floating_images, set_widget_floating_webkits};
-#[cfg(all(feature = "gtk4-backend", feature = "wpe-webkit"))]
-use crate::backend::gtk4::set_widget_webkit_cache;
-
-/// Create a GPU-accelerated NeomacsWidget
-///
-/// # Safety
-/// Returns a pointer to a NeomacsWidget that can be added to a GTK container.
-/// The widget is owned by GTK's reference counting system.
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_create_widget() -> *mut c_void {
-    use gtk4::glib::translate::ToGlibPtr;
-    use gtk4::prelude::{WidgetExt, Cast};
-
-    let widget = NeomacsWidget::new();
-
-    // Make widget expand to fill the entire window
-    widget.set_hexpand(true);
-    widget.set_vexpand(true);
-
-    // Cast to gtk4::Widget first, then get the pointer
-    let gtk_widget: gtk4::Widget = widget.upcast();
-    let ptr: *mut gtk4::ffi::GtkWidget = gtk_widget.to_glib_full();
-    ptr as *mut c_void
-}
-
-/// Create a GPU-accelerated NeomacsWidget (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Create a GPU-accelerated NeomacsWidget (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_create_widget() -> *mut c_void {
     ptr::null_mut()
 }
 
-/// Set the scene on a NeomacsWidget (triggers GPU-accelerated redraw)
-///
-/// # Safety
-/// handle must be a valid NeomacsDisplay pointer
-/// widget must be a valid NeomacsWidget pointer
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_widget_set_scene(
-    handle: *mut NeomacsDisplay,
-    widget: *mut c_void,
-) -> c_int {
-    use gtk4::glib::translate::from_glib_none;
-
-    if handle.is_null() || widget.is_null() {
-        return -1;
-    }
-
-    let display = &mut *handle;
-    let widget: NeomacsWidget = from_glib_none(widget as *mut _);
-
-    // Clone the committed scene and set it on the widget
-    widget.set_scene(display.scene.clone());
-
-    0
-}
-
-/// Set the scene on a NeomacsWidget (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Set the scene on a NeomacsWidget (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_widget_set_scene(
     _handle: *mut NeomacsDisplay,
@@ -2190,37 +1458,7 @@ pub unsafe extern "C" fn neomacs_display_widget_set_scene(
     -1
 }
 
-/// Initialize the GSK renderer's Pango context from a NeomacsWidget
-///
-/// # Safety
-/// handle must be valid, widget must be a realized NeomacsWidget
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_widget_init_pango(
-    handle: *mut NeomacsDisplay,
-    widget: *mut c_void,
-) {
-    use gtk4::glib::translate::from_glib_none;
-    use gtk4::prelude::{WidgetExt, Cast};
-
-    if handle.is_null() || widget.is_null() {
-        return;
-    }
-
-    let display = &mut *handle;
-    let widget: NeomacsWidget = from_glib_none(widget as *mut _);
-
-    // Get Pango context from widget and initialize renderer
-    let context = widget.pango_context();
-    display.renderer.init_with_context(context);
-
-    // Set widget for video frame invalidation callbacks early
-    // This ensures the widget is available when videos start producing frames
-    set_video_widget(Some(widget.clone().upcast::<gtk4::Widget>()));
-}
-
-/// Initialize the GSK renderer's Pango context from a NeomacsWidget (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Initialize the GSK renderer's Pango context from a NeomacsWidget (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_widget_init_pango(
     _handle: *mut NeomacsDisplay,
@@ -2229,90 +1467,7 @@ pub unsafe extern "C" fn neomacs_display_widget_init_pango(
     // Not implemented without GTK4
 }
 
-/// Render scene to a NeomacsWidget using GSK (GPU-accelerated)
-///
-/// This renders directly using GSK render nodes for GPU acceleration.
-///
-/// # Safety
-/// handle must be valid, widget must be a valid NeomacsWidget
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_render_to_widget(
-    handle: *mut NeomacsDisplay,
-    widget: *mut c_void,
-) -> c_int {
-    use gtk4::glib::translate::from_glib_none;
-    use gtk4::prelude::{WidgetExt, Cast};
-
-    if handle.is_null() || widget.is_null() {
-        warn!("render_to_widget: null handle or widget");
-        return -1;
-    }
-
-    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        let display = &mut *handle;
-        let widget: NeomacsWidget = from_glib_none(widget as *mut _);
-
-        // Set widget for video frame invalidation callbacks
-        // This allows video paintables to trigger redraws when new frames arrive
-        set_video_widget(Some(widget.clone().upcast::<gtk4::Widget>()));
-
-        // Set caches for widget rendering (thread-local storage)
-        // The widget's snapshot() method will use these during GTK's draw cycle
-        set_widget_video_cache(&display.video_cache as *const VideoCache);
-        set_widget_image_cache(&mut display.image_cache as *mut ImageCache);
-
-        // Set hybrid mode flag
-        set_widget_use_hybrid(display.use_hybrid);
-
-        // Update all webkit views to process pending frames
-        #[cfg(feature = "wpe-webkit")]
-        WEBKIT_CACHE.with(|cache| {
-            if let Some(ref mut c) = *cache.borrow_mut() {
-                c.update_all();
-            }
-        });
-
-        if display.use_hybrid {
-            // Hybrid path: pass FrameGlyphBuffer to widget via thread-local
-            debug!("render_to_widget: hybrid mode, {} glyphs", display.frame_glyphs.len());
-            set_widget_frame_glyphs(&display.frame_glyphs as *const FrameGlyphBuffer);
-
-            // Pass floating images to widget for overlay rendering
-            set_widget_floating_images(display.scene.floating_images.clone());
-
-            // Pass floating webkits to widget for overlay rendering
-            set_widget_floating_webkits(display.scene.floating_webkits.clone());
-
-            // Set webkit cache for widget rendering
-            #[cfg(feature = "wpe-webkit")]
-            WEBKIT_CACHE.with(|cache| {
-                if let Some(ref c) = *cache.borrow() {
-                    set_widget_webkit_cache(c as *const WebKitCache);
-                }
-            });
-
-            // Trigger redraw - widget will read from thread-local frame_glyphs
-            widget.queue_draw();
-        } else {
-            // Legacy path: build scene and set on widget
-            debug!("render_to_widget: legacy mode, building scene");
-            display.scene.build();
-            let cloned_scene = display.scene.clone();
-            widget.set_scene(cloned_scene);
-        }
-    }));
-
-    if let Err(e) = result {
-        error!("PANIC in render_to_widget: {:?}", e);
-        return -1;
-    }
-
-    0
-}
-
-/// Render scene to a NeomacsWidget (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Render scene to a NeomacsWidget (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_render_to_widget(
     _handle: *mut NeomacsDisplay,
@@ -2324,27 +1479,7 @@ pub unsafe extern "C" fn neomacs_display_render_to_widget(
 /// Type for the resize callback function pointer from C
 pub type ResizeCallbackFn = extern "C" fn(user_data: *mut c_void, width: c_int, height: c_int);
 
-/// Set the resize callback for the NeomacsWidget
-/// The callback will be called whenever the widget is resized
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_resize_callback(
-    callback: ResizeCallbackFn,
-    user_data: *mut c_void,
-) {
-    use crate::backend::gtk4::set_widget_resize_callback;
-
-    // Store the raw pointer - it must remain valid for the lifetime of the callback
-    let user_data_ptr = user_data as usize;
-
-    set_widget_resize_callback(move |width, height| {
-        // Call the C callback
-        callback(user_data_ptr as *mut c_void, width as c_int, height as c_int);
-    });
-}
-
-/// Set the resize callback (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Set the resize callback (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_resize_callback(
     _callback: ResizeCallbackFn,
@@ -2354,10 +1489,10 @@ pub unsafe extern "C" fn neomacs_display_set_resize_callback(
 }
 
 // ============================================================================
-// Mouse Event Callbacks
+// Mouse Event Callbacks (stubs - no GTK4 backend)
 // ============================================================================
 
-/// Type for mouse button callback: (user_data, x, y, button, pressed, modifiers, time)
+/// Type for mouse button callback
 pub type MouseButtonCallbackFn = extern "C" fn(
     user_data: *mut c_void,
     x: c_double,
@@ -2368,7 +1503,7 @@ pub type MouseButtonCallbackFn = extern "C" fn(
     time: c_uint,
 );
 
-/// Type for mouse motion callback: (user_data, x, y, modifiers, time)
+/// Type for mouse motion callback
 pub type MouseMotionCallbackFn = extern "C" fn(
     user_data: *mut c_void,
     x: c_double,
@@ -2377,7 +1512,7 @@ pub type MouseMotionCallbackFn = extern "C" fn(
     time: c_uint,
 );
 
-/// Type for mouse scroll callback: (user_data, x, y, delta_x, delta_y, modifiers, time)
+/// Type for mouse scroll callback
 pub type MouseScrollCallbackFn = extern "C" fn(
     user_data: *mut c_void,
     x: c_double,
@@ -2388,35 +1523,7 @@ pub type MouseScrollCallbackFn = extern "C" fn(
     time: c_uint,
 );
 
-/// Set the mouse button callback for the NeomacsWidget
-/// Called on button press (pressed=1) and release (pressed=0)
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_mouse_button_callback(
-    callback: MouseButtonCallbackFn,
-    user_data: *mut c_void,
-) {
-    use crate::backend::gtk4::set_widget_mouse_button_callback;
-
-    let user_data_ptr = user_data as usize;
-
-    set_widget_mouse_button_callback(move |x, y, button, pressed, modifiers, time| {
-        log::debug!("FFI: Mouse button callback -> C: x={:.1}, y={:.1}, btn={}, pressed={}",
-                   x, y, button, pressed);
-        callback(
-            user_data_ptr as *mut c_void,
-            x as c_double,
-            y as c_double,
-            button as c_uint,
-            if pressed { 1 } else { 0 },
-            modifiers as c_uint,
-            time as c_uint,
-        );
-    });
-}
-
-/// Set the mouse button callback (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Set the mouse button callback (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_mouse_button_callback(
     _callback: MouseButtonCallbackFn,
@@ -2425,35 +1532,7 @@ pub unsafe extern "C" fn neomacs_display_set_mouse_button_callback(
     // Not implemented without GTK4
 }
 
-/// Set the mouse motion callback for the NeomacsWidget
-/// Called on mouse movement
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_mouse_motion_callback(
-    callback: MouseMotionCallbackFn,
-    user_data: *mut c_void,
-) {
-    use crate::backend::gtk4::set_widget_mouse_motion_callback;
-
-    let user_data_ptr = user_data as usize;
-
-    set_widget_mouse_motion_callback(move |x, y, modifiers, time| {
-        // Only log occasionally to avoid spam (every ~100th call based on time)
-        if time % 1000 < 10 {
-            log::trace!("FFI: Mouse motion callback -> C: x={:.1}, y={:.1}", x, y);
-        }
-        callback(
-            user_data_ptr as *mut c_void,
-            x as c_double,
-            y as c_double,
-            modifiers as c_uint,
-            time as c_uint,
-        );
-    });
-}
-
-/// Set the mouse motion callback (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Set the mouse motion callback (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_mouse_motion_callback(
     _callback: MouseMotionCallbackFn,
@@ -2462,34 +1541,7 @@ pub unsafe extern "C" fn neomacs_display_set_mouse_motion_callback(
     // Not implemented without GTK4
 }
 
-/// Set the mouse scroll callback for the NeomacsWidget
-/// Called on scroll wheel events
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_mouse_scroll_callback(
-    callback: MouseScrollCallbackFn,
-    user_data: *mut c_void,
-) {
-    use crate::backend::gtk4::set_widget_mouse_scroll_callback;
-
-    let user_data_ptr = user_data as usize;
-
-    set_widget_mouse_scroll_callback(move |x, y, dx, dy, modifiers, time| {
-        log::debug!("FFI: Mouse scroll callback -> C: dx={:.2}, dy={:.2}", dx, dy);
-        callback(
-            user_data_ptr as *mut c_void,
-            x as c_double,
-            y as c_double,
-            dx as c_double,
-            dy as c_double,
-            modifiers as c_uint,
-            time as c_uint,
-        );
-    });
-}
-
-/// Set the mouse scroll callback (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Set the mouse scroll callback (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_mouse_scroll_callback(
     _callback: MouseScrollCallbackFn,
@@ -2500,10 +1552,6 @@ pub unsafe extern "C" fn neomacs_display_set_mouse_scroll_callback(
 
 // ============================================================================
 // WebKit Integration
-// ============================================================================
-
-// ============================================================================
-// WebKit Functions
 // ============================================================================
 
 #[cfg(feature = "wpe-webkit")]
@@ -2520,12 +1568,9 @@ thread_local! {
 }
 
 /// Callback type for webkit new window requests
-/// Parameters: (view_id, url, frame_name)
-/// Returns: 1 if handled (Emacs will open URL), 0 to ignore
 pub type WebKitNewWindowCallback = extern "C" fn(u32, *const c_char, *const c_char) -> bool;
 
-/// Set callback for WebKit new window/tab requests (target="_blank", window.open(), etc.)
-/// Pass null to clear the callback.
+/// Set callback for WebKit new window/tab requests
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_set_new_window_callback(
     callback: Option<extern "C" fn(u32, *const c_char, *const c_char) -> bool>,
@@ -2546,11 +1591,9 @@ pub unsafe extern "C" fn neomacs_display_webkit_set_new_window_callback(
 }
 
 /// Callback type for WebKit page load events
-/// Args: view_id, load_event (0=started, 1=redirected, 2=committed, 3=finished, 4=failed), uri
 pub type WebKitLoadCallback = extern "C" fn(u32, c_int, *const c_char);
 
 /// Set callback for WebKit page load events
-/// Pass null to clear the callback.
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_set_load_callback(
     callback: Option<extern "C" fn(u32, c_int, *const c_char)>,
@@ -2571,7 +1614,6 @@ pub unsafe extern "C" fn neomacs_display_webkit_set_load_callback(
 }
 
 /// Initialize WebKit subsystem with EGL display
-/// Must be called before creating WebKit views
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_init(
     _handle: *mut NeomacsDisplay,
@@ -2624,7 +1666,6 @@ pub unsafe extern "C" fn neomacs_display_webkit_init(
 /// Try to get current EGL display
 #[cfg(feature = "wpe-webkit")]
 unsafe fn egl_get_current_display() -> *mut libc::c_void {
-    // Link to EGL
     extern "C" {
         fn eglGetCurrentDisplay() -> *mut libc::c_void;
     }
@@ -2632,7 +1673,6 @@ unsafe fn egl_get_current_display() -> *mut libc::c_void {
 }
 
 /// Create a new WebKit view
-/// Returns view_id on success, 0 on failure
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_create(
     _handle: *mut NeomacsDisplay,
@@ -2934,9 +1974,7 @@ pub unsafe extern "C" fn neomacs_display_hide_floating_webkit(
     display.scene.remove_floating_webkit(webkit_id);
 }
 
-/// Find which floating webkit view (if any) is at the given coordinates.
-/// Returns the webkit_id if found, 0 if no webkit at that position.
-/// Also returns the relative x,y within the webkit view via out parameters.
+/// Find which floating webkit view is at the given coordinates
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_at_position(
     handle: *mut NeomacsDisplay,
@@ -3105,7 +2143,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_click(
     }
 }
 
-/// Get WebKit view title (returns null-terminated string, caller must free)
+/// Get WebKit view title
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_get_title(
     _handle: *mut NeomacsDisplay,
@@ -3139,7 +2177,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_get_title(
     }
 }
 
-/// Get WebKit view URL (returns null-terminated string, caller must free)
+/// Get WebKit view URL
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_get_url(
     _handle: *mut NeomacsDisplay,
@@ -3173,7 +2211,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_get_url(
     }
 }
 
-/// Get WebKit view loading progress (0.0 - 1.0), returns -1 if view not found
+/// Get WebKit view loading progress
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_get_progress(
     _handle: *mut NeomacsDisplay,
@@ -3197,7 +2235,7 @@ pub unsafe extern "C" fn neomacs_display_webkit_get_progress(
     }
 }
 
-/// Check if WebKit view is loading (1=loading, 0=not loading, -1=not found)
+/// Check if WebKit view is loading
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_webkit_is_loading(
     _handle: *mut NeomacsDisplay,
@@ -3300,52 +2338,10 @@ pub unsafe extern "C" fn neomacs_display_add_wpe_glyph(
 }
 
 // ============================================================================
-// Animation FFI functions (GTK4 backend only)
+// Animation FFI functions (stubs - no GTK4 backend)
 // ============================================================================
 
-/// Set an animation configuration option
-///
-/// key: option name (e.g., "animation", "cursor-animation", "cursor-animation-mode", etc.)
-/// value: option value (e.g., "t", "nil", "railgun", "crossfade", "30", etc.)
-///
-/// Returns 1 on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_set_animation_option(
-    handle: *mut NeomacsDisplay,
-    key: *const c_char,
-    value: *const c_char,
-) -> c_int {
-    if handle.is_null() || key.is_null() || value.is_null() {
-        return 0;
-    }
-
-    let key_str = match CStr::from_ptr(key).to_str() {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    let value_str = match CStr::from_ptr(value).to_str() {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    let display = &mut *handle;
-    display.hybrid_renderer.set_animation_option(key_str, value_str);
-    info!("Animation option set: {} = {}", key_str, value_str);
-
-    // When buffer-transition is enabled, enable frame caching for instant snapshots
-    if key_str == "buffer-transition" {
-        let enabled = value_str == "t" || value_str == "true" || value_str == "1";
-        crate::backend::gtk4::enable_frame_caching(enabled);
-        info!("Frame caching {}", if enabled { "enabled" } else { "disabled" });
-    }
-
-    1
-}
-
-/// Set an animation configuration option (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Set an animation configuration option (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_animation_option(
     _handle: *mut NeomacsDisplay,
@@ -3355,39 +2351,7 @@ pub unsafe extern "C" fn neomacs_display_set_animation_option(
     0
 }
 
-/// Get an animation configuration option
-///
-/// Returns the value as a newly-allocated C string (caller must free with neomacs_display_free_string)
-/// Returns NULL on failure or unknown option
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_get_animation_option(
-    handle: *mut NeomacsDisplay,
-    key: *const c_char,
-) -> *mut c_char {
-    if handle.is_null() || key.is_null() {
-        return ptr::null_mut();
-    }
-
-    let key_str = match CStr::from_ptr(key).to_str() {
-        Ok(s) => s,
-        Err(_) => return ptr::null_mut(),
-    };
-
-    let display = &mut *handle;
-    match display.hybrid_renderer.get_animation_option(key_str) {
-        Some(value) => {
-            match CString::new(value) {
-                Ok(c_value) => c_value.into_raw(),
-                Err(_) => ptr::null_mut(),
-            }
-        }
-        None => ptr::null_mut(),
-    }
-}
-
-/// Get an animation configuration option (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Get an animation configuration option (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_get_animation_option(
     _handle: *mut NeomacsDisplay,
@@ -3404,27 +2368,7 @@ pub unsafe extern "C" fn neomacs_display_free_string(s: *mut c_char) {
     }
 }
 
-/// Update cursor animation state (call each frame from GTK widget)
-///
-/// dt: delta time in seconds since last frame
-/// Returns 1 if animation is still in progress (needs redraw), 0 otherwise
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_update_animation(
-    handle: *mut NeomacsDisplay,
-    dt: c_double,
-) -> c_int {
-    if handle.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let animating = display.hybrid_renderer.update_animation(dt as f32);
-    if animating { 1 } else { 0 }
-}
-
-/// Update cursor animation state (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Update cursor animation state (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_update_animation(
     _handle: *mut NeomacsDisplay,
@@ -3433,24 +2377,7 @@ pub unsafe extern "C" fn neomacs_display_update_animation(
     0
 }
 
-/// Check if animation needs continuous redraw
-/// Returns 1 if continuous redraw needed, 0 otherwise
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_animation_active(
-    handle: *mut NeomacsDisplay,
-) -> c_int {
-    if handle.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    let active = display.hybrid_renderer.animation_active();
-    if active { 1 } else { 0 }
-}
-
-/// Check if animation needs continuous redraw (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Check if animation needs continuous redraw (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_animation_active(
     _handle: *mut NeomacsDisplay,
@@ -3458,35 +2385,7 @@ pub unsafe extern "C" fn neomacs_display_animation_active(
     0
 }
 
-/// Trigger a buffer transition animation
-///
-/// effect: transition effect name ("crossfade", "slide-left", "slide-right", etc.)
-/// duration: animation duration in milliseconds
-/// Returns 1 on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_start_buffer_transition(
-    handle: *mut NeomacsDisplay,
-    effect: *const c_char,
-    duration_ms: c_int,
-) -> c_int {
-    if handle.is_null() || effect.is_null() {
-        return 0;
-    }
-
-    let effect_str = match CStr::from_ptr(effect).to_str() {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    let display = &mut *handle;
-    display.hybrid_renderer.start_buffer_transition(effect_str, duration_ms as u32);
-    info!("Buffer transition started: {} ({}ms)", effect_str, duration_ms);
-    1
-}
-
-/// Trigger a buffer transition animation (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Trigger a buffer transition animation (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_start_buffer_transition(
     _handle: *mut NeomacsDisplay,
@@ -3496,35 +2395,7 @@ pub unsafe extern "C" fn neomacs_display_start_buffer_transition(
     0
 }
 
-/// Prepare for buffer transition (capture snapshot before buffer changes)
-/// Call this BEFORE switching buffers
-/// Returns 1 on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_prepare_buffer_transition(
-    handle: *mut NeomacsDisplay,
-) -> c_int {
-    if handle.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    display.hybrid_renderer.prepare_buffer_transition();
-
-    // Use the last cached frame as the snapshot (instant, no async wait)
-    if crate::backend::gtk4::prepare_snapshot_from_last_frame() {
-        info!("FFI: Prepared snapshot from cached frame");
-        1
-    } else {
-        // Fallback: request capture on next frame (legacy async path)
-        crate::backend::gtk4::request_snapshot_capture();
-        info!("FFI: No cached frame, requested async snapshot capture");
-        1
-    }
-}
-
-/// Prepare for buffer transition (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Prepare for buffer transition (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_prepare_buffer_transition(
     _handle: *mut NeomacsDisplay,
@@ -3532,50 +2403,7 @@ pub unsafe extern "C" fn neomacs_display_prepare_buffer_transition(
     0
 }
 
-/// Trigger buffer transition animation (after buffer has changed)
-/// Call this AFTER switching buffers
-/// Returns 1 on success, 0 on failure
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_trigger_buffer_transition(
-    handle: *mut NeomacsDisplay,
-) -> c_int {
-    if handle.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-
-    // The snapshot should already be in the renderer (set during widget render)
-    // Just check if there's one in the thread-local (fallback) and use it
-    if let Some(texture) = crate::backend::gtk4::take_snapshot_texture() {
-        info!("FFI: Got snapshot texture {}x{} (fallback)", texture.width(), texture.height());
-        display.hybrid_renderer.set_snapshot_texture(texture);
-    }
-
-    // Check if renderer has a snapshot
-    let has_snapshot = display.hybrid_renderer.has_snapshot();
-    info!("FFI: trigger_buffer_transition called, renderer has snapshot: {}", has_snapshot);
-
-    if has_snapshot {
-        display.hybrid_renderer.trigger_buffer_transition();
-        let active = display.hybrid_renderer.buffer_transition.is_active();
-        info!("FFI: Transition started, active: {}", active);
-
-        // Start frame clock driven animation updates
-        if active {
-            crate::backend::gtk4::start_animation_tick();
-        }
-
-        if active { 1 } else { 0 }
-    } else {
-        info!("FFI: No snapshot available for transition");
-        0
-    }
-}
-
-/// Trigger buffer transition animation (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Trigger buffer transition animation (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_trigger_buffer_transition(
     _handle: *mut NeomacsDisplay,
@@ -3583,23 +2411,7 @@ pub unsafe extern "C" fn neomacs_display_trigger_buffer_transition(
     0
 }
 
-/// Check if buffer transition is ready (has snapshot)
-/// Returns 1 if ready, 0 if not
-#[cfg(feature = "gtk4-backend")]
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_has_transition_snapshot(
-    handle: *mut NeomacsDisplay,
-) -> c_int {
-    if handle.is_null() {
-        return 0;
-    }
-
-    let display = &mut *handle;
-    if display.hybrid_renderer.has_snapshot() { 1 } else { 0 }
-}
-
-/// Check if buffer transition is ready (stub when gtk4 not available)
-#[cfg(not(feature = "gtk4-backend"))]
+/// Check if buffer transition is ready (stub)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_has_transition_snapshot(
     _handle: *mut NeomacsDisplay,
