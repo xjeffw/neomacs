@@ -17,6 +17,9 @@
 
 ;;; Code:
 
+;; Load neomacs-webkit for auto-resize support
+(require 'neomacs-webkit nil t)
+
 (defvar neomacs-webkit-test-url "https://www.google.com/"
   "URL to load for testing.")
 
@@ -59,11 +62,18 @@
                                              t)))
             (if spec
                 (progn
-                  ;; Insert the webkit view inline
-                  (insert (propertize " " 'display spec))
+                  ;; Insert the webkit view inline and track position
+                  (let ((pos (point))
+                        (view-id (plist-get (cdr spec) :id)))
+                    (insert (propertize " " 'display spec))
+                    ;; Register for auto-resize tracking
+                    (neomacs-webkit--register-view pos view-id)
+                    ;; Enable auto-resize hook
+                    (neomacs-webkit-enable-auto-resize))
                   (insert "\n\n")
                   (insert (format "WebKit spec: %S\n\n" spec))
                   (insert "SUCCESS! Inline WebKit rendering works.\n")
+                  (insert "Auto-resize enabled - try resizing the window!\n")
                   (insert "\nControls (use view ID from spec above):\n")
                   (insert "  (neomacs-webkit-load-uri ID \"url\") - load new URL\n")
                   (insert "  (neomacs-webkit-go-back ID) - go back\n")

@@ -16,7 +16,7 @@ use crate::core::error::{DisplayError, DisplayResult};
 use super::sys;
 use super::sys::webkit as wk;
 use super::sys::platform as plat;
-use super::platform::WpePlatformDisplay;
+use super::platform::{WpePlatformDisplay, buffer_dmabuf_info};
 use super::dmabuf::DmaBufExporter;
 
 /// Callback type for new window requests.
@@ -72,10 +72,8 @@ pub enum WpeViewState {
     Error,
 }
 
-/// Raw pixel data from WebKit buffer (thread-safe transfer)
-/// We store raw pixel data instead of GdkTexture because textures must be
-/// created on the main GTK thread. Creating them on WebKit's render thread
-/// causes reference counting corruption.
+/// Raw pixel data from WebKit buffer (fallback path)
+/// Used when DMA-BUF is not available.
 struct RawFrameData {
     /// Raw BGRA pixel data
     pixels: Vec<u8>,
@@ -85,12 +83,54 @@ struct RawFrameData {
     height: u32,
 }
 
+/// DMA-BUF frame data for zero-copy rendering
+/// Stores DMA-BUF file descriptors and metadata for GPU-to-GPU texture import.
+struct DmaBufFrameData {
+    /// DMA-BUF file descriptors (one per plane, duped for ownership)
+    fds: Vec<i32>,
+    /// Stride for each plane
+    strides: Vec<u32>,
+    /// Offset for each plane
+    offsets: Vec<u32>,
+    /// DRM fourcc format code
+    fourcc: u32,
+    /// DRM modifier
+    modifier: u64,
+    /// Frame width in pixels
+    width: u32,
+    /// Frame height in pixels
+    height: u32,
+}
+
+impl DmaBufFrameData {
+    /// Take ownership of fds for passing to GdkDmabufTexture.
+    /// After this call, the fds are set to -1 so Drop won't close them.
+    /// The caller (GdkDmabufTexture) takes ownership of the fds.
+    fn take_fds(&mut self) -> Vec<i32> {
+        let fds = std::mem::take(&mut self.fds);
+        self.fds = vec![-1; fds.len()]; // Set to -1 so Drop doesn't close them
+        fds
+    }
+}
+
+impl Drop for DmaBufFrameData {
+    fn drop(&mut self) {
+        // Close the duped file descriptors (if not taken by texture)
+        for fd in &self.fds {
+            if *fd >= 0 {
+                unsafe { libc::close(*fd); }
+            }
+        }
+    }
+}
+
 /// Callback data for buffer-rendered signal
 struct BufferCallbackData {
     /// View ID for callbacks to Emacs
     view_id: u32,
-    /// Latest raw frame data (Mutex for thread safety)
-    /// Contains raw pixel data that will be converted to texture on main thread
+    /// Latest DMA-BUF frame data for zero-copy rendering (preferred path)
+    latest_dmabuf: Mutex<Option<DmaBufFrameData>>,
+    /// Latest raw frame data (fallback when DMA-BUF not available)
     latest_frame: Mutex<Option<RawFrameData>>,
     /// Cached texture created on main thread (kept alive for GSK rendering)
     /// We keep the current and previous textures to avoid use-after-free when
@@ -98,6 +138,8 @@ struct BufferCallbackData {
     cached_textures: Mutex<Vec<Texture>>,
     /// Flag indicating new frame available
     frame_available: AtomicBool,
+    /// Flag indicating DMA-BUF frame available (prefer over raw frame)
+    dmabuf_available: AtomicBool,
     /// WPE Platform display for buffer import
     display: *mut plat::WPEDisplay,
     /// EGL display for DMA-BUF export
@@ -240,9 +282,11 @@ impl WpeWebView {
             // Store raw pixel data in callback, create textures on main thread
             let callback_data = Box::into_raw(Box::new(BufferCallbackData {
                 view_id,
+                latest_dmabuf: Mutex::new(None),
                 latest_frame: Mutex::new(None),
                 cached_textures: Mutex::new(Vec::with_capacity(8)),
                 frame_available: AtomicBool::new(false),
+                dmabuf_available: AtomicBool::new(false),
                 display,
                 egl_display,
                 gdk_display_ptr,
@@ -507,17 +551,84 @@ impl WpeWebView {
     }
 
     /// Get the current texture (latest rendered frame)
-    /// This creates the texture on the main thread from raw pixel data
-    /// to avoid GdkTexture reference counting issues across threads.
+    /// This creates the texture on the main thread.
+    /// Prefers zero-copy DMA-BUF path, falls back to raw pixel data.
     /// Textures are cached to keep them alive while GSK renders them.
     pub fn texture(&self) -> Option<Texture> {
-        // Check if there's a new frame in callback_data
         unsafe {
             if let Some(callback_data) = self.callback_data.as_ref() {
+                // Try zero-copy DMA-BUF path first (preferred)
+                let dmabuf_avail = callback_data.dmabuf_available.load(Ordering::Acquire);
+                if dmabuf_avail {
+                    if let Ok(mut guard) = callback_data.latest_dmabuf.lock() {
+                        if let Some(mut dmabuf_data) = guard.take() {
+                            log::info!("texture(): using zero-copy DMA-BUF path {}x{}",
+                                       dmabuf_data.width, dmabuf_data.height);
+
+                            // Get GDK display for texture creation
+                            if let Some(gdk_display) = &self.gdk_display {
+                                // Take ownership of fds (GTK will close them)
+                                let fds = dmabuf_data.take_fds();
+
+                                // Create DmaBufInfo for the texture builder
+                                let mut planes = Vec::with_capacity(fds.len());
+                                for i in 0..fds.len() {
+                                    planes.push(super::platform::DmaBufPlane {
+                                        fd: fds[i],
+                                        stride: dmabuf_data.strides[i],
+                                        offset: dmabuf_data.offsets[i],
+                                    });
+                                }
+
+                                let dmabuf_info = super::platform::DmaBufInfo {
+                                    fourcc: dmabuf_data.fourcc,
+                                    n_planes: fds.len() as u32,
+                                    modifier: dmabuf_data.modifier,
+                                    width: dmabuf_data.width,
+                                    height: dmabuf_data.height,
+                                    planes,
+                                };
+
+                                // Create zero-copy texture
+                                match super::platform::dmabuf_to_texture(&dmabuf_info, gdk_display) {
+                                    Ok(texture) => {
+                                        log::info!("texture(): zero-copy DMA-BUF texture created {}x{}",
+                                                   texture.width(), texture.height());
+
+                                        // Cache the texture
+                                        if let Ok(mut cache) = callback_data.cached_textures.lock() {
+                                            cache.push(texture.clone());
+                                            while cache.len() > 30 {
+                                                cache.remove(0);
+                                            }
+                                        }
+
+                                        callback_data.dmabuf_available.store(false, Ordering::Release);
+                                        callback_data.frame_available.store(false, Ordering::Release);
+                                        return Some(texture);
+                                    }
+                                    Err(e) => {
+                                        log::warn!("texture(): DMA-BUF texture creation failed: {:?}, falling back to pixel path", e);
+                                        // Close fds since we failed (GTK didn't take ownership)
+                                        for fd in fds {
+                                            if fd >= 0 {
+                                                libc::close(fd);
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                log::warn!("texture(): no GDK display for DMA-BUF texture");
+                            }
+                        }
+                    }
+                    callback_data.dmabuf_available.store(false, Ordering::Release);
+                }
+
+                // Fallback: raw pixel path
                 match callback_data.latest_frame.lock() {
                     Ok(mut guard) => {
                         if let Some(frame_data) = guard.take() {
-                            // Create texture on main thread from raw pixel data
                             log::info!("texture(): creating texture from raw data {}x{}",
                                        frame_data.width, frame_data.height);
 
@@ -532,18 +643,16 @@ impl WpeWebView {
                                 stride,
                             ).upcast();
 
-                            // Cache the texture to keep it alive while GSK renders
-                            // Keep more textures alive (30 frames ~= 0.5s at 60fps)
-                            // to ensure GSK's frame clock has finished with old textures
+                            // Cache the texture
                             if let Ok(mut cache) = callback_data.cached_textures.lock() {
                                 cache.push(texture.clone());
-                                // Limit memory usage but keep enough for GSK frame pipeline
                                 while cache.len() > 30 {
                                     cache.remove(0);
                                 }
                                 log::trace!("texture(): cached texture, cache size = {}", cache.len());
                             }
 
+                            callback_data.frame_available.store(false, Ordering::Release);
                             log::info!("texture(): returning new texture {}x{}",
                                        texture.width(), texture.height());
                             return Some(texture);
@@ -814,7 +923,7 @@ unsafe extern "C" fn buffer_rendered_callback(
     buffer: *mut plat::WPEBuffer,
     user_data: *mut libc::c_void,
 ) {
-    // Step 1: Basic validation only
+    // Step 1: Basic validation
     if user_data.is_null() || buffer.is_null() {
         log::warn!("buffer_rendered_callback: null user_data or buffer");
         return;
@@ -833,7 +942,63 @@ unsafe extern "C" fn buffer_rendered_callback(
 
     log::debug!("buffer_rendered_callback: received buffer {}x{}", width, height);
 
-    // Test step: Import pixels but don't process them
+    // Try zero-copy DMA-BUF path first
+    if let Some(dmabuf_info) = buffer_dmabuf_info(buffer) {
+        log::info!("buffer_rendered_callback: using zero-copy DMA-BUF path {}x{}", width, height);
+
+        // Dup the file descriptors so we own them after callback returns
+        let mut fds = Vec::with_capacity(dmabuf_info.planes.len());
+        let mut strides = Vec::with_capacity(dmabuf_info.planes.len());
+        let mut offsets = Vec::with_capacity(dmabuf_info.planes.len());
+
+        for plane in &dmabuf_info.planes {
+            // dup() the fd so it survives after callback returns
+            let duped_fd = libc::dup(plane.fd);
+            if duped_fd < 0 {
+                log::warn!("buffer_rendered_callback: failed to dup fd {}", plane.fd);
+                // Close any already duped fds
+                for fd in &fds {
+                    libc::close(*fd);
+                }
+                // Fall through to pixel path
+                break;
+            }
+            fds.push(duped_fd);
+            strides.push(plane.stride);
+            offsets.push(plane.offset);
+        }
+
+        if fds.len() == dmabuf_info.planes.len() {
+            // Successfully duped all fds, store DMA-BUF frame data
+            if let Ok(mut guard) = callback_data.latest_dmabuf.lock() {
+                *guard = Some(DmaBufFrameData {
+                    fds,
+                    strides,
+                    offsets,
+                    fourcc: dmabuf_info.fourcc,
+                    modifier: dmabuf_info.modifier,
+                    width: dmabuf_info.width,
+                    height: dmabuf_info.height,
+                });
+                log::info!("buffer_rendered_callback: DMA-BUF frame stored (zero-copy)");
+            }
+            callback_data.dmabuf_available.store(true, Ordering::Release);
+            callback_data.frame_available.store(true, Ordering::Release);
+
+            // Queue widget redraw on main thread
+            glib::MainContext::default().invoke(|| {
+                if let Some(widget) = crate::backend::gtk4::get_video_widget() {
+                    use gtk4::prelude::WidgetExt;
+                    widget.queue_draw();
+                }
+            });
+            return;
+        }
+    }
+
+    // Fallback: Import pixels (non-zero-copy path)
+    log::debug!("buffer_rendered_callback: falling back to pixel import path");
+
     let mut error: *mut plat::GError = ptr::null_mut();
     let bytes = plat::wpe_buffer_import_to_pixels(buffer, &mut error);
 
@@ -847,9 +1012,7 @@ unsafe extern "C" fn buffer_rendered_callback(
         return;
     }
 
-    // Get pixel data from GBytes - note: we do NOT unref the GBytes
-    // The GBytes returned by wpe_buffer_import_to_pixels is managed by WPE
-    // and will be cleaned up when the callback returns
+    // Get pixel data from GBytes
     let mut size: plat::gsize = 0;
     let data = plat::g_bytes_get_data(bytes, &mut size);
 
@@ -859,77 +1022,55 @@ unsafe extern "C" fn buffer_rendered_callback(
     }
 
     let size = size as usize;
-
-    // Validate size is reasonable
     let expected_size = (width * height * 4) as usize;
     if size < expected_size || size > expected_size * 2 {
-        log::warn!("buffer_rendered_callback: suspicious size {} for {}x{} (expected ~{})",
-                   size, width, height, expected_size);
+        log::warn!("buffer_rendered_callback: suspicious size {} for {}x{}", size, width, height);
         return;
     }
 
-    // Copy pixel data IMMEDIATELY before the callback returns
-    // The GBytes memory may be invalidated after the callback
+    // Copy pixel data before callback returns
     let pixel_data: Vec<u8> = std::slice::from_raw_parts(data as *const u8, size).to_vec();
-
-    // Calculate stride
     let actual_stride = size / (height as usize);
 
-    log::info!("buffer_rendered_callback: {}x{}, size={}, stride={}",
-               width, height, size, actual_stride);
-
-    // WPE exports XRGB/BGRX format (alpha channel is unused/zero)
-    // We need to set alpha to 255 (opaque) for all pixels
+    // Convert XRGB to BGRA with alpha=255
     let mut pixels_with_alpha: Vec<u8> = Vec::with_capacity((width * height * 4) as usize);
-
-    // Copy row by row, handling stride
     for row in 0..(height as usize) {
         let row_start = row * actual_stride;
         for col in 0..(width as usize) {
             let offset = row_start + col * 4;
             if offset + 3 >= pixel_data.len() {
-                log::warn!("buffer_rendered_callback: buffer underrun at row={}, col={}", row, col);
                 return;
             }
-            // Copy BGR, set A to 255
             pixels_with_alpha.push(pixel_data[offset]);     // B
             pixels_with_alpha.push(pixel_data[offset + 1]); // G
             pixels_with_alpha.push(pixel_data[offset + 2]); // R
-            pixels_with_alpha.push(255);                     // A (was 0)
+            pixels_with_alpha.push(255);                     // A
         }
     }
 
-    log::info!("buffer_rendered_callback: prepared raw frame data {}x{}", width, height);
-
-    // Store raw pixel data (thread-safe)
+    // Store raw pixel data
     if let Ok(mut guard) = callback_data.latest_frame.lock() {
         *guard = Some(RawFrameData {
             pixels: pixels_with_alpha,
             width,
             height,
         });
-        log::info!("buffer_rendered_callback: raw frame stored successfully");
-    } else {
-        log::warn!("buffer_rendered_callback: failed to lock latest_frame mutex");
     }
     callback_data.frame_available.store(true, Ordering::Release);
 
-    // Queue widget redraw on main thread
+    // Queue widget redraw
     glib::MainContext::default().invoke(|| {
         if let Some(widget) = crate::backend::gtk4::get_video_widget() {
             use gtk4::prelude::WidgetExt;
             widget.queue_draw();
         }
     });
-
-    // Note: Do NOT unref the GBytes - WPE manages its lifecycle
-    // The GBytes returned by wpe_buffer_import_to_pixels is internally linked
-    // to the WPE buffer and will be cleaned up when the callback returns
 }
 
 /// C callback for buffer-released signal from WPEView
 /// In headless mode, buffer-rendered doesn't fire, but buffer-released does.
-/// We capture the pixel data here before the buffer is released.
+/// We capture the buffer data here before it's released.
+/// Prefers zero-copy DMA-BUF path, falls back to pixel import.
 unsafe extern "C" fn buffer_released_callback(
     _wpe_view: *mut plat::WPEView,
     buffer: *mut plat::WPEBuffer,
@@ -950,7 +1091,58 @@ unsafe extern "C" fn buffer_released_callback(
 
     log::info!("buffer_released_callback: capturing {}x{} buffer", width, height);
 
-    // Import pixels from the buffer
+    // Try zero-copy DMA-BUF path first
+    if let Some(dmabuf_info) = buffer_dmabuf_info(buffer) {
+        log::info!("buffer_released_callback: using zero-copy DMA-BUF path {}x{}", width, height);
+
+        // Dup the file descriptors so we own them after callback returns
+        let mut fds = Vec::with_capacity(dmabuf_info.planes.len());
+        let mut strides = Vec::with_capacity(dmabuf_info.planes.len());
+        let mut offsets = Vec::with_capacity(dmabuf_info.planes.len());
+
+        for plane in &dmabuf_info.planes {
+            let duped_fd = libc::dup(plane.fd);
+            if duped_fd < 0 {
+                log::warn!("buffer_released_callback: failed to dup fd {}", plane.fd);
+                for fd in &fds {
+                    libc::close(*fd);
+                }
+                break;
+            }
+            fds.push(duped_fd);
+            strides.push(plane.stride);
+            offsets.push(plane.offset);
+        }
+
+        if fds.len() == dmabuf_info.planes.len() {
+            if let Ok(mut guard) = callback_data.latest_dmabuf.lock() {
+                *guard = Some(DmaBufFrameData {
+                    fds,
+                    strides,
+                    offsets,
+                    fourcc: dmabuf_info.fourcc,
+                    modifier: dmabuf_info.modifier,
+                    width: dmabuf_info.width,
+                    height: dmabuf_info.height,
+                });
+                log::info!("buffer_released_callback: DMA-BUF frame stored (zero-copy)");
+            }
+            callback_data.dmabuf_available.store(true, Ordering::Release);
+            callback_data.frame_available.store(true, Ordering::Release);
+
+            glib::MainContext::default().invoke(|| {
+                if let Some(widget) = crate::backend::gtk4::get_video_widget() {
+                    use gtk4::prelude::WidgetExt;
+                    widget.queue_draw();
+                }
+            });
+            return;
+        }
+    }
+
+    // Fallback: Import pixels from the buffer
+    log::debug!("buffer_released_callback: falling back to pixel import path");
+
     let mut error: *mut plat::GError = ptr::null_mut();
     let bytes = plat::wpe_buffer_import_to_pixels(buffer, &mut error);
 
@@ -963,7 +1155,6 @@ unsafe extern "C" fn buffer_released_callback(
         return;
     }
 
-    // Get pixel data
     let mut size: plat::gsize = 0;
     let data = plat::g_bytes_get_data(bytes, &mut size);
 
@@ -981,10 +1172,7 @@ unsafe extern "C" fn buffer_released_callback(
 
     log::debug!("buffer_released_callback: got {} bytes for {}x{}", size, width, height);
 
-    // Copy pixel data
     let pixel_data: Vec<u8> = std::slice::from_raw_parts(data as *const u8, size).to_vec();
-
-    // Calculate stride
     let actual_stride = size / (height as usize);
 
     // Convert XRGB to BGRA with alpha=255
@@ -1005,7 +1193,6 @@ unsafe extern "C" fn buffer_released_callback(
 
     log::info!("buffer_released_callback: storing frame {}x{}", width, height);
 
-    // Store raw pixel data
     if let Ok(mut guard) = callback_data.latest_frame.lock() {
         *guard = Some(RawFrameData {
             pixels: pixels_with_alpha,
@@ -1015,7 +1202,6 @@ unsafe extern "C" fn buffer_released_callback(
     }
     callback_data.frame_available.store(true, Ordering::Release);
 
-    // Queue widget redraw
     glib::MainContext::default().invoke(|| {
         if let Some(widget) = crate::backend::gtk4::get_video_widget() {
             use gtk4::prelude::WidgetExt;

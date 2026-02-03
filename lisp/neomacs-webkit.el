@@ -59,8 +59,17 @@ If set to 0 or nil, auto-calculate from width using aspect ratio."
   :type 'float
   :group 'neomacs-webkit)
 
+(defcustom neomacs-webkit-auto-resize t
+  "If non-nil, automatically resize webkit views when window size changes."
+  :type 'boolean
+  :group 'neomacs-webkit)
+
 (defvar neomacs-webkit--views (make-hash-table :test 'eq)
   "Hash table mapping view IDs to their metadata.")
+
+(defvar-local neomacs-webkit--buffer-views nil
+  "List of (POSITION . VIEW-ID) for webkit views in this buffer.
+Used for responsive auto-resize on window size changes.")
 
 (defvar neomacs-webkit--initialized nil
   "Whether the WebKit subsystem has been initialized.")
@@ -205,6 +214,66 @@ Returns t on success, nil on failure."
         (plist-put info :width width)
         (plist-put info :height height)))
     t))
+
+(defun neomacs-webkit--register-view (pos view-id)
+  "Register webkit VIEW-ID at buffer position POS for auto-resize tracking."
+  (unless neomacs-webkit--buffer-views
+    (setq neomacs-webkit--buffer-views nil))
+  (push (cons pos view-id) neomacs-webkit--buffer-views))
+
+(defun neomacs-webkit--update-display-spec (pos view-id new-width new-height)
+  "Update the display spec at POS for VIEW-ID with new dimensions."
+  (save-excursion
+    (goto-char pos)
+    (let ((spec (get-text-property pos 'display)))
+      (when (and spec (eq (car spec) 'webkit))
+        ;; Update the spec with new dimensions
+        (let ((new-spec (list 'webkit
+                              :id view-id
+                              :width new-width
+                              :height new-height)))
+          (put-text-property pos (1+ pos) 'display new-spec))))))
+
+(defun neomacs-webkit--auto-resize-buffer (window)
+  "Resize all webkit views in WINDOW's buffer to fit the new window width."
+  (when neomacs-webkit-auto-resize
+    (with-current-buffer (window-buffer window)
+      (when neomacs-webkit--buffer-views
+        (let* ((margin 16)
+               (new-width (- (window-body-width window t) margin))
+               (new-height (round (/ new-width neomacs-webkit-default-aspect-ratio))))
+          (dolist (entry neomacs-webkit--buffer-views)
+            (let ((pos (car entry))
+                  (view-id (cdr entry)))
+              ;; Resize the webkit view
+              (when (neomacs-webkit-resize view-id new-width new-height)
+                ;; Update the display spec in the buffer
+                (neomacs-webkit--update-display-spec pos view-id new-width new-height)
+                ;; Update stored metadata
+                (let ((info (gethash view-id neomacs-webkit--views)))
+                  (when info
+                    (plist-put info :width new-width)
+                    (plist-put info :height new-height)))))))))))
+
+(defun neomacs-webkit--window-size-change-hook (frame)
+  "Hook function for `window-size-change-functions'.
+Resizes webkit views in all windows of FRAME."
+  (dolist (window (window-list frame))
+    (neomacs-webkit--auto-resize-buffer window)))
+
+(defun neomacs-webkit-enable-auto-resize ()
+  "Enable automatic webkit view resizing on window size changes."
+  (interactive)
+  (add-hook 'window-size-change-functions #'neomacs-webkit--window-size-change-hook)
+  (setq neomacs-webkit-auto-resize t)
+  (message "WebKit auto-resize enabled"))
+
+(defun neomacs-webkit-disable-auto-resize ()
+  "Disable automatic webkit view resizing on window size changes."
+  (interactive)
+  (remove-hook 'window-size-change-functions #'neomacs-webkit--window-size-change-hook)
+  (setq neomacs-webkit-auto-resize nil)
+  (message "WebKit auto-resize disabled"))
 
 (defun neomacs-webkit-close-all ()
   "Close all WebKit views."
