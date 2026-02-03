@@ -1,5 +1,5 @@
 <p align="center">
-   <img src="assets/banner.png" alt="NEOMACS - The Future of Emacs"/>
+   <img src="assets/banner1.png" alt="NEOMACS - The Future of Emacs"/>
 </p>
 
 <p align="center">
@@ -91,7 +91,7 @@ The goal: **Make Emacs the most powerful and beautiful computing environment on 
 ┌─────────────────────────────────────────────────────────────┐
 │                     Emacs Core (C/Lisp)                     │
 └─────────────────────────┬───────────────────────────────────┘
-                          │ FFI
+                          │
 ┌─────────────────────────▼───────────────────────────────────┐
 │                 Rust Display Engine                         │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
