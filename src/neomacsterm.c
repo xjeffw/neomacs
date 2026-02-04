@@ -1865,16 +1865,13 @@ neomacs_new_font (struct frame *f, Lisp_Object font_object, int fontset)
  * ============================================================================ */
 
 /* Read socket events for the Neomacs terminal.
-   This processes winit and GTK4 events and converts them to Emacs events.  */
+   In threaded mode, events are delivered via the wakeup handler
+   (neomacs_display_wakeup_handler) which calls neomacs_display_drain_input.
+   This function just flushes any queued events to Emacs.  */
 int
 neomacs_read_socket (struct terminal *terminal, struct input_event *hold_quit)
 {
-  struct neomacs_display_info *dpyinfo = terminal->display_info.neomacs;
   int count;
-
-  /* Poll winit events - this calls our callback for each event */
-  if (dpyinfo && dpyinfo->display_handle)
-    neomacs_display_poll_events (dpyinfo->display_handle);
 
   /* Flush queued events to Emacs */
   count = neomacs_evq_flush (hold_quit);

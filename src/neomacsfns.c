@@ -1154,11 +1154,10 @@ neomacs_create_frame_widgets (struct frame *f)
           output->window_id = window_id;
           output->window_desc = (Window) window_id;
 
-          /* Set up resize callback BEFORE poll_events so initial resize is handled */
+          /* Set up resize callback for the window */
           neomacs_display_set_resize_callback (neomacs_widget_resize_cb, f);
 
-          /* Process the event loop to actually create the window */
-          neomacs_display_poll_events (dpyinfo->display_handle);
+          /* In threaded mode, window creation happens asynchronously in render thread */
 
           /* Show the window */
           neomacs_display_show_window (dpyinfo->display_handle, window_id, true);

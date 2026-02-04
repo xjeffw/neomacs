@@ -189,43 +189,26 @@ typedef struct NeomacsInputEvent {
   uint32_t height;
 } NeomacsInputEvent;
 
-/**
- * Event callback function type for C FFI
- */
-typedef void (*EventCallback)(const struct NeomacsInputEvent*);
-
 #define VA_STATUS_SUCCESS 0
 
 #define VA_INVALID_SURFACE 4294967295
 
 extern GMainContext *g_main_context_get_thread_default(void);
 
-/**
- * Initialize the display engine
- *
- * # Safety
- * Returns a pointer to NeomacsDisplay that must be freed with neomacs_display_shutdown.
- */
-struct NeomacsDisplay *neomacs_display_init(enum BackendType backend);
+/* Forward declaration of opaque display handle type */
+struct NeomacsDisplay;
+
+/* Note: neomacs_display_init() has been removed - use neomacs_display_init_threaded() instead */
 
 /**
  * Shutdown the display engine
  *
  * # Safety
- * The handle must have been returned by neomacs_display_init.
+ * The handle must have been returned by neomacs_display_init_threaded.
  */
 void neomacs_display_shutdown(struct NeomacsDisplay *handle);
 
-/**
- * Get the eventfd for Emacs to wait on (winit backend only)
- *
- * Returns the file descriptor that becomes readable when input events are available.
- * Returns -1 if not available (e.g., TTY backend or eventfd creation failed).
- *
- * # Safety
- * The handle must be valid.
- */
-int neomacs_display_get_event_fd(struct NeomacsDisplay *handle);
+/* Note: neomacs_display_get_event_fd() has been removed - use neomacs_display_get_threaded_wakeup_fd() instead */
 
 /**
  * Resize the display
@@ -836,22 +819,10 @@ void neomacs_display_begin_frame_window(struct NeomacsDisplay *handle, uint32_t 
  */
 void neomacs_display_end_frame_window(struct NeomacsDisplay *handle, uint32_t windowId);
 
-/**
- * Set the event callback function.
- *
- * The callback will be invoked for each input event when polling.
+/* Note: neomacs_display_set_event_callback() and neomacs_display_poll_events() have been removed.
+ * Events are now delivered via the threaded mode wakeup mechanism.
+ * Use neomacs_display_drain_input() instead.
  */
-void neomacs_display_set_event_callback(EventCallback callback);
-
-/**
- * Poll for input events and invoke the callback for each event.
- *
- * This uses winit's pump_events to process the event loop non-blocking,
- * creates any pending windows, and delivers input events via callback.
- *
- * Returns the number of events processed.
- */
-int32_t neomacs_display_poll_events(struct NeomacsDisplay *handle);
 
 /**
  * Set an animation configuration option (stub)

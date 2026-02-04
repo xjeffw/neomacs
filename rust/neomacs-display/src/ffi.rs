@@ -25,14 +25,6 @@ use crate::backend::wgpu::{
     NEOMACS_EVENT_FOCUS_IN, NEOMACS_EVENT_FOCUS_OUT,
 };
 
-/// Event callback function type for C FFI
-#[cfg(feature = "winit-backend")]
-type EventCallback = extern "C" fn(*const NeomacsInputEvent);
-
-/// Global event callback - set by C code to receive input events
-#[cfg(feature = "winit-backend")]
-static mut EVENT_CALLBACK: Option<EventCallback> = None;
-
 /// Resize callback function type for C FFI
 #[cfg(feature = "winit-backend")]
 type ResizeCallback = extern "C" fn(user_data: *mut std::ffi::c_void, width: std::ffi::c_int, height: std::ffi::c_int);
@@ -73,9 +65,6 @@ pub struct NeomacsDisplay {
     frame_counter: u64,     // Frame counter for tracking row updates
     current_render_window_id: u32, // Winit window ID being rendered to (0 = legacy rendering)
     faces: HashMap<u32, Face>,
-    /// Eventfd for waking up Emacs when events arrive (winit only)
-    #[cfg(feature = "winit-backend")]
-    event_fd: i32,
 }
 
 impl NeomacsDisplay {
@@ -107,133 +96,12 @@ impl NeomacsDisplay {
 // Initialization
 // ============================================================================
 
-/// Initialize the display engine
-///
-/// # Safety
-/// Returns a pointer to NeomacsDisplay that must be freed with neomacs_display_shutdown.
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_init(backend: BackendType) -> *mut NeomacsDisplay {
-    // Initialize logger (only once, errors if called multiple times)
-    let _ = env_logger::try_init();
-
-    // Check environment variable for hybrid mode (default: enabled)
-    let use_hybrid = std::env::var("NEOMACS_HYBRID")
-        .map(|v| v != "0")
-        .unwrap_or(true);
-
-    if use_hybrid {
-        info!("Using HYBRID rendering mode");
-    } else {
-        info!("Using LEGACY scene graph mode");
-    }
-
-    // Create timerfd for periodic wakeup of Emacs event loop (Linux only, for winit)
-    // This ensures Emacs polls for winit events regularly since winit uses a polling model
-    #[cfg(feature = "winit-backend")]
-    let event_fd = {
-        let fd = libc::timerfd_create(libc::CLOCK_MONOTONIC, libc::TFD_NONBLOCK | libc::TFD_CLOEXEC);
-        if fd < 0 {
-            warn!("Failed to create timerfd: {}", std::io::Error::last_os_error());
-            -1
-        } else {
-            // Set up a repeating timer at ~60fps (16ms interval)
-            let interval = libc::itimerspec {
-                it_interval: libc::timespec {
-                    tv_sec: 0,
-                    tv_nsec: 16_000_000, // 16ms
-                },
-                it_value: libc::timespec {
-                    tv_sec: 0,
-                    tv_nsec: 16_000_000, // 16ms initial
-                },
-            };
-            if libc::timerfd_settime(fd, 0, &interval, std::ptr::null_mut()) < 0 {
-                warn!("Failed to set timerfd: {}", std::io::Error::last_os_error());
-                libc::close(fd);
-                -1
-            } else {
-                debug!("Created timerfd {} with 16ms interval", fd);
-                fd
-            }
-        }
-    };
-
-    let mut display = Box::new(NeomacsDisplay {
-        backend_type: backend,
-        tty_backend: None,
-        #[cfg(feature = "winit-backend")]
-        winit_backend: None,
-        #[cfg(feature = "winit-backend")]
-        event_loop: None,
-        scene: Scene::new(800.0, 600.0),
-        frame_glyphs: FrameGlyphBuffer::with_size(800.0, 600.0),  // Match initial scene size
-        use_hybrid,
-        animations: AnimationManager::new(),
-        current_row_y: -1,
-        current_row_x: 0,
-        current_row_height: 0,
-        current_row_ascent: 0,
-        current_row_is_overlay: false,
-        current_window_id: -1,
-        in_frame: false,
-        frame_counter: 0,
-        current_render_window_id: 0, // 0 = legacy rendering
-        faces: HashMap::new(),
-        #[cfg(feature = "winit-backend")]
-        event_fd,
-    });
-
-    // Create the backend
-    match backend {
-        BackendType::Tty => {
-            let mut tty = TtyBackend::new();
-            if let Err(e) = tty.init() {
-                eprintln!("Failed to initialize TTY backend: {}", e);
-                return ptr::null_mut();
-            }
-            display.tty_backend = Some(tty);
-        }
-        #[cfg(feature = "winit-backend")]
-        BackendType::Wgpu => {
-            use winit::event_loop::EventLoop;
-
-            // Create the event loop first
-            let event_loop = match EventLoop::<crate::backend::wgpu::UserEvent>::with_user_event()
-                .build()
-            {
-                Ok(el) => el,
-                Err(e) => {
-                    eprintln!("Failed to create event loop: {}", e);
-                    return ptr::null_mut();
-                }
-            };
-
-            let mut winit = WinitBackend::new();
-            if let Err(e) = winit.init() {
-                eprintln!("Failed to initialize Winit/wgpu backend: {}", e);
-                return ptr::null_mut();
-            }
-            // Initialize wgpu in headless mode so we can create windows later
-            if let Err(e) = winit.init_wgpu_headless() {
-                eprintln!("Failed to initialize wgpu: {}", e);
-                return ptr::null_mut();
-            }
-
-            // Store the event loop proxy for async notifications
-            winit.set_event_loop_proxy(event_loop.create_proxy());
-
-            display.winit_backend = Some(winit);
-            display.event_loop = Some(event_loop);
-        }
-    }
-
-    Box::into_raw(display)
-}
+// Note: neomacs_display_init() has been removed - use neomacs_display_init_threaded() instead
 
 /// Shutdown the display engine
 ///
 /// # Safety
-/// The handle must have been returned by neomacs_display_init.
+/// The handle must have been returned by neomacs_display_init_threaded.
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_shutdown(handle: *mut NeomacsDisplay) {
     if handle.is_null() {
@@ -242,43 +110,11 @@ pub unsafe extern "C" fn neomacs_display_shutdown(handle: *mut NeomacsDisplay) {
 
     let mut display = Box::from_raw(handle);
 
-    // Close the eventfd
-    #[cfg(feature = "winit-backend")]
-    if display.event_fd >= 0 {
-        libc::close(display.event_fd);
-    }
-
     if let Some(backend) = display.get_backend() {
         backend.shutdown();
     }
 
     // display is dropped here
-}
-
-/// Get the eventfd for Emacs to wait on (winit backend only)
-///
-/// Returns the file descriptor that becomes readable when input events are available.
-/// Returns -1 if not available (e.g., TTY backend or eventfd creation failed).
-///
-/// # Safety
-/// The handle must be valid.
-#[no_mangle]
-pub unsafe extern "C" fn neomacs_display_get_event_fd(handle: *mut NeomacsDisplay) -> c_int {
-    if handle.is_null() {
-        return -1;
-    }
-
-    let display = &*handle;
-
-    #[cfg(feature = "winit-backend")]
-    {
-        display.event_fd
-    }
-
-    #[cfg(not(feature = "winit-backend"))]
-    {
-        -1
-    }
 }
 
 // ============================================================================
@@ -3014,308 +2850,9 @@ pub extern "C" fn neomacs_display_end_frame_window(
     display.current_render_window_id = 0;
 }
 
-// ============================================================================
-// Event Polling FFI Functions
-// ============================================================================
-
-/// Set the event callback function.
-///
-/// The callback will be invoked for each input event when polling.
-#[cfg(feature = "winit-backend")]
-#[no_mangle]
-pub extern "C" fn neomacs_display_set_event_callback(callback: EventCallback) {
-    unsafe {
-        EVENT_CALLBACK = Some(callback);
-    }
-}
-
-/// Poll for input events and invoke the callback for each event.
-///
-/// This uses winit's pump_events to process the event loop non-blocking,
-/// creates any pending windows, and delivers input events via callback.
-///
-/// Returns the number of events processed.
-#[no_mangle]
-pub extern "C" fn neomacs_display_poll_events(handle: *mut NeomacsDisplay) -> i32 {
-    if handle.is_null() {
-        return 0;
-    }
-
-    let display = unsafe { &mut *handle };
-
-    // Pump GLib events for WebKit (this runs at 60fps via timerfd)
-    #[cfg(feature = "wpe-webkit")]
-    WEBKIT_CACHE.with(|cache| {
-        let mut cache = cache.borrow_mut();
-        if let Some(ref mut wpe_cache) = *cache {
-            if !wpe_cache.is_empty() {
-                wpe_cache.update_all();
-            }
-        }
-    });
-
-    #[cfg(feature = "winit-backend")]
-    {
-        use std::time::Duration;
-        use winit::event::{Event, WindowEvent};
-        use winit::event_loop::ControlFlow;
-        use winit::platform::pump_events::EventLoopExtPumpEvents;
-
-        // Drain the timerfd to acknowledge the wakeup
-        // This prevents select() from returning immediately again
-        if display.event_fd >= 0 {
-            let mut buf: u64 = 0;
-            unsafe {
-                libc::read(display.event_fd, &mut buf as *mut u64 as *mut libc::c_void, 8);
-            }
-        }
-
-        // Take the event loop temporarily
-        let event_loop = match display.event_loop.take() {
-            Some(el) => el,
-            None => return 0,
-        };
-
-        // We need to collect events and process them after pump_events returns
-        // because we can't borrow display.winit_backend while event_loop is borrowed
-        let mut collected_events = Vec::new();
-
-        // Create a raw pointer to the backend for use in the closure
-        let backend_ptr = display.winit_backend.as_mut()
-            .map(|b| b as *mut WinitBackend);
-
-        // Pump events with zero timeout (non-blocking)
-        let mut event_loop = event_loop;
-        let _ = event_loop.pump_events(Some(Duration::ZERO), |event, elwt| {
-            elwt.set_control_flow(ControlFlow::Poll);
-
-            match &event {
-                Event::Resumed | Event::AboutToWait => {
-                    // Process pending windows whenever we have ActiveEventLoop
-                    // AboutToWait fires after each batch of events
-                    if let Some(ptr) = backend_ptr {
-                        let backend = unsafe { &mut *ptr };
-                        backend.process_pending_windows(elwt);
-                    }
-                }
-                Event::WindowEvent { window_id: _, event: window_event } => {
-                    if let Some(ptr) = backend_ptr {
-                        let backend = unsafe { &mut *ptr };
-
-                        // Translate window events to NeomacsInputEvent
-                        match window_event {
-                            WindowEvent::KeyboardInput { event: key_event, .. } => {
-                                use winit::event::ElementState;
-                                use winit::platform::scancode::PhysicalKeyExtScancode;
-
-                                let keysym = backend.translate_key_public(&key_event.logical_key);
-
-                                // Skip modifier-only key events (keysym=0)
-                                // These are Ctrl, Shift, Alt, Super pressed alone
-                                if keysym != 0 {
-                                    let kind = match key_event.state {
-                                        ElementState::Pressed => NEOMACS_EVENT_KEY_PRESS,
-                                        ElementState::Released => NEOMACS_EVENT_KEY_RELEASE,
-                                    };
-
-                                    let ev = NeomacsInputEvent {
-                                        kind,
-                                        window_id: 1, // TODO: map winit window_id
-                                        timestamp: 0,
-                                        x: 0,
-                                        y: 0,
-                                        keycode: key_event.physical_key.to_scancode().unwrap_or(0),
-                                        keysym,
-                                        modifiers: backend.get_current_modifiers(),
-                                        button: 0,
-                                        scroll_delta_x: 0.0,
-                                        scroll_delta_y: 0.0,
-                                        width: 0,
-                                        height: 0,
-                                    };
-                                    collected_events.push(ev);
-                                }
-                            }
-                            WindowEvent::ModifiersChanged(modifiers) => {
-                                backend.update_modifiers(modifiers);
-                            }
-                            WindowEvent::CursorMoved { position, .. } => {
-                                backend.update_mouse_position(position.x as i32, position.y as i32);
-                            }
-                            WindowEvent::MouseInput { state, button, .. } => {
-                                use winit::event::{ElementState, MouseButton};
-
-                                let kind = match state {
-                                    ElementState::Pressed => NEOMACS_EVENT_BUTTON_PRESS,
-                                    ElementState::Released => NEOMACS_EVENT_BUTTON_RELEASE,
-                                };
-
-                                let btn = match button {
-                                    MouseButton::Left => 1,
-                                    MouseButton::Middle => 2,
-                                    MouseButton::Right => 3,
-                                    _ => 0,
-                                };
-
-                                let (mx, my) = backend.get_mouse_position();
-                                let ev = NeomacsInputEvent {
-                                    kind,
-                                    window_id: 1,
-                                    timestamp: 0,
-                                    x: mx,
-                                    y: my,
-                                    keycode: 0,
-                                    keysym: 0,
-                                    modifiers: backend.get_current_modifiers(),
-                                    button: btn,
-                                    scroll_delta_x: 0.0,
-                                    scroll_delta_y: 0.0,
-                                    width: 0,
-                                    height: 0,
-                                };
-                                collected_events.push(ev);
-                            }
-                            WindowEvent::MouseWheel { delta, .. } => {
-                                use winit::event::MouseScrollDelta;
-
-                                let (dx, dy) = match delta {
-                                    MouseScrollDelta::LineDelta(x, y) => (*x, *y),
-                                    MouseScrollDelta::PixelDelta(pos) => (pos.x as f32, pos.y as f32),
-                                };
-
-                                let (mx, my) = backend.get_mouse_position();
-                                let ev = NeomacsInputEvent {
-                                    kind: NEOMACS_EVENT_SCROLL,
-                                    window_id: 1,
-                                    timestamp: 0,
-                                    x: mx,
-                                    y: my,
-                                    keycode: 0,
-                                    keysym: 0,
-                                    modifiers: backend.get_current_modifiers(),
-                                    button: 0,
-                                    scroll_delta_x: dx,
-                                    scroll_delta_y: dy,
-                                    width: 0,
-                                    height: 0,
-                                };
-                                collected_events.push(ev);
-                            }
-                            WindowEvent::Resized(size) => {
-                                log::debug!("Window resized to {}x{}", size.width, size.height);
-
-                                // Call the resize callback directly if set
-                                // This updates Emacs frame size immediately
-                                unsafe {
-                                    if let Some(callback) = RESIZE_CALLBACK {
-                                        callback(
-                                            RESIZE_CALLBACK_USER_DATA,
-                                            size.width as i32,
-                                            size.height as i32,
-                                        );
-                                    }
-                                }
-
-                                // Also send as event for any other handlers
-                                let ev = NeomacsInputEvent {
-                                    kind: NEOMACS_EVENT_RESIZE,
-                                    window_id: 1,
-                                    timestamp: 0,
-                                    x: 0,
-                                    y: 0,
-                                    keycode: 0,
-                                    keysym: 0,
-                                    modifiers: 0,
-                                    button: 0,
-                                    scroll_delta_x: 0.0,
-                                    scroll_delta_y: 0.0,
-                                    width: size.width,
-                                    height: size.height,
-                                };
-                                collected_events.push(ev);
-                            }
-                            WindowEvent::CloseRequested => {
-                                let ev = NeomacsInputEvent {
-                                    kind: NEOMACS_EVENT_CLOSE,
-                                    window_id: 1,
-                                    timestamp: 0,
-                                    x: 0,
-                                    y: 0,
-                                    keycode: 0,
-                                    keysym: 0,
-                                    modifiers: 0,
-                                    button: 0,
-                                    scroll_delta_x: 0.0,
-                                    scroll_delta_y: 0.0,
-                                    width: 0,
-                                    height: 0,
-                                };
-                                collected_events.push(ev);
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                _ => {}
-            }
-        });
-
-        // Put the event loop back
-        display.event_loop = Some(event_loop);
-
-        // Deliver events via callback
-        let count = collected_events.len() as i32;
-        unsafe {
-            if let Some(callback) = EVENT_CALLBACK {
-                for event in &collected_events {
-                    callback(event as *const _);
-                }
-            }
-        }
-
-        // Check if any webkit views need redraw and re-render the frame
-        #[cfg(feature = "wpe-webkit")]
-        {
-            let needs_redraw = WEBKIT_CACHE.with(|cache| {
-                let cache = cache.borrow();
-                if let Some(ref wpe_cache) = *cache {
-                    for view in wpe_cache.views().values() {
-                        if view.needs_redraw() {
-                            return true;
-                        }
-                    }
-                }
-                false
-            });
-            if needs_redraw {
-                log::debug!("poll_events: webkit needs_redraw=true, re-rendering frame_glyphs");
-                // Re-render the frame_glyphs path which includes inline webkit rendering
-                // Get the first available window to render to (typically there's only one)
-                if let Some(ref mut backend) = display.winit_backend {
-                    if let Some(window_id) = backend.first_window_id() {
-                        backend.end_frame_for_window(window_id, &display.frame_glyphs, &display.faces);
-                    } else {
-                        log::debug!("poll_events: no windows available for webkit redraw");
-                    }
-                }
-                // Clear the needs_redraw flags
-                WEBKIT_CACHE.with(|cache| {
-                    let mut cache = cache.borrow_mut();
-                    if let Some(ref mut wpe_cache) = *cache {
-                        for view in wpe_cache.views_mut().values_mut() {
-                            view.clear_redraw_flag();
-                        }
-                    }
-                });
-            }
-        }
-
-        return count;
-    }
-
-    #[cfg(not(feature = "winit-backend"))]
-    0
-}
+// Note: Event Polling FFI Functions have been removed
+// Events are now delivered via the threaded mode wakeup mechanism
+// Use neomacs_display_drain_input() instead
 
 // ============================================================================
 // Animation FFI functions (stubs - no GTK4 backend)
@@ -3475,7 +3012,6 @@ pub unsafe extern "C" fn neomacs_display_init_threaded(
         frame_counter: 0,
         current_render_window_id: 0,
         faces: HashMap::new(),
-        event_fd: -1,
     });
     let display_ptr = Box::into_raw(display);
 
