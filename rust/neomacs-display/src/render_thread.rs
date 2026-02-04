@@ -418,12 +418,76 @@ impl RenderApp {
     #[cfg(not(all(feature = "wpe-webkit", wpe_platform_available)))]
     fn pump_glib(&mut self) {}
 
+    /// Process webkit frames and import to wgpu textures
+    #[cfg(all(feature = "wpe-webkit", target_os = "linux"))]
+    fn process_webkit_frames(&mut self) {
+        use crate::backend::wgpu::external_buffer::DmaBufBuffer;
+
+        let device = match &self.device {
+            Some(d) => d,
+            None => return,
+        };
+        let queue = match &self.queue {
+            Some(q) => q,
+            None => return,
+        };
+        let cache = match &mut self.webkit_texture_cache {
+            Some(c) => c,
+            None => return,
+        };
+
+        for (view_id, view) in &self.webkit_views {
+            // Try DMA-BUF first (zero-copy)
+            if let Some(dmabuf) = view.take_latest_dmabuf() {
+                let num_planes = dmabuf.fds.len().min(4) as u32;
+                let mut fds = [-1i32; 4];
+                let mut strides = [0u32; 4];
+                let mut offsets = [0u32; 4];
+
+                for i in 0..num_planes as usize {
+                    fds[i] = dmabuf.fds[i];
+                    strides[i] = dmabuf.strides[i];
+                    offsets[i] = dmabuf.offsets[i];
+                }
+
+                let buffer = DmaBufBuffer::new(
+                    fds,
+                    strides,
+                    offsets,
+                    num_planes,
+                    dmabuf.width,
+                    dmabuf.height,
+                    dmabuf.fourcc,
+                    dmabuf.modifier,
+                );
+
+                if cache.update_view(*view_id, buffer, device, queue) {
+                    log::debug!("Imported DMA-BUF for webkit view {}", view_id);
+                } else {
+                    log::warn!("Failed to import DMA-BUF for webkit view {}", view_id);
+                }
+            }
+            // Fallback to pixel upload
+            else if let Some(raw_pixels) = view.take_latest_pixels() {
+                if cache.update_view_from_pixels(*view_id, raw_pixels.width, raw_pixels.height, &raw_pixels.pixels, device, queue) {
+                    log::debug!("Uploaded pixels for webkit view {}", view_id);
+                }
+            }
+        }
+    }
+
+    #[cfg(not(all(feature = "wpe-webkit", target_os = "linux")))]
+    fn process_webkit_frames(&mut self) {}
+
     /// Render the current frame
     fn render(&mut self) {
         // Early return checks
         if self.current_frame.is_none() || self.surface.is_none() || self.renderer.is_none() {
             return;
         }
+
+        // Process webkit frames (import DMA-BUF to textures)
+        self.process_webkit_frames();
 
         // Build faces from frame data first (while we can mutably borrow self)
         if let Some(ref frame) = self.current_frame {

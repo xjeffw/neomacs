@@ -9,7 +9,7 @@ mod backend;
 #[cfg(feature = "winit-backend")]
 mod glyph_atlas;
 #[cfg(any(feature = "winit-backend", feature = "wpe-webkit"))]
-mod external_buffer;
+pub(crate) mod external_buffer;
 #[cfg(feature = "winit-backend")]
 mod animation;
 #[cfg(feature = "winit-backend")]
