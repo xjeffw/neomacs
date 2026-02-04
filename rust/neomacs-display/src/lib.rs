@@ -14,6 +14,7 @@ pub mod core;
 pub mod backend;
 pub mod text;
 pub mod ffi;
+pub mod thread_comm;
 
 pub use crate::core::*;
 pub use crate::backend::DisplayBackend;
