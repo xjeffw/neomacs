@@ -266,6 +266,9 @@ static struct redisplay_interface neomacs_redisplay_interface = {
  * Display Initialization
  * ============================================================================ */
 
+/* Forward declaration for wakeup handler (defined in Threaded Mode Support section) */
+static void neomacs_display_wakeup_handler (int fd, void *data);
+
 /* Initialize the Neomacs display subsystem */
 void
 neomacs_term_init (void)
@@ -294,29 +297,33 @@ neomacs_open_display (const char *display_name)
   dpyinfo = xzalloc (sizeof *dpyinfo);
   neomacs_initialize_display_info (dpyinfo);
 
-  /* Initialize the Rust display engine */
-  dpyinfo->display_handle = neomacs_display_init (BACKEND_TYPE_WGPU);
+  /* Initialize the Rust display engine in threaded mode */
+  int wakeup_fd = neomacs_display_init_threaded (dpyinfo->width, dpyinfo->height, "Emacs");
 
+  if (wakeup_fd < 0)
+    {
+      xfree (dpyinfo);
+      error ("Failed to initialize Neomacs threaded display engine");
+    }
+
+  /* Get display handle for frame operations */
+  dpyinfo->display_handle = neomacs_display_get_threaded_handle ();
   if (!dpyinfo->display_handle)
     {
       xfree (dpyinfo);
-      error ("Failed to initialize Neomacs display engine");
+      error ("Failed to get threaded display handle");
     }
 
-  /* Get the event fd from the Rust display for Emacs event loop integration.
-     This is a timerfd that fires periodically to ensure Emacs polls for winit events. */
-  int event_fd = neomacs_display_get_event_fd (dpyinfo->display_handle);
-  if (event_fd >= 0)
-    dpyinfo->connection = event_fd;
-
-  /* Register event callback for winit events (must be done after display_handle is created) */
-  neomacs_term_init ();
-
-  /* Set the background color to white (Emacs default) */
+  /* Set background color */
   neomacs_display_set_background (dpyinfo->display_handle, dpyinfo->background_pixel);
 
-  /* Note: Mouse event handlers are added by neomacsfns.c when the GTK widget is created.
-     The callbacks are connected directly to the widget via GtkGestureClick etc. */
+  /* Store the wakeup fd for event loop integration */
+  dpyinfo->connection = wakeup_fd;
+
+  /* Register wakeup handler with Emacs event loop */
+  add_read_fd (wakeup_fd, neomacs_display_wakeup_handler, dpyinfo);
+
+  /* Note: No longer need neomacs_term_init() - events come via wakeup handler */
 
   /* Add to display list */
   dpyinfo->next = neomacs_display_list;

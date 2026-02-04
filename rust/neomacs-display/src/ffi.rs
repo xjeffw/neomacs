@@ -3416,6 +3416,7 @@ static mut THREADED_STATE: Option<ThreadedState> = None;
 struct ThreadedState {
     emacs_comms: EmacsComms,
     render_thread: Option<RenderThread>,
+    display_handle: *mut NeomacsDisplay,
 }
 
 /// Initialize display in threaded mode
@@ -3453,9 +3454,35 @@ pub unsafe extern "C" fn neomacs_display_init_threaded(
     // Spawn render thread
     let render_thread = RenderThread::spawn(render_comms, width, height, title);
 
+    // Create a NeomacsDisplay handle for C code to use with frame operations
+    // This is a lightweight handle that doesn't own the backend (render thread does)
+    let display = Box::new(NeomacsDisplay {
+        backend_type: BackendType::Wgpu,
+        tty_backend: None,
+        winit_backend: None,
+        event_loop: None,
+        scene: Scene::new(width as f32, height as f32),
+        frame_glyphs: FrameGlyphBuffer::with_size(width as f32, height as f32),
+        use_hybrid: true,
+        animations: AnimationManager::new(),
+        current_row_y: -1,
+        current_row_x: 0,
+        current_row_height: 0,
+        current_row_ascent: 0,
+        current_row_is_overlay: false,
+        current_window_id: -1,
+        in_frame: false,
+        frame_counter: 0,
+        current_render_window_id: 0,
+        faces: HashMap::new(),
+        event_fd: -1,
+    });
+    let display_ptr = Box::into_raw(display);
+
     THREADED_STATE = Some(ThreadedState {
         emacs_comms,
         render_thread: Some(render_thread),
+        display_handle: display_ptr,
     });
 
     wakeup_fd
@@ -3635,6 +3662,11 @@ pub unsafe extern "C" fn neomacs_display_shutdown_threaded() {
         if let Some(rt) = state.render_thread.take() {
             rt.join();
         }
+
+        // Free the display handle
+        if !state.display_handle.is_null() {
+            let _ = Box::from_raw(state.display_handle);
+        }
     }
 }
 
@@ -3645,5 +3677,18 @@ pub unsafe extern "C" fn neomacs_display_get_threaded_wakeup_fd() -> c_int {
     match THREADED_STATE.as_ref() {
         Some(state) => state.emacs_comms.wakeup_read_fd,
         None => -1,
+    }
+}
+
+/// Get display handle for threaded mode
+///
+/// Returns the NeomacsDisplay handle for use with frame operations.
+/// Returns NULL if threaded mode is not initialized.
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_get_threaded_handle() -> *mut NeomacsDisplay {
+    match THREADED_STATE.as_ref() {
+        Some(state) => state.display_handle,
+        None => std::ptr::null_mut(),
     }
 }

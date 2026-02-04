@@ -941,4 +941,12 @@ void neomacs_display_shutdown_threaded(void);
  */
 int neomacs_display_get_threaded_wakeup_fd(void);
 
+/**
+ * Get display handle for threaded mode
+ *
+ * Returns the NeomacsDisplay handle for use with frame operations.
+ * Returns NULL if threaded mode is not initialized.
+ */
+struct NeomacsDisplay *neomacs_display_get_threaded_handle(void);
+
 #endif  /* NEOMACS_DISPLAY_H */
