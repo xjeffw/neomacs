@@ -1829,6 +1829,10 @@ thread_local! {
 #[cfg(feature = "wpe-webkit")]
 static WEBKIT_VIEW_ID_COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
 
+/// Atomic counter for generating video IDs in threaded mode
+#[cfg(feature = "video")]
+static VIDEO_ID_COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+
 /// Callback type for webkit new window requests
 pub type WebKitNewWindowCallback = extern "C" fn(u32, *const c_char, *const c_char) -> bool;
 
