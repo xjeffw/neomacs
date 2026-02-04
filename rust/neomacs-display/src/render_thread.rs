@@ -510,6 +510,26 @@ impl RenderApp {
     #[cfg(not(all(feature = "wpe-webkit", target_os = "linux")))]
     fn process_webkit_frames(&mut self) {}
 
+    /// Process pending video frames
+    #[cfg(feature = "video")]
+    fn process_video_frames(&mut self) {
+        let device = match &self.device {
+            Some(d) => d,
+            None => return,
+        };
+        let queue = match &self.queue {
+            Some(q) => q,
+            None => return,
+        };
+
+        if let Some(ref mut cache) = self.video_cache {
+            cache.process_pending_frames(device, queue);
+        }
+    }
+
+    #[cfg(not(feature = "video"))]
+    fn process_video_frames(&mut self) {}
+
     /// Render the current frame
     fn render(&mut self) {
         // Early return checks
@@ -519,6 +539,9 @@ impl RenderApp {
 
         // Process webkit frames (import DMA-BUF to textures)
         self.process_webkit_frames();
+
+        // Process video frames
+        self.process_video_frames();
 
         // Build faces from frame data first (while we can mutably borrow self)
         if let Some(ref frame) = self.current_frame {

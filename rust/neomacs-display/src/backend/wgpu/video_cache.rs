@@ -108,6 +108,10 @@ pub struct VideoCache {
     load_tx: mpsc::Sender<LoadRequest>,
     /// Channel to receive decoded frames
     frame_rx: mpsc::Receiver<DecodedFrame>,
+    /// Bind group layout for video textures (created in init_gpu)
+    bind_group_layout: Option<wgpu::BindGroupLayout>,
+    /// Sampler for video textures (created in init_gpu)
+    sampler: Option<wgpu::Sampler>,
 }
 
 impl VideoCache {
@@ -131,13 +135,47 @@ impl VideoCache {
             next_id: 1,
             load_tx,
             frame_rx,
+            bind_group_layout: None,
+            sampler: None,
         }
     }
 
     /// Initialize GPU resources
-    /// Note: Video bind groups are created using image_pipeline's layout for compatibility.
-    pub fn init_gpu(&mut self, _device: &wgpu::Device) {
-        log::info!("VideoCache: GPU resources initialized (using shared image pipeline layout)");
+    pub fn init_gpu(&mut self, device: &wgpu::Device) {
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Video Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("Video Sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+
+        self.bind_group_layout = Some(bind_group_layout);
+        self.sampler = Some(sampler);
+        log::info!("VideoCache: GPU resources initialized");
     }
 
     /// Load a video file
@@ -218,6 +256,33 @@ impl VideoCache {
     pub fn remove(&mut self, id: u32) {
         self.videos.remove(&id);
         log::debug!("VideoCache: removed video {}", id);
+    }
+
+    /// Process pending decoded frames using stored GPU resources (call each frame)
+    pub fn process_pending_frames(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+        // Take resources temporarily to avoid borrow conflict
+        let layout = match self.bind_group_layout.take() {
+            Some(l) => l,
+            None => {
+                log::warn!("VideoCache: GPU resources not initialized, skipping frame processing");
+                return;
+            }
+        };
+        let sampler = match self.sampler.take() {
+            Some(s) => s,
+            None => {
+                self.bind_group_layout = Some(layout);
+                log::warn!("VideoCache: GPU resources not initialized, skipping frame processing");
+                return;
+            }
+        };
+
+        // Process frames
+        self.process_pending(device, queue, &layout, &sampler);
+
+        // Put resources back
+        self.bind_group_layout = Some(layout);
+        self.sampler = Some(sampler);
     }
 
     /// Process pending decoded frames (call each frame)
