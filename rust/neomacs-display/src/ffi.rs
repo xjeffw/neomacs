@@ -1825,6 +1825,10 @@ thread_local! {
     static WPE_BACKEND: RefCell<Option<WpeBackend>> = const { RefCell::new(None) };
 }
 
+/// Atomic counter for generating WebKit view IDs in threaded mode
+#[cfg(feature = "wpe-webkit")]
+static WEBKIT_VIEW_ID_COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+
 /// Callback type for webkit new window requests
 pub type WebKitNewWindowCallback = extern "C" fn(u32, *const c_char, *const c_char) -> bool;
 
@@ -1987,6 +1991,20 @@ pub unsafe extern "C" fn neomacs_display_webkit_create(
 ) -> u32 {
     #[cfg(feature = "wpe-webkit")]
     {
+        // Use threaded path if available
+        #[cfg(feature = "winit-backend")]
+        if let Some(ref state) = THREADED_STATE {
+            let id = WEBKIT_VIEW_ID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let cmd = RenderCommand::WebKitCreate {
+                id,
+                width: width as u32,
+                height: height as u32,
+            };
+            let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+            return id;
+        }
+
+        // Fallback to old path (non-threaded)
         return WPE_BACKEND.with(|wpe_cell| {
             let wpe_borrow = wpe_cell.borrow();
             let backend = match wpe_borrow.as_ref() {
@@ -2030,6 +2048,15 @@ pub unsafe extern "C" fn neomacs_display_webkit_destroy(
 ) -> c_int {
     #[cfg(feature = "wpe-webkit")]
     {
+        // Use threaded path if available
+        #[cfg(feature = "winit-backend")]
+        if let Some(ref state) = THREADED_STATE {
+            let cmd = RenderCommand::WebKitDestroy { id: view_id };
+            let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+            return 0;
+        }
+
+        // Fallback to old path (non-threaded)
         return WEBKIT_CACHE.with(|cache_cell| {
             let mut cache_borrow = cache_cell.borrow_mut();
             if let Some(cache) = cache_borrow.as_mut() {
@@ -2061,6 +2088,16 @@ pub unsafe extern "C" fn neomacs_display_webkit_load_uri(
 
     #[cfg(feature = "wpe-webkit")]
     {
+        // Use threaded path if available
+        #[cfg(feature = "winit-backend")]
+        if let Some(ref state) = THREADED_STATE {
+            let url = CStr::from_ptr(uri).to_string_lossy().into_owned();
+            let cmd = RenderCommand::WebKitLoadUri { id: view_id, url };
+            let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+            return 0;
+        }
+
+        // Fallback to old path (non-threaded)
         return WEBKIT_CACHE.with(|cache_cell| {
             let mut cache_borrow = cache_cell.borrow_mut();
             if let Some(cache) = cache_borrow.as_mut() {
@@ -2177,6 +2214,19 @@ pub unsafe extern "C" fn neomacs_display_webkit_resize(
 ) -> c_int {
     #[cfg(feature = "wpe-webkit")]
     {
+        // Use threaded path if available
+        #[cfg(feature = "winit-backend")]
+        if let Some(ref state) = THREADED_STATE {
+            let cmd = RenderCommand::WebKitResize {
+                id: view_id,
+                width: width as u32,
+                height: height as u32,
+            };
+            let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+            return 0;
+        }
+
+        // Fallback to old path (non-threaded)
         return WEBKIT_CACHE.with(|cache_cell| {
             let mut cache_borrow = cache_cell.borrow_mut();
             if let Some(cache) = cache_borrow.as_mut() {
