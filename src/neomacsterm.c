@@ -3258,8 +3258,27 @@ neomacs_display_wakeup_handler (int fd, void *data)
         case NEOMACS_EVENT_RESIZE:
           {
             struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+            int new_width = ev->width;
+            int new_height = ev->height;
+
+            /* Update dpyinfo dimensions */
+            if (dpyinfo)
+              {
+                dpyinfo->width = new_width;
+                dpyinfo->height = new_height;
+              }
+
+            /* Update the Rust display handle */
             if (dpyinfo && dpyinfo->display_handle)
-              neomacs_display_resize (dpyinfo->display_handle, ev->width, ev->height);
+              neomacs_display_resize (dpyinfo->display_handle, new_width, new_height);
+
+            /* Update the Emacs frame size - queue for later since we're in event handler */
+            if (FRAME_PIXEL_WIDTH (f) != new_width
+                || FRAME_PIXEL_HEIGHT (f) != new_height)
+              {
+                change_frame_size (f, new_width, new_height, false, true, false);
+                SET_FRAME_GARBAGED (f);
+              }
           }
           break;
 

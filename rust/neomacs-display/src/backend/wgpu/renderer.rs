@@ -1028,8 +1028,12 @@ impl WgpuRenderer {
         );
 
         // 2. Process window backgrounds FIRST
+        let mut bg_count = 0;
         for glyph in &frame_glyphs.glyphs {
             if let FrameGlyph::Background { bounds, color } = glyph {
+                log::debug!("render_frame_glyphs: window background #{} at ({:.1},{:.1}) size {:.1}x{:.1} color=({:.3},{:.3},{:.3})",
+                    bg_count, bounds.x, bounds.y, bounds.width, bounds.height, color.r, color.g, color.b);
+                bg_count += 1;
                 self.add_rect(
                     &mut rect_vertices,
                     bounds.x,
@@ -1040,6 +1044,7 @@ impl WgpuRenderer {
                 );
             }
         }
+        log::debug!("render_frame_glyphs: {} window backgrounds total", bg_count);
 
         // 3. Process stretches
         for glyph in &frame_glyphs.glyphs {
@@ -1175,6 +1180,38 @@ impl WgpuRenderer {
             }
 
             log::debug!("render_frame_glyphs: {} char glyphs to render", glyph_data.len());
+
+            // Log sample glyphs at different Y positions
+            let mut top_glyph: Option<(&GlyphKey, &[GlyphVertex; 6])> = None;
+            let mut bottom_glyph: Option<(&GlyphKey, &[GlyphVertex; 6])> = None;
+            for (key, verts) in &glyph_data {
+                let y = verts[0].position[1];
+                if top_glyph.is_none() || y < top_glyph.unwrap().1[0].position[1] {
+                    top_glyph = Some((key, verts));
+                }
+                if bottom_glyph.is_none() || y > bottom_glyph.unwrap().1[0].position[1] {
+                    bottom_glyph = Some((key, verts));
+                }
+            }
+            if let Some((key, verts)) = top_glyph {
+                let c = char::from_u32(key.charcode).unwrap_or('?');
+                log::debug!("render_frame_glyphs: TOP glyph '{}' at ({:.1},{:.1}) color=({:.3},{:.3},{:.3},{:.3})",
+                    c, verts[0].position[0], verts[0].position[1],
+                    verts[0].color[0], verts[0].color[1], verts[0].color[2], verts[0].color[3]);
+            }
+            if let Some((key, verts)) = bottom_glyph {
+                let c = char::from_u32(key.charcode).unwrap_or('?');
+                log::debug!("render_frame_glyphs: BOTTOM glyph '{}' at ({:.1},{:.1}) color=({:.3},{:.3},{:.3},{:.3})",
+                    c, verts[0].position[0], verts[0].position[1],
+                    verts[0].color[0], verts[0].color[1], verts[0].color[2], verts[0].color[3]);
+            }
+
+            // Also log background color
+            log::debug!("render_frame_glyphs: frame background=({:.3},{:.3},{:.3})",
+                frame_glyphs.background.r,
+                frame_glyphs.background.g,
+                frame_glyphs.background.b,
+            );
 
             // Create single vertex buffer for all glyphs
             if !glyph_data.is_empty() {

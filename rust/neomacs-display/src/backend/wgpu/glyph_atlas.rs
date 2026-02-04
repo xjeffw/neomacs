@@ -141,8 +141,14 @@ impl WgpuGlyphAtlas {
             self.rasterize_glyph(c, face)?;
 
         if width == 0 || height == 0 {
+            log::debug!("glyph_atlas: skipping empty glyph '{}' ({}x{})", c, width, height);
             return None;
         }
+
+        // Check alpha data has valid content
+        let max_alpha = alpha_data.iter().copied().max().unwrap_or(0);
+        log::debug!("glyph_atlas: rasterized '{}' {}x{} bearing ({:.1},{:.1}) max_alpha={}",
+            c, width, height, bearing_x, bearing_y, max_alpha);
 
         // Create texture (R8Unorm for alpha mask)
         let texture = device.create_texture(&wgpu::TextureDescriptor {

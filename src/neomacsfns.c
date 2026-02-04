@@ -1563,10 +1563,20 @@ If the parameters specify a display, that display is used.  */)
     store_frame_param (f, Qmin_height, tem);
 
   /* Call adjust_frame_size - this initializes glyph matrices.
-     CRITICAL: This sets glyphs_initialized_p which is required for redisplay! */
-  adjust_frame_size (f, FRAME_COLS (f) * FRAME_COLUMN_WIDTH (f),
-		     FRAME_LINES (f) * FRAME_LINE_HEIGHT (f), 5, true,
-		     Qx_create_frame_1);
+     CRITICAL: This sets glyphs_initialized_p which is required for redisplay!
+     Use the display dimensions (dpyinfo->width/height) as the target size
+     so the frame matches the actual window created by the render thread.
+     Note: adjust_frame_size expects TEXT pixel dimensions, so we need to
+     convert from native (window) pixel dimensions. */
+  {
+    int native_width = dpyinfo->width;
+    int native_height = dpyinfo->height;
+    /* Convert native pixels to text pixels by subtracting decorations */
+    int text_width = FRAME_PIXEL_TO_TEXT_WIDTH (f, native_width);
+    int text_height = FRAME_PIXEL_TO_TEXT_HEIGHT (f, native_height);
+    adjust_frame_size (f, text_width, text_height, 5, true,
+		       Qx_create_frame_1);
+  }
 
   /* Initialize cursor */
   FRAME_NEOMACS_OUTPUT (f)->cursor_pixel = dpyinfo->black_pixel;

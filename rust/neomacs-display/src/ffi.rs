@@ -133,14 +133,27 @@ pub unsafe extern "C" fn neomacs_display_resize(
     }
 
     let display = &mut *handle;
-    display.scene = Scene::new(width as f32, height as f32);
+    let new_width = width as f32;
+    let new_height = height as f32;
 
-    // Update frame_glyphs buffer size and CLEAR it for fresh redraw
-    display.frame_glyphs.width = width as f32;
-    display.frame_glyphs.height = height as f32;
-    display.frame_glyphs.glyphs.clear();  // Clear all glyphs - Emacs will resend
-    display.frame_glyphs.window_regions.clear();
-    display.frame_glyphs.prev_window_regions.clear();
+    // Only clear glyphs if size actually changed
+    let size_changed = (display.frame_glyphs.width - new_width).abs() > 1.0
+                    || (display.frame_glyphs.height - new_height).abs() > 1.0;
+
+    if size_changed {
+        log::info!("neomacs_display_resize: {}x{} -> {}x{}, clearing {} glyphs",
+            display.frame_glyphs.width, display.frame_glyphs.height,
+            width, height, display.frame_glyphs.glyphs.len());
+        display.scene = Scene::new(new_width, new_height);
+        display.frame_glyphs.width = new_width;
+        display.frame_glyphs.height = new_height;
+        display.frame_glyphs.glyphs.clear();  // Clear all glyphs - Emacs will resend
+        display.frame_glyphs.window_regions.clear();
+        display.frame_glyphs.prev_window_regions.clear();
+    } else {
+        log::debug!("neomacs_display_resize: size unchanged ({}x{}), keeping {} glyphs",
+            width, height, display.frame_glyphs.glyphs.len());
+    }
 
     if let Some(backend) = display.get_backend() {
         backend.resize(width as u32, height as u32);
@@ -160,8 +173,9 @@ pub unsafe extern "C" fn neomacs_display_begin_frame(handle: *mut NeomacsDisplay
     // Mark that we're in a frame update cycle
     display.in_frame = true;
 
-    debug!("begin_frame: frame={}, hybrid={}, glyphs={}",
-           display.frame_counter, display.use_hybrid, display.frame_glyphs.len());
+    debug!("begin_frame: frame={}, hybrid={}, glyphs={} chars={}",
+           display.frame_counter, display.use_hybrid, display.frame_glyphs.len(),
+           display.frame_glyphs.glyphs.iter().filter(|g| matches!(g, FrameGlyph::Char { .. })).count());
 
     // DON'T clear glyphs - accumulate them for incremental redisplay.
     // Emacs sends only changed content; old content is retained.
@@ -203,9 +217,12 @@ pub unsafe extern "C" fn neomacs_display_add_window(
     // Hybrid path: just add window background rectangle
     // Skip hybrid path if rendering to a winit window (current_render_window_id > 0)
     if display.use_hybrid {
+        let color = Color::from_pixel(bg_color);
+        debug!("neomacs_display_add_window: id={} at ({},{}) size {}x{} bg=0x{:06x}->({:.3},{:.3},{:.3})",
+               window_id, x, y, width, height, bg_color, color.r, color.g, color.b);
         display.frame_glyphs.add_background(
             x, y, width, height,
-            Color::from_pixel(bg_color),
+            color,
         );
         return;
     }
@@ -914,6 +931,9 @@ pub unsafe extern "C" fn neomacs_display_set_background(
         a: 1.0,
     };
 
+    debug!("neomacs_display_set_background: color=0x{:06x} -> ({:.3},{:.3},{:.3})",
+           color, bg.r, bg.g, bg.b);
+
     let target_scene = display.get_target_scene();
     target_scene.background = bg;
 
@@ -1509,12 +1529,17 @@ pub unsafe extern "C" fn neomacs_display_clear_area(
 
     // For hybrid path, clear the area in frame_glyphs
     if display.use_hybrid {
+        let before = display.frame_glyphs.glyphs.len();
         display.frame_glyphs.clear_area(
             x as f32,
             y as f32,
             width as f32,
             height as f32,
         );
+        let after = display.frame_glyphs.glyphs.len();
+        // Log ALL clear_area calls to trace what's happening
+        log::debug!("neomacs_display_clear_area: ({},{}) {}x{} glyphs: {} -> {} (removed {})",
+            x, y, width, height, before, after, before.saturating_sub(after));
     }
 }
 
@@ -1526,6 +1551,7 @@ pub unsafe extern "C" fn neomacs_display_clear_all_glyphs(handle: *mut NeomacsDi
     }
 
     let display = &mut *handle;
+    log::info!("neomacs_display_clear_all_glyphs: clearing {} glyphs", display.frame_glyphs.glyphs.len());
     display.frame_glyphs.glyphs.clear();
     display.frame_glyphs.window_regions.clear();
     display.frame_glyphs.prev_window_regions.clear();
@@ -2898,6 +2924,9 @@ pub extern "C" fn neomacs_display_begin_frame_window(
 ) {
     let display = unsafe { &mut *handle };
 
+    log::debug!("neomacs_display_begin_frame_window: window_id={}, current glyphs={}",
+        window_id, display.frame_glyphs.glyphs.len());
+
     // Track which window we're currently rendering to
     display.current_render_window_id = window_id;
 
@@ -2918,19 +2947,46 @@ pub extern "C" fn neomacs_display_end_frame_window(
 ) {
     let display = unsafe { &mut *handle };
 
-    log::debug!("neomacs_display_end_frame_window: window_id={}, glyphs={}, faces={}",
-        window_id, display.frame_glyphs.glyphs.len(), display.faces.len());
+    // Count char glyphs to detect partial updates (cursor-only frames)
+    let char_count = display.frame_glyphs.glyphs.iter()
+        .filter(|g| matches!(g, FrameGlyph::Char { .. }))
+        .count();
+
+    log::debug!("neomacs_display_end_frame_window: window_id={}, glyphs={}, chars={}, faces={}",
+        window_id, display.frame_glyphs.glyphs.len(), char_count, display.faces.len());
 
     #[cfg(feature = "winit-backend")]
-    if let Some(ref mut backend) = display.winit_backend {
-        // Render frame_glyphs to the winit window
-        backend.end_frame_for_window(
-            window_id,
-            &display.frame_glyphs,
-            &display.faces,
-        );
-    } else {
-        log::debug!("neomacs_display_end_frame_window: no winit_backend");
+    {
+        // In threaded mode, send frame to render thread
+        // Safety: THREADED_STATE is only modified during init/shutdown
+        if let Some(ref state) = unsafe { THREADED_STATE.as_ref() } {
+            // Only send frames that have character content.
+            // Skip cursor-only or background-only frames to preserve previous full frame.
+            // This handles Emacs's incremental update model where cursor blinks
+            // don't resend all text content.
+            if char_count > 0 {
+                // Clone frame glyphs and send to render thread
+                let frame = display.frame_glyphs.clone();
+                let _ = state.emacs_comms.frame_tx.try_send(frame);
+            } else {
+                log::debug!("neomacs_display_end_frame_window: skipping frame with no char glyphs");
+            }
+        } else if let Some(ref mut backend) = display.winit_backend {
+            // Non-threaded mode: render directly
+            backend.end_frame_for_window(
+                window_id,
+                &display.frame_glyphs,
+                &display.faces,
+            );
+        } else {
+            log::debug!("neomacs_display_end_frame_window: no winit_backend and not in threaded mode");
+        }
+    }
+
+    #[cfg(not(feature = "winit-backend"))]
+    {
+        let _ = window_id;
+        log::debug!("neomacs_display_end_frame_window: winit-backend feature not enabled");
     }
 
     // Reset current window tracking after rendering is complete

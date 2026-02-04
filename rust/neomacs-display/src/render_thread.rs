@@ -723,10 +723,13 @@ impl ApplicationHandler for RenderApp {
             }
 
             WindowEvent::Resized(size) => {
+                log::info!("WindowEvent::Resized: {}x{}", size.width, size.height);
+
                 // Handle wgpu surface resize
                 self.handle_resize(size.width, size.height);
 
                 // Notify Emacs of the resize
+                log::info!("Sending WindowResize event to Emacs: {}x{}", size.width, size.height);
                 self.comms.send_input(InputEvent::WindowResize {
                     width: size.width,
                     height: size.height,
