@@ -374,11 +374,15 @@ impl VideoCache {
     }
 
     /// Try to extract DMA-BUF info from a GStreamer buffer
+    ///
+    /// Supports multiple memory types:
+    /// - DmaBufMemory: Direct DMA-BUF allocator
+    /// - FdMemory: Generic fd-backed memory (includes VA-API memory)
     #[cfg(target_os = "linux")]
     fn try_extract_dmabuf(buffer: &gst::BufferRef, info: &gst_video::VideoInfo) -> Option<DmaBufInfo> {
         use gst_allocators::prelude::*;
 
-        // Get the first memory block from the buffer (owned, so we can downcast)
+        // Get the first memory block from the buffer
         let n_memory = buffer.n_memory();
         if n_memory == 0 {
             return None;
@@ -386,17 +390,39 @@ impl VideoCache {
 
         let memory = buffer.memory(0)?;
 
-        // Try to downcast to DmaBufMemory
-        let dmabuf_mem = match memory.downcast_memory_ref::<gst_allocators::DmaBufMemory>() {
-            Some(m) => m,
-            None => {
-                log::trace!("Buffer memory is not DMA-BUF backed");
-                return None;
-            }
+        // Debug: log allocator info
+        let allocator_type = if let Some(allocator) = memory.allocator() {
+            use gst::prelude::*;
+            let type_name = allocator.type_().name();
+            log::debug!("Memory allocator type: {}", type_name);
+            type_name.to_string()
+        } else {
+            log::debug!("Memory has no allocator");
+            String::new()
         };
 
-        // Get the DMA-BUF file descriptor
-        let fd = dmabuf_mem.fd();
+        // Try DmaBufMemory first (explicit DMA-BUF allocator)
+        let fd = if let Some(dmabuf_mem) = memory.downcast_memory_ref::<gst_allocators::DmaBufMemory>() {
+            log::debug!("Found DmaBufMemory");
+            dmabuf_mem.fd()
+        } else if let Some(fd_mem) = memory.downcast_memory_ref::<gst_allocators::FdMemory>() {
+            // FdMemory: generic fd-backed memory (VA-API uses this)
+            log::debug!("Found FdMemory (VA-API or other fd-backed)");
+            fd_mem.fd()
+        } else if allocator_type == "GstVaAllocator" {
+            // VA-API memory - try to export via vaExportSurfaceHandle
+            log::debug!("Attempting VA-API DMA-BUF export...");
+            return Self::try_export_va_surface(buffer, &memory, info);
+        } else {
+            log::debug!("Buffer memory is not fd-backed (DmaBuf or Fd)");
+            return None;
+        };
+
+        // Validate fd
+        if fd < 0 {
+            log::warn!("Invalid fd from memory: {}", fd);
+            return None;
+        }
 
         // Get stride from video info
         let stride = info.stride()[0] as u32;
@@ -404,10 +430,10 @@ impl VideoCache {
         // Determine fourcc from format
         let format = info.format();
         let fourcc = match format {
-            gst_video::VideoFormat::Rgba => 0x34324241, // AB24 (ABGR)
-            gst_video::VideoFormat::Bgra => 0x34324142, // BA24 (BGRA)
-            gst_video::VideoFormat::Argb => 0x34324152, // AR24 (ARGB)
-            gst_video::VideoFormat::Abgr => 0x34324241, // AB24 (ABGR)
+            gst_video::VideoFormat::Rgba => 0x34324142, // AB24 - actually RGBA maps to ABGR in DRM
+            gst_video::VideoFormat::Bgra => 0x34324241, // AR24 - BGRA maps to ARGB in DRM
+            gst_video::VideoFormat::Argb => 0x34325241, // RA24
+            gst_video::VideoFormat::Abgr => 0x34324152, // RA24
             gst_video::VideoFormat::Rgbx => 0x34325842, // XB24
             gst_video::VideoFormat::Bgrx => 0x34325258, // XR24
             gst_video::VideoFormat::Nv12 => 0x3231564e, // NV12
@@ -417,13 +443,52 @@ impl VideoCache {
             }
         };
 
-        log::info!("Extracted DMA-BUF: fd={}, stride={}, fourcc={:#x}", fd, stride, fourcc);
+        log::info!("Extracted DMA-BUF: fd={}, stride={}, format={:?}, fourcc={:#x}", fd, stride, format, fourcc);
 
         Some(DmaBufInfo {
             fd,
             stride,
             fourcc,
-            modifier: 0, // Linear modifier, TODO: extract actual modifier
+            modifier: 0, // Linear modifier - VA-API typically uses linear
+        })
+    }
+
+    /// Try to export VA-API surface as DMA-BUF
+    #[cfg(target_os = "linux")]
+    fn try_export_va_surface(
+        buffer: &gst::BufferRef,
+        memory: &gst::Memory,
+        info: &gst_video::VideoInfo,
+    ) -> Option<DmaBufInfo> {
+        use super::va_dmabuf_export::{get_va_display_from_memory, try_export_va_dmabuf};
+
+        // Get VA display from allocator
+        let va_display = get_va_display_from_memory(memory)?;
+
+        // Export surface as DMA-BUF
+        let export = try_export_va_dmabuf(
+            buffer,
+            va_display,
+            info.width(),
+            info.height(),
+        )?;
+
+        // Use the first fd and plane info
+        if export.num_planes == 0 || export.fds[0] < 0 {
+            log::warn!("VA export returned no valid planes");
+            return None;
+        }
+
+        log::info!(
+            "VA-API DMA-BUF export: fd={}, pitch={}, fourcc={:#x}, modifier={:#x}",
+            export.fds[0], export.pitches[0], export.fourcc, export.modifier
+        );
+
+        Some(DmaBufInfo {
+            fd: export.fds[0],
+            stride: export.pitches[0],
+            fourcc: export.fourcc,
+            modifier: export.modifier,
         })
     }
 
@@ -453,11 +518,10 @@ impl VideoCache {
             let pipeline_str = if has_vapostproc {
                 // VA-API hardware acceleration pipeline:
                 // - decodebin auto-selects VA-API decoders (higher rank)
-                // - vapostproc does GPU-based color conversion (NV12→RGBA on GPU)
-                // - videoconvert ensures CPU-accessible memory for wgpu upload
-                // TODO: True DMA-BUF zero-copy requires vaExportSurfaceHandle() to
-                //       export VA surfaces as DMA-BUF, then import into Vulkan via
-                //       VK_EXT_external_memory_dma_buf. This avoids the GPU→CPU→GPU copy.
+                // - vapostproc does GPU-based color conversion (NV12→BGRA on GPU)
+                // - videoconvert ensures CPU-accessible linear memory
+                // Note: True zero-copy with tiled VA memory requires Vulkan HAL import
+                // which isn't implemented yet. For now, use CPU copy path.
                 log::info!("Using VA-API hardware acceleration pipeline (vapostproc available)");
                 format!(
                     "filesrc location=\"{}\" ! decodebin name=dec \

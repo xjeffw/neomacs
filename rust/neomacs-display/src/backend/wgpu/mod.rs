@@ -24,6 +24,9 @@ mod image_cache;
 #[cfg(all(feature = "video", target_os = "linux"))]
 mod vulkan_dmabuf;
 
+#[cfg(all(feature = "video", target_os = "linux"))]
+mod va_dmabuf_export;
+
 #[cfg(feature = "video")]
 mod video_cache;
 

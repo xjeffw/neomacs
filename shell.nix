@@ -85,6 +85,9 @@ pkgs.mkShell {
     # GBM for headless GPU rendering
     mesa
     libdrm
+
+    # VA-API for hardware video acceleration
+    libva
     
     # Weston - nested Wayland compositor for WPE WebKit
     weston
@@ -118,6 +121,7 @@ pkgs.mkShell {
     pkgs.libxkbcommon.dev
     pkgs.libdrm.dev
     pkgs.mesa
+    pkgs.libva.dev
   ] ++ (if wpewebkit != null then [ wpewebkit.dev or wpewebkit ] else [])
     ++ [ libwpe wpebackendFdo ]);
 
@@ -143,6 +147,7 @@ pkgs.mkShell {
       pkgs.graphene
       pkgs.gst_all_1.gstreamer
       pkgs.gst_all_1.gst-plugins-base
+      pkgs.gst_all_1.gst-plugins-bad
       pkgs.fontconfig
       pkgs.freetype
       pkgs.harfbuzz
@@ -165,6 +170,7 @@ pkgs.mkShell {
       pkgs.libdrm
       pkgs.libxkbcommon
       pkgs.libgbm
+      pkgs.libva
     ] ++ (if wpewebkit != null then [ wpewebkit ] else [])
       ++ [ libwpe wpebackendFdo ])}:$LD_LIBRARY_PATH"
     
