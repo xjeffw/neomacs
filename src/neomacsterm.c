@@ -42,6 +42,7 @@ struct wl_display;
 #include "dispextern.h"  /* For mark_window_display_accurate, set_window_update_flags */
 #include "pdumper.h"
 #include "fontset.h"
+#include "process.h"  /* For add_read_fd, delete_read_fd */
 
 /* List of Neomacs display info structures */
 struct neomacs_display_info *neomacs_display_list = NULL;
@@ -3258,6 +3259,143 @@ void
 free_frame_menubar (struct frame *f)
 {
   /* TODO: Implement menu bar cleanup */
+}
+
+
+/* ============================================================================
+ * Threaded Mode Support
+ * ============================================================================ */
+
+/* Threaded mode state */
+static int threaded_mode_active = 0;
+static int wakeup_fd = -1;
+
+/* Forward declaration */
+static void neomacs_display_wakeup_handler (int fd, void *data);
+
+/* Handler called when wakeup_fd is readable */
+static void
+neomacs_display_wakeup_handler (int fd, void *data)
+{
+  struct NeomacsInputEvent events[64];
+  int count;
+
+  /* Drain input events from render thread */
+  count = neomacs_display_drain_input (events, 64);
+
+  /* Process events */
+  for (int i = 0; i < count; i++)
+    {
+      struct NeomacsInputEvent *ev = &events[i];
+      union buffered_input_event inev;
+      struct frame *f = SELECTED_FRAME ();
+      Lisp_Object tail, frame;
+
+      /* Find frame by window_id */
+      FOR_EACH_FRAME (tail, frame)
+        {
+          struct frame *tf = XFRAME (frame);
+          if (FRAME_NEOMACS_P (tf)
+              && FRAME_NEOMACS_OUTPUT (tf)->window_id == ev->windowId)
+            {
+              f = tf;
+              break;
+            }
+        }
+
+      EVENT_INIT (inev.ie);
+      inev.ie.timestamp = ev->timestamp;
+
+      switch (ev->kind)
+        {
+        case NEOMACS_EVENT_KEY_PRESS:
+          if (ev->keysym < 0x100)
+            inev.ie.kind = ASCII_KEYSTROKE_EVENT;
+          else
+            inev.ie.kind = NON_ASCII_KEYSTROKE_EVENT;
+          inev.ie.code = ev->keysym;
+          inev.ie.modifiers = 0;
+          if (ev->modifiers & NEOMACS_SHIFT_MASK) inev.ie.modifiers |= shift_modifier;
+          if (ev->modifiers & NEOMACS_CTRL_MASK) inev.ie.modifiers |= ctrl_modifier;
+          if (ev->modifiers & NEOMACS_META_MASK) inev.ie.modifiers |= meta_modifier;
+          if (ev->modifiers & NEOMACS_SUPER_MASK) inev.ie.modifiers |= super_modifier;
+          XSETFRAME (inev.ie.frame_or_window, f);
+          neomacs_evq_enqueue (&inev);
+          break;
+
+        case NEOMACS_EVENT_MOUSE_PRESS:
+        case NEOMACS_EVENT_MOUSE_RELEASE:
+          inev.ie.kind = MOUSE_CLICK_EVENT;
+          inev.ie.code = ev->button - 1;  /* Emacs buttons are 0-indexed */
+          inev.ie.modifiers = (ev->kind == NEOMACS_EVENT_MOUSE_PRESS) ? down_modifier : up_modifier;
+          if (ev->modifiers & NEOMACS_SHIFT_MASK) inev.ie.modifiers |= shift_modifier;
+          if (ev->modifiers & NEOMACS_CTRL_MASK) inev.ie.modifiers |= ctrl_modifier;
+          if (ev->modifiers & NEOMACS_META_MASK) inev.ie.modifiers |= meta_modifier;
+          XSETINT (inev.ie.x, ev->x);
+          XSETINT (inev.ie.y, ev->y);
+          XSETFRAME (inev.ie.frame_or_window, f);
+          neomacs_evq_enqueue (&inev);
+          break;
+
+        case NEOMACS_EVENT_RESIZE:
+          {
+            struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+            if (dpyinfo && dpyinfo->display_handle)
+              neomacs_display_resize (dpyinfo->display_handle, ev->width, ev->height);
+          }
+          break;
+
+        case NEOMACS_EVENT_CLOSE_REQUEST:
+          inev.ie.kind = DELETE_WINDOW_EVENT;
+          XSETFRAME (inev.ie.frame_or_window, f);
+          neomacs_evq_enqueue (&inev);
+          break;
+
+        default:
+          break;
+        }
+    }
+}
+
+/* Initialize display in threaded mode */
+int
+neomacs_display_init_threaded_mode (int width, int height, const char *title)
+{
+  int fd = neomacs_display_init_threaded (width, height, title);
+  if (fd < 0)
+    return -1;
+
+  wakeup_fd = fd;
+  threaded_mode_active = 1;
+
+  /* Add wakeup_fd to Emacs's file descriptor set */
+  add_read_fd (wakeup_fd, neomacs_display_wakeup_handler, NULL);
+
+  return 0;
+}
+
+/* Check if threaded mode is active */
+int
+neomacs_display_is_threaded (void)
+{
+  return threaded_mode_active;
+}
+
+/* Shutdown threaded mode */
+void
+neomacs_display_shutdown_threaded_mode (void)
+{
+  if (!threaded_mode_active)
+    return;
+
+  /* Remove wakeup_fd from Emacs's fd set */
+  if (wakeup_fd >= 0)
+    delete_read_fd (wakeup_fd);
+
+  neomacs_display_shutdown_threaded ();
+
+  wakeup_fd = -1;
+  threaded_mode_active = 0;
 }
 
 

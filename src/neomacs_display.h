@@ -135,23 +135,6 @@ typedef enum BackendType {
 } BackendType;
 
 /**
- * Input event kinds matching Emacs event types.
- */
-enum EventKind {
-  EVENT_KIND_KEY_PRESS = 1,
-  EVENT_KIND_KEY_RELEASE = 2,
-  EVENT_KIND_MOUSE_PRESS = 3,
-  EVENT_KIND_MOUSE_RELEASE = 4,
-  EVENT_KIND_MOUSE_MOVE = 5,
-  EVENT_KIND_SCROLL = 6,
-  EVENT_KIND_RESIZE = 7,
-  EVENT_KIND_CLOSE_REQUEST = 8,
-  EVENT_KIND_FOCUS_IN = 9,
-  EVENT_KIND_FOCUS_OUT = 10,
-};
-typedef uint32_t EventKind;
-
-/**
  * Type for the resize callback function pointer from C
  */
 typedef void (*ResizeCallbackFn)(void *user_data, int width, int height);
@@ -214,6 +197,8 @@ typedef void (*EventCallback)(const struct NeomacsInputEvent*);
 #define VA_STATUS_SUCCESS 0
 
 #define VA_INVALID_SURFACE 4294967295
+
+extern GMainContext *g_main_context_get_thread_default(void);
 
 /**
  * Initialize the display engine
@@ -916,5 +901,44 @@ int neomacs_display_trigger_buffer_transition(struct NeomacsDisplay *handle);
  * Check if buffer transition is ready (stub)
  */
 int neomacs_display_has_transition_snapshot(struct NeomacsDisplay *handle);
+
+/**
+ * Initialize display in threaded mode
+ *
+ * Returns the wakeup pipe fd that Emacs should select() on,
+ * or -1 on error.
+ */
+int neomacs_display_init_threaded(uint32_t width, uint32_t height, const char *title);
+
+/**
+ * Drain input events from render thread
+ *
+ * Returns number of events written to buffer.
+ */
+int neomacs_display_drain_input(struct NeomacsInputEvent *events, int maxEvents);
+
+/**
+ * Send frame glyphs to render thread
+ */
+void neomacs_display_send_frame(struct NeomacsDisplay *handle);
+
+/**
+ * Send command to render thread
+ */
+void neomacs_display_send_command(int cmdType,
+                                  uint32_t id,
+                                  uint32_t param1,
+                                  uint32_t param2,
+                                  const char *strParam);
+
+/**
+ * Shutdown threaded display
+ */
+void neomacs_display_shutdown_threaded(void);
+
+/**
+ * Get wakeup fd for threaded mode (for Emacs to select() on)
+ */
+int neomacs_display_get_threaded_wakeup_fd(void);
 
 #endif  /* NEOMACS_DISPLAY_H */

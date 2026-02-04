@@ -387,6 +387,11 @@ extern void free_frame_tool_bar (struct frame *f);
 /* Tab bar support */
 extern void neomacs_change_tab_bar_height (struct frame *f, int height);
 
+/* Threaded mode support */
+extern int neomacs_display_init_threaded_mode (int width, int height, const char *title);
+extern int neomacs_display_is_threaded (void);
+extern void neomacs_display_shutdown_threaded_mode (void);
+
 /* Note: x_create_gc and x_free_gc are defined as static functions in xfaces.c */
 
 #endif /* HAVE_NEOMACS */
