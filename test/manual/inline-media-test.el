@@ -31,7 +31,7 @@
       nil)
   "Path to test video, or nil if not found.")
 
-(defvar inline-media-test-url "https://example.com/"
+(defvar inline-media-test-url "https://www.reddit.com/"
   "URL to load in WebKit view.")
 
 (defvar inline-media-test-screenshot-path "/tmp/inline-media-screenshot.png"
