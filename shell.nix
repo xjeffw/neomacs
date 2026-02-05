@@ -95,6 +95,9 @@ pkgs.mkShell {
 
     # Weston - nested Wayland compositor for WPE WebKit
     weston
+
+    # xdg-dbus-proxy for WebKit sandbox
+    xdg-dbus-proxy
   ] ++ (if wpewebkit != null then [ wpewebkit ] else [])
     ++ [ libwpe wpebackendFdo ];
 

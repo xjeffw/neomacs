@@ -148,6 +148,9 @@
 
               # Weston for WPE backend
               weston
+
+              # xdg-dbus-proxy for WebKit sandbox
+              xdg-dbus-proxy
             ];
 
             # pkg-config paths for dev headers

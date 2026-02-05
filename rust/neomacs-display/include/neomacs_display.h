@@ -76,6 +76,8 @@
 
 
 
+
+
 #define DRM_FORMAT_ARGB8888 875713089
 
 #define DRM_FORMAT_ARGB8888 875713089
@@ -180,6 +182,20 @@ typedef struct NeomacsInputEvent {
 #define VA_INVALID_SURFACE 4294967295
 
 extern GMainContext *g_main_context_get_thread_default(void);
+
+extern GMainContext *g_main_context_new(void);
+
+extern GMainContext *g_main_context_ref(GMainContext *context);
+
+extern void g_main_context_unref(GMainContext *context);
+
+extern void g_main_context_push_thread_default(GMainContext *context);
+
+extern void g_main_context_pop_thread_default(GMainContext *context);
+
+extern int32_t g_main_context_acquire(GMainContext *context);
+
+extern void g_main_context_release(GMainContext *context);
 
 /**
  * Shutdown the display engine
@@ -591,39 +607,39 @@ void neomacs_display_webkit_set_load_callback(void (*callback)(uint32_t, int, co
 int neomacs_display_webkit_init(struct NeomacsDisplay *handle, void *eglDisplay);
 
 /**
- * Create a new WebKit view
+ * Create a new WebKit view (threaded mode only)
  */
 uint32_t neomacs_display_webkit_create(struct NeomacsDisplay *handle, int width, int height);
 
 /**
- * Destroy a WebKit view
+ * Destroy a WebKit view (threaded mode only)
  */
 int neomacs_display_webkit_destroy(struct NeomacsDisplay *handle, uint32_t viewId);
 
 /**
- * Load a URI in a WebKit view
+ * Load a URI in a WebKit view (threaded mode only)
  */
 int neomacs_display_webkit_load_uri(struct NeomacsDisplay *handle,
                                     uint32_t viewId,
                                     const char *uri);
 
 /**
- * Go back in a WebKit view
+ * Go back in a WebKit view (threaded mode only)
  */
 int neomacs_display_webkit_go_back(struct NeomacsDisplay *handle, uint32_t viewId);
 
 /**
- * Go forward in a WebKit view
+ * Go forward in a WebKit view (threaded mode only)
  */
 int neomacs_display_webkit_go_forward(struct NeomacsDisplay *handle, uint32_t viewId);
 
 /**
- * Reload a WebKit view
+ * Reload a WebKit view (threaded mode only)
  */
 int neomacs_display_webkit_reload(struct NeomacsDisplay *handle, uint32_t viewId);
 
 /**
- * Resize a WebKit view
+ * Resize a WebKit view (threaded mode only)
  */
 int neomacs_display_webkit_resize(struct NeomacsDisplay *handle,
                                   uint32_t viewId,
@@ -631,7 +647,7 @@ int neomacs_display_webkit_resize(struct NeomacsDisplay *handle,
                                   int height);
 
 /**
- * Execute JavaScript in a WebKit view
+ * Execute JavaScript in a WebKit view (threaded mode only)
  */
 int neomacs_display_webkit_execute_js(struct NeomacsDisplay *handle,
                                       uint32_t viewId,
@@ -663,7 +679,7 @@ int neomacs_display_webkit_at_position(struct NeomacsDisplay *handle,
                                        int *outRelY);
 
 /**
- * Send keyboard event to WebKit view
+ * Send keyboard event to WebKit view (threaded mode only)
  */
 void neomacs_display_webkit_send_key(struct NeomacsDisplay *handle,
                                      uint32_t webkitId,
@@ -673,7 +689,7 @@ void neomacs_display_webkit_send_key(struct NeomacsDisplay *handle,
                                      uint32_t modifiers);
 
 /**
- * Send pointer/mouse event to WebKit view
+ * Send pointer/mouse event to WebKit view (threaded mode only)
  */
 void neomacs_display_webkit_send_pointer(struct NeomacsDisplay *handle,
                                          uint32_t webkitId,
@@ -685,7 +701,7 @@ void neomacs_display_webkit_send_pointer(struct NeomacsDisplay *handle,
                                          uint32_t modifiers);
 
 /**
- * Send scroll event to WebKit view
+ * Send scroll event to WebKit view (threaded mode only)
  */
 void neomacs_display_webkit_send_scroll(struct NeomacsDisplay *handle,
                                         uint32_t webkitId,
@@ -695,7 +711,7 @@ void neomacs_display_webkit_send_scroll(struct NeomacsDisplay *handle,
                                         int deltaY);
 
 /**
- * Click in WebKit view (convenience function)
+ * Click in WebKit view (threaded mode only)
  */
 void neomacs_display_webkit_click(struct NeomacsDisplay *handle,
                                   uint32_t webkitId,
@@ -705,21 +721,29 @@ void neomacs_display_webkit_click(struct NeomacsDisplay *handle,
 
 /**
  * Get WebKit view title
+ * NOTE: In threaded mode, title changes are delivered via InputEvent::WebKitTitleChanged.
+ * This function returns null - use the callback-based API instead.
  */
 char *neomacs_display_webkit_get_title(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
  * Get WebKit view URL
+ * NOTE: In threaded mode, URL changes are delivered via InputEvent::WebKitUrlChanged.
+ * This function returns null - use the callback-based API instead.
  */
 char *neomacs_display_webkit_get_url(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
  * Get WebKit view loading progress
+ * NOTE: In threaded mode, progress changes are delivered via InputEvent::WebKitProgressChanged.
+ * This function returns -1.0 - use the callback-based API instead.
  */
 double neomacs_display_webkit_get_progress(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
  * Check if WebKit view is loading
+ * NOTE: In threaded mode, loading state is inferred from progress events.
+ * This function returns -1 (unknown) - use progress callbacks instead.
  */
 int neomacs_display_webkit_is_loading(struct NeomacsDisplay *handle, uint32_t webkitId);
 
@@ -729,14 +753,14 @@ int neomacs_display_webkit_is_loading(struct NeomacsDisplay *handle, uint32_t we
 void neomacs_display_webkit_free_string(char *s);
 
 /**
- * Update WebKit view - pumps GLib main context to process events
- * This MUST be called regularly (e.g., every frame or via timer) for WebKit to render
+ * Update WebKit view - no-op in threaded mode
+ * In threaded mode, GLib main context is pumped automatically on the render thread.
  */
 int neomacs_display_webkit_update(struct NeomacsDisplay *handle, uint32_t webkitId);
 
 /**
- * Update all WebKit views - pumps GLib main context
- * Call this once per frame to process all webkit events
+ * Update all WebKit views - no-op in threaded mode
+ * In threaded mode, GLib main context is pumped automatically on the render thread.
  */
 int neomacs_display_webkit_update_all(struct NeomacsDisplay *handle);
 
