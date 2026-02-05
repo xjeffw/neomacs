@@ -1007,14 +1007,23 @@ impl WgpuRenderer {
         );
 
         // 2. Process window backgrounds FIRST
-        // Also find any overlay chars to check their Y position
-        let overlay_y: Option<f32> = frame_glyphs.glyphs.iter().find_map(|g| {
-            if let FrameGlyph::Char { y, is_overlay: true, .. } = g {
-                Some(*y)
-            } else {
-                None
-            }
-        });
+        // Find minimum Y of overlay chars (mode-line/echo-area) for clipping inline media
+        // Must find MINIMUM Y because glyphs may be accumulated across frames
+        // Only consider overlay chars within the visible frame bounds
+        let overlay_y: Option<f32> = frame_glyphs.glyphs.iter()
+            .filter_map(|g| {
+                if let FrameGlyph::Char { y, is_overlay: true, .. } = g {
+                    if *y < frame_glyphs.height {
+                        Some(*y)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .reduce(f32::min);
+        log::trace!("Frame {}x{}, overlay_y={:?}", frame_glyphs.width, frame_glyphs.height, overlay_y);
         let mut bg_count = 0;
         for glyph in &frame_glyphs.glyphs {
             if let FrameGlyph::Background { bounds, color } = glyph {
@@ -1240,17 +1249,36 @@ impl WgpuRenderer {
 
             for glyph in &frame_glyphs.glyphs {
                 if let FrameGlyph::Image { image_id, x, y, width, height } = glyph {
-                    log::debug!("Rendering image {} at ({}, {}) size {}x{}", image_id, x, y, width, height);
+                    // Clip to mode-line boundary if needed
+                    let (clipped_height, tex_v_max) = if let Some(oy) = overlay_y {
+                        if *y + *height > oy {
+                            let clipped = (oy - *y).max(0.0);
+                            let v_max = if *height > 0.0 { clipped / *height } else { 1.0 };
+                            (clipped, v_max)
+                        } else {
+                            (*height, 1.0)
+                        }
+                    } else {
+                        (*height, 1.0)
+                    };
+
+                    // Skip if fully clipped
+                    if clipped_height <= 0.0 {
+                        continue;
+                    }
+
+                    log::debug!("Rendering image {} at ({}, {}) size {}x{} (clipped to {})",
+                        image_id, x, y, width, height, clipped_height);
                     // Check if image texture is ready
                     if let Some(cached) = self.image_cache.get(*image_id) {
                         // Create vertices for image quad (white color = no tinting)
                         let vertices = [
                             GlyphVertex { position: [*x, *y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
                             GlyphVertex { position: [*x + *width, *y], tex_coords: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
-                            GlyphVertex { position: [*x + *width, *y + *height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x + *width, *y + clipped_height], tex_coords: [1.0, tex_v_max], color: [1.0, 1.0, 1.0, 1.0] },
                             GlyphVertex { position: [*x, *y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
-                            GlyphVertex { position: [*x + *width, *y + *height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
-                            GlyphVertex { position: [*x, *y + *height], tex_coords: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x + *width, *y + clipped_height], tex_coords: [1.0, tex_v_max], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x, *y + clipped_height], tex_coords: [0.0, tex_v_max], color: [1.0, 1.0, 1.0, 1.0] },
                         ];
 
                         let image_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -1270,19 +1298,37 @@ impl WgpuRenderer {
             #[cfg(feature = "video")]
             for glyph in &frame_glyphs.glyphs {
                 if let FrameGlyph::Video { video_id, x, y, width, height } = glyph {
+                    // Clip to mode-line boundary if needed
+                    let (clipped_height, tex_v_max) = if let Some(oy) = overlay_y {
+                        if *y + *height > oy {
+                            let clipped = (oy - *y).max(0.0);
+                            let v_max = if *height > 0.0 { clipped / *height } else { 1.0 };
+                            (clipped, v_max)
+                        } else {
+                            (*height, 1.0)
+                        }
+                    } else {
+                        (*height, 1.0)
+                    };
+
+                    // Skip if fully clipped
+                    if clipped_height <= 0.0 {
+                        continue;
+                    }
+
                     // Check if video texture is ready
                     if let Some(cached) = self.video_cache.get(*video_id) {
-                        log::trace!("Rendering video {} at ({}, {}) size {}x{}, frame_count={}",
-                            video_id, x, y, width, height, cached.frame_count);
+                        log::trace!("Rendering video {} at ({}, {}) size {}x{} (clipped to {}), frame_count={}",
+                            video_id, x, y, width, height, clipped_height, cached.frame_count);
                         if let Some(ref bind_group) = cached.bind_group {
                             // Create vertices for video quad (white color = no tinting)
                             let vertices = [
                                 GlyphVertex { position: [*x, *y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
                                 GlyphVertex { position: [*x + *width, *y], tex_coords: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
-                                GlyphVertex { position: [*x + *width, *y + *height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                                GlyphVertex { position: [*x + *width, *y + clipped_height], tex_coords: [1.0, tex_v_max], color: [1.0, 1.0, 1.0, 1.0] },
                                 GlyphVertex { position: [*x, *y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
-                                GlyphVertex { position: [*x + *width, *y + *height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
-                                GlyphVertex { position: [*x, *y + *height], tex_coords: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                                GlyphVertex { position: [*x + *width, *y + clipped_height], tex_coords: [1.0, tex_v_max], color: [1.0, 1.0, 1.0, 1.0] },
+                                GlyphVertex { position: [*x, *y + clipped_height], tex_coords: [0.0, tex_v_max], color: [1.0, 1.0, 1.0, 1.0] },
                             ];
 
                             let video_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -1307,18 +1353,40 @@ impl WgpuRenderer {
             #[cfg(feature = "wpe-webkit")]
             for glyph in &frame_glyphs.glyphs {
                 if let FrameGlyph::WebKit { webkit_id, x, y, width, height } = glyph {
+                    // Clip to mode-line boundary if needed
+                    log::trace!("WebKit clip check: webkit {} at y={}, height={}, y+h={}, overlay_y={:?}",
+                        webkit_id, y, height, y + height, overlay_y);
+                    let (clipped_height, tex_v_max) = if let Some(oy) = overlay_y {
+                        if *y + *height > oy {
+                            let clipped = (oy - *y).max(0.0);
+                            let v_max = if *height > 0.0 { clipped / *height } else { 1.0 };
+                            log::trace!("WebKit {} clipped: y={} + h={} > overlay_y={}, clipped_height={}",
+                                webkit_id, y, height, oy, clipped);
+                            (clipped, v_max)
+                        } else {
+                            (*height, 1.0)
+                        }
+                    } else {
+                        (*height, 1.0)
+                    };
+
+                    // Skip if fully clipped
+                    if clipped_height <= 0.0 {
+                        continue;
+                    }
+
                     // Check if webkit texture is ready
                     if let Some(cached) = self.webkit_cache.get(*webkit_id) {
-                        log::debug!("Rendering webkit {} at ({}, {}) size {}x{}",
-                            webkit_id, x, y, width, height);
+                        log::debug!("Rendering webkit {} at ({}, {}) size {}x{} (clipped to {})",
+                            webkit_id, x, y, width, height, clipped_height);
                         // Create vertices for webkit quad (white color = no tinting)
                         let vertices = [
                             GlyphVertex { position: [*x, *y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
                             GlyphVertex { position: [*x + *width, *y], tex_coords: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
-                            GlyphVertex { position: [*x + *width, *y + *height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x + *width, *y + clipped_height], tex_coords: [1.0, tex_v_max], color: [1.0, 1.0, 1.0, 1.0] },
                             GlyphVertex { position: [*x, *y], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
-                            GlyphVertex { position: [*x + *width, *y + *height], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
-                            GlyphVertex { position: [*x, *y + *height], tex_coords: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x + *width, *y + clipped_height], tex_coords: [1.0, tex_v_max], color: [1.0, 1.0, 1.0, 1.0] },
+                            GlyphVertex { position: [*x, *y + clipped_height], tex_coords: [0.0, tex_v_max], color: [1.0, 1.0, 1.0, 1.0] },
                         ];
 
                         let webkit_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

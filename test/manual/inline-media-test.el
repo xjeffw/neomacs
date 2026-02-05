@@ -34,20 +34,11 @@
 (defvar inline-media-test-url "https://www.reddit.com/"
   "URL to load in WebKit view.")
 
-(defvar inline-media-test-screenshot-path "/tmp/inline-media-screenshot.png"
-  "Path to save screenshot.")
 
 (defun inline-media-test-log (fmt &rest args)
   "Log FMT with ARGS to stderr."
   (princ (concat (apply #'format fmt args) "\n") #'external-debugging-output))
 
-(defun inline-media-test-take-screenshot ()
-  "Take a screenshot using scrot."
-  (inline-media-test-log "Taking screenshot to %s" inline-media-test-screenshot-path)
-  (call-process "scrot" nil nil nil "-o" inline-media-test-screenshot-path)
-  (if (file-exists-p inline-media-test-screenshot-path)
-      (inline-media-test-log "Screenshot saved: %s" inline-media-test-screenshot-path)
-    (inline-media-test-log "Screenshot FAILED")))
 
 (defun inline-media-test-run ()
   "Run the inline media test."
@@ -160,12 +151,8 @@
   (setq buffer-read-only t)
   (redisplay t)
 
-  ;; Take screenshot after content loads
-  (inline-media-test-log "Test buffer ready. Taking screenshot in 5 seconds...")
-  (run-at-time 5 nil #'inline-media-test-take-screenshot)
-
-  ;; Keep running for manual inspection
-  (inline-media-test-log "Keeping Emacs open for 30 seconds...")
+  ;; Keep running for manual inspection (shell script handles screenshot)
+  (inline-media-test-log "Test buffer ready. Keeping Emacs open for 30 seconds...")
   (run-at-time 30 nil
                (lambda ()
                  (inline-media-test-log "Test timeout - exiting")
