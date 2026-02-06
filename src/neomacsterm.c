@@ -3971,6 +3971,25 @@ neomacs_display_wakeup_handler (int fd, void *data)
                   }
               }
 
+            /* Check if click is on the tab-bar pseudo-window */
+            Lisp_Object tab_bar_arg = Qnil;
+            if (WINDOWP (f->tab_bar_window)
+                && WINDOW_TOTAL_LINES (XWINDOW (f->tab_bar_window)))
+              {
+                Lisp_Object window
+                  = window_from_coordinates (f, ev->x, ev->y, 0, true, true, true);
+                if (EQ (window, f->tab_bar_window))
+                  {
+                    int emacs_modifiers = 0;
+                    if (ev->modifiers & NEOMACS_SHIFT_MASK) emacs_modifiers |= shift_modifier;
+                    if (ev->modifiers & NEOMACS_CTRL_MASK) emacs_modifiers |= ctrl_modifier;
+                    if (ev->modifiers & NEOMACS_META_MASK) emacs_modifiers |= meta_modifier;
+                    tab_bar_arg = handle_tab_bar_click
+                      (f, ev->x, ev->y,
+                       ev->kind == NEOMACS_EVENT_MOUSE_PRESS, emacs_modifiers);
+                  }
+              }
+
             inev.ie.kind = MOUSE_CLICK_EVENT;
             inev.ie.code = ev->button - 1;  /* Emacs buttons are 0-indexed */
             inev.ie.modifiers = (ev->kind == NEOMACS_EVENT_MOUSE_PRESS) ? down_modifier : up_modifier;
@@ -3979,6 +3998,8 @@ neomacs_display_wakeup_handler (int fd, void *data)
             if (ev->modifiers & NEOMACS_META_MASK) inev.ie.modifiers |= meta_modifier;
             XSETINT (inev.ie.x, ev->x);
             XSETINT (inev.ie.y, ev->y);
+            if (!NILP (tab_bar_arg))
+              inev.ie.arg = tab_bar_arg;
             XSETFRAME (inev.ie.frame_or_window, f);
             neomacs_evq_enqueue (&inev);
           }
