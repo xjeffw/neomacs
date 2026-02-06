@@ -3975,6 +3975,54 @@ neomacs_display_wakeup_handler (int fd, void *data)
           }
           break;
 
+        case NEOMACS_EVENT_SCROLL:
+          {
+            float dx = ev->scrollDeltaX;
+            float dy = ev->scrollDeltaY;
+            float abs_dx = dx < 0 ? -dx : dx;
+            float abs_dy = dy < 0 ? -dy : dy;
+
+            /* Determine primary axis and generate appropriate event */
+            if (abs_dy >= abs_dx)
+              {
+                if (dy != 0.0f)
+                  {
+                    inev.ie.kind = WHEEL_EVENT;
+                    /* Positive deltaY = scroll up in winit */
+                    inev.ie.modifiers |= (dy > 0) ? up_modifier : down_modifier;
+                    inev.ie.arg = list3 (Qnil,
+                                         make_float ((double) -dx * 100),
+                                         make_float ((double) -dy * 100));
+                    if (ev->modifiers & NEOMACS_SHIFT_MASK) inev.ie.modifiers |= shift_modifier;
+                    if (ev->modifiers & NEOMACS_CTRL_MASK) inev.ie.modifiers |= ctrl_modifier;
+                    if (ev->modifiers & NEOMACS_META_MASK) inev.ie.modifiers |= meta_modifier;
+                    XSETINT (inev.ie.x, ev->x);
+                    XSETINT (inev.ie.y, ev->y);
+                    XSETFRAME (inev.ie.frame_or_window, f);
+                    neomacs_evq_enqueue (&inev);
+                  }
+              }
+            else
+              {
+                if (dx != 0.0f)
+                  {
+                    inev.ie.kind = HORIZ_WHEEL_EVENT;
+                    inev.ie.modifiers |= (dx > 0) ? up_modifier : down_modifier;
+                    inev.ie.arg = list3 (Qnil,
+                                         make_float ((double) -dx * 100),
+                                         make_float ((double) -dy * 100));
+                    if (ev->modifiers & NEOMACS_SHIFT_MASK) inev.ie.modifiers |= shift_modifier;
+                    if (ev->modifiers & NEOMACS_CTRL_MASK) inev.ie.modifiers |= ctrl_modifier;
+                    if (ev->modifiers & NEOMACS_META_MASK) inev.ie.modifiers |= meta_modifier;
+                    XSETINT (inev.ie.x, ev->x);
+                    XSETINT (inev.ie.y, ev->y);
+                    XSETFRAME (inev.ie.frame_or_window, f);
+                    neomacs_evq_enqueue (&inev);
+                  }
+              }
+          }
+          break;
+
         case NEOMACS_EVENT_RESIZE:
           {
             struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
