@@ -853,6 +853,9 @@ static_assert (GCALIGNED (struct Lisp_Symbol));
 			 Lisp_Object, Lisp_Object, Lisp_Object)
 #define DEFUN_ARGS_8	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
 			 Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object)
+#define DEFUN_ARGS_9	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
+			 Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
+			 Lisp_Object)
 
 /* Lisp_Word_tag is big enough for a possibly-shifted tag, to be
    added to a pointer value for conversion to a Lisp_Word.  */
@@ -2185,6 +2188,7 @@ struct Lisp_Subr
       Lisp_Object (*a6) (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
       Lisp_Object (*a7) (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
       Lisp_Object (*a8) (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
+      Lisp_Object (*a9) (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
       Lisp_Object (*aUNEVALLED) (Lisp_Object args);
       Lisp_Object (*aMANY) (ptrdiff_t, Lisp_Object *);
     } function;

@@ -1875,6 +1875,7 @@ pub unsafe extern "C" fn neomacs_display_set_animation_config(
     crossfade_duration_ms: u32,
     scroll_enabled: c_int,
     scroll_duration_ms: u32,
+    trail_size: f32,
 ) {
     use crate::core::types::CursorAnimStyle;
     let cmd = RenderCommand::SetAnimationConfig {
@@ -1886,6 +1887,7 @@ pub unsafe extern "C" fn neomacs_display_set_animation_config(
         crossfade_duration_ms: if crossfade_duration_ms > 0 { crossfade_duration_ms } else { 200 },
         scroll_enabled: scroll_enabled != 0,
         scroll_duration_ms: if scroll_duration_ms > 0 { scroll_duration_ms } else { 150 },
+        trail_size: if trail_size >= 0.0 { trail_size } else { 0.7 },
     };
     if let Some(ref state) = THREADED_STATE {
         let _ = state.emacs_comms.cmd_tx.try_send(cmd);

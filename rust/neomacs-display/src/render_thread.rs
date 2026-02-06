@@ -104,6 +104,19 @@ struct CursorTarget {
     color: Color,
 }
 
+/// Per-corner spring state for the 4-corner cursor trail animation.
+/// Each corner has its own position, velocity, and spring frequency.
+#[derive(Debug, Clone, Copy)]
+struct CornerSpring {
+    x: f32,
+    y: f32,
+    vx: f32,
+    vy: f32,
+    target_x: f32,
+    target_y: f32,
+    omega: f32,
+}
+
 /// Application state for winit event loop
 struct RenderApp {
     comms: RenderComms,
@@ -160,11 +173,17 @@ struct RenderApp {
     cursor_start_w: f32,
     cursor_start_h: f32,
     cursor_anim_start_time: std::time::Instant,
-    // For critically-damped spring: velocity per axis
+    // For critically-damped spring: velocity per axis (rect-level, non-trail)
     cursor_velocity_x: f32,
     cursor_velocity_y: f32,
     cursor_velocity_w: f32,
     cursor_velocity_h: f32,
+    // 4-corner spring trail state (TL, TR, BR, BL)
+    cursor_corner_springs: [CornerSpring; 4],
+    cursor_trail_size: f32,
+    // Previous target center for computing travel direction
+    cursor_prev_target_cx: f32,
+    cursor_prev_target_cy: f32,
 
     // Per-window metadata from previous frame (for transition detection)
     prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
@@ -242,6 +261,13 @@ impl RenderApp {
             cursor_velocity_y: 0.0,
             cursor_velocity_w: 0.0,
             cursor_velocity_h: 0.0,
+            cursor_corner_springs: [CornerSpring {
+                x: 0.0, y: 0.0, vx: 0.0, vy: 0.0,
+                target_x: 0.0, target_y: 0.0, omega: 26.7,
+            }; 4],
+            cursor_trail_size: 0.7,
+            cursor_prev_target_cx: 0.0,
+            cursor_prev_target_cy: 0.0,
             prev_window_infos: HashMap::new(),
             crossfade_enabled: true,
             crossfade_duration: std::time::Duration::from_millis(200),
@@ -621,15 +647,17 @@ impl RenderApp {
                     cursor_style, cursor_duration_ms,
                     crossfade_enabled, crossfade_duration_ms,
                     scroll_enabled, scroll_duration_ms,
+                    trail_size,
                 } => {
-                    log::debug!("Animation config: cursor={}/{}/style={:?}/{}ms, crossfade={}/{}ms, scroll={}/{}ms",
-                        cursor_enabled, cursor_speed, cursor_style, cursor_duration_ms,
+                    log::debug!("Animation config: cursor={}/{}/style={:?}/{}ms/trail={}, crossfade={}/{}ms, scroll={}/{}ms",
+                        cursor_enabled, cursor_speed, cursor_style, cursor_duration_ms, trail_size,
                         crossfade_enabled, crossfade_duration_ms,
                         scroll_enabled, scroll_duration_ms);
                     self.cursor_anim_enabled = cursor_enabled;
                     self.cursor_anim_speed = cursor_speed;
                     self.cursor_anim_style = cursor_style;
                     self.cursor_anim_duration = cursor_duration_ms as f32 / 1000.0;
+                    self.cursor_trail_size = trail_size.clamp(0.0, 1.0);
                     self.crossfade_enabled = crossfade_enabled;
                     self.crossfade_duration = std::time::Duration::from_millis(crossfade_duration_ms as u64);
                     self.scroll_enabled = scroll_enabled;
@@ -691,6 +719,18 @@ impl RenderApp {
                     self.cursor_current_w = new_target.width;
                     self.cursor_current_h = new_target.height;
                     self.cursor_animating = false;
+                    // Snap corner springs to target corners
+                    let corners = Self::cursor_target_corners(&new_target);
+                    for i in 0..4 {
+                        self.cursor_corner_springs[i].x = corners[i].0;
+                        self.cursor_corner_springs[i].y = corners[i].1;
+                        self.cursor_corner_springs[i].vx = 0.0;
+                        self.cursor_corner_springs[i].vy = 0.0;
+                        self.cursor_corner_springs[i].target_x = corners[i].0;
+                        self.cursor_corner_springs[i].target_y = corners[i].1;
+                    }
+                    self.cursor_prev_target_cx = new_target.x + new_target.width / 2.0;
+                    self.cursor_prev_target_cy = new_target.y + new_target.height / 2.0;
                 } else if target_moved {
                     let now = std::time::Instant::now();
                     self.cursor_animating = true;
@@ -706,9 +746,94 @@ impl RenderApp {
                     self.cursor_velocity_y = 0.0;
                     self.cursor_velocity_w = 0.0;
                     self.cursor_velocity_h = 0.0;
+
+                    // Set up 4-corner springs for trail effect (spring style only)
+                    if self.cursor_anim_style == CursorAnimStyle::CriticallyDampedSpring {
+                        let new_corners = Self::cursor_target_corners(&new_target);
+                        let new_cx = new_target.x + new_target.width / 2.0;
+                        let new_cy = new_target.y + new_target.height / 2.0;
+                        let old_cx = self.cursor_prev_target_cx;
+                        let old_cy = self.cursor_prev_target_cy;
+
+                        // Travel direction (normalized)
+                        let dx = new_cx - old_cx;
+                        let dy = new_cy - old_cy;
+                        let len = (dx * dx + dy * dy).sqrt();
+                        let (dir_x, dir_y) = if len > 0.001 {
+                            (dx / len, dy / len)
+                        } else {
+                            (1.0, 0.0)
+                        };
+
+                        // Corner direction vectors from center: TL(-1,-1), TR(1,-1), BR(1,1), BL(-1,1)
+                        let corner_dirs: [(f32, f32); 4] = [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)];
+
+                        // Compute dot products and rank corners
+                        let mut dots: [(f32, usize); 4] = corner_dirs.iter().enumerate()
+                            .map(|(i, (cx, cy))| (cx * dir_x + cy * dir_y, i))
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .unwrap();
+                        dots.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                        // dots[0] = most trailing (lowest dot), dots[3] = most leading (highest dot)
+
+                        let base_dur = self.cursor_anim_duration; // seconds
+                        for (rank, &(_dot, corner_idx)) in dots.iter().enumerate() {
+                            let factor = 1.0 - self.cursor_trail_size * (rank as f32 / 3.0);
+                            let duration_i = (base_dur * factor).max(0.01);
+                            let omega_i = 4.0 / duration_i;
+
+                            self.cursor_corner_springs[corner_idx].target_x = new_corners[corner_idx].0;
+                            self.cursor_corner_springs[corner_idx].target_y = new_corners[corner_idx].1;
+                            self.cursor_corner_springs[corner_idx].omega = omega_i;
+                            // Don't reset velocity — preserve momentum from in-flight animation
+                        }
+
+                        self.cursor_prev_target_cx = new_cx;
+                        self.cursor_prev_target_cy = new_cy;
+                    }
                 }
 
                 self.cursor_target = Some(new_target);
+            }
+        }
+    }
+
+    /// Compute the 4 target corners for a cursor based on its style.
+    /// Returns [TL, TR, BR, BL] as (x, y) tuples.
+    fn cursor_target_corners(target: &CursorTarget) -> [(f32, f32); 4] {
+        match target.style {
+            0 => {
+                // Filled box: full rectangle
+                let x0 = target.x;
+                let y0 = target.y;
+                let x1 = target.x + target.width;
+                let y1 = target.y + target.height;
+                [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+            }
+            1 => {
+                // Bar: thin vertical line (2px wide)
+                let x0 = target.x;
+                let y0 = target.y;
+                let x1 = target.x + 2.0;
+                let y1 = target.y + target.height;
+                [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+            }
+            2 => {
+                // Underline: thin horizontal line at bottom (2px tall)
+                let x0 = target.x;
+                let y0 = target.y + target.height - 2.0;
+                let x1 = target.x + target.width;
+                let y1 = target.y + target.height;
+                [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+            }
+            _ => {
+                // Default: full rectangle
+                let x0 = target.x;
+                let y0 = target.y;
+                let x1 = target.x + target.width;
+                let y1 = target.y + target.height;
+                [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
             }
         }
     }
@@ -743,40 +868,59 @@ impl RenderApp {
                 }
             }
             CursorAnimStyle::CriticallyDampedSpring => {
-                // Critically-damped spring: zeta=1, omega=4/duration
-                let omega = 4.0 / self.cursor_anim_duration;
-                let exp_term = (-omega * dt).exp();
+                // 4-corner spring trail: each corner has its own omega (speed).
+                // Leading corners (aligned with travel direction) have higher omega (faster).
+                // Trailing corners have lower omega (slower), creating a stretching trail.
+                let mut all_settled = true;
+                for i in 0..4 {
+                    let spring = &mut self.cursor_corner_springs[i];
+                    let omega = spring.omega;
+                    let exp_term = (-omega * dt).exp();
 
-                // Per-axis: x(t) = (x0 + (v0 + omega*x0)*t) * exp(-omega*t)
-                // where x0 = offset from target, v0 = velocity
-                macro_rules! spring_axis {
-                    ($cur:expr, $vel:expr, $tgt:expr) => {{
-                        let x0 = $cur - $tgt;
-                        let v0 = $vel;
-                        let new_x = (x0 + (v0 + omega * x0) * dt) * exp_term;
-                        $vel = ((v0 + omega * x0) * exp_term)
-                             - omega * (x0 + (v0 + omega * x0) * dt) * exp_term;
-                        $cur = $tgt + new_x;
-                    }};
+                    // Critically-damped spring per axis
+                    // x(t) = (x0 + (v0 + omega*x0)*t) * exp(-omega*t)
+                    let x0 = spring.x - spring.target_x;
+                    let vx0 = spring.vx;
+                    let new_x = (x0 + (vx0 + omega * x0) * dt) * exp_term;
+                    spring.vx = ((vx0 + omega * x0) * exp_term)
+                        - omega * (x0 + (vx0 + omega * x0) * dt) * exp_term;
+                    spring.x = spring.target_x + new_x;
+
+                    let y0 = spring.y - spring.target_y;
+                    let vy0 = spring.vy;
+                    let new_y = (y0 + (vy0 + omega * y0) * dt) * exp_term;
+                    spring.vy = ((vy0 + omega * y0) * exp_term)
+                        - omega * (y0 + (vy0 + omega * y0) * dt) * exp_term;
+                    spring.y = spring.target_y + new_y;
+
+                    let dist = (spring.x - spring.target_x).abs()
+                        + (spring.y - spring.target_y).abs();
+                    let vel = spring.vx.abs() + spring.vy.abs();
+                    if dist > 0.5 || vel > 1.0 {
+                        all_settled = false;
+                    }
                 }
-                spring_axis!(self.cursor_current_x, self.cursor_velocity_x, target.x);
-                spring_axis!(self.cursor_current_y, self.cursor_velocity_y, target.y);
-                spring_axis!(self.cursor_current_w, self.cursor_velocity_w, target.width);
-                spring_axis!(self.cursor_current_h, self.cursor_velocity_h, target.height);
 
-                // Snap when close and velocity low
-                let dx = (self.cursor_current_x - target.x).abs();
-                let dy = (self.cursor_current_y - target.y).abs();
-                let dw = (self.cursor_current_w - target.width).abs();
-                let dh = (self.cursor_current_h - target.height).abs();
-                let vx = self.cursor_velocity_x.abs();
-                let vy = self.cursor_velocity_y.abs();
-                if dx < 0.5 && dy < 0.5 && dw < 0.5 && dh < 0.5 && vx < 1.0 && vy < 1.0 {
+                // Also update the rect-level position (bounding box of corners)
+                let min_x = self.cursor_corner_springs.iter().map(|s| s.x).fold(f32::INFINITY, f32::min);
+                let min_y = self.cursor_corner_springs.iter().map(|s| s.y).fold(f32::INFINITY, f32::min);
+                let max_x = self.cursor_corner_springs.iter().map(|s| s.x).fold(f32::NEG_INFINITY, f32::max);
+                let max_y = self.cursor_corner_springs.iter().map(|s| s.y).fold(f32::NEG_INFINITY, f32::max);
+                self.cursor_current_x = min_x;
+                self.cursor_current_y = min_y;
+                self.cursor_current_w = max_x - min_x;
+                self.cursor_current_h = max_y - min_y;
+
+                if all_settled {
+                    // Snap all corners to targets
+                    let target_corners = Self::cursor_target_corners(&target);
+                    for i in 0..4 {
+                        self.cursor_corner_springs[i].x = target_corners[i].0;
+                        self.cursor_corner_springs[i].y = target_corners[i].1;
+                        self.cursor_corner_springs[i].vx = 0.0;
+                        self.cursor_corner_springs[i].vy = 0.0;
+                    }
                     self.snap_cursor(&target);
-                    self.cursor_velocity_x = 0.0;
-                    self.cursor_velocity_y = 0.0;
-                    self.cursor_velocity_w = 0.0;
-                    self.cursor_velocity_h = 0.0;
                 }
             }
             style => {
@@ -1294,12 +1438,25 @@ impl RenderApp {
         // Build animated cursor override if applicable
         let animated_cursor = if self.cursor_anim_enabled && self.cursor_target.is_some() {
             let target = self.cursor_target.as_ref().unwrap();
+            let corners = if self.cursor_anim_style == CursorAnimStyle::CriticallyDampedSpring
+                && self.cursor_animating
+            {
+                Some([
+                    (self.cursor_corner_springs[0].x, self.cursor_corner_springs[0].y),
+                    (self.cursor_corner_springs[1].x, self.cursor_corner_springs[1].y),
+                    (self.cursor_corner_springs[2].x, self.cursor_corner_springs[2].y),
+                    (self.cursor_corner_springs[3].x, self.cursor_corner_springs[3].y),
+                ])
+            } else {
+                None
+            };
             Some(AnimatedCursor {
                 window_id: target.window_id,
                 x: self.cursor_current_x,
                 y: self.cursor_current_y,
                 width: self.cursor_current_w,
                 height: self.cursor_current_h,
+                corners,
             })
         } else {
             None

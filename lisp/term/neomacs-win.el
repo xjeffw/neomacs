@@ -132,7 +132,8 @@ DISPLAY is the name of the display Emacs should connect to."
 (declare-function neomacs-set-animation-config "neomacsterm.c"
                   (cursor-enabled cursor-speed cursor-style cursor-duration
                    crossfade-enabled crossfade-duration
-                   scroll-enabled scroll-duration))
+                   scroll-enabled scroll-duration
+                   &optional trail-size))
 
 (defun neomacs--sync-cursor-blink ()
   "Sync `blink-cursor-mode' state to the render thread."
@@ -168,7 +169,7 @@ Cursor animation styles:
   `ease-in-out-cubic' - smooth S-curve
   `linear'           - constant speed"
   (when (fboundp 'neomacs-set-animation-config)
-    (neomacs-set-animation-config t 15.0 'spring 150 t 200 t 150)))
+    (neomacs-set-animation-config t 15.0 'spring 150 t 200 t 150 0.7)))
 
 ;; Provide the feature
 (provide 'neomacs-win)

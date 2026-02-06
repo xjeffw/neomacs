@@ -578,7 +578,8 @@ void neomacs_display_set_animation_config(struct NeomacsDisplay *handle,
                                           int crossfadeEnabled,
                                           uint32_t crossfadeDurationMs,
                                           int scrollEnabled,
-                                          uint32_t scrollDurationMs);
+                                          uint32_t scrollDurationMs,
+                                          float trailSize);
 
 /**
  * Check if animations are active

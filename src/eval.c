@@ -2590,7 +2590,7 @@ eval_sub (Lisp_Object form)
   Lisp_Object fun, val, funcar;
   /* Declare here, as this array may be accessed by call_debugger near
      the end of this function.  See Bug#21245.  */
-  Lisp_Object argvals[8];
+  Lisp_Object argvals[9];
   /* The stack overflow detection probably isn't worth the effort any more
      but this may be the least bad spot to feed it.  */
   current_thread->stack_top = argvals;
@@ -2618,7 +2618,7 @@ eval_sub (Lisp_Object form)
       else if (XSUBR (fun)->max_args == UNEVALLED)
 	val = (XSUBR (fun)->function.aUNEVALLED) (args_left);
       else if (XSUBR (fun)->max_args == MANY
-	       || XSUBR (fun)->max_args > 8)
+	       || XSUBR (fun)->max_args > 9)
 
 	{
 	  /* Pass a vector of evaluated arguments.  */
@@ -2698,6 +2698,13 @@ eval_sub (Lisp_Object form)
 	      val = (XSUBR (fun)->function.a8
 		     (argvals[0], argvals[1], argvals[2], argvals[3],
 		      argvals[4], argvals[5], argvals[6], argvals[7]));
+	      break;
+
+	    case 9:
+	      val = (XSUBR (fun)->function.a9
+		     (argvals[0], argvals[1], argvals[2], argvals[3],
+		      argvals[4], argvals[5], argvals[6], argvals[7],
+		      argvals[8]));
 	      break;
 
 	    default:
@@ -3225,9 +3232,9 @@ funcall_subr (struct Lisp_Subr *subr, ptrdiff_t numargs, Lisp_Object *args)
     {
       /* Conforming call to finite-arity subr.  */
       ptrdiff_t maxargs = subr->max_args;
-      if (numargs <= maxargs && maxargs <= 8)
+      if (numargs <= maxargs && maxargs <= 9)
 	{
-	  Lisp_Object argbuf[8];
+	  Lisp_Object argbuf[9];
 	  Lisp_Object *a;
 	  if (numargs < maxargs)
 	    {
@@ -3260,6 +3267,9 @@ funcall_subr (struct Lisp_Subr *subr, ptrdiff_t numargs, Lisp_Object *args)
 	    case 8:
 	      return subr->function.a8 (a[0], a[1], a[2], a[3], a[4], a[5],
 					a[6], a[7]);
+	    case 9:
+	      return subr->function.a9 (a[0], a[1], a[2], a[3], a[4], a[5],
+					a[6], a[7], a[8]);
 	    }
 	  eassume (false);	/* In case the compiler is too stupid.  */
 	}

@@ -189,6 +189,9 @@ pub struct AnimatedCursor {
     pub y: f32,
     pub width: f32,
     pub height: f32,
+    /// When Some, draw cursor as a quad from these 4 corner positions (spring trail).
+    /// Order: [top-left, top-right, bottom-right, bottom-left].
+    pub corners: Option<[(f32, f32); 4]>,
 }
 
 /// Cursor animation style.

@@ -718,6 +718,28 @@ impl WgpuRenderer {
         });
     }
 
+    /// Add an arbitrary quad (4 corners) to the vertex list (6 vertices = 2 triangles).
+    /// Corners order: [TL, TR, BR, BL].
+    fn add_quad(
+        &self,
+        vertices: &mut Vec<RectVertex>,
+        corners: &[(f32, f32); 4],
+        color: &Color,
+    ) {
+        let color_arr = [color.r, color.g, color.b, color.a];
+        let [tl, tr, br, bl] = *corners;
+
+        // Triangle 1: TL, TR, BL
+        vertices.push(RectVertex { position: [tl.0, tl.1], color: color_arr });
+        vertices.push(RectVertex { position: [tr.0, tr.1], color: color_arr });
+        vertices.push(RectVertex { position: [bl.0, bl.1], color: color_arr });
+
+        // Triangle 2: TR, BR, BL
+        vertices.push(RectVertex { position: [tr.0, tr.1], color: color_arr });
+        vertices.push(RectVertex { position: [br.0, br.1], color: color_arr });
+        vertices.push(RectVertex { position: [bl.0, bl.1], color: color_arr });
+    }
+
     /// Get the wgpu device.
     pub fn device(&self) -> &Arc<wgpu::Device> {
         &self.device
@@ -1114,47 +1136,64 @@ impl WgpuRenderer {
                     style,
                     color,
                 } => {
-                    // Use animated coordinates if available and this is the active cursor
-                    let (cx, cy, cw, ch) = if let Some(ref anim) = animated_cursor {
-                        if *window_id == anim.window_id && *style != 3 {
-                            (anim.x, anim.y, anim.width, anim.height)
-                        } else {
-                            (*x, *y, *width, *height)
-                        }
+                    // Check if this cursor has animated corner trail
+                    let use_corners = if let Some(ref anim) = animated_cursor {
+                        *window_id == anim.window_id && *style != 3 && anim.corners.is_some()
                     } else {
-                        (*x, *y, *width, *height)
+                        false
                     };
 
-                    // Hollow cursors (inactive window) never blink;
-                    // other styles blink based on cursor_visible flag.
-                    let should_draw = *style == 3 || cursor_visible;
-                    if should_draw {
-                        match style {
-                            0 => {
-                                // Filled box
-                                self.add_rect(&mut cursor_vertices, cx, cy, cw, ch, color);
+                    if use_corners {
+                        // Draw as a deformed quad from 4 independent corner springs
+                        let anim = animated_cursor.as_ref().unwrap();
+                        let corners = anim.corners.as_ref().unwrap();
+                        let should_draw = cursor_visible;
+                        if should_draw {
+                            self.add_quad(&mut cursor_vertices, corners, color);
+                        }
+                    } else {
+                        // Use animated coordinates if available and this is the active cursor
+                        let (cx, cy, cw, ch) = if let Some(ref anim) = animated_cursor {
+                            if *window_id == anim.window_id && *style != 3 {
+                                (anim.x, anim.y, anim.width, anim.height)
+                            } else {
+                                (*x, *y, *width, *height)
                             }
-                            1 => {
-                                // Bar (thin vertical line)
-                                self.add_rect(&mut cursor_vertices, cx, cy, 2.0, ch, color);
-                            }
-                            2 => {
-                                // Underline (hbar at bottom)
-                                self.add_rect(&mut cursor_vertices, cx, cy + ch - 2.0, cw, 2.0, color);
-                            }
-                            3 => {
-                                // Hollow box (4 border edges)
-                                // Top
-                                self.add_rect(&mut cursor_vertices, cx, cy, cw, 1.0, color);
-                                // Bottom
-                                self.add_rect(&mut cursor_vertices, cx, cy + ch - 1.0, cw, 1.0, color);
-                                // Left
-                                self.add_rect(&mut cursor_vertices, cx, cy, 1.0, ch, color);
-                                // Right
-                                self.add_rect(&mut cursor_vertices, cx + cw - 1.0, cy, 1.0, ch, color);
-                            }
-                            _ => {
-                                self.add_rect(&mut cursor_vertices, cx, cy, cw, ch, color);
+                        } else {
+                            (*x, *y, *width, *height)
+                        };
+
+                        // Hollow cursors (inactive window) never blink;
+                        // other styles blink based on cursor_visible flag.
+                        let should_draw = *style == 3 || cursor_visible;
+                        if should_draw {
+                            match style {
+                                0 => {
+                                    // Filled box
+                                    self.add_rect(&mut cursor_vertices, cx, cy, cw, ch, color);
+                                }
+                                1 => {
+                                    // Bar (thin vertical line)
+                                    self.add_rect(&mut cursor_vertices, cx, cy, 2.0, ch, color);
+                                }
+                                2 => {
+                                    // Underline (hbar at bottom)
+                                    self.add_rect(&mut cursor_vertices, cx, cy + ch - 2.0, cw, 2.0, color);
+                                }
+                                3 => {
+                                    // Hollow box (4 border edges)
+                                    // Top
+                                    self.add_rect(&mut cursor_vertices, cx, cy, cw, 1.0, color);
+                                    // Bottom
+                                    self.add_rect(&mut cursor_vertices, cx, cy + ch - 1.0, cw, 1.0, color);
+                                    // Left
+                                    self.add_rect(&mut cursor_vertices, cx, cy, 1.0, ch, color);
+                                    // Right
+                                    self.add_rect(&mut cursor_vertices, cx + cw - 1.0, cy, 1.0, ch, color);
+                                }
+                                _ => {
+                                    self.add_rect(&mut cursor_vertices, cx, cy, cw, ch, color);
+                                }
                             }
                         }
                     }
