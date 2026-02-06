@@ -490,6 +490,27 @@ void neomacs_display_clear_floating_image(struct NeomacsDisplay *handle, uint32_
 void neomacs_display_clear_area(struct NeomacsDisplay *handle, int x, int y, int width, int height);
 
 /**
+ * Scroll blit pixels within the pixel buffer (for scroll optimization).
+ * Copies pixels from from_y to to_y and clears the exposed region.
+ * Used by scroll_run_hook to match Emacs's pixel buffer expectations.
+ *
+ * @param handle Display handle (unused in threaded mode)
+ * @param x Left edge of scroll region
+ * @param y Top edge of scroll region (unused, included for consistency)
+ * @param width Width of scroll region
+ * @param height Height of region to copy
+ * @param from_y Source Y position (frame-relative)
+ * @param to_y Destination Y position (frame-relative)
+ * @param bg_r Background red component (0.0-1.0)
+ * @param bg_g Background green component (0.0-1.0)
+ * @param bg_b Background blue component (0.0-1.0)
+ */
+void neomacs_display_scroll_blit(struct NeomacsDisplay *handle,
+                                 int x, int y, int width, int height,
+                                 int from_y, int to_y,
+                                 float bg_r, float bg_g, float bg_b);
+
+/**
  * Clear only media glyphs (Image, Video, WebKit) in a rectangular area.
  * Called at the start of update_window_begin to clear stale media glyphs
  * before Emacs sends new positions.

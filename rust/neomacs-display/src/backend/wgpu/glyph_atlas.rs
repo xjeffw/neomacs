@@ -138,8 +138,21 @@ impl WgpuGlyphAtlas {
 
         // Rasterize the glyph
         let c = char::from_u32(key.charcode)?;
-        let (width, height, alpha_data, bearing_x, bearing_y) =
-            self.rasterize_glyph(c, face)?;
+
+        // Whitespace characters (space, tab, newline, carriage return) don't need
+        // visible glyphs - their backgrounds are handled separately by the renderer.
+        // Return None silently without warning.
+        if c.is_whitespace() {
+            return None;
+        }
+
+        let rasterize_result = self.rasterize_glyph(c, face);
+        if rasterize_result.is_none() {
+            log::warn!("glyph_atlas: failed to rasterize '{}' (U+{:04X}) face_id={} has_face={}",
+                c, key.charcode, key.face_id, face.is_some());
+            return None;
+        }
+        let (width, height, alpha_data, bearing_x, bearing_y) = rasterize_result?;
 
         if width == 0 || height == 0 {
             log::debug!("glyph_atlas: skipping empty glyph '{}' ({}x{})", c, width, height);

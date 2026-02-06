@@ -38,6 +38,9 @@ pub struct WgpuRenderer {
     webkit_cache: WgpuWebKitCache,
     width: u32,
     height: u32,
+    // Pixel buffer for scroll support - persists between frames
+    pixel_buffer: Option<wgpu::Texture>,
+    pixel_buffer_view: Option<wgpu::TextureView>,
 }
 
 impl WgpuRenderer {
@@ -338,6 +341,11 @@ impl WgpuRenderer {
             None
         };
 
+        // Create pixel buffer for scroll support
+        let (pixel_buffer, pixel_buffer_view) = Self::create_pixel_buffer_static(
+            &device, width, height, target_format
+        );
+
         Self {
             device,
             queue,
@@ -357,7 +365,41 @@ impl WgpuRenderer {
             webkit_cache,
             width,
             height,
+            pixel_buffer: Some(pixel_buffer),
+            pixel_buffer_view: Some(pixel_buffer_view),
         }
+    }
+
+    /// Create pixel buffer texture (static version for use in constructor)
+    fn create_pixel_buffer_static(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat,
+    ) -> (wgpu::Texture, wgpu::TextureView) {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Pixel Buffer"),
+            size: wgpu::Extent3d {
+                width: width.max(1),
+                height: height.max(1),
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            // RENDER_ATTACHMENT: can render to it
+            // COPY_SRC: can copy FROM it (to surface)
+            // COPY_DST: can copy TO it (for scroll blit)
+            // TEXTURE_BINDING: can sample from it (for copy to surface)
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        (texture, view)
     }
 
     async fn new_async(
@@ -428,6 +470,13 @@ impl WgpuRenderer {
             surface.configure(&self.device, config);
         }
 
+        // Recreate pixel buffer at new size
+        let (pixel_buffer, pixel_buffer_view) = Self::create_pixel_buffer_static(
+            &self.device, width, height, self.surface_format
+        );
+        self.pixel_buffer = Some(pixel_buffer);
+        self.pixel_buffer_view = Some(pixel_buffer_view);
+
         // Update uniform buffer
         let uniforms = Uniforms {
             screen_size: [width as f32, height as f32],
@@ -435,6 +484,167 @@ impl WgpuRenderer {
         };
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+    }
+
+    /// Scroll (blit) pixels within the pixel buffer.
+    ///
+    /// This copies a region of pixels from `from_y` to `to_y`, simulating
+    /// the scroll operation that Emacs expects from traditional terminals.
+    ///
+    /// After blitting, the exposed region is cleared to the background color.
+    pub fn scroll_blit(
+        &mut self,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        from_y: i32,
+        to_y: i32,
+        background: Color,
+    ) {
+        let Some(pixel_buffer) = &self.pixel_buffer else {
+            log::warn!("scroll_blit: no pixel buffer");
+            return;
+        };
+
+        // Clamp to valid ranges
+        let x = x.max(0) as u32;
+        let width = (width as u32).min(self.width.saturating_sub(x));
+        let from_y = from_y.max(0) as u32;
+        let to_y = to_y.max(0) as u32;
+        let scroll_height = (height as u32)
+            .min(self.height.saturating_sub(from_y))
+            .min(self.height.saturating_sub(to_y));
+
+        if width == 0 || scroll_height == 0 {
+            return;
+        }
+
+        log::debug!(
+            "scroll_blit: x={}, width={}, from_y={}, to_y={}, height={}",
+            x, width, from_y, to_y, scroll_height
+        );
+
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Scroll Blit Encoder"),
+        });
+
+        // Copy pixels from source to destination within the pixel buffer
+        encoder.copy_texture_to_texture(
+            wgpu::ImageCopyTexture {
+                texture: pixel_buffer,
+                mip_level: 0,
+                origin: wgpu::Origin3d { x, y: from_y, z: 0 },
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyTexture {
+                texture: pixel_buffer,
+                mip_level: 0,
+                origin: wgpu::Origin3d { x, y: to_y, z: 0 },
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::Extent3d {
+                width,
+                height: scroll_height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+
+        // Clear the exposed region
+        // If scrolling up (to_y < from_y): clear at bottom (from_y + scroll_height - delta to end)
+        // If scrolling down (to_y > from_y): clear at top (to_y to to_y + delta)
+        let (clear_y, clear_height) = if to_y < from_y {
+            // Scrolling up: content moves up, expose at bottom
+            let delta = from_y - to_y;
+            let clear_start = (to_y + scroll_height).min(self.height);
+            let clear_end = (clear_start + delta).min(self.height);
+            (clear_start, clear_end - clear_start)
+        } else {
+            // Scrolling down: content moves down, expose at top
+            let delta = to_y - from_y;
+            (from_y, delta.min(self.height - from_y))
+        };
+
+        if clear_height > 0 {
+            self.clear_pixel_buffer_region(x, clear_y, width, clear_height, background);
+        }
+    }
+
+    /// Clear a region of the pixel buffer to a solid color
+    fn clear_pixel_buffer_region(
+        &self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        color: Color,
+    ) {
+        let Some(pixel_buffer_view) = &self.pixel_buffer_view else { return };
+
+        log::debug!(
+            "clear_pixel_buffer_region: ({},{}) {}x{} color=({:.2},{:.2},{:.2})",
+            x, y, width, height, color.r, color.g, color.b
+        );
+
+        // For now, we'll use a render pass to clear the region
+        // This could be optimized with a compute shader or buffer write
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Clear Region Encoder"),
+        });
+
+        // Create a simple render pass that clears the specified region
+        // Note: wgpu render passes clear the entire attachment, so we need to
+        // draw a colored rectangle instead for partial clears
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Clear Region Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: pixel_buffer_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        // Don't clear - we'll draw a rectangle
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+
+            // Draw a colored rectangle to clear the region
+            render_pass.set_pipeline(&self.rect_pipeline);
+            render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+
+            // Create vertices for the clear rectangle
+            let x1 = x as f32;
+            let y1 = y as f32;
+            let x2 = (x + width) as f32;
+            let y2 = (y + height) as f32;
+            let c = [color.r, color.g, color.b, 1.0];
+
+            let vertices = [
+                RectVertex { position: [x1, y1], color: c },
+                RectVertex { position: [x2, y1], color: c },
+                RectVertex { position: [x1, y2], color: c },
+                RectVertex { position: [x2, y1], color: c },
+                RectVertex { position: [x2, y2], color: c },
+                RectVertex { position: [x1, y2], color: c },
+            ];
+
+            let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Clear Rect Vertex Buffer"),
+                contents: bytemuck::cast_slice(&vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.draw(0..6, 0..1);
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
     }
 
     /// Get the glyph bind group layout for creating glyph bind groups
@@ -1122,7 +1332,9 @@ impl WgpuRenderer {
                 label: Some("Frame Glyphs Encoder"),
             });
 
-        // Render pass
+        // Render pass - use Load instead of Clear to preserve existing content
+        // for incremental updates. Emacs sends partial frames after scroll,
+        // expecting unchanged content to persist.
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Frame Glyphs Pass"),
@@ -1130,12 +1342,7 @@ impl WgpuRenderer {
                     view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: frame_glyphs.background.r as f64,
-                            g: frame_glyphs.background.g as f64,
-                            b: frame_glyphs.background.b as f64,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Load,
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -1207,6 +1414,33 @@ impl WgpuRenderer {
             }
 
             log::debug!("render_frame_glyphs: {} char glyphs to render", glyph_data.len());
+
+            // Debug: count chars in frame_glyphs and analyze skipped glyphs
+            let total_chars = frame_glyphs.glyphs.iter()
+                .filter(|g| matches!(g, FrameGlyph::Char { .. }))
+                .count();
+            let low_y_chars = frame_glyphs.glyphs.iter()
+                .filter(|g| matches!(g, FrameGlyph::Char { y, .. } if *y < 100.0))
+                .count();
+            log::info!("render_frame_glyphs: total chars in frame={}, low-Y chars={}, processed={}",
+                total_chars, low_y_chars, glyph_data.len());
+
+            if glyph_data.len() < total_chars {
+                // Some chars were skipped - find out why
+                let mut skipped_faces: std::collections::HashSet<u32> = std::collections::HashSet::new();
+                for glyph in &frame_glyphs.glyphs {
+                    if let FrameGlyph::Char { face_id, y, .. } = glyph {
+                        if *y < 100.0 {
+                            if faces.get(face_id).is_none() {
+                                skipped_faces.insert(*face_id);
+                            }
+                        }
+                    }
+                }
+                if !skipped_faces.is_empty() {
+                    log::warn!("render_frame_glyphs: missing faces for low-Y chars: {:?}", skipped_faces);
+                }
+            }
 
             // Log sample glyphs at different Y positions
             let mut top_glyph: Option<(&GlyphKey, &[GlyphVertex; 6])> = None;
@@ -1439,6 +1673,136 @@ impl WgpuRenderer {
                 render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, cursor_buffer.slice(..));
                 render_pass.draw(0..cursor_vertices.len() as u32, 0..1);
+            }
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+    }
+
+    /// Render frame glyphs to the pixel buffer, then copy to surface view.
+    ///
+    /// This is the main entry point for pixel-buffer-based rendering, which
+    /// supports scroll blitting. The pixel buffer persists between frames,
+    /// allowing scroll operations to work by copying pixels within the buffer.
+    pub fn render_to_pixel_buffer_and_copy(
+        &self,
+        surface_view: &wgpu::TextureView,
+        frame_glyphs: &FrameGlyphBuffer,
+        glyph_atlas: &mut WgpuGlyphAtlas,
+        faces: &HashMap<u32, Face>,
+        surface_width: u32,
+        surface_height: u32,
+    ) {
+        // Render to pixel buffer
+        if let Some(pixel_buffer_view) = &self.pixel_buffer_view {
+            self.render_frame_glyphs(
+                pixel_buffer_view,
+                frame_glyphs,
+                glyph_atlas,
+                faces,
+                surface_width,
+                surface_height,
+            );
+
+            // Copy pixel buffer to surface
+            self.copy_pixel_buffer_to_view(surface_view);
+        } else {
+            // Fallback: render directly to surface (no pixel buffer)
+            self.render_frame_glyphs(
+                surface_view,
+                frame_glyphs,
+                glyph_atlas,
+                faces,
+                surface_width,
+                surface_height,
+            );
+        }
+    }
+
+    /// Copy the pixel buffer contents to a surface view.
+    fn copy_pixel_buffer_to_view(&self, surface_view: &wgpu::TextureView) {
+        let Some(pixel_buffer) = &self.pixel_buffer else { return };
+
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Pixel Buffer Copy Encoder"),
+        });
+
+        // We need to create a texture view for the destination
+        // Since we have the view, we need to use render pass to copy
+        // Actually, copy_texture_to_texture requires textures, not views
+        // We need to use a render pass that draws a fullscreen quad
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Pixel Buffer Copy Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: surface_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+
+            // Draw a fullscreen quad with the pixel buffer as texture
+            // For now, we'll use the image pipeline which can sample textures
+            render_pass.set_pipeline(&self.image_pipeline);
+            render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+
+            // Create bind group for pixel buffer texture
+            if let Some(pixel_buffer_view) = &self.pixel_buffer_view {
+                let sampler = self.device.create_sampler(&wgpu::SamplerDescriptor {
+                    label: Some("Pixel Buffer Sampler"),
+                    address_mode_u: wgpu::AddressMode::ClampToEdge,
+                    address_mode_v: wgpu::AddressMode::ClampToEdge,
+                    address_mode_w: wgpu::AddressMode::ClampToEdge,
+                    mag_filter: wgpu::FilterMode::Nearest,
+                    min_filter: wgpu::FilterMode::Nearest,
+                    mipmap_filter: wgpu::FilterMode::Nearest,
+                    ..Default::default()
+                });
+
+                let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("Pixel Buffer Bind Group"),
+                    layout: &self.glyph_bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(pixel_buffer_view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&sampler),
+                        },
+                    ],
+                });
+
+                render_pass.set_bind_group(1, &bind_group, &[]);
+
+                // Fullscreen quad vertices
+                let w = self.width as f32;
+                let h = self.height as f32;
+                let vertices = [
+                    GlyphVertex { position: [0.0, 0.0], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+                    GlyphVertex { position: [w, 0.0], tex_coords: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+                    GlyphVertex { position: [0.0, h], tex_coords: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                    GlyphVertex { position: [w, 0.0], tex_coords: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
+                    GlyphVertex { position: [w, h], tex_coords: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                    GlyphVertex { position: [0.0, h], tex_coords: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+                ];
+
+                let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Pixel Buffer Copy Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                render_pass.draw(0..6, 0..1);
             }
         }
 

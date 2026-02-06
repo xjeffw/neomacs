@@ -496,6 +496,14 @@ pub unsafe extern "C" fn neomacs_display_add_char_glyph(
         let current_x = display.current_row_x;
         let c = char::from_u32(charcode).unwrap_or('\u{FFFD}');
 
+        // Debug: log first char of each row to trace Y coordinates
+        static mut LAST_DEBUG_Y: i32 = -1;
+        if current_y != LAST_DEBUG_Y && current_x < 20 {
+            log::debug!("add_char_glyph: y={} x={} char='{}' overlay={}",
+                current_y, current_x, c, display.current_row_is_overlay);
+            LAST_DEBUG_Y = current_y;
+        }
+
         // Hybrid path: append directly to frame glyph buffer
         if display.use_hybrid {
             // For overlay rows (mode-line/echo-area), fill background gap on the left
@@ -2693,6 +2701,57 @@ pub unsafe extern "C" fn neomacs_display_webkit_click(
     }
 }
 
+/// Scroll blit pixels in the pixel buffer (threaded mode only)
+///
+/// This performs a GPU blit operation within the pixel buffer, copying pixels
+/// from one vertical position to another. Used to implement Emacs's scroll_run_hook.
+///
+/// Parameters:
+/// - x, y: top-left corner of the region to scroll
+/// - width, height: size of the region
+/// - from_y, to_y: source and destination Y positions for the scroll
+/// - bg_r, bg_g, bg_b: background color (0.0-1.0) to fill exposed region
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_scroll_blit(
+    _handle: *mut NeomacsDisplay,
+    x: c_int,
+    y: c_int,
+    width: c_int,
+    height: c_int,
+    from_y: c_int,
+    to_y: c_int,
+    bg_r: f32,
+    bg_g: f32,
+    bg_b: f32,
+) {
+    #[cfg(feature = "winit-backend")]
+    {
+        if let Some(ref state) = THREADED_STATE {
+            let cmd = RenderCommand::ScrollBlit {
+                x: x as i32,
+                y: y as i32,
+                width: width as i32,
+                height: height as i32,
+                from_y: from_y as i32,
+                to_y: to_y as i32,
+                bg_r,
+                bg_g,
+                bg_b,
+            };
+            let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+            log::debug!("scroll_blit: sent command x={} y={} w={} h={} from_y={} to_y={}",
+                       x, y, width, height, from_y, to_y);
+            return;
+        }
+        log::error!("scroll_blit: threaded mode not initialized");
+    }
+
+    #[cfg(not(feature = "winit-backend"))]
+    {
+        let _ = (x, y, width, height, from_y, to_y, bg_r, bg_g, bg_b);
+    }
+}
+
 /// Get WebKit view title
 /// NOTE: In threaded mode, title changes are delivered via InputEvent::WebKitTitleChanged.
 /// This function returns null - use the callback-based API instead.
@@ -3020,13 +3079,24 @@ pub extern "C" fn neomacs_display_end_frame_window(
         .filter(|g| matches!(g, FrameGlyph::Char { .. }))
         .count();
 
-    log::debug!("neomacs_display_end_frame_window: window_id={}, glyphs={}, chars={}, faces={}",
-        window_id, display.frame_glyphs.glyphs.len(), char_count, display.faces.len());
+    // Debug: find min/max Y of char glyphs
+    let (min_y, max_y) = display.frame_glyphs.glyphs.iter()
+        .filter_map(|g| match g {
+            FrameGlyph::Char { y, .. } => Some(*y),
+            _ => None,
+        })
+        .fold((f32::MAX, f32::MIN), |(min, max), y| (min.min(y), max.max(y)));
+
+    log::debug!("neomacs_display_end_frame_window: window_id={}, glyphs={}, chars={}, faces={}, Y range: {:.0}..{:.0}",
+        window_id, display.frame_glyphs.glyphs.len(), char_count, display.faces.len(), min_y, max_y);
 
     #[cfg(feature = "winit-backend")]
     {
         // In threaded mode, send frame to render thread
         // Safety: THREADED_STATE is only modified during init/shutdown
+        let is_threaded = unsafe { THREADED_STATE.is_some() };
+        log::info!("end_frame_window: threaded={}, chars={}", is_threaded, char_count);
+
         if let Some(ref state) = unsafe { THREADED_STATE.as_ref() } {
             // Only send frames that have character content.
             // Skip cursor-only or background-only frames to preserve previous full frame.
@@ -3035,6 +3105,8 @@ pub extern "C" fn neomacs_display_end_frame_window(
             if char_count > 0 {
                 // Clone frame glyphs and send to render thread
                 let frame = display.frame_glyphs.clone();
+                log::info!("SENDING FRAME: {} glyphs, Y range {:.0}..{:.0}",
+                    frame.glyphs.len(), min_y, max_y);
                 let _ = state.emacs_comms.frame_tx.try_send(frame);
             } else {
                 log::debug!("neomacs_display_end_frame_window: skipping frame with no char glyphs");

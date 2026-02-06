@@ -303,6 +303,14 @@ impl RenderApp {
                     log::info!("Render thread received shutdown command");
                     should_exit = true;
                 }
+                RenderCommand::ScrollBlit { x, y, width, height, from_y, to_y, bg_r, bg_g, bg_b } => {
+                    log::debug!("ScrollBlit: x={}, y={}, w={}, h={}, from_y={}, to_y={}",
+                               x, y, width, height, from_y, to_y);
+                    if let Some(ref mut renderer) = self.renderer {
+                        let bg = crate::core::types::Color { r: bg_r, g: bg_g, b: bg_b, a: 1.0 };
+                        renderer.scroll_blit(x, y, width, height, from_y, to_y, bg);
+                    }
+                }
                 RenderCommand::ImageLoadFile { id, path, max_width, max_height } => {
                     log::info!("Loading image {}: {} (max {}x{})", id, path, max_width, max_height);
                     if let Some(ref mut renderer) = self.renderer {
@@ -474,6 +482,19 @@ impl RenderApp {
     fn poll_frame(&mut self) {
         // Get the newest frame, discarding older ones
         while let Ok(frame) = self.comms.frame_rx.try_recv() {
+            // Debug: log received frame stats
+            let char_count = frame.glyphs.iter()
+                .filter(|g| matches!(g, FrameGlyph::Char { .. }))
+                .count();
+            let (min_y, max_y) = frame.glyphs.iter()
+                .filter_map(|g| match g {
+                    FrameGlyph::Char { y, .. } => Some(*y),
+                    _ => None,
+                })
+                .fold((f32::MAX, f32::MIN), |(min, max), y| (min.min(y), max.max(y)));
+            log::info!("RECEIVED FRAME: {} glyphs, {} chars, Y range {:.0}..{:.0}",
+                frame.glyphs.len(), char_count, min_y, max_y);
+
             self.current_frame = Some(frame);
         }
     }
@@ -706,7 +727,9 @@ impl RenderApp {
             frame.glyphs.len()
         );
 
-        renderer.render_frame_glyphs(
+        // Use pixel buffer approach for scroll support
+        // This renders to a persistent pixel buffer, then copies to surface
+        renderer.render_to_pixel_buffer_and_copy(
             &view,
             frame,
             glyph_atlas,

@@ -731,6 +731,29 @@ void neomacs_display_webkit_click(struct NeomacsDisplay *handle,
                                   uint32_t button);
 
 /**
+ * Scroll blit pixels in the pixel buffer (threaded mode only)
+ *
+ * This performs a GPU blit operation within the pixel buffer, copying pixels
+ * from one vertical position to another. Used to implement Emacs's scroll_run_hook.
+ *
+ * Parameters:
+ * - x, y: top-left corner of the region to scroll
+ * - width, height: size of the region
+ * - from_y, to_y: source and destination Y positions for the scroll
+ * - bg_r, bg_g, bg_b: background color (0.0-1.0) to fill exposed region
+ */
+void neomacs_display_scroll_blit(struct NeomacsDisplay *handle,
+                                 int x,
+                                 int y,
+                                 int width,
+                                 int height,
+                                 int fromY,
+                                 int toY,
+                                 float bgR,
+                                 float bgG,
+                                 float bgB);
+
+/**
  * Get WebKit view title
  * NOTE: In threaded mode, title changes are delivered via InputEvent::WebKitTitleChanged.
  * This function returns null - use the callback-based API instead.

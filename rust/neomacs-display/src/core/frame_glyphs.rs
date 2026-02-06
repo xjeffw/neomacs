@@ -397,9 +397,10 @@ impl FrameGlyphBuffer {
     /// Uses actual vertical overlap (Y ranges intersect) for proper clearing.
     /// Image/Video glyphs are NOT removed here - they are managed by add_image/add_video.
     /// If new_is_overlay is false, overlay glyphs are preserved (content shouldn't erase mode-line).
-    fn remove_overlapping(&mut self, x: f32, y: f32, width: f32, height: f32, new_is_overlay: bool, _caller: &str) {
+    fn remove_overlapping(&mut self, x: f32, y: f32, width: f32, height: f32, new_is_overlay: bool, caller: &str) {
         let x_end = x + width;
         let y_end = y + height;
+        let before_count = self.glyphs.len();
         self.glyphs.retain(|g| {
             let (gx, gy, gw, gh, is_overlay) = match g {
                 FrameGlyph::Char { x, y, width, height, is_overlay, .. } => (*x, *y, *width, *height, *is_overlay),
@@ -421,6 +422,11 @@ impl FrameGlyphBuffer {
             // Keep if no X overlap OR no Y overlap (actual rectangle intersection)
             gx_end <= x || gx >= x_end || gy_end <= y || gy >= y_end
         });
+        let after_count = self.glyphs.len();
+        if before_count != after_count && before_count.saturating_sub(after_count) > 10 {
+            log::warn!("remove_overlapping[{}]: ({},{}) {}x{} removed {} glyphs ({} -> {})",
+                caller, x, y, width, height, before_count - after_count, before_count, after_count);
+        }
     }
 
     /// Clear only media glyphs (Image, Video, WebKit) in a rectangular area.
@@ -461,6 +467,12 @@ impl FrameGlyphBuffer {
         let x_end = x + width;
         let y_end = y + height;
 
+        // Debug: count low-Y glyphs before clearing
+        let low_y_count_before = self.glyphs.iter()
+            .filter(|g| matches!(g, FrameGlyph::Char { y, .. } if *y < 100.0))
+            .count();
+        let total_before = self.glyphs.len();
+
         self.glyphs.retain(|g| {
             let (gx, gy, gw, gh) = match g {
                 FrameGlyph::Char { x, y, width, height, .. } => (*x, *y, *width, *height),
@@ -493,12 +505,43 @@ impl FrameGlyphBuffer {
             // Keep if glyph does NOT overlap with the clear area
             gx_end <= x || gx >= x_end || gy_end <= y || gy >= y_end
         });
+
+        // Debug: log if low-Y glyphs were removed
+        let low_y_count_after = self.glyphs.iter()
+            .filter(|g| matches!(g, FrameGlyph::Char { y, .. } if *y < 100.0))
+            .count();
+        let total_after = self.glyphs.len();
+
+        if low_y_count_after < low_y_count_before {
+            log::warn!("clear_area: removed {} low-Y chars (before={}, after={}), area=({},{}) {}x{}, total: {} -> {}",
+                low_y_count_before - low_y_count_after, low_y_count_before, low_y_count_after,
+                x, y, width, height, total_before, total_after);
+        }
     }
 
     /// Add a character glyph (removes overlapping glyphs first)
     pub fn add_char(&mut self, char: char, x: f32, y: f32, width: f32, height: f32, ascent: f32, is_overlay: bool) {
+        // Debug: track glyph counts at different Y ranges
+        let count_before = self.glyphs.len();
+        let low_y_count_before = self.glyphs.iter()
+            .filter(|g| matches!(g, FrameGlyph::Char { y, .. } if *y < 100.0))
+            .count();
+
         // Remove any existing glyphs at this position
         self.remove_overlapping(x, y, width, height, is_overlay, "add_char");
+
+        let count_after_remove = self.glyphs.len();
+        let low_y_count_after_remove = self.glyphs.iter()
+            .filter(|g| matches!(g, FrameGlyph::Char { y, .. } if *y < 100.0))
+            .count();
+
+        // Log if low-Y glyphs were removed
+        if low_y_count_after_remove < low_y_count_before {
+            log::warn!("add_char: remove_overlapping removed {} low-Y glyphs (before={}, after={}), adding char '{}' at ({},{})",
+                low_y_count_before - low_y_count_after_remove, low_y_count_before, low_y_count_after_remove,
+                char, x, y);
+        }
+
         self.glyphs.push(FrameGlyph::Char {
             char,
             x,

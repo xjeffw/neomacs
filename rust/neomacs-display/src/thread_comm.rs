@@ -78,6 +78,18 @@ pub enum InputEvent {
 pub enum RenderCommand {
     /// Shutdown the render thread
     Shutdown,
+    /// Scroll blit pixels within pixel buffer
+    ScrollBlit {
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        from_y: i32,
+        to_y: i32,
+        bg_r: f32,
+        bg_g: f32,
+        bg_b: f32,
+    },
     /// Load image from file (async, ID pre-allocated)
     ImageLoadFile {
         id: u32,

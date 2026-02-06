@@ -517,6 +517,26 @@ neomacs_update_window_begin (struct window *w)
   dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
   output = FRAME_NEOMACS_OUTPUT (f);
 
+  /* Disable scroll optimization for neomacs windows.
+
+     The scroll_run_hook mechanism relies on current_matrix rows being "enabled"
+     (marked as valid) from the previous frame. However, during Emacs startup
+     and window resizing, adjust_glyph_matrix clears all enabled_p flags when
+     the matrix width changes, making it impossible for rows to accumulate
+     enabled state. This causes scroll optimization to fail, and since xdisp.c
+     expects scroll_run_hook to copy unchanged content, half the screen ends up
+     blank after scrolling.
+
+     By setting no_scrolling_p, we disable the matrix-level scroll optimization
+     in dispnew.c's scrolling_window(). However, xdisp.c may still call
+     scroll_run_hook directly in try_scrolling() - see neomacs_scroll_run
+     which handles that case by calling scroll_blit for pixel-level scrolling.
+
+     If scroll_run_hook isn't called (common case), Emacs will redraw all
+     changed rows, which is correct for our incremental glyph model. */
+  if (w->desired_matrix)
+    w->desired_matrix->no_scrolling_p = true;
+
   /* Add this window to the Rust scene graph */
   if (dpyinfo && dpyinfo->display_handle)
     {
@@ -908,6 +928,14 @@ neomacs_draw_glyph_string (struct glyph_string *s)
   struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
   struct neomacs_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
   cairo_t *cr;
+
+  /* Debug: log Y coordinates for the first glyph of each row */
+  static int last_y = -1;
+  if (s->y != last_y && s->x < 20) {
+    fprintf(stderr, "draw_glyph_string: y=%d x=%d height=%d mode_line=%d\n",
+            s->y, s->x, s->height, s->row ? s->row->mode_line_p : -1);
+    last_y = s->y;
+  }
 
   if (!output)
     return;
@@ -1776,22 +1804,67 @@ neomacs_scroll_run (struct window *w, struct run *run)
   struct frame *f = XFRAME (w->frame);
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
   struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
-  int x, y, width, height;
+  int x, y, width, height, from_y, to_y, bottom_y;
+
+  fprintf(stderr, "neomacs_scroll_run called: current_y=%d desired_y=%d height=%d nrows=%d\n",
+          run->current_y, run->desired_y, run->height, run->nrows);
 
   if (!dpyinfo || !dpyinfo->display_handle)
     return;
 
-  /* For GPU widget mode, clear the window text area to remove stale glyphs.
-     Emacs will then redraw the content at correct positions. */
+  /* For GPU widget mode, use pixel buffer scroll blit for efficiency.
+     This copies pixels within the GPU pixel buffer, matching Emacs's
+     expectation that pixel data persists between frames. */
   if (output && output->use_gpu_widget)
     {
-      /* Get the frame-relative bounding box of the text display area
-         (excluding mode line, including fringes) */
+      /* Get frame-relative bounding box of the text display area of W,
+         without mode lines.  Include in this box the left and right
+         fringe of W. */
       window_box (w, ANY_AREA, &x, &y, &width, &height);
 
-      /* Clear the text area - this removes stale glyphs.
-         x, y, width, height are already frame-relative from window_box */
-      neomacs_display_clear_area (dpyinfo->display_handle, x, y, width, height);
+      /* Convert window-relative Y to frame-relative Y */
+      from_y = WINDOW_TO_FRAME_PIXEL_Y (w, run->current_y);
+      to_y = WINDOW_TO_FRAME_PIXEL_Y (w, run->desired_y);
+      bottom_y = y + height;
+
+      /* Calculate actual height to copy, avoiding mode line */
+      if (to_y < from_y)
+        {
+          /* Scrolling up.  Make sure we don't copy part of the mode
+             line at the bottom.  */
+          if (from_y + run->height > bottom_y)
+            height = bottom_y - from_y;
+          else
+            height = run->height;
+        }
+      else
+        {
+          /* Scrolling down.  Make sure we don't copy over the mode line
+             at the bottom.  */
+          if (to_y + run->height > bottom_y)
+            height = bottom_y - to_y;
+          else
+            height = run->height;
+        }
+
+      /* Get background color from frame's default face */
+      Lisp_Object bg = Qnil;
+      struct face *face = FACE_FROM_ID_OR_NULL (f, DEFAULT_FACE_ID);
+      float bg_r = 1.0f, bg_g = 1.0f, bg_b = 1.0f;
+      if (face)
+        {
+          unsigned long pixel = face->background;
+          /* Convert pixel value to RGB (assuming 24-bit color) */
+          bg_r = ((pixel >> 16) & 0xFF) / 255.0f;
+          bg_g = ((pixel >> 8) & 0xFF) / 255.0f;
+          bg_b = (pixel & 0xFF) / 255.0f;
+        }
+
+      /* Perform the scroll blit in the GPU pixel buffer */
+      neomacs_display_scroll_blit (dpyinfo->display_handle,
+                                   x, y, width, height,
+                                   from_y, to_y,
+                                   bg_r, bg_g, bg_b);
     }
 }
 
