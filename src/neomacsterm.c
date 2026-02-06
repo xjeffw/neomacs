@@ -3977,6 +3977,28 @@ neomacs_display_wakeup_handler (int fd, void *data)
 
         case NEOMACS_EVENT_SCROLL:
           {
+            /* Check if scrolling over a webkit view */
+            struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+            if (dpyinfo && dpyinfo->display_handle)
+              {
+                uint32_t webkit_id = 0;
+                int rel_x = 0, rel_y = 0;
+                if (neomacs_display_webkit_at_position (dpyinfo->display_handle,
+                                                         ev->x, ev->y,
+                                                         &webkit_id, &rel_x, &rel_y))
+                  {
+                    /* Forward scroll to webkit view.
+                       Scale deltas: winit LineDelta is ~1.0 per notch,
+                       WPE expects pixel-like values. */
+                    int sdx = (int)(ev->scrollDeltaX * 53);
+                    int sdy = (int)(ev->scrollDeltaY * 53);
+                    neomacs_display_webkit_send_scroll (dpyinfo->display_handle,
+                                                        webkit_id, rel_x, rel_y,
+                                                        sdx, sdy);
+                    break;
+                  }
+              }
+
             float dx = ev->scrollDeltaX;
             float dy = ev->scrollDeltaY;
             float abs_dx = dx < 0 ? -dx : dx;
