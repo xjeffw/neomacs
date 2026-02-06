@@ -137,6 +137,9 @@ struct RenderApp {
     // Face cache built from frame data
     faces: HashMap<u32, Face>,
 
+    // Display scale factor (physical pixels / logical pixels)
+    scale_factor: f64,
+
     // Current modifier state (NEOMACS_*_MASK flags)
     modifiers: u32,
 
@@ -226,6 +229,7 @@ impl RenderApp {
             width,
             height,
             title,
+            scale_factor: 1.0,
             renderer: None,
             surface: None,
             surface_config: None,
@@ -368,10 +372,15 @@ impl RenderApp {
         surface.configure(&device, &config);
 
         // Create renderer with existing device and surface format
-        let renderer = WgpuRenderer::with_device(device.clone(), queue.clone(), self.width, self.height, format);
+        let renderer = WgpuRenderer::with_device(
+            device.clone(), queue.clone(),
+            self.width, self.height,
+            format,
+            self.scale_factor as f32,
+        );
 
-        // Create glyph atlas
-        let glyph_atlas = WgpuGlyphAtlas::new(&device);
+        // Create glyph atlas with scale factor for crisp HiDPI text
+        let glyph_atlas = WgpuGlyphAtlas::new_with_scale(&device, self.scale_factor as f32);
 
         log::info!(
             "wgpu initialized: {}x{}, format: {:?}",
@@ -1586,14 +1595,24 @@ impl RenderApp {
 impl ApplicationHandler for RenderApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
+            // Use LogicalSize so winit applies the display scale
             let attrs = Window::default_attributes()
                 .with_title(&self.title)
-                .with_inner_size(winit::dpi::PhysicalSize::new(self.width, self.height));
+                .with_inner_size(winit::dpi::LogicalSize::new(self.width, self.height));
 
             match event_loop.create_window(attrs) {
                 Ok(window) => {
-                    log::info!("Render thread: window created");
                     let window = Arc::new(window);
+
+                    // Read scale factor once at launch
+                    self.scale_factor = window.scale_factor();
+                    log::info!("Display scale factor: {}", self.scale_factor);
+
+                    // Update width/height to physical pixels for surface config
+                    let phys = window.inner_size();
+                    self.width = phys.width;
+                    self.height = phys.height;
+                    log::info!("Render thread: window created (physical {}x{})", self.width, self.height);
 
                     // Initialize wgpu with the window
                     self.init_wgpu(window.clone());
@@ -1626,11 +1645,13 @@ impl ApplicationHandler for RenderApp {
                 // Handle wgpu surface resize
                 self.handle_resize(size.width, size.height);
 
-                // Notify Emacs of the resize
-                log::info!("Sending WindowResize event to Emacs: {}x{}", size.width, size.height);
+                // Notify Emacs of the resize in logical pixels
+                let logical_w = (size.width as f64 / self.scale_factor) as u32;
+                let logical_h = (size.height as f64 / self.scale_factor) as u32;
+                log::info!("Sending WindowResize event to Emacs: {}x{} (logical)", logical_w, logical_h);
                 self.comms.send_input(InputEvent::WindowResize {
-                    width: size.width,
-                    height: size.height,
+                    width: logical_w,
+                    height: logical_h,
                 });
             }
 
@@ -1674,10 +1695,13 @@ impl ApplicationHandler for RenderApp {
             }
 
             WindowEvent::CursorMoved { position, .. } => {
-                self.mouse_pos = (position.x as f32, position.y as f32);
+                // Convert to logical pixels for Emacs
+                let lx = (position.x / self.scale_factor) as f32;
+                let ly = (position.y / self.scale_factor) as f32;
+                self.mouse_pos = (lx, ly);
                 self.comms.send_input(InputEvent::MouseMove {
-                    x: position.x as f32,
-                    y: position.y as f32,
+                    x: lx,
+                    y: ly,
                     modifiers: self.modifiers,
                 });
             }
@@ -1686,7 +1710,8 @@ impl ApplicationHandler for RenderApp {
                 let (dx, dy) = match delta {
                     winit::event::MouseScrollDelta::LineDelta(x, y) => (x, y),
                     winit::event::MouseScrollDelta::PixelDelta(pos) => {
-                        (pos.x as f32 / 10.0, pos.y as f32 / 10.0)
+                        ((pos.x / self.scale_factor) as f32 / 10.0,
+                         (pos.y / self.scale_factor) as f32 / 10.0)
                     }
                 };
                 self.comms.send_input(InputEvent::MouseScroll {

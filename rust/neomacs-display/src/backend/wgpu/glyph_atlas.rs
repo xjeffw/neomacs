@@ -63,6 +63,8 @@ pub struct WgpuGlyphAtlas {
     default_font_size: f32,
     /// Default line height in pixels
     default_line_height: f32,
+    /// Display scale factor for HiDPI rasterization
+    scale_factor: f32,
     /// Maximum cache size
     max_size: usize,
 }
@@ -115,8 +117,16 @@ impl WgpuGlyphAtlas {
             sampler,
             default_font_size: 13.0,
             default_line_height: 17.0,
+            scale_factor: 1.0,
             max_size: 4096,
         }
+    }
+
+    /// Create a new wgpu glyph atlas with a specific scale factor for HiDPI
+    pub fn new_with_scale(device: &wgpu::Device, scale_factor: f32) -> Self {
+        let mut atlas = Self::new(device);
+        atlas.scale_factor = scale_factor;
+        atlas
     }
 
     /// Get the bind group layout for glyph textures
@@ -291,8 +301,8 @@ impl WgpuGlyphAtlas {
         // Get the glyph info
         for run in buffer.layout_runs() {
             for glyph in run.glyphs.iter() {
-                // Rasterize at 1x scale
-                let physical_glyph = glyph.physical((0.0, 0.0), 1.0);
+                // Rasterize at display scale factor for crisp HiDPI text
+                let physical_glyph = glyph.physical((0.0, 0.0), self.scale_factor);
 
                 if let Some(image) = self
                     .swash_cache

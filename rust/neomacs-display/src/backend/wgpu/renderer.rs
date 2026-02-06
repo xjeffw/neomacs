@@ -38,6 +38,8 @@ pub struct WgpuRenderer {
     webkit_cache: WgpuWebKitCache,
     width: u32,
     height: u32,
+    /// Display scale factor (physical pixels / logical pixels)
+    scale_factor: f32,
 }
 
 impl WgpuRenderer {
@@ -66,8 +68,9 @@ impl WgpuRenderer {
         width: u32,
         height: u32,
         surface_format: wgpu::TextureFormat,
+        scale_factor: f32,
     ) -> Self {
-        Self::create_renderer_internal(device, queue, None, Some(surface_format), width, height)
+        Self::create_renderer_internal(device, queue, None, Some(surface_format), width, height, scale_factor)
     }
 
     /// Internal helper that creates the renderer with the given device/queue.
@@ -84,10 +87,13 @@ impl WgpuRenderer {
         surface_format: Option<wgpu::TextureFormat>,
         width: u32,
         height: u32,
+        scale_factor: f32,
     ) -> Self {
-        // Create uniform buffer
+        // Create uniform buffer with logical size so vertex positions from Emacs map correctly
+        let logical_w = width as f32 / scale_factor;
+        let logical_h = height as f32 / scale_factor;
         let uniforms = Uniforms {
-            screen_size: [width as f32, height as f32],
+            screen_size: [logical_w, logical_h],
             _padding: [0.0, 0.0],
         };
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -357,6 +363,7 @@ impl WgpuRenderer {
             webkit_cache,
             width,
             height,
+            scale_factor,
         }
     }
 
@@ -408,8 +415,8 @@ impl WgpuRenderer {
                 .unwrap_or(caps.formats[0])
         });
 
-        // Use the internal helper for pipeline/buffer creation
-        Self::create_renderer_internal(device, queue, surface, surface_format, width, height)
+        // Use the internal helper for pipeline/buffer creation (1.0 scale for standalone usage)
+        Self::create_renderer_internal(device, queue, surface, surface_format, width, height, 1.0)
     }
 
     /// Resize the renderer's surface.
@@ -428,9 +435,11 @@ impl WgpuRenderer {
             surface.configure(&self.device, config);
         }
 
-        // Update uniform buffer
+        // Update uniform buffer with logical size so vertex positions from Emacs map correctly
+        let logical_w = width as f32 / self.scale_factor;
+        let logical_h = height as f32 / self.scale_factor;
         let uniforms = Uniforms {
-            screen_size: [width as f32, height as f32],
+            screen_size: [logical_w, logical_h],
             _padding: [0.0, 0.0],
         };
         self.queue
@@ -1026,9 +1035,12 @@ impl WgpuRenderer {
             faces.len(),
         );
 
-        // Update uniforms with actual surface size for correct coordinate transformation
+        // Update uniforms with logical size for correct coordinate transformation
+        // (Emacs sends positions in logical pixels; surface is in physical pixels)
+        let logical_w = surface_width as f32 / self.scale_factor;
+        let logical_h = surface_height as f32 / self.scale_factor;
         let uniforms = Uniforms {
-            screen_size: [surface_width as f32, surface_height as f32],
+            screen_size: [logical_w, logical_h],
             _padding: [0.0, 0.0],
         };
         self.queue
@@ -1363,11 +1375,15 @@ impl WgpuRenderer {
                         let face = faces.get(face_id);
 
                         if let Some(cached) = glyph_atlas.get_or_create(&self.device, &self.queue, &key, face) {
-                            let glyph_x = *x + cached.bearing_x;
+                            // Cached glyphs are rasterized at physical resolution (scale_factor).
+                            // Divide bearing/size by scale_factor to get logical pixel positions
+                            // that match Emacs coordinate space.
+                            let sf = self.scale_factor;
+                            let glyph_x = *x + cached.bearing_x / sf;
                             let baseline = *y + *ascent;
-                            let glyph_y = baseline - cached.bearing_y;
-                            let glyph_w = cached.width as f32;
-                            let glyph_h = cached.height as f32;
+                            let glyph_y = baseline - cached.bearing_y / sf;
+                            let glyph_w = cached.width as f32 / sf;
+                            let glyph_h = cached.height as f32 / sf;
 
                             // Determine effective foreground color.
                             // For the character under a filled box cursor, swap to
@@ -1728,8 +1744,9 @@ impl WgpuRenderer {
         width: u32,
         height: u32,
     ) {
-        let w = width as f32;
-        let h = height as f32;
+        // Use logical dimensions for vertex positions since screen_size uniform is logical
+        let w = width as f32 / self.scale_factor;
+        let h = height as f32 / self.scale_factor;
 
         let vertices = [
             GlyphVertex { position: [0.0, 0.0], tex_coords: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
@@ -1791,17 +1808,20 @@ impl WgpuRenderer {
         // We render two passes: old texture with alpha (1-t), new texture with alpha t
         // Using scissor rect to constrain to the window bounds
 
-        let sx = bounds.x.max(0.0) as u32;
-        let sy = bounds.y.max(0.0) as u32;
-        let sw = (bounds.width as u32).min(surface_width.saturating_sub(sx));
-        let sh = (bounds.height as u32).min(surface_height.saturating_sub(sy));
+        // Scissor rects operate in physical framebuffer pixels; bounds from Emacs are logical
+        let sf = self.scale_factor;
+        let sx = (bounds.x.max(0.0) * sf) as u32;
+        let sy = (bounds.y.max(0.0) * sf) as u32;
+        let sw = ((bounds.width * sf) as u32).min(surface_width.saturating_sub(sx));
+        let sh = ((bounds.height * sf) as u32).min(surface_height.saturating_sub(sy));
 
         if sw == 0 || sh == 0 {
             return;
         }
 
-        let w = surface_width as f32;
-        let h = surface_height as f32;
+        // Use logical dimensions for vertex positions since screen_size uniform is logical
+        let w = surface_width as f32 / sf;
+        let h = surface_height as f32 / sf;
 
         // Fullscreen quad with UV mapping
         let vertices = [
@@ -1907,17 +1927,20 @@ impl WgpuRenderer {
         let eased_t = 1.0 - (1.0 - t).powi(2);
         let offset = bounds.height * eased_t;
 
-        let sx = bounds.x.max(0.0) as u32;
-        let sy = bounds.y.max(0.0) as u32;
-        let sw = (bounds.width as u32).min(surface_width.saturating_sub(sx));
-        let sh = (bounds.height as u32).min(surface_height.saturating_sub(sy));
+        // Scissor rects operate in physical framebuffer pixels; bounds from Emacs are logical
+        let sf = self.scale_factor;
+        let sx = (bounds.x.max(0.0) * sf) as u32;
+        let sy = (bounds.y.max(0.0) * sf) as u32;
+        let sw = ((bounds.width * sf) as u32).min(surface_width.saturating_sub(sx));
+        let sh = ((bounds.height * sf) as u32).min(surface_height.saturating_sub(sy));
 
         if sw == 0 || sh == 0 {
             return;
         }
 
-        let w = surface_width as f32;
-        let h = surface_height as f32;
+        // Use logical dimensions for vertex positions since screen_size uniform is logical
+        let w = surface_width as f32 / sf;
+        let h = surface_height as f32 / sf;
         let dir = direction as f32;
 
         // UV coordinates for the content region within the full-frame texture.

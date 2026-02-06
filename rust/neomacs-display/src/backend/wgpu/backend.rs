@@ -205,13 +205,14 @@ impl WinitBackend {
         self.wgpu_initialized = true;
         self.initialized = true;
 
-        // Create shared renderer
+        // Create shared renderer (1.0 scale for headless mode)
         let renderer = WgpuRenderer::with_device(
             device.clone(),
             queue,
             self.width,
             self.height,
             format,
+            1.0,
         );
         self.renderer = Some(renderer);
 
