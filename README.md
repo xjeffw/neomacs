@@ -8,6 +8,8 @@
   <a href="#license"><img src="https://img.shields.io/badge/license-GPL--3.0-blue?style=for-the-badge" alt="License: GPL-3.0"/></a>
 </p>
 
+> **Note:** Neomacs is in active alpha development. Expect rough edges, breaking changes, and missing features. Contributions and bug reports are very welcome!
+
 ---
 
 ## The Problem
