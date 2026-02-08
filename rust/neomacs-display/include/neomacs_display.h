@@ -1174,7 +1174,8 @@ void neomacs_rust_layout_frame(struct NeomacsDisplay *handle,
                                float charWidth,
                                float charHeight,
                                float fontPixelSize,
-                               uint32_t background);
+                               uint32_t background,
+                               uint32_t verticalBorderFg);
 
 /**
  * Set an animation configuration option (stub)
@@ -1339,10 +1340,12 @@ extern int neomacs_layout_get_window_params(EmacsFrame frame,
  * Get the resolved face at a buffer position for a given window.
  * Returns face data in the FaceDataFFI struct.
  * This calls face_at_buffer_position() internally.
+ * If next_check_out is non-null, writes the position where the face may change.
  */
 extern int neomacs_layout_face_at_pos(EmacsWindow window,
                                       int64_t charpos,
-                                      struct FaceDataFFI *faceOut);
+                                      struct FaceDataFFI *faceOut,
+                                      int64_t *nextCheckOut);
 
 /**
  * Get the default face for a frame.
@@ -1364,5 +1367,27 @@ extern void neomacs_layout_set_cursor(EmacsWindow window, int x, int y, int hpos
  * Returns 1 if fontification happened, 0 if text was already fontified.
  */
 extern int neomacs_layout_ensure_fontified(EmacsBuffer buffer, int64_t from, int64_t to);
+
+/**
+ * Get mode-line text for a window as plain UTF-8.
+ * Returns the number of bytes written, or -1 on error.
+ * Also fills face_out with the mode-line face (active or inactive).
+ */
+extern int64_t neomacs_layout_mode_line_text(EmacsWindow window,
+                                             EmacsFrame frame,
+                                             uint8_t *outBuf,
+                                             int64_t outBufLen,
+                                             struct FaceDataFFI *faceOut);
+
+/**
+ * Get header-line text for a window as plain UTF-8.
+ * Returns the number of bytes written, 0 if no header-line, or -1 on error.
+ * Also fills face_out with the header-line face (active or inactive).
+ */
+extern int64_t neomacs_layout_header_line_text(EmacsWindow window,
+                                               EmacsFrame frame,
+                                               uint8_t *outBuf,
+                                               int64_t outBufLen,
+                                               struct FaceDataFFI *faceOut);
 
 #endif  /* NEOMACS_DISPLAY_H */

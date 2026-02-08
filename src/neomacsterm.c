@@ -68,7 +68,8 @@ extern void neomacs_rust_layout_frame (void *display_handle, void *frame_ptr,
                                        float width, float height,
                                        float char_width, float char_height,
                                        float font_pixel_size,
-                                       uint32_t background);
+                                       uint32_t background,
+                                       uint32_t vertical_border_fg);
 
 static void neomacs_set_window_size (struct frame *f, bool change_gravity,
                                      int width, int height);
@@ -1577,6 +1578,61 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
   return (int64_t) len;
 }
 
+/* Get header-line text for a window as plain UTF-8.
+   Returns the number of bytes written, 0 if no header-line, or -1 on error.
+   Also fills face_out with the header-line face (active or inactive). */
+int64_t
+neomacs_layout_header_line_text (void *window_ptr, void *frame_ptr,
+                                  uint8_t *out_buf, int64_t out_buf_len,
+                                  void *face_out)
+{
+  struct window *w = (struct window *) window_ptr;
+  if (!w || !out_buf || out_buf_len <= 0)
+    return -1;
+
+  struct frame *f = frame_ptr ? (struct frame *) frame_ptr : XFRAME (w->frame);
+
+  int selected = (w == XWINDOW (f->selected_window));
+  int face_id = selected ? HEADER_LINE_ACTIVE_FACE_ID : HEADER_LINE_INACTIVE_FACE_ID;
+
+  if (face_out)
+    {
+      struct face *face = FACE_FROM_ID_OR_NULL (f, face_id);
+      if (!face)
+        face = FACE_FROM_ID_OR_NULL (f, DEFAULT_FACE_ID);
+      if (face)
+        fill_face_data (f, face, (struct FaceDataFFI *) face_out);
+    }
+
+  if (!BUFFERP (w->contents))
+    return -1;
+
+  struct buffer *buf = XBUFFER (w->contents);
+  Lisp_Object format = BVAR (buf, header_line_format);
+  if (NILP (format))
+    return 0;
+
+  struct buffer *old = current_buffer;
+  set_buffer_internal_1 (buf);
+
+  Lisp_Object window_obj;
+  XSETWINDOW (window_obj, w);
+  Lisp_Object result = Fformat_mode_line (format, make_fixnum (0),
+                                           window_obj, w->contents);
+
+  set_buffer_internal_1 (old);
+
+  if (!STRINGP (result))
+    return -1;
+
+  ptrdiff_t len = SBYTES (result);
+  if (len > out_buf_len)
+    len = out_buf_len;
+
+  memcpy (out_buf, SDATA (result), len);
+  return (int64_t) len;
+}
+
 /* Get a byte from buffer text at a byte position. */
 int
 neomacs_layout_buffer_byte_at (void *buffer_ptr, int64_t byte_pos)
@@ -1742,6 +1798,13 @@ neomacs_update_end (struct frame *f)
                              | (GREEN_FROM_ULONG (bg_pixel) << 8)
                              | BLUE_FROM_ULONG (bg_pixel));
 
+          /* Get vertical border face color */
+          struct face *vborder_face = FACE_FROM_ID_OR_NULL (f, VERTICAL_BORDER_FACE_ID);
+          unsigned long vb_fg = vborder_face ? vborder_face->foreground : 0;
+          uint32_t vb_rgb = ((RED_FROM_ULONG (vb_fg) << 16)
+                             | (GREEN_FROM_ULONG (vb_fg) << 8)
+                             | BLUE_FROM_ULONG (vb_fg));
+
           neomacs_rust_layout_frame (
               dpyinfo->display_handle,
               (void *) f,
@@ -1750,7 +1813,8 @@ neomacs_update_end (struct frame *f)
               (float) FRAME_COLUMN_WIDTH (f),
               (float) FRAME_LINE_HEIGHT (f),
               FRAME_FONT (f) ? (float) FRAME_FONT (f)->pixel_size : 14.0f,
-              bg_rgb);
+              bg_rgb,
+              vb_rgb);
         }
       else
         {

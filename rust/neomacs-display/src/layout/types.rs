@@ -198,4 +198,6 @@ pub struct FrameParams {
     pub font_pixel_size: f32,
     /// Frame background color (sRGB pixel)
     pub background: u32,
+    /// Vertical border face foreground color (sRGB pixel)
+    pub vertical_border_fg: u32,
 }

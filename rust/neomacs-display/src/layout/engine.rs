@@ -112,6 +112,21 @@ impl LayoutEngine {
 
             // Layout this window's content
             self.layout_window(&params, &wp, frame_glyphs);
+
+            // Draw vertical border on right side if window doesn't reach frame edge
+            let right_edge = params.bounds.x + params.bounds.width;
+            if right_edge < frame_params.width - 1.0 {
+                let border_color = Color::from_pixel(frame_params.vertical_border_fg);
+                frame_glyphs.add_stretch(
+                    right_edge,
+                    params.bounds.y,
+                    1.0,
+                    params.bounds.height,
+                    border_color,
+                    0,
+                    false,
+                );
+            }
         }
     }
 
@@ -504,9 +519,34 @@ impl LayoutEngine {
             }
         }
 
+        // Render header-line if this window has one
+        if params.header_line_height > 0.0 {
+            self.render_status_line(
+                params.bounds.x,
+                params.text_bounds.y,
+                params.bounds.width,
+                params.header_line_height,
+                params.char_width,
+                params.font_ascent,
+                wp,
+                frame_glyphs,
+                true, // is_header
+            );
+        }
+
         // Render mode-line if this window has one
         if params.mode_line_height > 0.0 {
-            self.render_mode_line(params, wp, frame_glyphs);
+            self.render_status_line(
+                params.bounds.x,
+                params.bounds.y + params.bounds.height - params.mode_line_height,
+                params.bounds.width,
+                params.mode_line_height,
+                params.char_width,
+                params.font_ascent,
+                wp,
+                frame_glyphs,
+                false, // is_header
+            );
         }
 
         // Write layout results back to Emacs
@@ -517,71 +557,76 @@ impl LayoutEngine {
         );
     }
 
-    /// Render the mode-line at the bottom of a window.
-    unsafe fn render_mode_line(
+    /// Render a status line (mode-line or header-line) at a given position.
+    unsafe fn render_status_line(
         &mut self,
-        params: &WindowParams,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        char_w: f32,
+        ascent: f32,
         wp: &WindowParamsFFI,
         frame_glyphs: &mut FrameGlyphBuffer,
+        is_header: bool,
     ) {
-        let ml_x = params.bounds.x;
-        let ml_y = params.bounds.y + params.bounds.height - params.mode_line_height;
-        let ml_w = params.bounds.width;
-        let ml_h = params.mode_line_height;
-        let char_w = params.char_width;
-        let ascent = params.font_ascent;
-
-        // Get mode-line text and face from Emacs
-        let mut ml_face = FaceDataFFI::default();
+        let mut line_face = FaceDataFFI::default();
         let buf_size = 1024usize;
-        let mut ml_buf = vec![0u8; buf_size];
+        let mut line_buf = vec![0u8; buf_size];
 
-        let bytes = neomacs_layout_mode_line_text(
-            wp.window_ptr,
-            // frame pointer: we need it but WindowParamsFFI doesn't have it.
-            // The frame is available from the FFI call that got window params.
-            // For now, pass null and handle in C by getting frame from window.
-            std::ptr::null_mut(),
-            ml_buf.as_mut_ptr(),
-            buf_size as i64,
-            &mut ml_face,
-        );
+        let bytes = if is_header {
+            neomacs_layout_header_line_text(
+                wp.window_ptr,
+                std::ptr::null_mut(),
+                line_buf.as_mut_ptr(),
+                buf_size as i64,
+                &mut line_face,
+            )
+        } else {
+            neomacs_layout_mode_line_text(
+                wp.window_ptr,
+                std::ptr::null_mut(),
+                line_buf.as_mut_ptr(),
+                buf_size as i64,
+                &mut line_face,
+            )
+        };
 
-        // Apply mode-line face
-        self.apply_face(&ml_face, frame_glyphs);
-        let ml_bg = Color::from_pixel(ml_face.bg);
+        // Apply face
+        self.apply_face(&line_face, frame_glyphs);
+        let bg = Color::from_pixel(line_face.bg);
 
-        // Draw mode-line background
-        frame_glyphs.add_stretch(ml_x, ml_y, ml_w, ml_h, ml_bg, ml_face.face_id, true);
+        // Draw background
+        frame_glyphs.add_stretch(x, y, width, height, bg, line_face.face_id, true);
 
         if bytes <= 0 {
             return;
         }
 
-        // Render mode-line text
-        let ml_text = &ml_buf[..bytes as usize];
-        let cols = (ml_w / char_w).floor() as i32;
+        // Render text
+        let text = &line_buf[..bytes as usize];
+        let cols = (width / char_w).floor() as i32;
         let mut col = 0i32;
         let mut byte_idx = 0usize;
 
-        while byte_idx < ml_text.len() && col < cols {
-            let (ch, ch_len) = decode_utf8(&ml_text[byte_idx..]);
+        while byte_idx < text.len() && col < cols {
+            let (ch, ch_len) = decode_utf8(&text[byte_idx..]);
             byte_idx += ch_len;
 
             if ch == '\n' || ch == '\r' {
-                continue; // mode-line shouldn't have newlines
+                continue;
             }
 
-            let gx = ml_x + col as f32 * char_w;
-            frame_glyphs.add_char(ch, gx, ml_y, char_w, ml_h, ascent, true);
+            let gx = x + col as f32 * char_w;
+            frame_glyphs.add_char(ch, gx, y, char_w, height, ascent, true);
             col += 1;
         }
 
-        // Fill remaining mode-line with background
+        // Fill remaining with background
         if col < cols {
-            let gx = ml_x + col as f32 * char_w;
+            let gx = x + col as f32 * char_w;
             let remaining = (cols - col) as f32 * char_w;
-            frame_glyphs.add_stretch(gx, ml_y, remaining, ml_h, ml_bg, ml_face.face_id, true);
+            frame_glyphs.add_stretch(gx, y, remaining, height, bg, line_face.face_id, true);
         }
     }
 }

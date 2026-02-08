@@ -154,6 +154,17 @@ extern "C" {
         out_buf_len: i64,
         face_out: *mut FaceDataFFI,
     ) -> i64;
+
+    /// Get header-line text for a window as plain UTF-8.
+    /// Returns the number of bytes written, 0 if no header-line, or -1 on error.
+    /// Also fills face_out with the header-line face (active or inactive).
+    pub fn neomacs_layout_header_line_text(
+        window: EmacsWindow,
+        frame: EmacsFrame,
+        out_buf: *mut u8,
+        out_buf_len: i64,
+        face_out: *mut FaceDataFFI,
+    ) -> i64;
 }
 
 /// FFI-safe window parameters struct.
