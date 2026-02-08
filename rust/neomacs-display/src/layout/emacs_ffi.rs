@@ -259,6 +259,8 @@ extern "C" {
         after_buf: *mut u8,
         after_buf_len: c_int,
         after_len_out: *mut c_int,
+        before_face_out: *mut FaceDataFFI,
+        after_face_out: *mut FaceDataFFI,
     ) -> c_int;
 
     // ========================================================================

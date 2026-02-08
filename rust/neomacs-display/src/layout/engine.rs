@@ -389,6 +389,7 @@ impl LayoutEngine {
         let mut overlay_after_buf = [0u8; 512];
         let mut overlay_before_len: i32 = 0;
         let mut overlay_after_len: i32 = 0;
+        let mut overlay_after_face = FaceDataFFI::default();
 
         // Line number state
         let mut current_line: i64 = if lnum_enabled {
@@ -729,6 +730,8 @@ impl LayoutEngine {
             {
                 overlay_before_len = 0;
                 overlay_after_len = 0;
+                let mut overlay_before_face = FaceDataFFI::default();
+                overlay_after_face = FaceDataFFI::default();
                 neomacs_layout_overlay_strings_at(
                     buffer, window, charpos,
                     overlay_before_buf.as_mut_ptr(),
@@ -737,12 +740,16 @@ impl LayoutEngine {
                     overlay_after_buf.as_mut_ptr(),
                     overlay_after_buf.len() as i32,
                     &mut overlay_after_len,
+                    &mut overlay_before_face,
+                    &mut overlay_after_face,
                 );
 
                 // Render before-string (if any) — insert before buffer text
                 if overlay_before_len > 0 {
-                    // Resolve face for this position first
-                    if charpos >= next_face_check || current_face_id < 0 {
+                    // Use overlay face if set, otherwise resolve face for this position
+                    if overlay_before_face.face_id != 0 {
+                        self.apply_face(&overlay_before_face, frame_glyphs);
+                    } else if charpos >= next_face_check || current_face_id < 0 {
                         let mut next_check: i64 = 0;
                         let fid = neomacs_layout_face_at_pos(
                             window, charpos,
@@ -776,6 +783,11 @@ impl LayoutEngine {
                         let gy = row_y[row as usize];
                         frame_glyphs.add_char(bch, gx, gy, bchar_cols as f32 * char_w, char_h, ascent, false);
                         col += bchar_cols;
+                    }
+
+                    // Restore text face after overlay face was used
+                    if overlay_before_face.face_id != 0 && current_face_id >= 0 {
+                        self.apply_face(&self.face_data, frame_glyphs);
                     }
                 }
 
@@ -1616,6 +1628,11 @@ impl LayoutEngine {
 
             // Render overlay after-string (if any) — collected earlier
             if overlay_after_len > 0 && row < max_rows {
+                // Apply overlay face for after-string if set
+                if overlay_after_face.face_id != 0 {
+                    self.apply_face(&overlay_after_face, frame_glyphs);
+                }
+
                 let astr = &overlay_after_buf[..overlay_after_len as usize];
                 let mut ai = 0usize;
                 while ai < astr.len() && row < max_rows {
@@ -1634,6 +1651,11 @@ impl LayoutEngine {
                     let gy = row_y[row as usize];
                     frame_glyphs.add_char(ach, gx, gy, achar_cols as f32 * char_w, char_h, ascent, false);
                     col += achar_cols;
+                }
+
+                // Restore text face after overlay after-string
+                if overlay_after_face.face_id != 0 && current_face_id >= 0 {
+                    self.apply_face(&self.face_data, frame_glyphs);
                 }
             }
 

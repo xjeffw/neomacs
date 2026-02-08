@@ -2573,7 +2573,9 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
                                    uint8_t *before_buf, int before_buf_len,
                                    int *before_len_out,
                                    uint8_t *after_buf, int after_buf_len,
-                                   int *after_len_out)
+                                   int *after_len_out,
+                                   void *before_face_out,
+                                   void *after_face_out)
 {
   struct buffer *buf = (struct buffer *) buffer_ptr;
   struct window *w = window_ptr ? (struct window *) window_ptr : NULL;
@@ -2583,6 +2585,8 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
 
   if (!buf)
     return -1;
+
+  struct frame *f = w ? XFRAME (w->frame) : NULL;
 
   struct buffer *old = current_buffer;
   set_buffer_internal_1 (buf);
@@ -2596,6 +2600,8 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
 
   int before_offset = 0;
   int after_offset = 0;
+  bool before_face_set = false;
+  bool after_face_set = false;
 
   for (ptrdiff_t i = 0; i < noverlays; i++)
     {
@@ -2626,6 +2632,23 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
                   memcpy (before_buf + before_offset, SDATA (bstr), copy);
                   before_offset += (int) copy;
                 }
+
+              /* Extract overlay face for before-string. */
+              if (!before_face_set && f && before_face_out)
+                {
+                  Lisp_Object oface = Foverlay_get (overlay, Qface);
+                  if (!NILP (oface) && SYMBOLP (oface))
+                    {
+                      int face_id = lookup_named_face (w, f, oface, false);
+                      struct face *face = FACE_FROM_ID_OR_NULL (f, face_id);
+                      if (face)
+                        {
+                          fill_face_data (f, face,
+                                          (struct FaceDataFFI *) before_face_out);
+                          before_face_set = true;
+                        }
+                    }
+                }
             }
         }
 
@@ -2643,6 +2666,23 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
                 {
                   memcpy (after_buf + after_offset, SDATA (astr), copy);
                   after_offset += (int) copy;
+                }
+
+              /* Extract overlay face for after-string. */
+              if (!after_face_set && f && after_face_out)
+                {
+                  Lisp_Object oface = Foverlay_get (overlay, Qface);
+                  if (!NILP (oface) && SYMBOLP (oface))
+                    {
+                      int face_id = lookup_named_face (w, f, oface, false);
+                      struct face *face = FACE_FROM_ID_OR_NULL (f, face_id);
+                      if (face)
+                        {
+                          fill_face_data (f, face,
+                                          (struct FaceDataFFI *) after_face_out);
+                          after_face_set = true;
+                        }
+                    }
                 }
             }
         }
