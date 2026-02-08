@@ -432,6 +432,14 @@ impl LayoutEngine {
         let mut row_continuation = vec![false; max_rows as usize];
         let mut row_truncated = vec![false; max_rows as usize];
 
+        // Per-row Y positions — supports variable row heights from
+        // line-height / line-spacing text properties.
+        let row_capacity = (max_rows + 2) as usize;
+        let mut row_y: Vec<f32> = (0..row_capacity)
+            .map(|r| text_y + r as f32 * char_h)
+            .collect();
+        let mut row_extra_y: f32 = 0.0; // cumulative extra height from previous rows
+
         // Trailing whitespace tracking
         let trailing_ws_bg = if params.show_trailing_whitespace {
             Some(Color::from_pixel(params.trailing_ws_bg))
@@ -509,7 +517,7 @@ impl LayoutEngine {
                 let num_chars = num_str.len() as i32;
                 let padding = (lnum_cols - 1) - num_chars; // -1 for trailing space
 
-                let gy = text_y + row as f32 * char_h;
+                let gy = row_y[row as usize];
 
                 // Leading padding
                 if padding > 0 {
@@ -561,7 +569,7 @@ impl LayoutEngine {
                         if col + pchar_cols > cols { break; }
 
                         let gx = content_x + col as f32 * char_w;
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         frame_glyphs.add_char(
                             pch, gx, gy, pchar_cols as f32 * char_w,
                             char_h, ascent, false,
@@ -588,7 +596,7 @@ impl LayoutEngine {
                 // Render left margin content
                 if left_len > 0 && params.left_margin_width > 0.0 {
                     let margin_x = text_x - params.left_margin_width;
-                    let gy = text_y + row as f32 * char_h;
+                    let gy = row_y[row as usize];
                     let margin_cols = (params.left_margin_width / char_w).floor() as i32;
                     let s = std::str::from_utf8_unchecked(
                         &left_margin_buf[..left_len as usize],
@@ -607,7 +615,7 @@ impl LayoutEngine {
                 // Render right margin content
                 if right_len > 0 && params.right_margin_width > 0.0 {
                     let margin_x = text_x + text_width;
-                    let gy = text_y + row as f32 * char_h;
+                    let gy = row_y[row as usize];
                     let margin_cols = (params.right_margin_width / char_w).floor() as i32;
                     let s = std::str::from_utf8_unchecked(
                         &right_margin_buf[..right_len as usize],
@@ -653,7 +661,7 @@ impl LayoutEngine {
 
                     // When hscroll is done, show $ at left edge
                     if hscroll_remaining <= 0 && show_left_trunc {
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         frame_glyphs.add_char('$', content_x, gy, char_w, char_h, ascent, false);
                         col = 1; // $ takes 1 column
                     }
@@ -685,7 +693,7 @@ impl LayoutEngine {
                     }
                     // Show ellipsis for invis==2
                     if invis == 2 && col + 3 <= cols && row < max_rows {
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         for _ in 0..3 {
                             let dx = content_x + col as f32 * char_w;
                             frame_glyphs.add_char(
@@ -758,7 +766,7 @@ impl LayoutEngine {
                             if row >= max_rows { break; }
                         }
                         let gx = content_x + col as f32 * char_w;
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         frame_glyphs.add_char(bch, gx, gy, bchar_cols as f32 * char_w, char_h, ascent, false);
                         col += bchar_cols;
                     }
@@ -824,7 +832,7 @@ impl LayoutEngine {
                         }
 
                         let gx = content_x + col as f32 * char_w;
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         let glyph_w = dchar_cols as f32 * char_w;
                         frame_glyphs.add_char(dch, gx, gy, glyph_w, char_h, ascent, false);
                         col += dchar_cols;
@@ -867,7 +875,7 @@ impl LayoutEngine {
 
                     if col + space_cols <= cols && row < max_rows {
                         let gx = content_x + col as f32 * char_w;
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         frame_glyphs.add_stretch(
                             gx, gy, space_pixel_w, char_h,
                             face_bg, self.face_data.face_id, false,
@@ -911,7 +919,7 @@ impl LayoutEngine {
                     if target_col > col && row < max_rows {
                         let stretch_cols = target_col - col;
                         let gx = content_x + col as f32 * char_w;
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         let stretch_w = stretch_cols as f32 * char_w;
                         frame_glyphs.add_stretch(
                             gx, gy, stretch_w, char_h,
@@ -939,7 +947,7 @@ impl LayoutEngine {
 
                     if row < max_rows && display_prop.image_gpu_id != 0 {
                         let gx = content_x + col as f32 * char_w;
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         frame_glyphs.add_image(
                             display_prop.image_gpu_id,
                             gx, gy, img_w, img_h,
@@ -1014,7 +1022,7 @@ impl LayoutEngine {
                 cursor_col = col;
                 cursor_row = row;
                 let cursor_x = content_x + col as f32 * char_w;
-                let cursor_y = text_y + row as f32 * char_h;
+                let cursor_y = row_y[row as usize];
 
                 let (cursor_w, cursor_h) = match params.cursor_type {
                     1 => (params.cursor_bar_width.max(1) as f32, char_h), // bar
@@ -1069,7 +1077,7 @@ impl LayoutEngine {
                         if trailing_ws_start_col >= 0 && trailing_ws_row == row {
                             let tw_x = content_x + trailing_ws_start_col as f32 * char_w;
                             let tw_w = (col - trailing_ws_start_col) as f32 * char_w;
-                            let gy = text_y + row as f32 * char_h;
+                            let gy = row_y[row as usize];
                             if tw_w > 0.0 {
                                 frame_glyphs.add_stretch(tw_x, gy, tw_w, char_h, tw_bg, 0, false);
                             }
@@ -1081,11 +1089,28 @@ impl LayoutEngine {
                     let remaining = (cols - col) as f32 * char_w;
                     if remaining > 0.0 {
                         let gx = content_x + col as f32 * char_w;
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         frame_glyphs.add_stretch(gx, gy, remaining, char_h, face_bg, self.face_data.face_id, false);
                     }
                     col = 0;
                     row += 1;
+
+                    // Check line-height / line-spacing text properties on the newline
+                    {
+                        let mut extra_h: f32 = 0.0;
+                        let nl_pos = charpos - 1; // the newline we just consumed
+                        neomacs_layout_check_line_spacing(
+                            buffer, window, nl_pos, char_h, &mut extra_h,
+                        );
+                        if extra_h > 0.0 {
+                            row_extra_y += extra_h;
+                            // Update all remaining row_y entries
+                            for ri in (row as usize)..row_y.len() {
+                                row_y[ri] = text_y + ri as f32 * char_h + row_extra_y;
+                            }
+                        }
+                    }
+
                     current_line += 1;
                     need_line_number = lnum_enabled;
                     need_margin_check = has_margins;
@@ -1115,7 +1140,7 @@ impl LayoutEngine {
                             if indent > params.selective_display {
                                 // Show ... ellipsis once for the hidden block
                                 if !shown_ellipsis && row > 0 {
-                                    let gy = text_y + (row - 1) as f32 * char_h;
+                                    let gy = row_y[(row - 1) as usize];
                                     for dot_i in 0..3i32.min(cols) {
                                         frame_glyphs.add_char(
                                             '.', content_x + dot_i as f32 * char_w,
@@ -1148,7 +1173,7 @@ impl LayoutEngine {
 
                     // Render tab as stretch glyph (use face bg)
                     let gx = content_x + col as f32 * char_w;
-                    let gy = text_y + row as f32 * char_h;
+                    let gy = row_y[row as usize];
                     let tab_pixel_w = spaces as f32 * char_w;
                     frame_glyphs.add_stretch(gx, gy, tab_pixel_w, char_h, face_bg, self.face_data.face_id, false);
 
@@ -1198,7 +1223,7 @@ impl LayoutEngine {
                     if params.selective_display > 0 {
                         // In selective-display mode, \r hides until next \n
                         // Show ... ellipsis
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         if col + 3 <= cols {
                             for dot_i in 0..3 {
                                 frame_glyphs.add_char(
@@ -1237,7 +1262,7 @@ impl LayoutEngine {
                     );
 
                     let gx = content_x + col as f32 * char_w;
-                    let gy = text_y + row as f32 * char_h;
+                    let gy = row_y[row as usize];
 
                     let ctrl_ch = if ch == '\x7F' { '?' } else { char::from((ch as u8) + b'@') };
                     if col + 2 <= cols {
@@ -1288,7 +1313,7 @@ impl LayoutEngine {
                             false, false, 0, None, 0, None, 0, None,
                         );
                         let gx = content_x + col as f32 * char_w;
-                        let gy = text_y + row as f32 * char_h;
+                        let gy = row_y[row as usize];
                         let display_ch = if ch == '\u{00A0}' { ' ' } else { '-' };
                         if col < cols {
                             frame_glyphs.add_char(display_ch, gx, gy, char_w, char_h, ascent, false);
@@ -1306,7 +1331,7 @@ impl LayoutEngine {
                     if is_combining_char(ch) {
                         if col > 0 {
                             let gx = content_x + (col - 1) as f32 * char_w;
-                            let gy = text_y + row as f32 * char_h;
+                            let gy = row_y[row as usize];
                             frame_glyphs.add_char(ch, gx, gy, 0.0, char_h, ascent, false);
                         }
                         // Don't advance column
@@ -1335,7 +1360,7 @@ impl LayoutEngine {
                                 false, false, 0, None, 0, None, 0, None,
                             );
                             let gx = content_x + col as f32 * char_w;
-                            let gy = text_y + row as f32 * char_h;
+                            let gy = row_y[row as usize];
                             match method {
                                 1 => {
                                     // thin-space: 1-pixel-wide stretch
@@ -1424,7 +1449,7 @@ impl LayoutEngine {
                         if params.truncate_lines {
                             // Show $ truncation indicator at right edge
                             let trunc_x = content_x + (cols - 1) as f32 * char_w;
-                            let gy = text_y + row as f32 * char_h;
+                            let gy = row_y[row as usize];
                             frame_glyphs.add_char('$', trunc_x, gy, char_w, char_h, ascent, false);
                             if (row as usize) < row_truncated.len() {
                                 row_truncated[row as usize] = true;
@@ -1453,7 +1478,7 @@ impl LayoutEngine {
                             let fill_cols = cols - wrap_break_col;
                             if fill_cols > 0 {
                                 let gx = content_x + wrap_break_col as f32 * char_w;
-                                let gy = text_y + row as f32 * char_h;
+                                let gy = row_y[row as usize];
                                 frame_glyphs.add_stretch(
                                     gx, gy,
                                     fill_cols as f32 * char_w, char_h,
@@ -1484,7 +1509,7 @@ impl LayoutEngine {
                             let remaining = (cols - col) as f32 * char_w;
                             if remaining > 0.0 {
                                 let gx = content_x + col as f32 * char_w;
-                                let gy = text_y + row as f32 * char_h;
+                                let gy = row_y[row as usize];
                                 frame_glyphs.add_stretch(gx, gy, remaining, char_h, face_bg, self.face_data.face_id, false);
                             }
                             if (row as usize) < row_continued.len() {
@@ -1504,7 +1529,7 @@ impl LayoutEngine {
                     }
 
                     let gx = content_x + col as f32 * char_w;
-                    let gy = text_y + row as f32 * char_h + raise_y_offset;
+                    let gy = row_y[row as usize] + raise_y_offset;
                     let glyph_w = char_cols as f32 * char_w;
 
                     frame_glyphs.add_char(ch, gx, gy, glyph_w, char_h, ascent, false);
@@ -1550,7 +1575,7 @@ impl LayoutEngine {
                         if row >= max_rows { break; }
                     }
                     let gx = content_x + col as f32 * char_w;
-                    let gy = text_y + row as f32 * char_h;
+                    let gy = row_y[row as usize];
                     frame_glyphs.add_char(ach, gx, gy, achar_cols as f32 * char_w, char_h, ascent, false);
                     col += achar_cols;
                 }
@@ -1564,7 +1589,7 @@ impl LayoutEngine {
             cursor_col = col;
             cursor_row = row.min(max_rows - 1);
             let cursor_x = content_x + col as f32 * char_w;
-            let cursor_y = text_y + row.min(max_rows - 1) as f32 * char_h;
+            let cursor_y = row_y[row.min(max_rows - 1) as usize];
 
             let cursor_style = if params.selected {
                 params.cursor_type
@@ -1601,8 +1626,8 @@ impl LayoutEngine {
         // Fill remaining rows with default background
         let filled_rows = row + 1;
         if filled_rows < max_rows {
-            let gy = text_y + filled_rows as f32 * char_h;
-            let remaining_h = text_height - filled_rows as f32 * char_h;
+            let gy = row_y[filled_rows as usize];
+            let remaining_h = (text_y + text_height) - row_y[filled_rows as usize];
             if remaining_h > 0.0 {
                 frame_glyphs.add_stretch(text_x, gy, text_width, remaining_h, default_bg, 0, false);
             }
@@ -1618,7 +1643,7 @@ impl LayoutEngine {
             );
 
             for r in 0..actual_rows as usize {
-                let gy = text_y + r as f32 * char_h;
+                let gy = row_y[r];
 
                 // Right fringe: continuation indicator for wrapped lines
                 if right_fringe_width >= char_w && row_continued.get(r).copied().unwrap_or(false) {
@@ -1646,7 +1671,7 @@ impl LayoutEngine {
             if params.indicate_empty_lines > 0 {
                 let eob_start = actual_rows;
                 for r in eob_start as usize..max_rows as usize {
-                    let gy = text_y + r as f32 * char_h;
+                    let gy = row_y[r];
                     if params.indicate_empty_lines == 2 {
                         // Right fringe
                         if right_fringe_width >= char_w {
@@ -1677,9 +1702,9 @@ impl LayoutEngine {
 
             // Draw indicator character at the fill column on each row
             if fci_col < cols {
-                for r in 0..max_rows {
+                for r in 0..max_rows as usize {
                     let gx = content_x + fci_col as f32 * char_w;
-                    let gy = text_y + r as f32 * char_h;
+                    let gy = row_y[r];
                     frame_glyphs.add_char(fci_char, gx, gy, char_w, char_h, ascent, false);
                 }
             }
@@ -1741,7 +1766,7 @@ impl LayoutEngine {
         neomacs_layout_set_cursor(
             wp.window_ptr,
             (content_x + cursor_col as f32 * char_w) as i32,
-            (text_y + cursor_row as f32 * char_h) as i32,
+            (row_y[cursor_row as usize]) as i32,
             cursor_col,
             cursor_row,
         );

@@ -297,6 +297,20 @@ extern "C" {
         right_buf_len: c_int,
         right_len_out: *mut c_int,
     ) -> c_int;
+
+    // ========================================================================
+    // Line height / spacing
+    // ========================================================================
+
+    /// Check line-height and line-spacing text properties at a position.
+    /// Returns extra height (pixels) beyond base_height for the row.
+    pub fn neomacs_layout_check_line_spacing(
+        buffer: EmacsBuffer,
+        window: EmacsWindow,
+        charpos: i64,
+        base_height: f32,
+        extra_height_out: *mut f32,
+    ) -> c_int;
 }
 
 /// FFI-safe line number configuration struct.

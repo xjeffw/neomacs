@@ -2800,6 +2800,75 @@ neomacs_layout_margin_strings_at (void *buffer_ptr, void *window_ptr,
   return 0;
 }
 
+/* Check line-height and line-spacing text properties at CHARPOS.
+   Returns extra height (in pixels) beyond BASE_HEIGHT that should
+   be added to the row containing this position.
+   line-height can be: integer (pixel height), float (multiplier).
+   line-spacing can be: integer (extra pixels), float (fraction of height). */
+int
+neomacs_layout_check_line_spacing (void *buffer_ptr, void *window_ptr,
+                                   int64_t charpos, float base_height,
+                                   float *extra_height_out)
+{
+  struct buffer *buf = (struct buffer *) buffer_ptr;
+  struct window *w = (struct window *) window_ptr;
+  if (!buf || !w || !extra_height_out)
+    return -1;
+
+  struct buffer *old = current_buffer;
+  set_buffer_internal_1 (buf);
+
+  *extra_height_out = 0.0f;
+
+  ptrdiff_t zv = BUF_ZV (buf);
+  if (charpos < BUF_BEGV (buf) || charpos >= zv)
+    {
+      set_buffer_internal_1 (old);
+      return 0;
+    }
+
+  Lisp_Object pos = make_fixnum (charpos);
+
+  /* Check line-height text property. */
+  Lisp_Object line_height = Fget_char_property (pos, Qline_height, Qnil);
+  if (!NILP (line_height))
+    {
+      if (FIXNUMP (line_height))
+        {
+          int h = XFIXNUM (line_height);
+          if ((float) h > base_height)
+            *extra_height_out += (float) h - base_height;
+        }
+      else if (FLOATP (line_height))
+        {
+          float h = (float) (XFLOAT_DATA (line_height) * (double) base_height);
+          if (h > base_height)
+            *extra_height_out += h - base_height;
+        }
+    }
+
+  /* Check line-spacing text property. */
+  Lisp_Object line_spacing = Fget_char_property (pos, Qline_spacing, Qnil);
+  if (!NILP (line_spacing))
+    {
+      if (FIXNUMP (line_spacing))
+        {
+          int s = XFIXNUM (line_spacing);
+          if (s > 0)
+            *extra_height_out += (float) s;
+        }
+      else if (FLOATP (line_spacing))
+        {
+          float s = (float) (XFLOAT_DATA (line_spacing) * (double) base_height);
+          if (s > 0.0f)
+            *extra_height_out += s;
+        }
+    }
+
+  set_buffer_internal_1 (old);
+  return 0;
+}
+
 /* Walk current_matrix for ALL windows in the frame and extract complete
    glyph data.  Called from neomacs_update_end after Emacs has finished
    all window updates.  This replaces the incremental glyph accumulation
