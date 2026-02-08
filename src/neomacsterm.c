@@ -816,25 +816,31 @@ neomacs_extract_window_glyphs (struct window *w, void *user_data)
 
                 case COMPOSITE_GLYPH:
                   {
-                    /* For automatic compositions (e.g. emoji), extract characters
-                       from the composition using lgstring (grapheme cluster string). */
+                    /* For automatic compositions (e.g. emoji, combining chars),
+                       iterate through all sub-glyphs and apply positioning
+                       offsets from the lgstring (grapheme cluster string). */
                     if (glyph->u.cmp.automatic)
                       {
                         int cmp_id = glyph->u.cmp.id;
                         int cmp_from = glyph->slice.cmp.from;
+                        int cmp_to = glyph->slice.cmp.to;
                         Lisp_Object gstring = composition_gstring_from_id (cmp_id);
 
                         if (!NILP (gstring))
                           {
-                            Lisp_Object glyph_obj = LGSTRING_GLYPH (gstring, cmp_from);
-                            if (!NILP (glyph_obj))
+                            int total_width = glyph->pixel_width;
+                            int width_used = 0;
+
+                            for (int gi = cmp_from; gi < cmp_to; gi++)
                               {
+                                Lisp_Object glyph_obj = LGSTRING_GLYPH (gstring, gi);
+                                if (NILP (glyph_obj))
+                                  break;
+
                                 unsigned int charcode = LGLYPH_CHAR (glyph_obj);
 
-                                /* Use face_for_char to resolve the correct font face
-                                   for this character.  For emoji, this finds the emoji
-                                   font (e.g. Noto Color Emoji) via fontset fallback,
-                                   rather than using the base text font (e.g. Hack).  */
+                                /* Resolve correct font face for this character
+                                   (e.g. emoji font via fontset fallback). */
                                 int char_face_id = face_for_char (f, face, charcode, -1, Qnil);
                                 struct face *char_face = FACE_FROM_ID_OR_NULL (f, char_face_id);
                                 if (!char_face)
@@ -848,39 +854,78 @@ neomacs_extract_window_glyphs (struct window *w, void *user_data)
 
                                 int ascent_val = char_face->font ? FONT_BASE (char_face->font) : row->ascent;
                                 int descent_val = char_face->font ? FONT_DESCENT (char_face->font) : 0;
+
+                                /* Check for positioning adjustments (xoff, yoff, wadjust).
+                                   Combining characters have offsets relative to the base. */
+                                int glyph_width;
+                                if (!NILP (LGLYPH_ADJUSTMENT (glyph_obj)))
+                                  {
+                                    /* Glyph has explicit positioning — render as
+                                       zero-width so the renderer positions it
+                                       using its own shaping.  The character is
+                                       sent with the total composition width only
+                                       for the first sub-glyph. */
+                                    glyph_width = LGLYPH_WADJUST (glyph_obj);
+                                  }
+                                else
+                                  {
+                                    glyph_width = LGLYPH_WIDTH (glyph_obj);
+                                  }
+
+                                /* For the first glyph, use remaining total width
+                                   if this is the only glyph.  For multi-glyph
+                                   compositions, use the individual glyph widths. */
+                                int effective_width;
+                                if (gi == cmp_from && cmp_to - cmp_from == 1)
+                                  effective_width = total_width;
+                                else
+                                  effective_width = glyph_width;
+
                                 neomacs_display_add_char_glyph (handle, charcode,
                                                                 (uint32_t) char_face_id,
-                                                                glyph->pixel_width,
+                                                                effective_width,
                                                                 ascent_val, descent_val);
+                                width_used += effective_width;
                               }
                           }
                       }
                     else
                       {
-                        /* Non-automatic (static) composition - use composition table */
+                        /* Non-automatic (static) composition - use composition table.
+                           Render all glyphs in the composition with their offsets. */
                         int cmp_id = glyph->u.cmp.id;
                         struct composition *cmp = composition_table[cmp_id];
                         if (cmp && cmp->glyph_len > 0)
                           {
-                            unsigned int charcode = COMPOSITION_GLYPH (cmp, 0);
+                            int total_width = glyph->pixel_width;
 
-                            int char_face_id = face_for_char (f, face, charcode, -1, Qnil);
-                            struct face *char_face = FACE_FROM_ID_OR_NULL (f, char_face_id);
-                            if (!char_face)
-                              char_face = face;
-
-                            if (char_face_id != last_face_id)
+                            for (int gi = 0; gi < cmp->glyph_len; gi++)
                               {
-                                neomacs_send_face (handle, f, char_face);
-                                last_face_id = char_face_id;
-                              }
+                                unsigned int charcode = COMPOSITION_GLYPH (cmp, gi);
 
-                            int ascent_val = char_face->font ? FONT_BASE (char_face->font) : row->ascent;
-                            int descent_val = char_face->font ? FONT_DESCENT (char_face->font) : 0;
-                            neomacs_display_add_char_glyph (handle, charcode,
-                                                            (uint32_t) char_face_id,
-                                                            glyph->pixel_width,
-                                                            ascent_val, descent_val);
+                                int char_face_id = face_for_char (f, face, charcode, -1, Qnil);
+                                struct face *char_face = FACE_FROM_ID_OR_NULL (f, char_face_id);
+                                if (!char_face)
+                                  char_face = face;
+
+                                if (char_face_id != last_face_id)
+                                  {
+                                    neomacs_send_face (handle, f, char_face);
+                                    last_face_id = char_face_id;
+                                  }
+
+                                int ascent_val = char_face->font ? FONT_BASE (char_face->font) : row->ascent;
+                                int descent_val = char_face->font ? FONT_DESCENT (char_face->font) : 0;
+
+                                /* First glyph gets total width, subsequent are
+                                   zero-width (rendered atop the first). */
+                                int effective_width = (gi == 0) ? total_width : 0;
+
+                                neomacs_display_add_char_glyph (handle, charcode,
+                                                                (uint32_t) char_face_id,
+                                                                effective_width,
+                                                                ascent_val, descent_val);
+                              }
                           }
                       }
                   }
