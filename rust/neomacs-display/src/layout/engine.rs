@@ -1788,6 +1788,7 @@ impl LayoutEngine {
         // Apply face
         self.apply_face(&line_face, frame_glyphs);
         let bg = Color::from_pixel(line_face.bg);
+        let default_fg = Color::from_pixel(line_face.fg);
 
         // Draw background
         frame_glyphs.add_stretch(x, y, width, height, bg, line_face.face_id, true);
@@ -1796,13 +1797,85 @@ impl LayoutEngine {
             return;
         }
 
-        // Render text
-        let text = &line_buf[..bytes as usize];
+        // Extract text length and face run count from packed return value
+        let text_len = (bytes & 0xFFFFFFFF) as usize;
+        let nruns = (bytes >> 32) as usize;
+
+        let text = &line_buf[..text_len];
+
+        // Parse face runs: each run is 10 bytes (u16 byte_offset, u32 fg, u32 bg)
+        // stored after text data
+        struct FaceRun {
+            byte_offset: u16,
+            fg: u32,
+            bg: u32,
+        }
+        let mut face_runs: Vec<FaceRun> = Vec::with_capacity(nruns);
+        if nruns > 0 {
+            let runs_start = text_len;
+            for i in 0..nruns {
+                let off = runs_start + i * 10;
+                if off + 10 <= line_buf.len() {
+                    let byte_offset = u16::from_ne_bytes([
+                        line_buf[off], line_buf[off + 1],
+                    ]);
+                    let fg = u32::from_ne_bytes([
+                        line_buf[off + 2], line_buf[off + 3],
+                        line_buf[off + 4], line_buf[off + 5],
+                    ]);
+                    let bg_val = u32::from_ne_bytes([
+                        line_buf[off + 6], line_buf[off + 7],
+                        line_buf[off + 8], line_buf[off + 9],
+                    ]);
+                    face_runs.push(FaceRun {
+                        byte_offset,
+                        fg,
+                        bg: bg_val,
+                    });
+                }
+            }
+        }
+
+        // Render text with face runs
         let cols = (width / char_w).floor() as i32;
         let mut col = 0i32;
         let mut byte_idx = 0usize;
+        let mut current_run = 0usize;
 
         while byte_idx < text.len() && col < cols {
+            // Check if we need to switch face for this byte position
+            if current_run < face_runs.len() {
+                let next_run = if current_run + 1 < face_runs.len() {
+                    current_run + 1
+                } else {
+                    face_runs.len()
+                };
+                // Move to the correct run for this byte position
+                while next_run < face_runs.len()
+                    && byte_idx >= face_runs[next_run].byte_offset as usize
+                {
+                    // Already past this run, skip
+                    break;
+                }
+                if byte_idx >= face_runs[current_run].byte_offset as usize {
+                    // Check if next run starts here or we're in current run
+                    if current_run + 1 < face_runs.len()
+                        && byte_idx >= face_runs[current_run + 1].byte_offset as usize
+                    {
+                        current_run += 1;
+                    }
+                    let run = &face_runs[current_run];
+                    if run.fg != 0 || run.bg != 0 {
+                        let run_fg = Color::from_pixel(run.fg);
+                        let run_bg = Color::from_pixel(run.bg);
+                        frame_glyphs.set_face(
+                            line_face.face_id, run_fg, Some(run_bg),
+                            false, false, 0, None, 0, None, 0, None,
+                        );
+                    }
+                }
+            }
+
             let (ch, ch_len) = decode_utf8(&text[byte_idx..]);
             byte_idx += ch_len;
 
@@ -1814,6 +1887,12 @@ impl LayoutEngine {
             frame_glyphs.add_char(ch, gx, y, char_w, height, ascent, true);
             col += 1;
         }
+
+        // Restore default mode-line face
+        frame_glyphs.set_face(
+            line_face.face_id, default_fg, Some(bg),
+            false, false, 0, None, 0, None, 0, None,
+        );
 
         // Fill remaining with background
         if col < cols {

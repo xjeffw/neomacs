@@ -1872,11 +1872,14 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
   struct buffer *old = current_buffer;
   set_buffer_internal_1 (buf);
 
-  /* Call (format-mode-line FORMAT 0 WINDOW BUFFER)
-     face arg = 0 (integer) means return plain string without text properties */
+  /* Call (format-mode-line FORMAT FACE WINDOW BUFFER)
+     Use the mode-line face to get propertized string with face text properties
+     from :propertize specs. */
+  Lisp_Object face_sym = selected
+    ? Qmode_line_active : Qmode_line_inactive;
   Lisp_Object window_obj;
   XSETWINDOW (window_obj, w);
-  Lisp_Object result = Fformat_mode_line (format, make_fixnum (0),
+  Lisp_Object result = Fformat_mode_line (format, face_sym,
                                            window_obj, w->contents);
 
   set_buffer_internal_1 (old);
@@ -1889,6 +1892,86 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
     len = out_buf_len;
 
   memcpy (out_buf, SDATA (result), len);
+
+  /* Extract face runs from the propertized string.
+     Walk character positions and detect face changes.
+     Store face runs in the face_runs area (if provided via out_buf after text).
+     Format: each run = { uint16_t byte_offset, uint32_t fg, uint32_t bg }
+     Total = 10 bytes per run.  Stored after text data if space permits. */
+  if (string_intervals (result) && len + 10 <= out_buf_len)
+    {
+      /* Extract per-character face properties from the string. */
+      ptrdiff_t charpos = 0;
+      ptrdiff_t nchars = SCHARS (result);
+      ptrdiff_t run_offset = len;
+      int nruns = 0;
+      int max_runs = (int) ((out_buf_len - len) / 10);
+      uint32_t prev_fg = 0xFFFFFFFF;
+      uint32_t prev_bg = 0xFFFFFFFF;
+
+      while (charpos < nchars && nruns < max_runs)
+        {
+          /* Get face property at this position */
+          Lisp_Object face_prop
+            = Fget_text_property (make_fixnum (charpos), Qface, result);
+
+          /* Find next change */
+          Lisp_Object next_change
+            = Fnext_single_property_change (make_fixnum (charpos), Qface,
+                                             result, Qnil);
+          ptrdiff_t next_pos = NILP (next_change)
+            ? nchars : XFIXNUM (next_change);
+
+          /* Resolve face to colors */
+          uint32_t fg = 0, bg = 0;
+          if (!NILP (face_prop))
+            {
+              int rid = lookup_named_face (w, f,
+                                           SYMBOLP (face_prop)
+                                           ? face_prop : Qdefault,
+                                           false);
+              if (rid >= 0)
+                {
+                  struct face *rf = FACE_FROM_ID_OR_NULL (f, rid);
+                  if (rf)
+                    {
+                      unsigned long c = rf->foreground;
+                      fg = ((RED_FROM_ULONG (c) << 16)
+                            | (GREEN_FROM_ULONG (c) << 8)
+                            | BLUE_FROM_ULONG (c));
+                      c = rf->background;
+                      bg = ((RED_FROM_ULONG (c) << 16)
+                            | (GREEN_FROM_ULONG (c) << 8)
+                            | BLUE_FROM_ULONG (c));
+                    }
+                }
+            }
+
+          /* Only emit a run if colors changed */
+          if (fg != prev_fg || bg != prev_bg)
+            {
+              /* Get byte offset for this charpos */
+              ptrdiff_t byte_off = string_char_to_byte (result, charpos);
+              if (byte_off > 0xFFFF) byte_off = 0xFFFF;
+              uint16_t boff = (uint16_t) byte_off;
+              memcpy (out_buf + run_offset, &boff, 2);
+              memcpy (out_buf + run_offset + 2, &fg, 4);
+              memcpy (out_buf + run_offset + 6, &bg, 4);
+              run_offset += 10;
+              nruns++;
+              prev_fg = fg;
+              prev_bg = bg;
+            }
+
+          charpos = next_pos;
+        }
+
+      /* Store number of runs as a negative return value offset:
+         actual return = text_len | (nruns << 32) packed as int64_t */
+      if (nruns > 0)
+        return (int64_t) len | ((int64_t) nruns << 32);
+    }
+
   return (int64_t) len;
 }
 
