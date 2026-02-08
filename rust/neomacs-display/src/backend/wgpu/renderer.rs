@@ -4974,12 +4974,16 @@ impl WgpuRenderer {
     pub fn render_fps_overlay(
         &self,
         view: &wgpu::TextureView,
-        fps_text: &str,
+        lines: &[String],
         glyph_atlas: &mut WgpuGlyphAtlas,
         surface_width: u32,
         surface_height: u32,
     ) {
         use wgpu::util::DeviceExt;
+
+        if lines.is_empty() {
+            return;
+        }
 
         let logical_w = surface_width as f32 / self.scale_factor;
         let logical_h = surface_height as f32 / self.scale_factor;
@@ -4993,9 +4997,15 @@ impl WgpuRenderer {
         let char_width = glyph_atlas.default_font_size() * 0.6;
         let line_height = glyph_atlas.default_line_height();
         let padding = 4.0_f32;
-        let text_w = fps_text.len() as f32 * char_width;
-        let badge_w = text_w + padding * 2.0;
-        let badge_h = line_height + padding * 2.0;
+        let line_spacing = 2.0_f32;
+
+        // Badge size: width = longest line, height = all lines
+        let max_text_w = lines.iter()
+            .map(|l| l.len() as f32 * char_width)
+            .fold(0.0_f32, f32::max);
+        let num_lines = lines.len() as f32;
+        let badge_w = max_text_w + padding * 2.0;
+        let badge_h = num_lines * line_height + (num_lines - 1.0) * line_spacing + padding * 2.0;
         let badge_x = logical_w - badge_w - 4.0;
         let badge_y = 4.0;
 
@@ -5038,19 +5048,22 @@ impl WgpuRenderer {
         let text_color = [0.0_f32, 1.0, 0.0, 1.0]; // green in linear
         let font_size_bits = 0.0_f32.to_bits();
         let mut overlay_glyphs: Vec<(GlyphKey, f32, f32, [f32; 4])> = Vec::new();
-        for (ci, ch) in fps_text.chars().enumerate() {
-            let key = GlyphKey {
-                charcode: ch as u32,
-                face_id: 0,
-                font_size_bits,
-            };
-            glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
-            overlay_glyphs.push((
-                key,
-                badge_x + padding + ci as f32 * char_width,
-                badge_y + padding,
-                text_color,
-            ));
+        for (li, line) in lines.iter().enumerate() {
+            let y = badge_y + padding + li as f32 * (line_height + line_spacing);
+            for (ci, ch) in line.chars().enumerate() {
+                let key = GlyphKey {
+                    charcode: ch as u32,
+                    face_id: 0,
+                    font_size_bits,
+                };
+                glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
+                overlay_glyphs.push((
+                    key,
+                    badge_x + padding + ci as f32 * char_width,
+                    y,
+                    text_color,
+                ));
+            }
         }
         self.render_overlay_glyphs(view, &mut overlay_glyphs, glyph_atlas);
     }

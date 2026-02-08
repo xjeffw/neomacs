@@ -615,6 +615,10 @@ struct RenderApp {
     fps_last_instant: std::time::Instant,
     fps_frame_count: u32,
     fps_display_value: f32,
+    /// Frame time tracking (ms per frame, smoothed)
+    fps_frame_time_ms: f32,
+    /// Last render start time for measuring frame time
+    fps_render_start: std::time::Instant,
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -767,6 +771,8 @@ impl RenderApp {
             fps_last_instant: std::time::Instant::now(),
             fps_frame_count: 0,
             fps_display_value: 0.0,
+            fps_frame_time_ms: 0.0,
+            fps_render_start: std::time::Instant::now(),
         }
     }
 
@@ -2417,6 +2423,7 @@ impl RenderApp {
 
         // FPS tracking
         if self.show_fps {
+            self.fps_render_start = std::time::Instant::now();
             self.fps_frame_count += 1;
             let elapsed = self.fps_last_instant.elapsed();
             if elapsed.as_secs_f32() >= 1.0 {
@@ -2673,15 +2680,35 @@ impl RenderApp {
             }
         }
 
-        // Render FPS counter overlay (topmost)
+        // Render FPS counter overlay (topmost) with profiling stats
         if self.show_fps {
+            // Measure frame time
+            let frame_time = self.fps_render_start.elapsed().as_secs_f32() * 1000.0;
+            // Exponential moving average (smooth over ~10 frames)
+            self.fps_frame_time_ms = self.fps_frame_time_ms * 0.9 + frame_time * 0.1;
+
+            // Gather stats
+            let glyph_count = self.current_frame.as_ref()
+                .map(|f| f.glyphs.len())
+                .unwrap_or(0);
+            let window_count = self.current_frame.as_ref()
+                .map(|f| f.window_infos.len())
+                .unwrap_or(0);
+            let transition_count = self.crossfades.len() + self.scroll_slides.len();
+
+            // Build multi-line stats text
+            let stats_lines = vec![
+                format!("{:.0} FPS | {:.1}ms", self.fps_display_value, self.fps_frame_time_ms),
+                format!("{}g {}w {}t  {}x{}", glyph_count, window_count,
+                    transition_count, self.width, self.height),
+            ];
+
             if let (Some(ref renderer), Some(ref mut glyph_atlas)) =
                 (&self.renderer, &mut self.glyph_atlas)
             {
-                let fps_text = format!("{:.0} FPS", self.fps_display_value);
                 renderer.render_fps_overlay(
                     &surface_view,
-                    &fps_text,
+                    &stats_lines,
                     glyph_atlas,
                     self.width,
                     self.height,
