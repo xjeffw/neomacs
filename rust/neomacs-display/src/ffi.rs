@@ -2010,6 +2010,19 @@ pub unsafe extern "C" fn neomacs_display_set_position(
     }
 }
 
+/// Request window inner size change (threaded mode)
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_request_size(
+    _handle: *mut NeomacsDisplay,
+    width: c_int,
+    height: c_int,
+) {
+    let cmd = RenderCommand::SetWindowSize { width: width as u32, height: height as u32 };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure cursor blinking (enable/disable and interval)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_cursor_blink(

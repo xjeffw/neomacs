@@ -790,6 +790,12 @@ impl RenderApp {
                         window.set_outer_position(winit::dpi::PhysicalPosition::new(x, y));
                     }
                 }
+                RenderCommand::SetWindowSize { width, height } => {
+                    if let Some(ref window) = self.window {
+                        let size = winit::dpi::PhysicalSize::new(width, height);
+                        let _ = window.request_inner_size(size);
+                    }
+                }
                 RenderCommand::SetCursorBlink { enabled, interval_ms } => {
                     log::debug!("Cursor blink: enabled={}, interval={}ms", enabled, interval_ms);
                     self.cursor_blink_enabled = enabled;

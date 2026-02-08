@@ -3973,9 +3973,8 @@ neomacs_set_window_size (struct frame *f, bool change_gravity,
   struct neomacs_output *output = FRAME_NEOMACS_OUTPUT (f);
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
 
-  if (!output || !output->widget)
+  if (!output)
     return;
-
 
   block_input ();
 
@@ -3983,15 +3982,16 @@ neomacs_set_window_size (struct frame *f, bool change_gravity,
   output->pixel_width = width;
   output->pixel_height = height;
 
-  /* For GPU widget, also update the glyph buffer dimensions */
-  if (output->use_gpu_widget && dpyinfo && dpyinfo->display_handle)
+  /* Update the glyph buffer dimensions (threaded and GPU widget modes) */
+  if (dpyinfo && dpyinfo->display_handle)
     {
       neomacs_display_resize (dpyinfo->display_handle, width, height);
-      /* Clear glyph buffer to force full redraw after resize */
       neomacs_display_clear_all_glyphs (dpyinfo->display_handle);
+      /* Request the winit window to resize */
+      neomacs_display_request_size (dpyinfo->display_handle, width, height);
     }
 
-  /* Set the widget size request - this tells GTK the minimum size */
+  /* Set the widget size request (GTK widget mode) */
   if (output->drawing_area)
     {
       gtk_widget_set_size_request (GTK_WIDGET (output->drawing_area),
@@ -3999,14 +3999,10 @@ neomacs_set_window_size (struct frame *f, bool change_gravity,
     }
 
   /* For GTK4 top-level windows, set default size and queue resize */
-  if (GTK_IS_WINDOW (output->widget))
+  if (output->widget && GTK_IS_WINDOW (output->widget))
     {
       GtkWindow *window = GTK_WINDOW (output->widget);
-
-      /* Set the default size */
       gtk_window_set_default_size (window, width, height);
-
-      /* For GTK4, we need to also set resizable and then queue resize */
       gtk_window_set_resizable (window, TRUE);
       gtk_widget_queue_resize (GTK_WIDGET (window));
     }

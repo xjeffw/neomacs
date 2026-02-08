@@ -149,6 +149,8 @@ pub enum RenderCommand {
     SetWindowMinimized { minimized: bool },
     /// Set window position
     SetWindowPosition { x: i32, y: i32 },
+    /// Request window inner size change
+    SetWindowSize { width: u32, height: u32 },
     /// Configure cursor blinking
     SetCursorBlink { enabled: bool, interval_ms: u32 },
     /// Configure cursor animation (smooth motion)
