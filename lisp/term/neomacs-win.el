@@ -415,6 +415,25 @@ is drawn by the render thread.  When disabled the title bar is hidden."
   :init-value nil
   (neomacs-set-titlebar-height (if neomacs-custom-titlebar-mode 30 0)))
 
+;;; Borderless mode toggle
+
+(defun neomacs-toggle-decorations (&optional frame)
+  "Toggle between decorated and borderless window mode.
+In borderless mode, enable the custom title bar and rounded corners.
+In decorated mode, disable them."
+  (interactive)
+  (let* ((f (or frame (selected-frame)))
+         (currently-undecorated (frame-parameter f 'undecorated))
+         (go-borderless (not currently-undecorated)))
+    (set-frame-parameter f 'undecorated go-borderless)
+    (when (fboundp 'neomacs-set-titlebar-height)
+      (neomacs-set-titlebar-height (if go-borderless 30 0)))
+    (when (fboundp 'neomacs-set-corner-radius)
+      (neomacs-set-corner-radius
+       (if go-borderless
+           (if (boundp 'neomacs-corner-radius) neomacs-corner-radius 8)
+         0)))))
+
 ;;; Rounded corners
 
 (declare-function neomacs-set-corner-radius "neomacsterm.c" (radius))
