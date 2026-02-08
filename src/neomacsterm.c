@@ -1768,6 +1768,146 @@ neomacs_layout_tab_line_text (void *window_ptr, void *frame_ptr,
   return (int64_t) len;
 }
 
+/* FFI struct for line number configuration.
+   Matches Rust LineNumberConfigFFI.  */
+struct LineNumberConfigFFI {
+  int mode;        /* 0=off, 1=absolute, 2=relative, 3=visual */
+  int width;       /* Column width for line numbers */
+  int offset;      /* display-line-numbers-offset */
+  int major_tick;  /* display-line-numbers-major-tick */
+  int minor_tick;  /* display-line-numbers-minor-tick */
+  int current_absolute; /* show absolute for current line */
+  int widen;       /* count from buffer BEG */
+};
+
+/* Get line number display configuration for a window.
+   Returns 0 on success, -1 on error.  */
+int
+neomacs_layout_line_number_config (void *window_ptr,
+                                   void *buffer_ptr,
+                                   int64_t buffer_zv,
+                                   int max_rows,
+                                   void *config_out)
+{
+  struct window *w = (struct window *) window_ptr;
+  struct buffer *buf = (struct buffer *) buffer_ptr;
+  struct LineNumberConfigFFI *cfg
+    = (struct LineNumberConfigFFI *) config_out;
+
+  if (!w || !buf || !cfg)
+    return -1;
+
+  struct buffer *old = current_buffer;
+  set_buffer_internal_1 (buf);
+
+  /* Check if line numbers are enabled.  */
+  if (NILP (Vdisplay_line_numbers))
+    {
+      cfg->mode = 0;
+      set_buffer_internal_1 (old);
+      return 0;
+    }
+  else if (EQ (Vdisplay_line_numbers, Qrelative))
+    cfg->mode = 2;
+  else if (EQ (Vdisplay_line_numbers, Qvisual))
+    cfg->mode = 3;
+  else
+    cfg->mode = 1;
+
+  cfg->offset = display_line_numbers_offset;
+  cfg->major_tick = display_line_numbers_major_tick;
+  cfg->minor_tick = display_line_numbers_minor_tick;
+  cfg->current_absolute
+    = !NILP (Vdisplay_line_numbers_current_absolute) ? 1 : 0;
+  cfg->widen = display_line_numbers_widen ? 1 : 0;
+
+  /* Calculate width: digits needed for max line number.  */
+  ptrdiff_t max_line = buffer_zv;  /* conservative estimate */
+  int digits = 1;
+  while (max_line >= 10)
+    {
+      max_line /= 10;
+      digits++;
+    }
+
+  /* Check fixed width from variable.  */
+  if (FIXNATP (Vdisplay_line_numbers_width)
+      && XFIXNUM (Vdisplay_line_numbers_width) > digits)
+    digits = XFIXNUM (Vdisplay_line_numbers_width);
+
+  /* Add 1 column for space padding after number.  */
+  cfg->width = digits + 1;
+
+  set_buffer_internal_1 (old);
+  return 0;
+}
+
+/* Count the line number at a character position.
+   Returns the 1-based line number.
+   If widen is nonzero, count from buffer BEG;
+   otherwise from BEGV (respects narrowing).  */
+int64_t
+neomacs_layout_count_line_number (void *buffer_ptr,
+                                  int64_t charpos, int widen)
+{
+  struct buffer *buf = (struct buffer *) buffer_ptr;
+  if (!buf)
+    return 1;
+
+  struct buffer *old = current_buffer;
+  set_buffer_internal_1 (buf);
+
+  ptrdiff_t start;
+  if (widen)
+    start = BUF_BEG_BYTE (buf);
+  else
+    start = BUF_BEGV_BYTE (buf);
+
+  ptrdiff_t pos_byte = buf_charpos_to_bytepos (buf, charpos);
+  ptrdiff_t lines = count_lines (start, pos_byte);
+
+  set_buffer_internal_1 (old);
+  return (int64_t) (lines + 1);  /* 1-based */
+}
+
+/* Resolve the face for a line number and fill FaceDataFFI.
+   is_current: nonzero if this is the line containing point.
+   lnum: the line number (for tick highlighting).
+   Returns 0 on success.  */
+int
+neomacs_layout_line_number_face (void *window_ptr,
+                                  int is_current,
+                                  int64_t lnum,
+                                  int major_tick,
+                                  int minor_tick,
+                                  void *face_out)
+{
+  struct window *w = (struct window *) window_ptr;
+  if (!w)
+    return -1;
+
+  struct frame *f = XFRAME (w->frame);
+
+  /* Choose face symbol.  */
+  Lisp_Object face_name = Qline_number;
+  if (is_current)
+    face_name = Qline_number_current_line;
+  else if (major_tick > 0 && lnum % major_tick == 0)
+    face_name = Qline_number_major_tick;
+  else if (minor_tick > 0 && lnum % minor_tick == 0)
+    face_name = Qline_number_minor_tick;
+
+  int face_id = merge_faces (w, face_name, 0, DEFAULT_FACE_ID);
+  struct face *face = FACE_FROM_ID_OR_NULL (f, face_id);
+  if (!face)
+    face = FACE_FROM_ID_OR_NULL (f, DEFAULT_FACE_ID);
+
+  if (face && face_out)
+    fill_face_data (f, face, (struct FaceDataFFI *) face_out);
+
+  return 0;
+}
+
 /* Get a byte from buffer text at a byte position. */
 int
 neomacs_layout_buffer_byte_at (void *buffer_ptr, int64_t byte_pos)

@@ -219,13 +219,29 @@ impl LayoutEngine {
         let char_h = params.char_height;
         let ascent = params.font_ascent;
 
-        // How many columns and rows fit
-        let cols = (text_width / char_w).floor() as i32;
+        // Check line number configuration
+        let mut lnum_config = LineNumberConfigFFI::default();
+        let lnum_enabled = neomacs_layout_line_number_config(
+            window,
+            buffer,
+            params.buffer_size,
+            (text_height / char_h).floor() as i32,
+            &mut lnum_config,
+        ) == 0 && lnum_config.mode > 0;
+
+        let lnum_cols = if lnum_enabled { lnum_config.width } else { 0 };
+        let lnum_pixel_width = lnum_cols as f32 * char_w;
+
+        // How many columns and rows fit (accounting for line numbers)
+        let cols = ((text_width - lnum_pixel_width) / char_w).floor() as i32;
         let max_rows = (text_height / char_h).floor() as i32;
 
         if cols <= 0 || max_rows <= 0 {
             return;
         }
+
+        // Effective text start X (shifted right for line numbers)
+        let content_x = text_x + lnum_pixel_width;
 
         // Trigger fontification (jit-lock) for the visible region so that
         // face text properties are set before we read them.
@@ -278,6 +294,24 @@ impl LayoutEngine {
         // Invisible text state: next charpos where we need to re-check
         let mut next_invis_check: i64 = params.window_start;
 
+        // Line number state
+        let mut current_line: i64 = if lnum_enabled {
+            neomacs_layout_count_line_number(
+                buffer, params.window_start, lnum_config.widen,
+            )
+        } else {
+            1
+        };
+        let point_line: i64 = if lnum_enabled && lnum_config.mode >= 2 {
+            neomacs_layout_count_line_number(
+                buffer, params.point, lnum_config.widen,
+            )
+        } else {
+            0
+        };
+        let mut lnum_face = FaceDataFFI::default();
+        let mut need_line_number = lnum_enabled; // render on first row
+
         // Walk through text, placing characters on the grid
         let mut col = 0i32;
         let mut row = 0i32;
@@ -287,6 +321,88 @@ impl LayoutEngine {
         let mut byte_idx = 0usize;
 
         while byte_idx < bytes_read as usize && row < max_rows {
+            // Render line number at the start of each new row
+            if need_line_number && lnum_enabled {
+                // Determine displayed number based on mode
+                let display_num = match lnum_config.mode {
+                    2 => {
+                        // Relative mode
+                        if lnum_config.current_absolute != 0
+                            && current_line == point_line
+                        {
+                            current_line + lnum_config.offset as i64
+                        } else {
+                            (current_line - point_line).abs()
+                        }
+                    }
+                    3 => {
+                        // Visual mode: relative to point line
+                        if lnum_config.current_absolute != 0
+                            && current_line == point_line
+                        {
+                            current_line + lnum_config.offset as i64
+                        } else {
+                            (current_line - point_line).abs()
+                        }
+                    }
+                    _ => {
+                        // Absolute mode
+                        current_line + lnum_config.offset as i64
+                    }
+                };
+
+                let is_current = if current_line == point_line { 1 } else { 0 };
+                neomacs_layout_line_number_face(
+                    window,
+                    is_current,
+                    current_line,
+                    lnum_config.major_tick,
+                    lnum_config.minor_tick,
+                    &mut lnum_face,
+                );
+
+                // Apply line number face and render digits
+                self.apply_face(&lnum_face, frame_glyphs);
+                let lnum_bg = Color::from_pixel(lnum_face.bg);
+
+                // Format the number right-aligned
+                let num_str = format!("{}", display_num);
+                let num_chars = num_str.len() as i32;
+                let padding = (lnum_cols - 1) - num_chars; // -1 for trailing space
+
+                let gy = text_y + row as f32 * char_h;
+
+                // Leading padding
+                if padding > 0 {
+                    frame_glyphs.add_stretch(
+                        text_x, gy,
+                        padding as f32 * char_w, char_h,
+                        lnum_bg, lnum_face.face_id, false,
+                    );
+                }
+
+                // Number digits
+                for (i, ch) in num_str.chars().enumerate() {
+                    let dx = text_x + (padding.max(0) + i as i32) as f32 * char_w;
+                    frame_glyphs.add_char(ch, dx, gy, char_w, char_h, ascent, false);
+                }
+
+                // Trailing space
+                let space_x = text_x + (lnum_cols - 1) as f32 * char_w;
+                frame_glyphs.add_stretch(
+                    space_x, gy,
+                    char_w, char_h,
+                    lnum_bg, lnum_face.face_id, false,
+                );
+
+                // Restore text face
+                if current_face_id >= 0 {
+                    self.apply_face(&self.face_data, frame_glyphs);
+                }
+
+                need_line_number = false;
+            }
+
             // Check for invisible text at property change boundaries
             if charpos >= next_invis_check {
                 let mut next_visible: i64 = 0;
@@ -312,7 +428,7 @@ impl LayoutEngine {
                     if invis == 2 && col + 3 <= cols && row < max_rows {
                         let gy = text_y + row as f32 * char_h;
                         for _ in 0..3 {
-                            let dx = text_x + col as f32 * char_w;
+                            let dx = content_x + col as f32 * char_w;
                             frame_glyphs.add_char(
                                 '.', dx, gy, char_w, char_h, ascent, false,
                             );
@@ -361,7 +477,7 @@ impl LayoutEngine {
 
             // Check if cursor is at this position
             if !cursor_placed && charpos >= params.point {
-                let cursor_x = text_x + col as f32 * char_w;
+                let cursor_x = content_x + col as f32 * char_w;
                 let cursor_y = text_y + row as f32 * char_h;
 
                 let (cursor_w, cursor_h) = match params.cursor_type {
@@ -411,12 +527,14 @@ impl LayoutEngine {
                     // Fill rest of line with stretch (use face bg)
                     let remaining = (cols - col) as f32 * char_w;
                     if remaining > 0.0 {
-                        let gx = text_x + col as f32 * char_w;
+                        let gx = content_x + col as f32 * char_w;
                         let gy = text_y + row as f32 * char_h;
                         frame_glyphs.add_stretch(gx, gy, remaining, char_h, face_bg, self.face_data.face_id, false);
                     }
                     col = 0;
                     row += 1;
+                    current_line += 1;
+                    need_line_number = lnum_enabled;
                 }
                 '\t' => {
                     // Tab: advance to next tab stop
@@ -425,7 +543,7 @@ impl LayoutEngine {
                     let spaces = (next_tab - col).min(cols - col);
 
                     // Render tab as stretch glyph (use face bg)
-                    let gx = text_x + col as f32 * char_w;
+                    let gx = content_x + col as f32 * char_w;
                     let gy = text_y + row as f32 * char_h;
                     let tab_pixel_w = spaces as f32 * char_w;
                     frame_glyphs.add_stretch(gx, gy, tab_pixel_w, char_h, face_bg, self.face_data.face_id, false);
@@ -454,7 +572,7 @@ impl LayoutEngine {
                 }
                 _ if ch < ' ' => {
                     // Control character: display as ^X (2 columns)
-                    let gx = text_x + col as f32 * char_w;
+                    let gx = content_x + col as f32 * char_w;
                     let gy = text_y + row as f32 * char_h;
 
                     if col + 2 <= cols {
@@ -509,7 +627,7 @@ impl LayoutEngine {
                             // Wrap: fill remaining space
                             let remaining = (cols - col) as f32 * char_w;
                             if remaining > 0.0 {
-                                let gx = text_x + col as f32 * char_w;
+                                let gx = content_x + col as f32 * char_w;
                                 let gy = text_y + row as f32 * char_h;
                                 frame_glyphs.add_stretch(gx, gy, remaining, char_h, face_bg, self.face_data.face_id, false);
                             }
@@ -521,7 +639,7 @@ impl LayoutEngine {
                         }
                     }
 
-                    let gx = text_x + col as f32 * char_w;
+                    let gx = content_x + col as f32 * char_w;
                     let gy = text_y + row as f32 * char_h;
                     let glyph_w = char_cols as f32 * char_w;
 
@@ -535,7 +653,7 @@ impl LayoutEngine {
 
         // If cursor wasn't placed (point is past visible content), place at end
         if !cursor_placed && params.point >= params.window_start {
-            let cursor_x = text_x + col as f32 * char_w;
+            let cursor_x = content_x + col as f32 * char_w;
             let cursor_y = text_y + row.min(max_rows - 1) as f32 * char_h;
 
             let cursor_style = if params.selected {

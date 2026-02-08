@@ -190,6 +190,59 @@ extern "C" {
         out_buf_len: i64,
         face_out: *mut FaceDataFFI,
     ) -> i64;
+
+    // ========================================================================
+    // Line numbers
+    // ========================================================================
+
+    /// Get line number display configuration for a window.
+    /// Returns 0 on success, -1 on error.
+    pub fn neomacs_layout_line_number_config(
+        window: EmacsWindow,
+        buffer: EmacsBuffer,
+        buffer_zv: i64,
+        max_rows: c_int,
+        config_out: *mut LineNumberConfigFFI,
+    ) -> c_int;
+
+    /// Count the line number at a character position.
+    /// Returns the 1-based line number.
+    pub fn neomacs_layout_count_line_number(
+        buffer: EmacsBuffer,
+        charpos: i64,
+        widen: c_int,
+    ) -> i64;
+
+    /// Resolve the face for a line number and fill FaceDataFFI.
+    pub fn neomacs_layout_line_number_face(
+        window: EmacsWindow,
+        is_current: c_int,
+        lnum: i64,
+        major_tick: c_int,
+        minor_tick: c_int,
+        face_out: *mut FaceDataFFI,
+    ) -> c_int;
+}
+
+/// FFI-safe line number configuration struct.
+/// Matches the C struct LineNumberConfigFFI in neomacsterm.c.
+#[repr(C)]
+#[derive(Debug, Clone, Default)]
+pub struct LineNumberConfigFFI {
+    /// 0=off, 1=absolute, 2=relative, 3=visual
+    pub mode: c_int,
+    /// Column width for line numbers (including padding)
+    pub width: c_int,
+    /// display-line-numbers-offset
+    pub offset: c_int,
+    /// display-line-numbers-major-tick
+    pub major_tick: c_int,
+    /// display-line-numbers-minor-tick
+    pub minor_tick: c_int,
+    /// display-line-numbers-current-absolute
+    pub current_absolute: c_int,
+    /// display-line-numbers-widen
+    pub widen: c_int,
 }
 
 /// FFI-safe window parameters struct.
