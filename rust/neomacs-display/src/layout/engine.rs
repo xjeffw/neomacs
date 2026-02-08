@@ -770,6 +770,40 @@ impl LayoutEngine {
                     next_display_check = display_prop.covers_to;
                     current_face_id = -1;
                     continue;
+                } else if display_prop.prop_type == 4 {
+                    // Image display property: render image glyph
+                    let img_w = display_prop.image_width as f32;
+                    let img_h = display_prop.image_height as f32;
+
+                    if row < max_rows && display_prop.image_gpu_id != 0 {
+                        let gx = content_x + col as f32 * char_w;
+                        let gy = text_y + row as f32 * char_h;
+                        frame_glyphs.add_image(
+                            display_prop.image_gpu_id,
+                            gx, gy, img_w, img_h,
+                        );
+                        // Advance by image width in columns
+                        let img_cols = (img_w / char_w).ceil() as i32;
+                        col += img_cols;
+                        // Advance rows if image is taller than one line
+                        let img_rows = ((img_h / char_h).ceil() as i32).max(1);
+                        if img_rows > 1 {
+                            row += img_rows - 1;
+                        }
+                    }
+
+                    // Skip original buffer text
+                    let chars_to_skip = display_prop.covers_to - charpos;
+                    for _ in 0..chars_to_skip {
+                        if byte_idx >= bytes_read as usize { break; }
+                        let (_, ch_len) = decode_utf8(&text[byte_idx..]);
+                        byte_idx += ch_len;
+                    }
+                    charpos = display_prop.covers_to;
+                    window_end_charpos = charpos;
+                    next_display_check = display_prop.covers_to;
+                    current_face_id = -1;
+                    continue;
                 } else {
                     // No display prop: covers_to tells us when to re-check
                     next_display_check = display_prop.covers_to;

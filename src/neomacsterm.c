@@ -2064,11 +2064,14 @@ neomacs_layout_buffer_byte_at (void *buffer_ptr, int64_t byte_pos)
 /* FFI struct for display text property results.
    Layout must match Rust DisplayPropFFI in emacs_ffi.rs. */
 struct DisplayPropFFI {
-  int type;           /* 0=none, 1=string, 2=space, 3=align-to */
+  int type;           /* 0=none, 1=string, 2=space, 3=align-to, 4=image */
   int str_len;        /* bytes of replacement string (type=1) */
   float space_width;  /* width in columns (type=2) */
   int64_t covers_to;  /* charpos where display prop region ends */
   float align_to;     /* align-to column (type=3) */
+  uint32_t image_gpu_id;  /* GPU image ID (type=4) */
+  int image_width;        /* image width in pixels (type=4) */
+  int image_height;       /* image height in pixels (type=4) */
 };
 
 /* Check for a 'display text property at charpos.
@@ -2090,6 +2093,10 @@ neomacs_layout_check_display_prop (void *buffer_ptr, void *window_ptr,
   out->str_len = 0;
   out->space_width = 0;
   out->covers_to = charpos + 1;
+  out->align_to = 0;
+  out->image_gpu_id = 0;
+  out->image_width = 0;
+  out->image_height = 0;
 
   if (!buf)
     return -1;
@@ -2177,8 +2184,50 @@ neomacs_layout_check_display_prop (void *buffer_ptr, void *window_ptr,
           return 0;
         }
 
-      /* Check for (raise FACTOR) — just skip to treat as normal text */
-      /* Check for (image ...) — TODO: handle image display */
+      /* Check for (image ...) display property */
+      if (EQ (car, Qimage) && valid_image_p (display_prop))
+        {
+          struct window *w = window_ptr ? (struct window *) window_ptr : NULL;
+          struct frame *f = w ? XFRAME (WINDOW_FRAME (w)) : NULL;
+          if (f)
+            {
+              struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+              if (dpyinfo && dpyinfo->display_handle)
+                {
+                  /* Get face for this position (needed by lookup_image for fg/bg) */
+                  int face_id = DEFAULT_FACE_ID;
+                  if (w)
+                    {
+                      face_id = lookup_named_face (w, f, Qdefault, false);
+                      if (face_id < 0)
+                        face_id = DEFAULT_FACE_ID;
+                    }
+
+                  ptrdiff_t img_id = lookup_image (f, display_prop, face_id);
+                  if (img_id >= 0)
+                    {
+                      struct image *img = IMAGE_FROM_ID (f, img_id);
+                      if (img)
+                        {
+                          prepare_image_for_display (f, img);
+                          uint32_t gpu_id = neomacs_get_or_load_image (dpyinfo, img);
+                          if (gpu_id != 0)
+                            {
+                              out->type = 4;
+                              out->image_gpu_id = gpu_id;
+                              out->image_width = img->width > 0 ? img->width : 100;
+                              out->image_height = img->height > 0 ? img->height : 100;
+                              set_buffer_internal_1 (old);
+                              return 0;
+                            }
+                        }
+                    }
+                }
+            }
+          set_buffer_internal_1 (old);
+          return 0;
+        }
+
       /* Check for list of display specs — handle first string/space found */
       if (STRINGP (car))
         {
