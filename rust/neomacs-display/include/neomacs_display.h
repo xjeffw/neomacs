@@ -772,6 +772,12 @@ void neomacs_display_set_face(struct NeomacsDisplay *handle,
 void neomacs_display_set_background(struct NeomacsDisplay *handle, uint32_t color);
 
 /**
+ * Set the frame/scene background alpha (for transparent backgrounds).
+ * alpha is 0.0 (fully transparent) to 1.0 (fully opaque).
+ */
+void neomacs_display_set_background_alpha(struct NeomacsDisplay *handle, float alpha);
+
+/**
  * Add a video glyph to the current row
  */
 void neomacs_display_add_video_glyph(struct NeomacsDisplay *handle,
@@ -1004,6 +1010,11 @@ void neomacs_display_reset_cursor_blink(struct NeomacsDisplay *handle);
  *        4=crosshair, 5=h-resize, 6=v-resize, 7=hourglass
  */
 void neomacs_display_set_mouse_cursor(struct NeomacsDisplay *handle, int cursorType);
+
+/**
+ * Warp (move) the mouse pointer to the given pixel position.
+ */
+void neomacs_display_warp_mouse(struct NeomacsDisplay *handle, int x, int y);
 
 /**
  * Set the window title (threaded mode)

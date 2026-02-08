@@ -755,6 +755,13 @@ impl RenderApp {
                         }
                     }
                 }
+                RenderCommand::WarpMouse { x, y } => {
+                    if let Some(ref window) = self.window {
+                        use winit::dpi::PhysicalPosition;
+                        let pos = PhysicalPosition::new(x as f64, y as f64);
+                        let _ = window.set_cursor_position(pos);
+                    }
+                }
                 RenderCommand::SetWindowTitle { title } => {
                     if let Some(ref window) = self.window {
                         window.set_title(&title);

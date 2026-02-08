@@ -594,6 +594,12 @@ neomacs_set_alpha_background (struct frame *f, Lisp_Object arg, Lisp_Object oldv
       alpha = ialpha / 100.0;
     }
 
+  /* Send alpha to GPU renderer for background transparency.  */
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  if (dpyinfo && dpyinfo->display_handle)
+    neomacs_display_set_background_alpha (dpyinfo->display_handle,
+					  (float) alpha);
+
   f->alpha_background = alpha;
 
   if (FRAME_TERMINAL (f)->set_frame_alpha_hook)

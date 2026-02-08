@@ -141,6 +141,8 @@ pub enum RenderCommand {
     VideoDestroy { id: u32 },
     /// Change the mouse pointer cursor shape (arrow, hand, ibeam, etc.)
     SetMouseCursor { cursor_type: i32 },
+    /// Warp (move) the mouse pointer to given pixel position
+    WarpMouse { x: i32, y: i32 },
     /// Set the window title
     SetWindowTitle { title: String },
     /// Set fullscreen mode (0=none, 1=fullscreen, 4=maximized)

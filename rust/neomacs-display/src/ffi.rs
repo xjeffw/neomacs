@@ -1045,6 +1045,26 @@ pub unsafe extern "C" fn neomacs_display_set_background(
     }
 }
 
+/// Set the frame/scene background alpha (for transparent backgrounds).
+/// alpha is 0.0 (fully transparent) to 1.0 (fully opaque).
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_background_alpha(
+    handle: *mut NeomacsDisplay,
+    alpha: f32,
+) {
+    if handle.is_null() {
+        return;
+    }
+
+    let display = &mut *handle;
+    let target_scene = display.get_target_scene();
+    target_scene.background.a = alpha;
+
+    for window in &mut target_scene.windows {
+        window.background.a = alpha;
+    }
+}
+
 // ============================================================================
 // Image Management (stubs - no GTK4 backend)
 // ============================================================================
@@ -1949,6 +1969,22 @@ pub unsafe extern "C" fn neomacs_display_set_mouse_cursor(
 ) {
     let cmd = RenderCommand::SetMouseCursor {
         cursor_type: cursor_type as i32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Warp (move) the mouse pointer to the given pixel position.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_warp_mouse(
+    _handle: *mut NeomacsDisplay,
+    x: c_int,
+    y: c_int,
+) {
+    let cmd = RenderCommand::WarpMouse {
+        x: x as i32,
+        y: y as i32,
     };
     if let Some(ref state) = THREADED_STATE {
         let _ = state.emacs_comms.cmd_tx.try_send(cmd);

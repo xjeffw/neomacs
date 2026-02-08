@@ -7991,8 +7991,8 @@ frame_set_mouse_pixel_position (struct frame *f, int pix_x, int pix_y)
   dpyinfo->last_mouse_motion_y = pix_y;
   dpyinfo->last_mouse_motion_frame = f;
 
-  /* TODO: Send warp-pointer command to render thread when winit
-     supports programmatic cursor positioning.  */
+  if (dpyinfo->display_handle)
+    neomacs_display_warp_mouse (dpyinfo->display_handle, pix_x, pix_y);
 }
 
 
