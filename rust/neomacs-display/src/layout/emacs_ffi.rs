@@ -365,6 +365,12 @@ pub struct WindowParamsFFI {
     /// Cursor type and width
     pub cursor_type: u8,
     pub cursor_bar_width: c_int,
+
+    /// Fringe widths in pixels
+    pub left_fringe_width: f32,
+    pub right_fringe_width: f32,
+    /// indicate-empty-lines: 0=off, 1=left, 2=right
+    pub indicate_empty_lines: c_int,
 }
 
 /// FFI-safe face data struct.

@@ -94,6 +94,9 @@ impl LayoutEngine {
                 tab_line_height: wp.tab_line_height,
                 cursor_type: wp.cursor_type,
                 cursor_bar_width: wp.cursor_bar_width,
+                left_fringe_width: wp.left_fringe_width,
+                right_fringe_width: wp.right_fringe_width,
+                indicate_empty_lines: wp.indicate_empty_lines,
             };
 
             // Add window background
@@ -220,10 +223,11 @@ impl LayoutEngine {
         let char_h = params.char_height;
         let ascent = params.font_ascent;
 
-        // Fringe dimensions
-        let left_fringe_width = params.text_bounds.x - params.bounds.x;
+        // Fringe dimensions (use actual widths from window params)
+        let left_fringe_width = params.left_fringe_width;
+        let left_fringe_x = params.text_bounds.x - left_fringe_width;
         let right_fringe_x = params.text_bounds.x + params.text_bounds.width;
-        let right_fringe_width = (params.bounds.x + params.bounds.width) - right_fringe_x;
+        let right_fringe_width = params.right_fringe_width;
 
         // Check line number configuration
         let mut lnum_config = LineNumberConfigFFI::default();
@@ -1088,7 +1092,6 @@ impl LayoutEngine {
 
                 // Right fringe: continuation indicator for wrapped lines
                 if right_fringe_width >= char_w && row_continued.get(r).copied().unwrap_or(false) {
-                    // Center the indicator in the fringe
                     let fx = right_fringe_x + (right_fringe_width - char_w) / 2.0;
                     frame_glyphs.add_char('\\', fx, gy, char_w, char_h, ascent, false);
                 }
@@ -1101,8 +1104,29 @@ impl LayoutEngine {
 
                 // Left fringe: continuation indicator for continued lines
                 if left_fringe_width >= char_w && row_continuation.get(r).copied().unwrap_or(false) {
-                    let fx = params.bounds.x + (left_fringe_width - char_w) / 2.0;
+                    let fx = left_fringe_x + (left_fringe_width - char_w) / 2.0;
                     frame_glyphs.add_char('\\', fx, gy, char_w, char_h, ascent, false);
+                }
+            }
+
+            // EOB empty line indicators (tilde in fringe for lines past buffer end)
+            if params.indicate_empty_lines > 0 {
+                let eob_start = actual_rows;
+                for r in eob_start as usize..max_rows as usize {
+                    let gy = text_y + r as f32 * char_h;
+                    if params.indicate_empty_lines == 2 {
+                        // Right fringe
+                        if right_fringe_width >= char_w {
+                            let fx = right_fringe_x + (right_fringe_width - char_w) / 2.0;
+                            frame_glyphs.add_char('~', fx, gy, char_w, char_h, ascent, false);
+                        }
+                    } else {
+                        // Left fringe (default)
+                        if left_fringe_width >= char_w {
+                            let fx = left_fringe_x + (left_fringe_width - char_w) / 2.0;
+                            frame_glyphs.add_char('~', fx, gy, char_w, char_h, ascent, false);
+                        }
+                    }
                 }
             }
         }

@@ -185,6 +185,12 @@ pub struct WindowParams {
     pub cursor_type: u8,
     /// Cursor bar width (for bar cursor)
     pub cursor_bar_width: i32,
+
+    /// Fringe widths in pixels
+    pub left_fringe_width: f32,
+    pub right_fringe_width: f32,
+    /// indicate-empty-lines: 0=off, 1=left, 2=right
+    pub indicate_empty_lines: i32,
 }
 
 /// Frame-level parameters for layout.

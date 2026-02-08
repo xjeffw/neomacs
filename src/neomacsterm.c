@@ -1121,6 +1121,11 @@ struct neomacs_window_params_ffi {
   float tab_line_height;
   uint8_t cursor_type;
   int cursor_bar_width;
+  /* Fringe widths in pixels */
+  float left_fringe_width;
+  float right_fringe_width;
+  /* indicate-empty-lines: 0=off, 1=left, 2=right */
+  int indicate_empty_lines;
 };
 
 /* Get window parameters for the Nth leaf window.
@@ -1270,6 +1275,24 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
     default: params->cursor_type = 0; break;
     }
   params->cursor_bar_width = w->phys_cursor_width > 0 ? w->phys_cursor_width : 2;
+
+  /* Fringe widths */
+  params->left_fringe_width = (float) WINDOW_LEFT_FRINGE_WIDTH (w);
+  params->right_fringe_width = (float) WINDOW_RIGHT_FRINGE_WIDTH (w);
+
+  /* indicate-empty-lines */
+  if (BUFFERP (w->contents))
+    {
+      Lisp_Object iel = BVAR (XBUFFER (w->contents), indicate_empty_lines);
+      if (NILP (iel))
+        params->indicate_empty_lines = 0;
+      else if (EQ (iel, Qright))
+        params->indicate_empty_lines = 2;
+      else
+        params->indicate_empty_lines = 1; /* t or Qleft -> left */
+    }
+  else
+    params->indicate_empty_lines = 0;
 
   return 0;
 }
