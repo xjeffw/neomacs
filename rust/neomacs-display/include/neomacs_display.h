@@ -1161,6 +1161,16 @@ void neomacs_display_set_line_highlight(struct NeomacsDisplay *handle,
                                         int opacity);
 
 /**
+ * Configure visible whitespace rendering
+ */
+void neomacs_display_set_show_whitespace(struct NeomacsDisplay *handle,
+                                         int enabled,
+                                         int r,
+                                         int g,
+                                         int b,
+                                         int opacity);
+
+/**
  * Set the window title (threaded mode)
  */
 void neomacs_display_set_title(struct NeomacsDisplay *handle, const char *title);

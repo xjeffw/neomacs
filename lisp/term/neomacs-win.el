@@ -629,6 +629,38 @@ A color string, or nil for default."
                     neomacs-line-highlight)
            (neomacs-set-line-highlight t val))))
 
+;;; Visible whitespace
+
+(declare-function neomacs-set-show-whitespace "neomacsterm.c"
+  (&optional enabled color))
+
+(defcustom neomacs-show-whitespace nil
+  "Enable GPU-rendered visible whitespace.
+Non-nil shows dots for spaces and arrows for tabs."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-show-whitespace)
+           (neomacs-set-show-whitespace
+            val
+            (if (boundp 'neomacs-whitespace-color)
+                neomacs-whitespace-color
+              nil)))))
+
+(defcustom neomacs-whitespace-color nil
+  "Color for visible whitespace indicators.
+A color string, or nil for default gray."
+  :type '(choice (const :tag "Default" nil)
+                 (color :tag "Color"))
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-show-whitespace)
+                    (boundp 'neomacs-show-whitespace)
+                    neomacs-show-whitespace)
+           (neomacs-set-show-whitespace t val))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

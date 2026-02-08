@@ -641,6 +641,10 @@ struct RenderApp {
     /// Current line highlight config
     line_highlight_enabled: bool,
     line_highlight_color: (f32, f32, f32, f32),
+
+    /// Visible whitespace config
+    show_whitespace_enabled: bool,
+    show_whitespace_color: (f32, f32, f32, f32),
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -808,6 +812,8 @@ impl RenderApp {
             indent_guide_color: (0.3, 0.3, 0.3, 0.3),
             line_highlight_enabled: false,
             line_highlight_color: (0.2, 0.2, 0.3, 0.15),
+            show_whitespace_enabled: false,
+            show_whitespace_color: (0.4, 0.4, 0.4, 0.3),
         }
     }
 
@@ -1514,6 +1520,17 @@ impl RenderApp {
                     self.line_highlight_color = (c.r, c.g, c.b, c.a);
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_line_highlight_config(enabled, (c.r, c.g, c.b, c.a));
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetShowWhitespace {
+                    enabled, r, g, b, opacity,
+                } => {
+                    let c = crate::core::types::Color::new(r, g, b, opacity).srgb_to_linear();
+                    self.show_whitespace_enabled = enabled;
+                    self.show_whitespace_color = (c.r, c.g, c.b, c.a);
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_show_whitespace_config(enabled, (c.r, c.g, c.b, c.a));
                     }
                     self.frame_dirty = true;
                 }

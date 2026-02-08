@@ -1283,6 +1283,12 @@ void neomacs_display_set_line_highlight(
     int r, int g, int b,
     int opacity);
 
+void neomacs_display_set_show_whitespace(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int opacity);
+
 /**
  * Get dropped file paths (call after NEOMACS_EVENT_FILE_DROP).
  * Returns number of paths written to out_paths.

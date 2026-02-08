@@ -57,6 +57,10 @@ pub struct WgpuRenderer {
     line_highlight_enabled: bool,
     /// Current line highlight color (linear RGBA)
     line_highlight_color: (f32, f32, f32, f32),
+    /// Visible whitespace enabled
+    show_whitespace_enabled: bool,
+    /// Visible whitespace color (linear RGBA)
+    show_whitespace_color: (f32, f32, f32, f32),
 }
 
 impl WgpuRenderer {
@@ -529,7 +533,15 @@ impl WgpuRenderer {
             indent_guide_color: (0.3, 0.3, 0.3, 0.3),
             line_highlight_enabled: false,
             line_highlight_color: (0.2, 0.2, 0.3, 0.15),
+            show_whitespace_enabled: false,
+            show_whitespace_color: (0.4, 0.4, 0.4, 0.3),
         }
+    }
+
+    /// Update visible whitespace config
+    pub fn set_show_whitespace_config(&mut self, enabled: bool, color: (f32, f32, f32, f32)) {
+        self.show_whitespace_enabled = enabled;
+        self.show_whitespace_color = color;
     }
 
     /// Update line highlight config
@@ -1569,6 +1581,48 @@ impl WgpuRenderer {
                         &guide_color,
                     );
                     col_x += tab_px;
+                }
+            }
+        }
+
+        // --- Visible whitespace dots ---
+        if self.show_whitespace_enabled {
+            let (wr, wg, wb, wa) = self.show_whitespace_color;
+            let ws_color = Color::new(wr, wg, wb, wa);
+            let dot_size = 1.5_f32;
+
+            for glyph in &frame_glyphs.glyphs {
+                if let FrameGlyph::Char { char: ch, x, y, width, height, ascent, is_overlay, .. } = glyph {
+                    if *is_overlay { continue; }
+                    if *ch == ' ' {
+                        // Centered dot for space
+                        let dot_x = *x + (*width - dot_size) / 2.0;
+                        let dot_y = *y + (*ascent - dot_size / 2.0);
+                        self.add_rect(
+                            &mut non_overlay_rect_vertices,
+                            dot_x, dot_y, dot_size, dot_size,
+                            &ws_color,
+                        );
+                    } else if *ch == '\t' {
+                        // Small horizontal arrow for tab
+                        let arrow_h = 1.5_f32;
+                        let arrow_y = *y + (*ascent - arrow_h / 2.0);
+                        let arrow_w = (*width - 4.0).max(4.0);
+                        let arrow_x = *x + 2.0;
+                        // Shaft
+                        self.add_rect(
+                            &mut non_overlay_rect_vertices,
+                            arrow_x, arrow_y, arrow_w, arrow_h,
+                            &ws_color,
+                        );
+                        // Arrowhead (small triangle approximated as 2 rects)
+                        let tip_x = arrow_x + arrow_w;
+                        self.add_rect(
+                            &mut non_overlay_rect_vertices,
+                            tip_x - 3.0, arrow_y - 1.5, 3.0, arrow_h + 3.0,
+                            &ws_color,
+                        );
+                    }
                 }
             }
         }

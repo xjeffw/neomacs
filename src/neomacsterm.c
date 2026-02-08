@@ -7969,6 +7969,39 @@ Optional COLOR is a color string (default inherits from hl-line face).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-show-whitespace",
+       Fneomacs_set_show_whitespace,
+       Sneomacs_set_show_whitespace, 0, 2, 0,
+       doc: /* Configure visible whitespace rendering.
+ENABLED non-nil shows dots for spaces and arrows for tabs.
+Optional COLOR is a color string (default \"gray50\").  */)
+  (Lisp_Object enabled, Lisp_Object color)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 128, g = 128, b = 128;
+  int opacity = 30;
+
+  if (!NILP (color) && STRINGP (color))
+    {
+      Emacs_Color c;
+      if (neomacs_defined_color (NULL, SSDATA (color), &c, false, false))
+        {
+          r = c.red >> 8;
+          g = c.green >> 8;
+          b = c.blue >> 8;
+          opacity = 35;
+        }
+    }
+
+  neomacs_display_set_show_whitespace (
+    dpyinfo->display_handle, on, r, g, b, opacity);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-indent-guides",
        Fneomacs_set_indent_guides,
        Sneomacs_set_indent_guides, 0, 2, 0,
@@ -9227,6 +9260,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_scroll_bar_config);
   defsubr (&Sneomacs_set_indent_guides);
   defsubr (&Sneomacs_set_line_highlight);
+  defsubr (&Sneomacs_set_show_whitespace);
 
   /* Cursor blink */
   defsubr (&Sneomacs_set_cursor_blink);
