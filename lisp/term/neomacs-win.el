@@ -314,6 +314,13 @@ background transparent while keeping text fully opaque."
       (setq opacity (/ (float opacity) 100.0)))
     (set-frame-parameter f 'alpha-background opacity)))
 
+;; Menu bar keyboard access (F10)
+(defun neomacs-menu-bar-open (&optional _frame)
+  "Open the menu bar via the popup menu system.
+_FRAME is ignored; the menu opens on the selected frame."
+  (interactive "i")
+  (popup-menu (mouse-menu-bar-map) last-nonmenu-event))
+
 ;; Window snapping
 (defun neomacs--workarea ()
   "Return the workarea (x y width height) of the current monitor."
