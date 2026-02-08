@@ -64,8 +64,9 @@ static int x_decode_color (struct frame *f, Lisp_Object color_name, int mono_col
  * Color decoding
  * ============================================================================ */
 
-/* Given a color name, return the color value for it.
-   MONO_COLOR is returned if the color can't be found. */
+/* Return the pixel color value for color COLOR_NAME on frame F.
+   If F is a monochrome frame, return MONO_COLOR regardless of what
+   ARG says.  Signal an error if color can't be allocated.  */
 static int
 x_decode_color (struct frame *f, Lisp_Object color_name, int mono_color)
 {
@@ -73,41 +74,16 @@ x_decode_color (struct frame *f, Lisp_Object color_name, int mono_color)
 
   CHECK_STRING (color_name);
 
-  /* Just return mono_color for now - proper color parsing would need
-     to use GDK or similar. */
-  if (NILP (color_name) || !STRINGP (color_name))
+  /* Return MONO_COLOR for monochrome frames.  */
+  if (FRAME_DISPLAY_INFO (f)->n_planes == 1)
     return mono_color;
 
-  /* Try to parse as #RRGGBB */
-  const char *name = SSDATA (color_name);
-  if (name[0] == '#' && strlen (name) == 7)
-    {
-      unsigned int r, g, b;
-      if (sscanf (name + 1, "%02x%02x%02x", &r, &g, &b) == 3)
-	return (r << 16) | (g << 8) | b;
-    }
+  /* neomacs_defined_color uses gdk_rgba_parse which handles all
+     CSS color names, #RGB, #RRGGBB, rgb(), etc.  */
+  if (neomacs_defined_color (f, SSDATA (color_name), &cdef, true, false))
+    return cdef.pixel;
 
-  /* Simple color name lookup */
-  if (strcmp (name, "black") == 0)
-    return 0x000000;
-  if (strcmp (name, "white") == 0)
-    return 0xFFFFFF;
-  if (strcmp (name, "red") == 0)
-    return 0xFF0000;
-  if (strcmp (name, "green") == 0)
-    return 0x00FF00;
-  if (strcmp (name, "blue") == 0)
-    return 0x0000FF;
-  if (strcmp (name, "yellow") == 0)
-    return 0xFFFF00;
-  if (strcmp (name, "cyan") == 0)
-    return 0x00FFFF;
-  if (strcmp (name, "magenta") == 0)
-    return 0xFF00FF;
-  if (strcmp (name, "gray") == 0 || strcmp (name, "grey") == 0)
-    return 0x808080;
-
-  return mono_color;
+  signal_error ("Undefined color", color_name);
 }
 
 /* ============================================================================
