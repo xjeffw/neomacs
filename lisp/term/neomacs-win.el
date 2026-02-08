@@ -117,6 +117,10 @@ DISPLAY is the name of the display Emacs should connect to."
   (setq interprogram-cut-function #'neomacs--clipboard-cut)
   (setq interprogram-paste-function #'neomacs--clipboard-paste)
 
+  ;; Enable pixel-precise scrolling for smooth touchpad support
+  (when (fboundp 'pixel-scroll-precision-mode)
+    (pixel-scroll-precision-mode 1))
+
   (setq neomacs-initialized t))
 
 ;; Handle args function (required by common-win)
