@@ -1115,6 +1115,18 @@ void neomacs_display_set_extra_spacing(struct NeomacsDisplay *handle,
                                        int letterSpacing);
 
 /**
+ * Set background gradient (top and bottom colors, sRGB 0-255)
+ */
+void neomacs_display_set_background_gradient(struct NeomacsDisplay *handle,
+                                             int enabled,
+                                             int topR,
+                                             int topG,
+                                             int topB,
+                                             int bottomR,
+                                             int bottomG,
+                                             int bottomB);
+
+/**
  * Set the window title (threaded mode)
  */
 void neomacs_display_set_title(struct NeomacsDisplay *handle, const char *title);

@@ -1218,6 +1218,7 @@ impl WgpuRenderer {
         cursor_visible: bool,
         animated_cursor: Option<AnimatedCursor>,
         mouse_pos: (f32, f32),
+        background_gradient: Option<((f32, f32, f32), (f32, f32, f32))>,
     ) {
         log::debug!(
             "render_frame_glyphs: frame={}x{} surface={}x{}, {} glyphs, {} faces",
@@ -1376,6 +1377,23 @@ impl WgpuRenderer {
 
         // --- Collect non-overlay backgrounds ---
         let mut non_overlay_rect_vertices: Vec<RectVertex> = Vec::new();
+
+        // Background gradient (rendered behind everything)
+        if let Some((top, bottom)) = background_gradient {
+            let top_color = Color::new(top.0, top.1, top.2, 1.0).srgb_to_linear();
+            let bot_color = Color::new(bottom.0, bottom.1, bottom.2, 1.0).srgb_to_linear();
+            let tc = [top_color.r, top_color.g, top_color.b, top_color.a];
+            let bc = [bot_color.r, bot_color.g, bot_color.b, bot_color.a];
+            // Two triangles forming a fullscreen quad with gradient
+            // Top-left, top-right, bottom-left (triangle 1)
+            non_overlay_rect_vertices.push(RectVertex { position: [0.0, 0.0], color: tc });
+            non_overlay_rect_vertices.push(RectVertex { position: [logical_w, 0.0], color: tc });
+            non_overlay_rect_vertices.push(RectVertex { position: [0.0, logical_h], color: bc });
+            // Top-right, bottom-right, bottom-left (triangle 2)
+            non_overlay_rect_vertices.push(RectVertex { position: [logical_w, 0.0], color: tc });
+            non_overlay_rect_vertices.push(RectVertex { position: [logical_w, logical_h], color: bc });
+            non_overlay_rect_vertices.push(RectVertex { position: [0.0, logical_h], color: bc });
+        }
 
         // Window backgrounds
         for glyph in &frame_glyphs.glyphs {

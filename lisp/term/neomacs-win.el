@@ -478,6 +478,26 @@ Applied at the render level."
                 neomacs-extra-line-spacing 0)
             val))))
 
+;;; Background gradient
+
+(declare-function neomacs-set-background-gradient "neomacsterm.c"
+  (top-color bottom-color))
+
+(defcustom neomacs-background-gradient nil
+  "Background gradient colors as (TOP-COLOR . BOTTOM-COLOR).
+Set to nil to disable.  Colors are strings like \"#1a1a2e\"."
+  :type '(choice (const :tag "Disabled" nil)
+                 (cons :tag "Gradient"
+                       (color :tag "Top color")
+                       (color :tag "Bottom color")))
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-background-gradient)
+           (if val
+               (neomacs-set-background-gradient (car val) (cdr val))
+             (neomacs-set-background-gradient nil nil)))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

@@ -7899,6 +7899,40 @@ Values of 0 mean no extra spacing (default).  */)
   return Qt;
 }
 
+DEFUN ("neomacs-set-background-gradient",
+       Fneomacs_set_background_gradient,
+       Sneomacs_set_background_gradient, 2, 2, 0,
+       doc: /* Set a background gradient from TOP-COLOR to BOTTOM-COLOR.
+Colors are strings like \"#rrggbb\".  Pass nil for either to disable.  */)
+  (Lisp_Object top_color, Lisp_Object bottom_color)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  if (NILP (top_color) || NILP (bottom_color))
+    {
+      neomacs_display_set_background_gradient (
+        dpyinfo->display_handle, 0, 0, 0, 0, 0, 0, 0);
+      return Qnil;
+    }
+
+  CHECK_STRING (top_color);
+  CHECK_STRING (bottom_color);
+
+  Emacs_Color tc, bc;
+  if (!neomacs_defined_color (NULL, SSDATA (top_color), &tc, false, false))
+    error ("Undefined color: %s", SSDATA (top_color));
+  if (!neomacs_defined_color (NULL, SSDATA (bottom_color), &bc, false, false))
+    error ("Undefined color: %s", SSDATA (bottom_color));
+
+  neomacs_display_set_background_gradient (
+    dpyinfo->display_handle, 1,
+    tc.red >> 8, tc.green >> 8, tc.blue >> 8,
+    bc.red >> 8, bc.green >> 8, bc.blue >> 8);
+  return Qt;
+}
+
 DEFUN ("neomacs-set-cursor-blink", Fneomacs_set_cursor_blink, Sneomacs_set_cursor_blink, 1, 2, 0,
        doc: /* Configure cursor blinking in the render thread.
 ENABLED non-nil enables blinking, nil disables it.
@@ -9074,6 +9108,7 @@ syms_of_neomacsterm (void)
   /* Corner radius */
   defsubr (&Sneomacs_set_corner_radius);
   defsubr (&Sneomacs_set_extra_spacing);
+  defsubr (&Sneomacs_set_background_gradient);
 
   /* Cursor blink */
   defsubr (&Sneomacs_set_cursor_blink);

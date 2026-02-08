@@ -623,6 +623,10 @@ struct RenderApp {
     extra_line_spacing: f32,
     /// Extra letter spacing in pixels (added between characters)
     extra_letter_spacing: f32,
+    /// Background gradient (top and bottom colors, linear sRGB)
+    bg_gradient_enabled: bool,
+    bg_gradient_top: (f32, f32, f32),
+    bg_gradient_bottom: (f32, f32, f32),
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -779,6 +783,9 @@ impl RenderApp {
             fps_render_start: std::time::Instant::now(),
             extra_line_spacing: 0.0,
             extra_letter_spacing: 0.0,
+            bg_gradient_enabled: false,
+            bg_gradient_top: (0.0, 0.0, 0.0),
+            bg_gradient_bottom: (0.0, 0.0, 0.0),
         }
     }
 
@@ -1441,6 +1448,14 @@ impl RenderApp {
                 RenderCommand::SetExtraSpacing { line_spacing, letter_spacing } => {
                     self.extra_line_spacing = line_spacing;
                     self.extra_letter_spacing = letter_spacing;
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetBackgroundGradient {
+                    enabled, top_r, top_g, top_b, bottom_r, bottom_g, bottom_b,
+                } => {
+                    self.bg_gradient_enabled = enabled;
+                    self.bg_gradient_top = (top_r, top_g, top_b);
+                    self.bg_gradient_bottom = (bottom_r, bottom_g, bottom_b);
                     self.frame_dirty = true;
                 }
             }
@@ -2608,6 +2623,13 @@ impl RenderApp {
             None
         };
 
+        // Build background gradient option
+        let bg_gradient = if self.bg_gradient_enabled {
+            Some((self.bg_gradient_top, self.bg_gradient_bottom))
+        } else {
+            None
+        };
+
         // Check if we need offscreen rendering (for transitions)
         let need_offscreen = self.crossfade_enabled || self.scroll_enabled;
 
@@ -2637,6 +2659,7 @@ impl RenderApp {
                     self.cursor_blink_on,
                     animated_cursor,
                     self.mouse_pos,
+                    bg_gradient,
                 );
             }
 
@@ -2674,6 +2697,7 @@ impl RenderApp {
                 self.cursor_blink_on,
                 animated_cursor,
                 self.mouse_pos,
+                bg_gradient,
             );
         }
 

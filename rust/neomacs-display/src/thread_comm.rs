@@ -259,6 +259,12 @@ pub enum RenderCommand {
     SetCornerRadius { radius: f32 },
     /// Set extra spacing (line spacing in pixels, letter spacing in pixels)
     SetExtraSpacing { line_spacing: f32, letter_spacing: f32 },
+    /// Set background gradient (top and bottom colors in sRGB 0.0-1.0, angle 0=vertical)
+    SetBackgroundGradient {
+        enabled: bool,
+        top_r: f32, top_g: f32, top_b: f32,
+        bottom_r: f32, bottom_g: f32, bottom_b: f32,
+    },
 }
 
 /// Wakeup pipe for signaling Emacs from render thread

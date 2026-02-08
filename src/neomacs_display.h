@@ -1257,6 +1257,12 @@ void neomacs_display_set_extra_spacing(struct NeomacsDisplay *handle,
                                         int line_spacing,
                                         int letter_spacing);
 
+void neomacs_display_set_background_gradient(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int top_r, int top_g, int top_b,
+    int bottom_r, int bottom_g, int bottom_b);
+
 /**
  * Get dropped file paths (call after NEOMACS_EVENT_FILE_DROP).
  * Returns number of paths written to out_paths.

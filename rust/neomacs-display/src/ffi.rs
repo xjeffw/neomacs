@@ -2246,6 +2246,28 @@ pub unsafe extern "C" fn neomacs_display_set_extra_spacing(
     }
 }
 
+/// Set background gradient (top and bottom colors, sRGB 0-255)
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_background_gradient(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    top_r: c_int, top_g: c_int, top_b: c_int,
+    bottom_r: c_int, bottom_g: c_int, bottom_b: c_int,
+) {
+    let cmd = RenderCommand::SetBackgroundGradient {
+        enabled: enabled != 0,
+        top_r: top_r as f32 / 255.0,
+        top_g: top_g as f32 / 255.0,
+        top_b: top_b as f32 / 255.0,
+        bottom_r: bottom_r as f32 / 255.0,
+        bottom_g: bottom_g as f32 / 255.0,
+        bottom_b: bottom_b as f32 / 255.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Set the window title (threaded mode)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_title(
