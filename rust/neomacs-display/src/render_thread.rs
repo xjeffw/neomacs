@@ -2521,20 +2521,33 @@ impl ApplicationHandler for RenderApp {
             self.frame_dirty = true;
         }
 
+        // Determine if continuous rendering is needed
+        let has_active_content = self.has_webkit_needing_redraw() || self.has_playing_videos();
+
         // Request redraw when we have new frame data, cursor blink toggled,
         // or webkit/video content changed
-        if self.frame_dirty || self.has_webkit_needing_redraw() || self.has_playing_videos() {
+        if self.frame_dirty || has_active_content {
             if let Some(ref window) = self.window {
                 window.request_redraw();
             }
         }
 
-        // Use Wait mode: only wake when events arrive (window events, user events)
-        // The Emacs thread wakes us via the frame channel when new frames are ready.
-        // We use Poll temporarily to check the frame channel since crossbeam
-        // channels can't integrate with winit's event loop directly.
-        // TODO: Use EventLoopProxy for truly event-driven wakeup
-        event_loop.set_control_flow(ControlFlow::Poll);
+        // Use WaitUntil with smart timeouts instead of Poll to save CPU.
+        // Window events (key, mouse, resize) still wake immediately.
+        let now = std::time::Instant::now();
+        let next_wake = if self.frame_dirty || has_active_content
+            || self.cursor_animating || self.has_active_transitions()
+        {
+            // Active rendering: cap at ~240fps to avoid spinning
+            now + std::time::Duration::from_millis(4)
+        } else if self.cursor_blink_enabled {
+            // Idle with cursor blink: wake at next toggle time
+            self.last_cursor_toggle + self.cursor_blink_interval
+        } else {
+            // Fully idle: poll for new Emacs frames at 60fps
+            now + std::time::Duration::from_millis(16)
+        };
+        event_loop.set_control_flow(ControlFlow::WaitUntil(next_wake));
     }
 }
 
@@ -2582,7 +2595,10 @@ fn run_render_loop(
     #[cfg(not(target_os = "linux"))]
     let event_loop = EventLoop::new().expect("Failed to create event loop");
 
-    event_loop.set_control_flow(ControlFlow::Poll);
+    // Start with WaitUntil to avoid busy-polling; about_to_wait() adjusts dynamically
+    event_loop.set_control_flow(ControlFlow::WaitUntil(
+        std::time::Instant::now() + std::time::Duration::from_millis(16),
+    ));
 
     let mut app = RenderApp::new(comms, width, height, title, image_dimensions);
 
