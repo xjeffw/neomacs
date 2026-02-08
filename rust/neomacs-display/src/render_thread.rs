@@ -2598,6 +2598,16 @@ impl ApplicationHandler for RenderApp {
                 }
             }
 
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                log::info!("Scale factor changed: {} -> {}", self.scale_factor, scale_factor);
+                self.scale_factor = scale_factor;
+                // Update renderer's scale factor
+                if let Some(ref mut renderer) = self.renderer {
+                    renderer.set_scale_factor(scale_factor as f32);
+                }
+                // The Resized event will follow, which handles surface reconfiguration
+            }
+
             _ => {}
         }
     }

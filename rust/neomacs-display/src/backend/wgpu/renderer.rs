@@ -535,6 +535,11 @@ impl WgpuRenderer {
             .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
     }
 
+    /// Update the display scale factor (for multi-monitor DPI changes)
+    pub fn set_scale_factor(&mut self, scale_factor: f32) {
+        self.scale_factor = scale_factor;
+    }
+
     /// Get the glyph bind group layout for creating glyph bind groups
     pub fn glyph_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
         &self.glyph_bind_group_layout
