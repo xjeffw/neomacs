@@ -8201,6 +8201,32 @@ WIDTH is the minimap column width in pixels (default 80).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-typing-ripple",
+       Fneomacs_set_typing_ripple,
+       Sneomacs_set_typing_ripple, 0, 3, 0,
+       doc: /* Configure typing ripple effect.
+ENABLED non-nil shows expanding ripple circles from cursor on movement.
+MAX-RADIUS is the maximum ripple radius in pixels (default 40).
+DURATION-MS is the ripple duration in milliseconds (default 300).  */)
+  (Lisp_Object enabled, Lisp_Object max_radius, Lisp_Object duration_ms)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 40;
+  int d = 300;
+  if (FIXNUMP (max_radius))
+    r = XFIXNUM (max_radius);
+  if (FIXNUMP (duration_ms))
+    d = XFIXNUM (duration_ms);
+
+  neomacs_display_set_typing_ripple (
+    dpyinfo->display_handle, on, r, d);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-indent-guides",
        Fneomacs_set_indent_guides,
        Sneomacs_set_indent_guides, 0, 2, 0,
@@ -9528,6 +9554,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_cursor_pulse);
   defsubr (&Sneomacs_set_focus_mode);
   defsubr (&Sneomacs_set_minimap);
+  defsubr (&Sneomacs_set_typing_ripple);
 
   /* Cursor blink */
   defsubr (&Sneomacs_set_cursor_blink);

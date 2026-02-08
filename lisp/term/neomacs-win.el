@@ -916,6 +916,58 @@ blocks representing syntax-highlighted characters."
                     neomacs-minimap)
            (neomacs-set-minimap t val))))
 
+;;; Typing ripple
+
+(declare-function neomacs-set-typing-ripple "neomacsterm.c"
+  (&optional enabled max-radius duration-ms))
+
+(defcustom neomacs-typing-ripple nil
+  "Enable ripple effect animation on cursor movement.
+Non-nil shows expanding circles originating from the cursor
+whenever it moves, providing visual feedback during typing."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-typing-ripple)
+           (neomacs-set-typing-ripple
+            val
+            (if (boundp 'neomacs-typing-ripple-radius)
+                neomacs-typing-ripple-radius
+              nil)
+            (if (boundp 'neomacs-typing-ripple-duration)
+                neomacs-typing-ripple-duration
+              nil)))))
+
+(defcustom neomacs-typing-ripple-radius 40
+  "Maximum radius of typing ripple in pixels."
+  :type '(integer :tag "Radius")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-typing-ripple)
+                    (boundp 'neomacs-typing-ripple)
+                    neomacs-typing-ripple)
+           (neomacs-set-typing-ripple t val
+            (if (boundp 'neomacs-typing-ripple-duration)
+                neomacs-typing-ripple-duration
+              nil)))))
+
+(defcustom neomacs-typing-ripple-duration 300
+  "Duration of typing ripple animation in milliseconds."
+  :type '(integer :tag "Duration (ms)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-typing-ripple)
+                    (boundp 'neomacs-typing-ripple)
+                    neomacs-typing-ripple)
+           (neomacs-set-typing-ripple t
+            (if (boundp 'neomacs-typing-ripple-radius)
+                neomacs-typing-ripple-radius
+              nil)
+            val))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

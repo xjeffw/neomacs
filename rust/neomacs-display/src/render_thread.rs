@@ -673,6 +673,10 @@ struct RenderApp {
     /// Minimap (code overview column)
     minimap_enabled: bool,
     minimap_width: f32,
+    /// Typing ripple effect
+    typing_ripple_enabled: bool,
+    typing_ripple_max_radius: f32,
+    typing_ripple_duration_ms: u32,
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -860,6 +864,9 @@ impl RenderApp {
             focus_mode_opacity: 0.4,
             minimap_enabled: false,
             minimap_width: 80.0,
+            typing_ripple_enabled: false,
+            typing_ripple_max_radius: 40.0,
+            typing_ripple_duration_ms: 300,
         }
     }
 
@@ -1649,6 +1656,15 @@ impl RenderApp {
                     }
                     self.frame_dirty = true;
                 }
+                RenderCommand::SetTypingRipple { enabled, max_radius, duration_ms } => {
+                    self.typing_ripple_enabled = enabled;
+                    self.typing_ripple_max_radius = max_radius;
+                    self.typing_ripple_duration_ms = duration_ms;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_typing_ripple(enabled, max_radius, duration_ms);
+                    }
+                    self.frame_dirty = true;
+                }
             }
         }
 
@@ -1768,6 +1784,15 @@ impl RenderApp {
 
                         self.cursor_prev_target_cx = new_cx;
                         self.cursor_prev_target_cy = new_cy;
+                    }
+                }
+
+                // Spawn typing ripple when cursor moves (if enabled)
+                if target_moved && had_target && self.typing_ripple_enabled {
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        let cx = new_target.x + new_target.width / 2.0;
+                        let cy = new_target.y + new_target.height / 2.0;
+                        renderer.spawn_ripple(cx, cy);
                     }
                 }
 

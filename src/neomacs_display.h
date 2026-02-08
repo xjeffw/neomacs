@@ -1329,6 +1329,12 @@ void neomacs_display_set_minimap(
     int enabled,
     int width);
 
+void neomacs_display_set_typing_ripple(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int max_radius,
+    int duration_ms);
+
 void neomacs_display_set_mode_line_separator(
     struct NeomacsDisplay *handle,
     int style,

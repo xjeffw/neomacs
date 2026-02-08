@@ -105,6 +105,14 @@ pub struct WgpuRenderer {
     minimap_enabled: bool,
     /// Minimap column width in logical pixels
     minimap_width: f32,
+    /// Typing ripple effect enabled
+    typing_ripple_enabled: bool,
+    /// Max ripple radius in pixels
+    typing_ripple_max_radius: f32,
+    /// Ripple duration in seconds
+    typing_ripple_duration: f32,
+    /// Active ripples: (center_x, center_y, spawn_instant)
+    active_ripples: Vec<(f32, f32, std::time::Instant)>,
 }
 
 impl WgpuRenderer {
@@ -601,6 +609,10 @@ impl WgpuRenderer {
             focus_mode_opacity: 0.4,
             minimap_enabled: false,
             minimap_width: 80.0,
+            typing_ripple_enabled: false,
+            typing_ripple_max_radius: 40.0,
+            typing_ripple_duration: 0.3,
+            active_ripples: Vec::new(),
         }
     }
 
@@ -642,6 +654,23 @@ impl WgpuRenderer {
     pub fn set_minimap(&mut self, enabled: bool, width: f32) {
         self.minimap_enabled = enabled;
         self.minimap_width = width;
+    }
+
+    /// Update typing ripple config
+    pub fn set_typing_ripple(&mut self, enabled: bool, max_radius: f32, duration_ms: u32) {
+        self.typing_ripple_enabled = enabled;
+        self.typing_ripple_max_radius = max_radius;
+        self.typing_ripple_duration = duration_ms as f32 / 1000.0;
+        if !enabled {
+            self.active_ripples.clear();
+        }
+    }
+
+    /// Spawn a new ripple at the given position
+    pub fn spawn_ripple(&mut self, cx: f32, cy: f32) {
+        if self.typing_ripple_enabled {
+            self.active_ripples.push((cx, cy, std::time::Instant::now()));
+        }
     }
 
     /// Update visible whitespace config
@@ -3024,6 +3053,64 @@ impl WgpuRenderer {
                 }
                 // Signal that we need continuous redraws during transition
                 if any_transitioning {
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Typing ripple effect ===
+            if self.typing_ripple_enabled && !self.active_ripples.is_empty() {
+                let now = std::time::Instant::now();
+                let duration = self.typing_ripple_duration;
+                let max_r = self.typing_ripple_max_radius;
+
+                // Remove expired ripples
+                self.active_ripples.retain(|&(_, _, t)| now.duration_since(t).as_secs_f32() < duration);
+
+                if !self.active_ripples.is_empty() {
+                    let mut ripple_vertices: Vec<RectVertex> = Vec::new();
+                    let segments = 32;
+
+                    for &(cx, cy, spawn_t) in &self.active_ripples {
+                        let elapsed = now.duration_since(spawn_t).as_secs_f32();
+                        let t = (elapsed / duration).min(1.0);
+
+                        // Eased expansion
+                        let ease_t = 1.0 - (1.0 - t) * (1.0 - t); // ease-out quadratic
+                        let radius = max_r * ease_t;
+                        // Fade out
+                        let alpha = 0.4 * (1.0 - t);
+                        let ring_thickness = 1.5;
+
+                        let color = Color::new(0.5, 0.7, 1.0, alpha);
+
+                        // Draw ring as small rectangles at each angle
+                        for i in 0..segments {
+                            let angle = (i as f32 / segments as f32) * 2.0 * std::f32::consts::PI;
+                            let px = cx + radius * angle.cos();
+                            let py = cy + radius * angle.sin();
+                            self.add_rect(&mut ripple_vertices,
+                                px - ring_thickness / 2.0,
+                                py - ring_thickness / 2.0,
+                                ring_thickness,
+                                ring_thickness,
+                                &color);
+                        }
+                    }
+
+                    if !ripple_vertices.is_empty() {
+                        let ripple_buffer = self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Ripple Buffer"),
+                                contents: bytemuck::cast_slice(&ripple_vertices),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            },
+                        );
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, ripple_buffer.slice(..));
+                        render_pass.draw(0..ripple_vertices.len() as u32, 0..1);
+                    }
+
                     self.needs_continuous_redraw = true;
                 }
             }

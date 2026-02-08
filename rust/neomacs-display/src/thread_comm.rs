@@ -351,6 +351,14 @@ pub enum RenderCommand {
         /// Width of the minimap column in pixels
         width: f32,
     },
+    /// Configure typing ripple effect
+    SetTypingRipple {
+        enabled: bool,
+        /// Maximum radius in pixels
+        max_radius: f32,
+        /// Duration in milliseconds
+        duration_ms: u32,
+    },
 }
 
 /// Wakeup pipe for signaling Emacs from render thread
