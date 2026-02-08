@@ -1969,8 +1969,10 @@ DEFUN ("x-display-color-cells", Fx_display_color_cells,
        doc: /* Return number of color cells of the Neomacs display.  */)
   (Lisp_Object terminal)
 {
-  /* 24-bit color = 16 million colors */
-  return make_fixnum (16777216);
+  struct neomacs_display_info *dpyinfo
+    = check_neomacs_display_info (terminal);
+  int planes = dpyinfo->n_planes > 0 ? dpyinfo->n_planes : 24;
+  return make_fixnum (1 << min (planes, 24));
 }
 
 DEFUN ("x-display-visual-class", Fx_display_visual_class,
@@ -2018,8 +2020,22 @@ DEFUN ("x-display-screens", Fx_display_screens, Sx_display_screens, 0, 1, 0,
        doc: /* Return the number of screens on the Neomacs display.  */)
   (Lisp_Object terminal)
 {
-  check_neomacs_display_info (terminal);
-  return make_fixnum (1);
+  struct neomacs_display_info *dpyinfo
+    = check_neomacs_display_info (terminal);
+  int screens = 1;
+
+  block_input ();
+  GdkDisplay *gdpy = dpyinfo->gdpy;
+  if (gdpy)
+    {
+      GListModel *monitors = gdk_display_get_monitors (gdpy);
+      guint n = g_list_model_get_n_items (monitors);
+      if (n > 0)
+	screens = n;
+    }
+  unblock_input ();
+
+  return make_fixnum (screens);
 }
 
 DEFUN ("x-display-mm-height", Fx_display_mm_height,
@@ -2091,21 +2107,25 @@ DEFUN ("x-display-mm-width", Fx_display_mm_width,
 DEFUN ("x-server-max-request-size", Fx_server_max_request_size,
        Sx_server_max_request_size, 0, 1, 0,
        doc: /* Return the maximum request size for the Neomacs display.
-Not applicable to GPU-rendered displays; returns nil.  */)
+GPU rendering has no protocol size limit; returns a large value.  */)
   (Lisp_Object terminal)
 {
   check_neomacs_display_info (terminal);
-  return Qnil;
+  /* No protocol request size limit for GPU rendering.
+     Return 65535 (same as X11 default) for compatibility.  */
+  return make_fixnum (65535);
 }
 
 DEFUN ("x-display-backing-store", Fx_display_backing_store,
        Sx_display_backing_store, 0, 1, 0,
        doc: /* Return the backing store capability of the Neomacs display.
-Not applicable to GPU-rendered displays; returns nil.  */)
+GPU rendering always redraws fully; returns `always'.  */)
   (Lisp_Object terminal)
 {
   check_neomacs_display_info (terminal);
-  return Qnil;
+  /* GPU rendering effectively provides "always" backing store since
+     the entire frame is re-rendered each display cycle.  */
+  return intern ("always");
 }
 
 DEFUN ("x-display-save-under", Fx_display_save_under,
