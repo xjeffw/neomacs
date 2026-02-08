@@ -233,7 +233,7 @@ static struct redisplay_interface neomacs_redisplay_interface = {
   .shift_glyphs_for_insert = NULL,
   .show_hourglass = neomacs_show_hourglass,
   .hide_hourglass = neomacs_hide_hourglass,
-  .default_font_parameter = NULL,
+  .default_font_parameter = neomacs_default_font_parameter,
 };
 
 

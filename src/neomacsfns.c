@@ -1572,28 +1572,7 @@ If the parameters specify a display, that display is used.  */)
                               list1 (Fcons (Qname, name)));
 
   /* Set up font - required before face realization */
-  {
-    Lisp_Object font = gui_display_get_arg (dpyinfo, parms, Qfont, "font", "Font",
-					    RES_TYPE_STRING);
-    if (!FONTP (font) && !STRINGP (font))
-      {
-	const char *names[] = {
-	  "monospace-10",
-	  "Monospace-10",
-	  "fixed",
-	  NULL
-	};
-	for (int i = 0; names[i]; i++)
-	  {
-	    font = font_open_by_name (f, build_unibyte_string (names[i]));
-	    if (!NILP (font))
-	      break;
-	  }
-      }
-    if (!NILP (font))
-      gui_default_parameter (f, parms, Qfont, font, "font", "Font",
-			     RES_TYPE_STRING);
-  }
+  neomacs_default_font_parameter (f, parms);
 
   /* Set foreground and background colors - REQUIRED for face realization */
   /* Use black on white (standard Emacs default) */
@@ -2066,6 +2045,54 @@ neomacs_set_title (struct frame *f)
       neomacs_display_set_title (dpyinfo->display_handle,
                                  SSDATA (encoded));
     }
+}
+
+
+/* Set up the default font for frame F from parameters PARMS.
+   Called during frame creation and when font-backend changes.  */
+void
+neomacs_default_font_parameter (struct frame *f, Lisp_Object parms)
+{
+  struct neomacs_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
+  Lisp_Object font_param
+    = gui_display_get_arg (dpyinfo, parms, Qfont, NULL, NULL,
+                           RES_TYPE_STRING);
+  Lisp_Object font = Qnil;
+  if (BASE_EQ (font_param, Qunbound))
+    font_param = Qnil;
+
+  if (NILP (font))
+    font = !NILP (font_param) ? font_param
+      : gui_display_get_arg (dpyinfo, parms, Qfont, "font", "Font",
+                             RES_TYPE_STRING);
+
+  if (!FONTP (font) && !STRINGP (font))
+    {
+      const char *names[] = {
+        "monospace-10",
+        "Monospace-10",
+        "-misc-fixed-medium-r-normal-*-*-140-*-*-c-*-iso8859-1",
+        "fixed",
+        NULL
+      };
+      for (int i = 0; names[i]; i++)
+        {
+          font = font_open_by_name (f, build_unibyte_string (names[i]));
+          if (!NILP (font))
+            break;
+        }
+      if (NILP (font))
+        error ("No suitable font was found");
+    }
+  else if (STRINGP (font))
+    {
+      Lisp_Object opened = font_open_by_name (f, font);
+      if (!NILP (opened))
+        font = opened;
+    }
+
+  gui_default_parameter (f, parms, Qfont, font, "font", "Font",
+                         RES_TYPE_STRING);
 }
 
 
