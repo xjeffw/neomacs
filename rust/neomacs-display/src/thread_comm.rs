@@ -418,6 +418,12 @@ pub enum RenderCommand {
         /// Background opacity (0.0-1.0)
         opacity: f32,
     },
+    /// Configure breadcrumb title fade animation
+    SetTitleFade {
+        enabled: bool,
+        /// Fade duration in milliseconds
+        duration_ms: u32,
+    },
     /// Configure cursor color cycling (rainbow hue rotation)
     SetCursorColorCycle {
         enabled: bool,

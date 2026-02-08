@@ -1283,6 +1283,34 @@ directory hierarchy and separator characters."
                     neomacs-breadcrumb)
            (neomacs-set-breadcrumb t val))))
 
+;; --- Breadcrumb title fade ---
+(declare-function neomacs-set-title-fade "neomacsterm.c"
+  (&optional enabled duration-ms))
+
+(defcustom neomacs-title-fade nil
+  "Enable crossfade animation for breadcrumb title on buffer switch.
+Non-nil smoothly crossfades the old file path to the new one
+when switching buffers in a window."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-title-fade)
+           (neomacs-set-title-fade val
+            (if (boundp 'neomacs-title-fade-duration)
+                neomacs-title-fade-duration nil)))))
+
+(defcustom neomacs-title-fade-duration 300
+  "Duration of the breadcrumb title fade in milliseconds."
+  :type '(integer :tag "Duration (ms)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-title-fade)
+                    (boundp 'neomacs-title-fade)
+                    neomacs-title-fade)
+           (neomacs-set-title-fade t val))))
+
 ;; --- Window switch highlight fade ---
 (declare-function neomacs-set-window-switch-fade "neomacsterm.c"
   (&optional enabled duration-ms intensity))

@@ -8510,6 +8510,29 @@ OPACITY is 0-100 for background opacity (default 70).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-title-fade",
+       Fneomacs_set_title_fade,
+       Sneomacs_set_title_fade, 0, 2, 0,
+       doc: /* Configure breadcrumb title fade animation.
+ENABLED non-nil crossfades the breadcrumb text when switching buffers
+in a window, providing smooth visual feedback.
+DURATION-MS is the fade duration in milliseconds (default 300).  */)
+  (Lisp_Object enabled, Lisp_Object duration_ms)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int dur = 300;
+  if (FIXNUMP (duration_ms))
+    dur = XFIXNUM (duration_ms);
+
+  neomacs_display_set_title_fade (
+    dpyinfo->display_handle, on, dur);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-window-switch-fade",
        Fneomacs_set_window_switch_fade,
        Sneomacs_set_window_switch_fade, 0, 3, 0,
@@ -9914,6 +9937,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_cursor_color_cycle);
   defsubr (&Sneomacs_set_window_switch_fade);
   defsubr (&Sneomacs_set_breadcrumb);
+  defsubr (&Sneomacs_set_title_fade);
   defsubr (&Sneomacs_set_window_glow);
   defsubr (&Sneomacs_set_scroll_progress);
   defsubr (&Sneomacs_set_inactive_tint);

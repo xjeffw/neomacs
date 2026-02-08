@@ -2699,6 +2699,22 @@ pub unsafe extern "C" fn neomacs_display_set_breadcrumb(
     }
 }
 
+/// Configure breadcrumb title fade animation
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_title_fade(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    duration_ms: c_int,
+) {
+    let cmd = RenderCommand::SetTitleFade {
+        enabled: enabled != 0,
+        duration_ms: duration_ms as u32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure window switch highlight fade
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_window_switch_fade(

@@ -158,6 +158,13 @@ pub struct WgpuRenderer {
     /// Breadcrumb/path bar overlay
     breadcrumb_enabled: bool,
     breadcrumb_opacity: f32,
+    /// Title fade animation
+    title_fade_enabled: bool,
+    title_fade_duration_ms: u32,
+    /// Previous breadcrumb text per window (window_id -> file_name)
+    prev_breadcrumb_text: std::collections::HashMap<i64, String>,
+    /// Active title fades (window_id -> (old_text, new_text, start_time))
+    active_title_fades: Vec<TitleFadeEntry>,
     /// Active window border glow
     window_glow_enabled: bool,
     window_glow_color: (f32, f32, f32),
@@ -181,6 +188,16 @@ struct WindowFadeEntry {
     started: std::time::Instant,
     duration: std::time::Duration,
     intensity: f32,
+}
+
+/// Entry for an active title/breadcrumb crossfade animation
+struct TitleFadeEntry {
+    window_id: i64,
+    bounds: Rect,
+    old_text: String,
+    new_text: String,
+    started: std::time::Instant,
+    duration: std::time::Duration,
 }
 
 /// Entry for an active line insertion/deletion animation
@@ -725,6 +742,10 @@ impl WgpuRenderer {
             active_window_fades: Vec::new(),
             breadcrumb_enabled: false,
             breadcrumb_opacity: 0.7,
+            title_fade_enabled: false,
+            title_fade_duration_ms: 300,
+            prev_breadcrumb_text: std::collections::HashMap::new(),
+            active_title_fades: Vec::new(),
             window_glow_enabled: false,
             window_glow_color: (0.4, 0.6, 1.0),
             window_glow_radius: 8.0,
@@ -891,6 +912,15 @@ impl WgpuRenderer {
     pub fn set_breadcrumb(&mut self, enabled: bool, opacity: f32) {
         self.breadcrumb_enabled = enabled;
         self.breadcrumb_opacity = opacity;
+    }
+
+    /// Update title fade config
+    pub fn set_title_fade(&mut self, enabled: bool, duration_ms: u32) {
+        self.title_fade_enabled = enabled;
+        self.title_fade_duration_ms = duration_ms;
+        if !enabled {
+            self.active_title_fades.clear();
+        }
     }
 
     /// Start a window switch fade for a specific window
@@ -6608,9 +6638,39 @@ impl WgpuRenderer {
         self.queue.submit(Some(encoder.finish()));
     }
 
+    /// Build breadcrumb display chars from a file path
+    fn breadcrumb_display_chars(path: &str) -> Vec<(char, bool)> {
+        let separator = " \u{203A} "; // " › "
+        let components: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        if components.is_empty() {
+            return Vec::new();
+        }
+        let show_start = if components.len() > 3 { components.len() - 3 } else { 0 };
+        let shown = &components[show_start..];
+        let mut display_chars: Vec<(char, bool)> = Vec::new();
+        if show_start > 0 {
+            display_chars.push(('\u{2026}', true));
+            for c in separator.chars() {
+                display_chars.push((c, true));
+            }
+        }
+        for (i, comp) in shown.iter().enumerate() {
+            if i > 0 {
+                for c in separator.chars() {
+                    display_chars.push((c, true));
+                }
+            }
+            let is_last = i == shown.len() - 1;
+            for c in comp.chars() {
+                display_chars.push((c, !is_last));
+            }
+        }
+        display_chars
+    }
+
     /// Render breadcrumb/path bars for windows with file-backed buffers
     pub fn render_breadcrumbs(
-        &self,
+        &mut self,
         view: &wgpu::TextureView,
         frame_glyphs: &FrameGlyphBuffer,
         glyph_atlas: &mut WgpuGlyphAtlas,
@@ -6625,14 +6685,47 @@ impl WgpuRenderer {
         let line_height = glyph_atlas.default_line_height();
         let bar_height = line_height + 4.0;
         let padding_x = 6.0_f32;
-        let separator = " \u{203A} "; // " › "
         let opacity = self.breadcrumb_opacity.clamp(0.0, 1.0);
+
+        // Detect title changes and start fade animations
+        if self.title_fade_enabled {
+            for info in &frame_glyphs.window_infos {
+                if info.is_minibuffer || info.buffer_file_name.is_empty() {
+                    continue;
+                }
+                let wid = info.window_id;
+                let new_text = &info.buffer_file_name;
+                let changed = match self.prev_breadcrumb_text.get(&wid) {
+                    Some(old) => old != new_text,
+                    None => false, // first time seeing this window, no fade
+                };
+                if changed {
+                    let old_text = self.prev_breadcrumb_text.get(&wid).cloned().unwrap_or_default();
+                    // Remove any existing fade for this window
+                    self.active_title_fades.retain(|f| f.window_id != wid);
+                    self.active_title_fades.push(TitleFadeEntry {
+                        window_id: wid,
+                        bounds: info.bounds,
+                        old_text,
+                        new_text: new_text.clone(),
+                        started: std::time::Instant::now(),
+                        duration: std::time::Duration::from_millis(self.title_fade_duration_ms as u64),
+                    });
+                }
+                self.prev_breadcrumb_text.insert(wid, new_text.clone());
+            }
+            // Clean up expired fades
+            self.active_title_fades.retain(|f| f.started.elapsed() < f.duration);
+            if !self.active_title_fades.is_empty() {
+                self.needs_continuous_redraw = true;
+            }
+        }
 
         let mut all_rect_vertices: Vec<RectVertex> = Vec::new();
         let mut all_text_glyphs: Vec<(GlyphKey, f32, f32, [f32; 4])> = Vec::new();
         let font_size_bits = 0.0_f32.to_bits();
-        let text_color = [0.85_f32, 0.85, 0.85, 1.0]; // light gray in linear
-        let sep_color = [0.5_f32, 0.5, 0.5, 1.0]; // dimmer separator
+        let text_color_base = [0.85_f32, 0.85, 0.85, 1.0];
+        let sep_color_base = [0.5_f32, 0.5, 0.5, 1.0];
 
         for info in &frame_glyphs.window_infos {
             if info.is_minibuffer || info.buffer_file_name.is_empty() {
@@ -6641,70 +6734,77 @@ impl WgpuRenderer {
 
             let b = &info.bounds;
 
-            // Split path into components
-            let path = &info.buffer_file_name;
-            let components: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-            if components.is_empty() {
-                continue;
-            }
+            // Check if this window has an active title fade
+            let active_fade = self.active_title_fades.iter().find(|f| f.window_id == info.window_id);
 
-            // Abbreviate: show last 3 components at most (or fewer)
-            let show_start = if components.len() > 3 { components.len() - 3 } else { 0 };
-            let shown = &components[show_start..];
+            if let Some(fade) = active_fade {
+                // Crossfade: render old text fading out, new text fading in
+                let t = (fade.started.elapsed().as_secs_f32() / fade.duration.as_secs_f32()).min(1.0);
+                // Ease-out quadratic
+                let eased = t * (2.0 - t);
+                let new_alpha = eased;
+                let old_alpha = 1.0 - eased;
 
-            // Build display string and track component positions
-            let mut display_chars: Vec<(char, bool)> = Vec::new(); // (char, is_separator)
-            if show_start > 0 {
-                // Prefix with "…"
-                display_chars.push(('\u{2026}', true));
-                for c in separator.chars() {
-                    display_chars.push((c, true));
+                // Background rect (full opacity)
+                let display_chars_new = Self::breadcrumb_display_chars(&info.buffer_file_name);
+                let display_chars_old = Self::breadcrumb_display_chars(&fade.old_text);
+                let max_len = display_chars_new.len().max(display_chars_old.len());
+                let bar_w = (max_len as f32 * char_width + padding_x * 2.0).min(b.width);
+                let bar_x = b.x;
+                let bar_y = b.y;
+
+                let bg_color = Color::new(0.0, 0.0, 0.0, opacity);
+                self.add_rect(&mut all_rect_vertices, bar_x, bar_y, bar_w, bar_height, &bg_color);
+                let edge_color = Color::new(0.3, 0.3, 0.3, opacity * 0.5);
+                self.add_rect(&mut all_rect_vertices, bar_x, bar_y + bar_height, bar_w, 1.0, &edge_color);
+
+                let text_y = bar_y + 2.0;
+
+                // Old text fading out
+                for (ci, &(ch, is_dim)) in display_chars_old.iter().enumerate() {
+                    let cx = bar_x + padding_x + ci as f32 * char_width;
+                    if cx + char_width > bar_x + bar_w { break; }
+                    let key = GlyphKey { charcode: ch as u32, face_id: 0, font_size_bits };
+                    glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
+                    let base = if is_dim { sep_color_base } else { text_color_base };
+                    all_text_glyphs.push((key, cx, text_y,
+                        [base[0], base[1], base[2], base[3] * old_alpha]));
                 }
-            }
-            for (i, comp) in shown.iter().enumerate() {
-                if i > 0 {
-                    for c in separator.chars() {
-                        display_chars.push((c, true));
-                    }
+
+                // New text fading in
+                for (ci, &(ch, is_dim)) in display_chars_new.iter().enumerate() {
+                    let cx = bar_x + padding_x + ci as f32 * char_width;
+                    if cx + char_width > bar_x + bar_w { break; }
+                    let key = GlyphKey { charcode: ch as u32, face_id: 0, font_size_bits };
+                    glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
+                    let base = if is_dim { sep_color_base } else { text_color_base };
+                    all_text_glyphs.push((key, cx, text_y,
+                        [base[0], base[1], base[2], base[3] * new_alpha]));
                 }
-                let is_last = i == shown.len() - 1;
-                for c in comp.chars() {
-                    display_chars.push((c, !is_last)); // last component gets bright color
+            } else {
+                // Normal rendering (no active fade)
+                let display_chars = Self::breadcrumb_display_chars(&info.buffer_file_name);
+                if display_chars.is_empty() { continue; }
+
+                let text_width = display_chars.len() as f32 * char_width;
+                let bar_w = (text_width + padding_x * 2.0).min(b.width);
+                let bar_x = b.x;
+                let bar_y = b.y;
+
+                let bg_color = Color::new(0.0, 0.0, 0.0, opacity);
+                self.add_rect(&mut all_rect_vertices, bar_x, bar_y, bar_w, bar_height, &bg_color);
+                let edge_color = Color::new(0.3, 0.3, 0.3, opacity * 0.5);
+                self.add_rect(&mut all_rect_vertices, bar_x, bar_y + bar_height, bar_w, 1.0, &edge_color);
+
+                let text_y = bar_y + 2.0;
+                for (ci, &(ch, is_dim)) in display_chars.iter().enumerate() {
+                    let cx = bar_x + padding_x + ci as f32 * char_width;
+                    if cx + char_width > bar_x + bar_w { break; }
+                    let key = GlyphKey { charcode: ch as u32, face_id: 0, font_size_bits };
+                    glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
+                    all_text_glyphs.push((key, cx, text_y,
+                        if is_dim { sep_color_base } else { text_color_base }));
                 }
-            }
-
-            let text_width = display_chars.len() as f32 * char_width;
-            let bar_w = (text_width + padding_x * 2.0).min(b.width);
-            let bar_x = b.x;
-            let bar_y = b.y;
-
-            // Background rect (semi-transparent dark)
-            let bg_color = Color::new(0.0, 0.0, 0.0, opacity);
-            self.add_rect(&mut all_rect_vertices, bar_x, bar_y, bar_w, bar_height, &bg_color);
-
-            // Bottom edge line for visual separation
-            let edge_color = Color::new(0.3, 0.3, 0.3, opacity * 0.5);
-            self.add_rect(&mut all_rect_vertices, bar_x, bar_y + bar_height, bar_w, 1.0, &edge_color);
-
-            // Text glyphs
-            let text_y = bar_y + 2.0;
-            for (ci, &(ch, is_dim)) in display_chars.iter().enumerate() {
-                let cx = bar_x + padding_x + ci as f32 * char_width;
-                if cx + char_width > bar_x + bar_w {
-                    break; // clip to bar width
-                }
-                let key = GlyphKey {
-                    charcode: ch as u32,
-                    face_id: 0,
-                    font_size_bits,
-                };
-                glyph_atlas.get_or_create(&self.device, &self.queue, &key, None);
-                all_text_glyphs.push((
-                    key,
-                    cx,
-                    text_y,
-                    if is_dim { sep_color } else { text_color },
-                ));
             }
         }
 

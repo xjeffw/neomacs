@@ -1397,6 +1397,11 @@ void neomacs_display_set_breadcrumb(
     int enabled,
     int opacity);
 
+void neomacs_display_set_title_fade(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int duration_ms);
+
 void neomacs_display_set_window_switch_fade(
     struct NeomacsDisplay *handle,
     int enabled,

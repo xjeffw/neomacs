@@ -713,6 +713,9 @@ struct RenderApp {
     /// Breadcrumb/path bar overlay
     breadcrumb_enabled: bool,
     breadcrumb_opacity: f32,
+    /// Title fade animation for breadcrumbs
+    title_fade_enabled: bool,
+    title_fade_duration_ms: u32,
     /// Active window border glow
     window_glow_enabled: bool,
     window_glow_color: (f32, f32, f32),
@@ -944,6 +947,8 @@ impl RenderApp {
             prev_selected_window_id: 0,
             breadcrumb_enabled: false,
             breadcrumb_opacity: 0.7,
+            title_fade_enabled: false,
+            title_fade_duration_ms: 300,
             window_glow_enabled: false,
             window_glow_color: (0.4, 0.6, 1.0),
             window_glow_radius: 8.0,
@@ -1859,6 +1864,14 @@ impl RenderApp {
                     self.breadcrumb_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_breadcrumb(enabled, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetTitleFade { enabled, duration_ms } => {
+                    self.title_fade_enabled = enabled;
+                    self.title_fade_duration_ms = duration_ms;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_title_fade(enabled, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
@@ -3272,8 +3285,8 @@ impl RenderApp {
 
         // Render breadcrumb/path bar overlay
         if self.breadcrumb_enabled {
-            if let (Some(ref renderer), Some(ref mut glyph_atlas), Some(ref frame)) =
-                (&self.renderer, &mut self.glyph_atlas, &self.current_frame)
+            if let (Some(ref mut renderer), Some(ref mut glyph_atlas), Some(ref frame)) =
+                (&mut self.renderer, &mut self.glyph_atlas, &self.current_frame)
             {
                 renderer.render_breadcrumbs(&surface_view, frame, glyph_atlas);
             }
