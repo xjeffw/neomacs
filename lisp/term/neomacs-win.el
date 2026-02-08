@@ -284,6 +284,19 @@ SELECTION is a symbol like `CLIPBOARD' or `PRIMARY'."
       (let ((text (neomacs-primary-selection-get)))
         (and text (not (string-empty-p text))))))))
 
+;; Frame opacity
+(defun neomacs-set-frame-opacity (opacity &optional frame)
+  "Set FRAME's background opacity to OPACITY (0.0 fully transparent, 1.0 opaque).
+OPACITY can be a float (0.0-1.0) or an integer (0-100).
+If FRAME is nil, use the selected frame.
+This sets the `alpha-background' frame parameter, which makes the
+background transparent while keeping text fully opaque."
+  (interactive "nOpacity (0.0-1.0 or 0-100): ")
+  (let ((f (or frame (selected-frame))))
+    (when (and (integerp opacity) (> opacity 1))
+      (setq opacity (/ (float opacity) 100.0)))
+    (set-frame-parameter f 'alpha-background opacity)))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

@@ -577,32 +577,15 @@ neomacs_set_override_redirect (struct frame *f, Lisp_Object arg, Lisp_Object old
 static void
 neomacs_set_alpha_background (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
 {
-  double alpha = 1.0;
+  /* Let gui_set_alpha_background handle validation, face recomputation,
+     and SET_FRAME_GARBAGED.  */
+  gui_set_alpha_background (f, arg, oldval);
 
-  if (FLOATP (arg))
-    {
-      alpha = XFLOAT_DATA (arg);
-      if (alpha < 0.0 || alpha > 1.0)
-	args_out_of_range (make_float (0.0), make_float (1.0));
-    }
-  else if (FIXNUMP (arg))
-    {
-      EMACS_INT ialpha = XFIXNUM (arg);
-      if (ialpha < 0 || ialpha > 100)
-	args_out_of_range (make_fixnum (0), make_fixnum (100));
-      alpha = ialpha / 100.0;
-    }
-
-  /* Send alpha to GPU renderer for background transparency.  */
+  /* Send the computed alpha to the GPU renderer for background transparency.  */
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
   if (dpyinfo && dpyinfo->display_handle)
     neomacs_display_set_background_alpha (dpyinfo->display_handle,
-					  (float) alpha);
-
-  f->alpha_background = alpha;
-
-  if (FRAME_TERMINAL (f)->set_frame_alpha_hook)
-    FRAME_TERMINAL (f)->set_frame_alpha_hook (f);
+					  (float) f->alpha_background);
 }
 
 /* Frame parameter handlers table - must match the order in frame.c frame_parms table */

@@ -6135,9 +6135,10 @@ neomacs_frame_up_to_date (struct frame *f)
 
 /* Set frame alpha (whole-window opacity) based on focus state.
    Reads f->alpha[0] (focused) or f->alpha[1] (unfocused),
-   applies Vframe_alpha_lower_limit.  Currently a no-op for actual
-   rendering since wgpu/winit doesn't expose per-window opacity on
-   most compositors, but the hook is needed for proper Emacs integration.  */
+   applies Vframe_alpha_lower_limit.  Sends the computed alpha to the
+   GPU renderer which uses it as the clear-color alpha for transparent
+   window compositing (window is created with_transparent(true) and
+   pre-multiplied alpha mode).  */
 static void
 neomacs_set_frame_alpha (struct frame *f)
 {
