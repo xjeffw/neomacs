@@ -42,6 +42,8 @@ pub struct CachedGlyph {
     /// Color glyphs should be rendered with the image pipeline (direct RGBA),
     /// not the glyph pipeline (alpha-mask tinted with foreground color).
     pub is_color: bool,
+    /// Frame generation when this glyph was last accessed
+    last_accessed: u64,
 }
 
 /// Wgpu-based glyph atlas for text rendering
@@ -69,6 +71,8 @@ pub struct WgpuGlyphAtlas {
     max_size: usize,
     /// Interned font family names (avoids Box::leak memory growth)
     interned_families: HashSet<&'static str>,
+    /// Frame generation counter (incremented each frame)
+    generation: u64,
 }
 
 impl WgpuGlyphAtlas {
@@ -122,6 +126,7 @@ impl WgpuGlyphAtlas {
             scale_factor: 1.0,
             max_size: 4096,
             interned_families: HashSet::new(),
+            generation: 0,
         }
     }
 
@@ -148,8 +153,9 @@ impl WgpuGlyphAtlas {
         key: &GlyphKey,
         face: Option<&Face>,
     ) -> Option<&CachedGlyph> {
-        // Check cache first
-        if self.cache.contains_key(key) {
+        // Check cache first — update access generation on hit
+        if let Some(cached) = self.cache.get_mut(key) {
+            cached.last_accessed = self.generation;
             return self.cache.get(key);
         }
 
@@ -241,20 +247,20 @@ impl WgpuGlyphAtlas {
             ],
         });
 
-        // Evict old entries if cache is full
+        // Evict least-recently-used entries if cache is full
         if self.cache.len() >= self.max_size {
-            let keys_to_remove: Vec<_> = self
-                .cache
-                .keys()
-                .take(self.max_size / 2)
-                .cloned()
+            let mut entries: Vec<_> = self.cache.iter()
+                .map(|(k, v)| (k.clone(), v.last_accessed))
                 .collect();
-            for k in keys_to_remove {
+            entries.sort_by_key(|(_, gen)| *gen);
+            let evict_count = self.max_size / 4;
+            for (k, _) in entries.into_iter().take(evict_count) {
                 self.cache.remove(&k);
             }
         }
 
         // Insert into cache
+        let gen = self.generation;
         let cached_glyph = CachedGlyph {
             texture,
             view,
@@ -264,6 +270,7 @@ impl WgpuGlyphAtlas {
             bearing_x,
             bearing_y,
             is_color,
+            last_accessed: gen,
         };
         self.cache.insert(key.clone(), cached_glyph);
         self.cache.get(key)
@@ -452,5 +459,11 @@ impl WgpuGlyphAtlas {
             // Clear cache when metrics change
             self.clear();
         }
+    }
+
+    /// Advance the frame generation counter.
+    /// Call once per frame before rendering.
+    pub fn advance_generation(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
     }
 }

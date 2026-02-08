@@ -1174,6 +1174,9 @@ impl WgpuRenderer {
             faces.len(),
         );
 
+        // Advance glyph atlas generation for LRU tracking
+        glyph_atlas.advance_generation();
+
         // Update uniforms with logical size for correct coordinate transformation
         // (Emacs sends positions in logical pixels; surface is in physical pixels)
         let logical_w = surface_width as f32 / self.scale_factor;
