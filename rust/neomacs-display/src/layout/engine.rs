@@ -1821,6 +1821,20 @@ impl LayoutEngine {
             let remaining = (cols - col) as f32 * char_w;
             frame_glyphs.add_stretch(gx, y, remaining, height, bg, line_face.face_id, true);
         }
+
+        // Draw box borders if the face has box type
+        if line_face.box_type > 0 {
+            let bw = line_face.box_line_width.max(1) as f32;
+            let box_color = Color::from_pixel(line_face.box_color);
+            // Top border
+            frame_glyphs.add_border(x, y, width, bw, box_color);
+            // Bottom border
+            frame_glyphs.add_border(x, y + height - bw, width, bw, box_color);
+            // Left border
+            frame_glyphs.add_border(x, y, bw, height, box_color);
+            // Right border
+            frame_glyphs.add_border(x + width - bw, y, bw, height, box_color);
+        }
     }
 }
 
