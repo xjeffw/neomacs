@@ -4470,9 +4470,26 @@ impl WgpuRenderer {
 
         let mut rect_vertices: Vec<RectVertex> = Vec::new();
         let indicator_width = 3.0_f32;
+        let multi_window = window_infos.len() > 1;
 
         for info in window_infos {
-            // Skip windows with no meaningful buffer content
+            // Focus ring for selected window (only when multiple windows visible)
+            if multi_window && info.selected {
+                let b = &info.bounds;
+                let bw = 2.0_f32;
+                let accent = Color::new(0.3, 0.5, 0.9, 0.4).srgb_to_linear();
+                // Top
+                self.add_rect(&mut rect_vertices, b.x, b.y, b.width, bw, &accent);
+                // Bottom (above mode-line)
+                let bottom_y = b.y + b.height - info.mode_line_height - bw;
+                self.add_rect(&mut rect_vertices, b.x, bottom_y, b.width, bw, &accent);
+                // Left
+                self.add_rect(&mut rect_vertices, b.x, b.y, bw, b.height - info.mode_line_height, &accent);
+                // Right
+                self.add_rect(&mut rect_vertices, b.x + b.width - bw, b.y, bw, b.height - info.mode_line_height, &accent);
+            }
+
+            // Skip windows with no meaningful buffer content for scroll indicator
             if info.buffer_size <= 1 {
                 continue;
             }
