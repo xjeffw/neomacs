@@ -2506,6 +2506,24 @@ pub unsafe extern "C" fn neomacs_display_set_search_pulse(
     }
 }
 
+/// Configure zen mode (centered distraction-free)
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_zen_mode(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    content_width_pct: c_int,
+    margin_opacity: c_int,
+) {
+    let cmd = RenderCommand::SetZenMode {
+        enabled: enabled != 0,
+        content_width_pct: content_width_pct as f32,
+        margin_opacity: margin_opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure background pattern
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_background_pattern(

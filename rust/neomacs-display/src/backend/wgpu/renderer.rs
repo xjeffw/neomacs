@@ -119,6 +119,10 @@ pub struct WgpuRenderer {
     search_pulse_face_id: u32,
     /// Pulse start time
     search_pulse_start: std::time::Instant,
+    /// Zen mode (distraction-free centered content)
+    zen_mode_enabled: bool,
+    zen_mode_content_width_pct: f32,
+    zen_mode_margin_opacity: f32,
     /// Background pattern style (0=none, 1=dots, 2=grid, 3=crosshatch)
     bg_pattern_style: u32,
     /// Pattern spacing in pixels
@@ -630,6 +634,9 @@ impl WgpuRenderer {
             search_pulse_enabled: false,
             search_pulse_face_id: 0,
             search_pulse_start: std::time::Instant::now(),
+            zen_mode_enabled: false,
+            zen_mode_content_width_pct: 60.0,
+            zen_mode_margin_opacity: 0.3,
             bg_pattern_style: 0,
             bg_pattern_spacing: 20.0,
             bg_pattern_color: (0.5, 0.5, 0.5),
@@ -675,6 +682,13 @@ impl WgpuRenderer {
     pub fn set_minimap(&mut self, enabled: bool, width: f32) {
         self.minimap_enabled = enabled;
         self.minimap_width = width;
+    }
+
+    /// Update zen mode config
+    pub fn set_zen_mode(&mut self, enabled: bool, content_width_pct: f32, margin_opacity: f32) {
+        self.zen_mode_enabled = enabled;
+        self.zen_mode_content_width_pct = content_width_pct;
+        self.zen_mode_margin_opacity = margin_opacity;
     }
 
     /// Update background pattern config
@@ -3182,6 +3196,54 @@ impl WgpuRenderer {
                 // Signal that we need continuous redraws during transition
                 if any_transitioning {
                     self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Zen mode: draw margin overlays for centered content ===
+            if self.zen_mode_enabled {
+                let content_pct = self.zen_mode_content_width_pct.clamp(20.0, 100.0) / 100.0;
+                let margin_alpha = self.zen_mode_margin_opacity;
+                let dim_color = Color::new(0.0, 0.0, 0.0, margin_alpha);
+                let mut zen_vertices: Vec<RectVertex> = Vec::new();
+
+                for info in &frame_glyphs.window_infos {
+                    if info.is_minibuffer { continue; }
+                    let b = &info.bounds;
+                    let content_h = b.height - info.mode_line_height;
+                    if content_h < 10.0 { continue; }
+
+                    let content_w = b.width * content_pct;
+                    let margin_w = (b.width - content_w) / 2.0;
+
+                    if margin_w > 2.0 {
+                        // Left margin overlay
+                        self.add_rect(&mut zen_vertices,
+                            b.x, b.y, margin_w, content_h, &dim_color);
+                        // Right margin overlay
+                        self.add_rect(&mut zen_vertices,
+                            b.x + b.width - margin_w, b.y, margin_w, content_h, &dim_color);
+                    }
+
+                    // Dim the mode-line slightly
+                    if info.mode_line_height > 0.0 {
+                        let ml_dim = Color::new(0.0, 0.0, 0.0, margin_alpha * 0.5);
+                        self.add_rect(&mut zen_vertices,
+                            b.x, b.y + content_h, b.width, info.mode_line_height, &ml_dim);
+                    }
+                }
+
+                if !zen_vertices.is_empty() {
+                    let zen_buffer = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Zen Mode Buffer"),
+                            contents: bytemuck::cast_slice(&zen_vertices),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, zen_buffer.slice(..));
+                    render_pass.draw(0..zen_vertices.len() as u32, 0..1);
                 }
             }
 

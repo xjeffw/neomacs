@@ -685,6 +685,10 @@ struct RenderApp {
     bg_pattern_spacing: f32,
     bg_pattern_color: (f32, f32, f32),
     bg_pattern_opacity: f32,
+    /// Zen mode (centered distraction-free)
+    zen_mode_enabled: bool,
+    zen_mode_content_width_pct: f32,
+    zen_mode_margin_opacity: f32,
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -881,6 +885,9 @@ impl RenderApp {
             bg_pattern_spacing: 20.0,
             bg_pattern_color: (0.5, 0.5, 0.5),
             bg_pattern_opacity: 0.05,
+            zen_mode_enabled: false,
+            zen_mode_content_width_pct: 60.0,
+            zen_mode_margin_opacity: 0.3,
         }
     }
 
@@ -1694,6 +1701,15 @@ impl RenderApp {
                     self.bg_pattern_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_background_pattern(style, spacing, r, g, b, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetZenMode { enabled, content_width_pct, margin_opacity } => {
+                    self.zen_mode_enabled = enabled;
+                    self.zen_mode_content_width_pct = content_width_pct;
+                    self.zen_mode_margin_opacity = margin_opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_zen_mode(enabled, content_width_pct, margin_opacity);
                     }
                     self.frame_dirty = true;
                 }

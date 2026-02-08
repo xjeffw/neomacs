@@ -1252,6 +1252,14 @@ void neomacs_display_set_typing_ripple(struct NeomacsDisplay *handle,
 void neomacs_display_set_search_pulse(struct NeomacsDisplay *handle, int enabled, int faceId);
 
 /**
+ * Configure zen mode (centered distraction-free)
+ */
+void neomacs_display_set_zen_mode(struct NeomacsDisplay *handle,
+                                  int enabled,
+                                  int contentWidthPct,
+                                  int marginOpacity);
+
+/**
  * Configure background pattern
  */
 void neomacs_display_set_background_pattern(struct NeomacsDisplay *handle,

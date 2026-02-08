@@ -1340,6 +1340,12 @@ void neomacs_display_set_search_pulse(
     int enabled,
     int face_id);
 
+void neomacs_display_set_zen_mode(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int content_width_pct,
+    int margin_opacity);
+
 void neomacs_display_set_background_pattern(
     struct NeomacsDisplay *handle,
     int style,

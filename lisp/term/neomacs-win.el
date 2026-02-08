@@ -1076,6 +1076,54 @@ the active match stand out.  Automatically activates during isearch."
                 neomacs-background-pattern-color nil)
             val))))
 
+;;; Zen mode
+
+(declare-function neomacs-set-zen-mode "neomacsterm.c"
+  (&optional enabled content-width-pct margin-opacity))
+
+(defcustom neomacs-zen-mode nil
+  "Enable zen/distraction-free mode with centered content.
+Non-nil dims the margins of each window, visually centering the
+text content for a focused writing experience."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-zen-mode)
+           (neomacs-set-zen-mode
+            val
+            (if (boundp 'neomacs-zen-content-width)
+                neomacs-zen-content-width nil)
+            (if (boundp 'neomacs-zen-margin-opacity)
+                neomacs-zen-margin-opacity nil)))))
+
+(defcustom neomacs-zen-content-width 60
+  "Content width as percentage of window width in zen mode (20-100)."
+  :type '(integer :tag "Width %")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-zen-mode)
+                    (boundp 'neomacs-zen-mode)
+                    neomacs-zen-mode)
+           (neomacs-set-zen-mode t val
+            (if (boundp 'neomacs-zen-margin-opacity)
+                neomacs-zen-margin-opacity nil)))))
+
+(defcustom neomacs-zen-margin-opacity 30
+  "Opacity of zen mode margin overlays (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-zen-mode)
+                    (boundp 'neomacs-zen-mode)
+                    neomacs-zen-mode)
+           (neomacs-set-zen-mode t
+            (if (boundp 'neomacs-zen-content-width)
+                neomacs-zen-content-width nil)
+            val))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

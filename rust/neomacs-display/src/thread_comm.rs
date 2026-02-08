@@ -365,6 +365,14 @@ pub enum RenderCommand {
         /// Face ID of the isearch face (used to identify matching glyphs)
         face_id: u32,
     },
+    /// Configure zen mode (distraction-free centered content)
+    SetZenMode {
+        enabled: bool,
+        /// Width of the content area in percentage of window width (0-100)
+        content_width_pct: f32,
+        /// Opacity of the margin overlay (0.0-1.0)
+        margin_opacity: f32,
+    },
     /// Configure background pattern
     SetBackgroundPattern {
         /// 0=none, 1=dots, 2=grid, 3=crosshatch

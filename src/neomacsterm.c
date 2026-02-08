@@ -8255,6 +8255,32 @@ The isearch face is resolved automatically.  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-zen-mode",
+       Fneomacs_set_zen_mode,
+       Sneomacs_set_zen_mode, 0, 3, 0,
+       doc: /* Configure zen/distraction-free mode.
+ENABLED non-nil activates zen mode with centered content.
+CONTENT-WIDTH-PCT is the content width as percentage of window (default 60).
+MARGIN-OPACITY is 0-100 for margin overlay opacity (default 30).  */)
+  (Lisp_Object enabled, Lisp_Object content_width_pct, Lisp_Object margin_opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int cw = 60;
+  int mo = 30;
+  if (FIXNUMP (content_width_pct))
+    cw = XFIXNUM (content_width_pct);
+  if (FIXNUMP (margin_opacity))
+    mo = XFIXNUM (margin_opacity);
+
+  neomacs_display_set_zen_mode (
+    dpyinfo->display_handle, on, cw, mo);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-background-pattern",
        Fneomacs_set_background_pattern,
        Sneomacs_set_background_pattern, 0, 4, 0,
@@ -9626,6 +9652,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_typing_ripple);
   defsubr (&Sneomacs_set_search_pulse);
   defsubr (&Sneomacs_set_background_pattern);
+  defsubr (&Sneomacs_set_zen_mode);
 
   /* Cursor blink */
   defsubr (&Sneomacs_set_cursor_blink);
