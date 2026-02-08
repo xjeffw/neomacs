@@ -1029,6 +1029,7 @@ neomacs_extract_window_glyphs (struct window *w, void *user_data)
         win_end = w->window_end_pos;
         buf_size = BUF_Z (buf);
       }
+    int is_mini = MINI_WINDOW_P (w) ? 1 : 0;
     neomacs_display_add_window_info (
         handle,
         (int64_t)(intptr_t) w,
@@ -1039,7 +1040,7 @@ neomacs_extract_window_glyphs (struct window *w, void *user_data)
         (float) win_x, (float) win_y,
         (float) win_w, (float) win_h,
         (float) WINDOW_MODE_LINE_HEIGHT (w),
-        selected);
+        selected, is_mini);
   }
 
   /* Check mouse-face highlight for this window */
@@ -1653,6 +1654,7 @@ struct neomacs_window_params_ffi {
   float x, y, width, height;
   float text_x, text_y, text_width, text_height;
   int selected;
+  int is_minibuffer;
   int64_t window_start;
   int64_t point;
   int64_t buffer_zv;
@@ -1811,6 +1813,7 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
   params->right_margin_width = (float) WINDOW_RIGHT_MARGIN_WIDTH (w);
 
   params->selected = (w == XWINDOW (f->selected_window)) ? 1 : 0;
+  params->is_minibuffer = MINI_WINDOW_P (w) ? 1 : 0;
 
   if (MARKERP (w->start))
     params->window_start = marker_position (w->start);

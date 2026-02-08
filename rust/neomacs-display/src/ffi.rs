@@ -293,6 +293,7 @@ pub unsafe extern "C" fn neomacs_display_add_window_info(
     height: f32,
     mode_line_height: f32,
     selected: c_int,
+    is_minibuffer: c_int,
 ) {
     if handle.is_null() {
         return;
@@ -303,6 +304,7 @@ pub unsafe extern "C" fn neomacs_display_add_window_info(
         x, y, width, height,
         mode_line_height,
         selected != 0,
+        is_minibuffer != 0,
     );
 }
 

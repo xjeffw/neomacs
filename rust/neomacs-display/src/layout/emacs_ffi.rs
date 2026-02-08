@@ -421,6 +421,8 @@ pub struct WindowParamsFFI {
 
     /// Whether this is the selected window
     pub selected: c_int,
+    /// Whether this is the minibuffer window
+    pub is_minibuffer: c_int,
 
     /// First visible buffer position
     pub window_start: i64,

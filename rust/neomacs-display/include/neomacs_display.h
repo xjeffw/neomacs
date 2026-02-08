@@ -263,6 +263,10 @@ typedef struct WindowParamsFFI {
    */
   int selected;
   /**
+   * Whether this is the minibuffer window
+   */
+  int isMinibuffer;
+  /**
    * First visible buffer position
    */
   int64_t windowStart;
@@ -663,7 +667,8 @@ void neomacs_display_add_window_info(struct NeomacsDisplay *handle,
                                      float width,
                                      float height,
                                      float modeLineHeight,
-                                     int selected);
+                                     int selected,
+                                     int isMinibuffer);
 
 /**
  * Set cursor for a specific window

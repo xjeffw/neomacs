@@ -2113,6 +2113,29 @@ impl RenderApp {
                                 });
                             }
                         }
+                    } else if info.is_minibuffer
+                        && (prev.bounds.height - info.bounds.height).abs() > 2.0
+                    {
+                        // Minibuffer height change → crossfade
+                        if self.crossfade_enabled {
+                            self.crossfades.remove(&info.window_id);
+                            self.scroll_slides.remove(&info.window_id);
+
+                            if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
+                                log::debug!("Starting minibuffer crossfade (height {} → {})",
+                                    prev.bounds.height, info.bounds.height);
+                                self.crossfades.insert(info.window_id, CrossfadeTransition {
+                                    started: now,
+                                    duration: std::time::Duration::from_millis(150),
+                                    bounds: info.bounds,
+                                    effect: self.crossfade_effect,
+                                    easing: self.crossfade_easing,
+                                    old_texture: tex,
+                                    old_view: view,
+                                    old_bind_group: bg,
+                                });
+                            }
+                        }
                     } else if prev.window_start != info.window_start {
                         // Scroll → slide (content area only, excluding mode-line)
                         let content_height = info.bounds.height - info.mode_line_height;

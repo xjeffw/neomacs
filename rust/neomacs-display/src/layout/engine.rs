@@ -76,6 +76,7 @@ impl LayoutEngine {
                 bounds: Rect::new(wp.x, wp.y, wp.width, wp.height),
                 text_bounds: Rect::new(wp.text_x, wp.text_y, wp.text_width, wp.text_height),
                 selected: wp.selected != 0,
+                is_minibuffer: wp.is_minibuffer != 0,
                 window_start: wp.window_start,
                 point: wp.point,
                 buffer_size: wp.buffer_zv,
@@ -146,6 +147,7 @@ impl LayoutEngine {
                 params.bounds.height,
                 params.mode_line_height,
                 params.selected,
+                params.is_minibuffer,
             );
 
             // Layout this window's content

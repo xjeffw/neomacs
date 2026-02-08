@@ -194,6 +194,8 @@ pub struct WindowInfo {
     pub mode_line_height: f32,
     /// Whether this is the selected (active) window
     pub selected: bool,
+    /// Whether this is the minibuffer window
+    pub is_minibuffer: bool,
 }
 
 /// Buffer collecting glyphs for current frame.
@@ -478,7 +480,8 @@ impl FrameGlyphBuffer {
     pub fn add_window_info(&mut self, window_id: i64, buffer_id: u64,
                            window_start: i64, window_end: i64, buffer_size: i64,
                            x: f32, y: f32, width: f32, height: f32,
-                           mode_line_height: f32, selected: bool) {
+                           mode_line_height: f32, selected: bool,
+                           is_minibuffer: bool) {
         self.window_infos.push(WindowInfo {
             window_id,
             buffer_id,
@@ -488,6 +491,7 @@ impl FrameGlyphBuffer {
             bounds: Rect::new(x, y, width, height),
             mode_line_height,
             selected,
+            is_minibuffer,
         });
     }
 

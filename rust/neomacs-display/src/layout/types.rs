@@ -142,6 +142,8 @@ pub struct WindowParams {
     pub text_bounds: Rect,
     /// Whether this is the selected window
     pub selected: bool,
+    /// Whether this is the minibuffer window
+    pub is_minibuffer: bool,
 
     /// First visible buffer position (marker_position(w->start))
     pub window_start: i64,
