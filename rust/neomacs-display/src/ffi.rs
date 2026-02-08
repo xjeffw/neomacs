@@ -2699,6 +2699,24 @@ pub unsafe extern "C" fn neomacs_display_set_breadcrumb(
     }
 }
 
+/// Configure smooth border color transition on focus
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_border_transition(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    duration_ms: c_int,
+) {
+    let cmd = RenderCommand::SetBorderTransition {
+        enabled: enabled != 0,
+        active_color: (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0),
+        duration_ms: duration_ms as u32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure buffer-local accent color strip
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_accent_strip(

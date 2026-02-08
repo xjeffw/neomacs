@@ -428,6 +428,14 @@ pub enum RenderCommand {
     SetTypingSpeed {
         enabled: bool,
     },
+    /// Configure smooth border color transition on focus change
+    SetBorderTransition {
+        enabled: bool,
+        /// Active border color (sRGB 0.0-1.0)
+        active_color: (f32, f32, f32),
+        /// Duration in milliseconds
+        duration_ms: u32,
+    },
     /// Configure buffer-local accent color strip
     SetAccentStrip {
         enabled: bool,

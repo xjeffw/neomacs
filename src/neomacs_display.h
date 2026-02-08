@@ -1406,6 +1406,12 @@ void neomacs_display_set_typing_speed(
     struct NeomacsDisplay *handle,
     int enabled);
 
+void neomacs_display_set_border_transition(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int duration_ms);
+
 void neomacs_display_set_accent_strip(
     struct NeomacsDisplay *handle,
     int enabled,

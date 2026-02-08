@@ -718,6 +718,10 @@ struct RenderApp {
     title_fade_duration_ms: u32,
     /// Typing speed indicator
     typing_speed_enabled: bool,
+    /// Smooth border color transition
+    border_transition_enabled: bool,
+    border_transition_active_color: (f32, f32, f32),
+    border_transition_duration_ms: u32,
     /// Buffer-local accent color strip
     accent_strip_enabled: bool,
     accent_strip_width: f32,
@@ -965,6 +969,9 @@ impl RenderApp {
             typing_speed_enabled: false,
             key_press_times: Vec::new(),
             displayed_wpm: 0.0,
+            border_transition_enabled: false,
+            border_transition_active_color: (0.4, 0.6, 1.0),
+            border_transition_duration_ms: 200,
             accent_strip_enabled: false,
             accent_strip_width: 3.0,
             frosted_glass_enabled: false,
@@ -1901,6 +1908,15 @@ impl RenderApp {
                     if !enabled {
                         self.key_press_times.clear();
                         self.displayed_wpm = 0.0;
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetBorderTransition { enabled, active_color, duration_ms } => {
+                    self.border_transition_enabled = enabled;
+                    self.border_transition_active_color = active_color;
+                    self.border_transition_duration_ms = duration_ms;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_border_transition(enabled, active_color, duration_ms);
                     }
                     self.frame_dirty = true;
                 }

@@ -1311,6 +1311,32 @@ when switching buffers in a window."
                     neomacs-title-fade)
            (neomacs-set-title-fade t val))))
 
+;; --- Smooth border color transition ---
+(declare-function neomacs-set-border-transition "neomacsterm.c"
+  (&optional enabled r g b duration-ms))
+
+(defcustom neomacs-border-transition nil
+  "Enable smooth border color transition on window focus change.
+Non-nil draws a colored border that smoothly fades in around the
+selected window and fades out from the previously selected one."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-border-transition)
+           (neomacs-set-border-transition val))))
+
+(defcustom neomacs-border-transition-duration 200
+  "Duration of border color transition in milliseconds."
+  :type '(integer :tag "Duration (ms)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-border-transition)
+                    (boundp 'neomacs-border-transition)
+                    neomacs-border-transition)
+           (neomacs-set-border-transition t nil nil nil val))))
+
 ;; --- Buffer-local accent color strip ---
 (declare-function neomacs-set-accent-strip "neomacsterm.c"
   (&optional enabled width))

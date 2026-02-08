@@ -8550,6 +8550,34 @@ corner of the active window, calculated from recent keystroke rate.  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-border-transition",
+       Fneomacs_set_border_transition,
+       Sneomacs_set_border_transition, 0, 5, 0,
+       doc: /* Configure smooth border color transition on focus change.
+ENABLED non-nil draws a colored border around windows that smoothly
+fades in/out when focus changes between windows.
+R, G, B are the active border color 0-255 (default 102 153 255).
+DURATION-MS is the transition duration in milliseconds (default 200).  */)
+  (Lisp_Object enabled, Lisp_Object r, Lisp_Object g, Lisp_Object b,
+   Lisp_Object duration_ms)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int cr = 102, cg = 153, cb = 255;
+  int dur = 200;
+  if (FIXNUMP (r)) cr = XFIXNUM (r);
+  if (FIXNUMP (g)) cg = XFIXNUM (g);
+  if (FIXNUMP (b)) cb = XFIXNUM (b);
+  if (FIXNUMP (duration_ms)) dur = XFIXNUM (duration_ms);
+
+  neomacs_display_set_border_transition (
+    dpyinfo->display_handle, on, cr, cg, cb, dur);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-accent-strip",
        Fneomacs_set_accent_strip,
        Sneomacs_set_accent_strip, 0, 2, 0,
@@ -10002,6 +10030,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_breadcrumb);
   defsubr (&Sneomacs_set_title_fade);
   defsubr (&Sneomacs_set_typing_speed);
+  defsubr (&Sneomacs_set_border_transition);
   defsubr (&Sneomacs_set_accent_strip);
   defsubr (&Sneomacs_set_frosted_glass);
   defsubr (&Sneomacs_set_window_glow);

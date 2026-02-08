@@ -159,6 +159,14 @@ pub struct WgpuRenderer {
     breadcrumb_enabled: bool,
     breadcrumb_opacity: f32,
     /// Frosted glass effect on mode-lines
+    /// Smooth border color transition
+    border_transition_enabled: bool,
+    border_transition_active_color: (f32, f32, f32),
+    border_transition_duration: std::time::Duration,
+    /// Per-window border transition state: (window_id, is_becoming_active, start_time)
+    border_transitions: Vec<(i64, bool, std::time::Instant)>,
+    /// Previous selected window for border transition detection
+    prev_border_selected: i64,
     /// Buffer-local accent color strip
     accent_strip_enabled: bool,
     accent_strip_width: f32,
@@ -749,6 +757,11 @@ impl WgpuRenderer {
             active_window_fades: Vec::new(),
             breadcrumb_enabled: false,
             breadcrumb_opacity: 0.7,
+            border_transition_enabled: false,
+            border_transition_active_color: (0.4, 0.6, 1.0),
+            border_transition_duration: std::time::Duration::from_millis(200),
+            border_transitions: Vec::new(),
+            prev_border_selected: 0,
             accent_strip_enabled: false,
             accent_strip_width: 3.0,
             frosted_glass_enabled: false,
@@ -924,6 +937,16 @@ impl WgpuRenderer {
     pub fn set_breadcrumb(&mut self, enabled: bool, opacity: f32) {
         self.breadcrumb_enabled = enabled;
         self.breadcrumb_opacity = opacity;
+    }
+
+    /// Update border transition config
+    pub fn set_border_transition(&mut self, enabled: bool, active_color: (f32, f32, f32), duration_ms: u32) {
+        self.border_transition_enabled = enabled;
+        self.border_transition_active_color = active_color;
+        self.border_transition_duration = std::time::Duration::from_millis(duration_ms as u64);
+        if !enabled {
+            self.border_transitions.clear();
+        }
     }
 
     /// Update accent strip config
@@ -3373,6 +3396,83 @@ impl WgpuRenderer {
                     render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
                     render_pass.set_vertex_buffer(0, strip_buffer.slice(..));
                     render_pass.draw(0..strip_vertices.len() as u32, 0..1);
+                }
+            }
+
+            // === Smooth border color transition on focus ===
+            if self.border_transition_enabled && frame_glyphs.window_infos.len() > 1 {
+                let now = std::time::Instant::now();
+                let (ar, ag, ab) = self.border_transition_active_color;
+                let duration = self.border_transition_duration;
+
+                // Detect selection change
+                let mut new_selected: Option<i64> = None;
+                for info in &frame_glyphs.window_infos {
+                    if info.selected && !info.is_minibuffer {
+                        new_selected = Some(info.window_id);
+                        break;
+                    }
+                }
+                if let Some(sel_id) = new_selected {
+                    if self.prev_border_selected != 0 && sel_id != self.prev_border_selected {
+                        // Old window: becoming inactive (fade out)
+                        self.border_transitions.retain(|&(wid, _, _)| wid != self.prev_border_selected && wid != sel_id);
+                        self.border_transitions.push((self.prev_border_selected, false, now));
+                        // New window: becoming active (fade in)
+                        self.border_transitions.push((sel_id, true, now));
+                    }
+                    self.prev_border_selected = sel_id;
+                }
+
+                // Clean up expired transitions
+                self.border_transitions.retain(|&(_, _, start)| now.duration_since(start) < duration);
+
+                let border_thickness = 2.0_f32;
+                let mut border_vertices: Vec<RectVertex> = Vec::new();
+
+                for info in &frame_glyphs.window_infos {
+                    if info.is_minibuffer { continue; }
+                    let b = &info.bounds;
+                    let content_h = b.height - info.mode_line_height;
+                    if content_h <= 0.0 { continue; }
+
+                    // Determine alpha: active=1.0, inactive=0.0, transitioning=interpolated
+                    let alpha = if let Some(&(_, becoming_active, start)) = self.border_transitions.iter().find(|&&(wid, _, _)| wid == info.window_id) {
+                        let t = (now.duration_since(start).as_secs_f32() / duration.as_secs_f32()).min(1.0);
+                        let eased = t * (2.0 - t); // ease-out
+                        if becoming_active { eased } else { 1.0 - eased }
+                    } else if info.selected {
+                        1.0_f32
+                    } else {
+                        0.0_f32
+                    };
+
+                    if alpha < 0.01 { continue; }
+
+                    let c = Color::new(ar, ag, ab, alpha * 0.7);
+                    // Top border
+                    self.add_rect(&mut border_vertices, b.x, b.y, b.width, border_thickness, &c);
+                    // Bottom border (above mode-line)
+                    self.add_rect(&mut border_vertices, b.x, b.y + content_h - border_thickness, b.width, border_thickness, &c);
+                    // Left border
+                    self.add_rect(&mut border_vertices, b.x, b.y, border_thickness, content_h, &c);
+                    // Right border
+                    self.add_rect(&mut border_vertices, b.x + b.width - border_thickness, b.y, border_thickness, content_h, &c);
+                }
+
+                if !border_vertices.is_empty() {
+                    let border_buffer = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Border Transition Buffer"),
+                            contents: bytemuck::cast_slice(&border_vertices),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, border_buffer.slice(..));
+                    render_pass.draw(0..border_vertices.len() as u32, 0..1);
+                    self.needs_continuous_redraw = true;
                 }
             }
 
