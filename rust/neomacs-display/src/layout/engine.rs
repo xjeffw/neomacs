@@ -313,6 +313,11 @@ impl LayoutEngine {
         let mut lnum_face = FaceDataFFI::default();
         let mut need_line_number = lnum_enabled; // render on first row
 
+        // Horizontal scroll: skip first hscroll columns
+        let hscroll = if params.truncate_lines { params.hscroll.max(0) } else { 0 };
+        // Reserve 1 column for truncation indicator when needed
+        let show_left_trunc = hscroll > 0;
+
         // Walk through text, placing characters on the grid
         let mut col = 0i32;
         let mut row = 0i32;
@@ -320,6 +325,8 @@ impl LayoutEngine {
         let mut cursor_placed = false;
         let mut window_end_charpos = params.window_start;
         let mut byte_idx = 0usize;
+        // hscroll state: how many columns to skip on each line
+        let mut hscroll_remaining = hscroll;
 
         // Word-wrap tracking: position after last breakable whitespace
         let mut wrap_break_col = 0i32;
@@ -409,6 +416,43 @@ impl LayoutEngine {
                 }
 
                 need_line_number = false;
+            }
+
+            // Handle hscroll: show $ indicator and skip columns
+            if hscroll_remaining > 0 {
+                // Skip characters consumed by hscroll
+                let (ch, ch_len) = decode_utf8(&text[byte_idx..]);
+                byte_idx += ch_len;
+                charpos += 1;
+
+                if ch == '\n' {
+                    // Newline within hscroll region: new line
+                    col = 0;
+                    row += 1;
+                    current_line += 1;
+                    need_line_number = lnum_enabled;
+                    hscroll_remaining = hscroll; // reset for next line
+                    wrap_has_break = false;
+                } else {
+                    let ch_cols = if ch == '\t' {
+                        let tab_w = params.tab_width.max(1);
+                        ((hscroll - hscroll_remaining) / tab_w + 1) * tab_w - (hscroll - hscroll_remaining)
+                    } else if is_wide_char(ch) {
+                        2
+                    } else {
+                        1
+                    };
+                    hscroll_remaining -= ch_cols.min(hscroll_remaining);
+
+                    // When hscroll is done, show $ at left edge
+                    if hscroll_remaining <= 0 && show_left_trunc {
+                        let gy = text_y + row as f32 * char_h;
+                        frame_glyphs.add_char('$', content_x, gy, char_w, char_h, ascent, false);
+                        col = 1; // $ takes 1 column
+                    }
+                }
+                window_end_charpos = charpos;
+                continue;
             }
 
             // Check for invisible text at property change boundaries
@@ -544,6 +588,7 @@ impl LayoutEngine {
                     current_line += 1;
                     need_line_number = lnum_enabled;
                     wrap_has_break = false;
+                    hscroll_remaining = hscroll;
                 }
                 '\t' => {
                     // Tab: advance to next tab stop
@@ -643,6 +688,11 @@ impl LayoutEngine {
                     if col + char_cols > cols {
                         // Line full
                         if params.truncate_lines {
+                            // Show $ truncation indicator at right edge
+                            let trunc_x = content_x + (cols - 1) as f32 * char_w;
+                            let gy = text_y + row as f32 * char_h;
+                            frame_glyphs.add_char('$', trunc_x, gy, char_w, char_h, ascent, false);
+
                             while byte_idx < bytes_read as usize {
                                 let (c, l) = decode_utf8(&text[byte_idx..]);
                                 byte_idx += l;
@@ -653,6 +703,7 @@ impl LayoutEngine {
                                     current_line += 1;
                                     need_line_number = lnum_enabled;
                                     wrap_has_break = false;
+                                    hscroll_remaining = hscroll;
                                     break;
                                 }
                             }
