@@ -375,6 +375,12 @@ pub struct WindowParamsFFI {
     pub show_trailing_whitespace: c_int,
     /// trailing-whitespace face background color (sRGB pixel)
     pub trailing_ws_bg: u32,
+    /// fill-column-indicator column (0 = off)
+    pub fill_column_indicator: c_int,
+    /// fill-column-indicator character (0 = use default '|')
+    pub fill_column_indicator_char: c_int,
+    /// fill-column-indicator face foreground (sRGB pixel)
+    pub fill_column_indicator_fg: u32,
 }
 
 /// FFI-safe face data struct.

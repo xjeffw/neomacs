@@ -195,6 +195,12 @@ pub struct WindowParams {
     pub show_trailing_whitespace: bool,
     /// Trailing-whitespace face background color
     pub trailing_ws_bg: u32,
+    /// Fill-column-indicator column (0 = off)
+    pub fill_column_indicator: i32,
+    /// Fill-column-indicator character
+    pub fill_column_indicator_char: char,
+    /// Fill-column-indicator face foreground color
+    pub fill_column_indicator_fg: u32,
 }
 
 /// Frame-level parameters for layout.

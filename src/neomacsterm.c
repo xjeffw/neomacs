@@ -1130,6 +1130,12 @@ struct neomacs_window_params_ffi {
   int show_trailing_whitespace;
   /* trailing-whitespace face background color (sRGB) */
   uint32_t trailing_ws_bg;
+  /* fill-column-indicator column (0 = off) */
+  int fill_column_indicator;
+  /* fill-column-indicator character (0 = use default '|') */
+  int fill_column_indicator_char;
+  /* fill-column-indicator face foreground (sRGB) */
+  uint32_t fill_column_indicator_fg;
 };
 
 /* Get window parameters for the Nth leaf window.
@@ -1323,6 +1329,42 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
   else
     {
       params->trailing_ws_bg = 0;
+    }
+
+  /* fill-column-indicator */
+  params->fill_column_indicator = 0;
+  params->fill_column_indicator_char = 0;
+  params->fill_column_indicator_fg = 0;
+  if (display_fill_column_indicator && BUFFERP (w->contents))
+    {
+      struct buffer *buf = XBUFFER (w->contents);
+      Lisp_Object col_val = EQ (Vdisplay_fill_column_indicator_column, Qt)
+          ? BVAR (buf, fill_column)
+          : Vdisplay_fill_column_indicator_column;
+      if (FIXNUMP (col_val) && XFIXNUM (col_val) > 0)
+        {
+          params->fill_column_indicator = (int) XFIXNUM (col_val);
+          params->fill_column_indicator_char
+              = (CHARACTERP (Vdisplay_fill_column_indicator_character)
+                 ? (int) XFIXNAT (Vdisplay_fill_column_indicator_character)
+                 : '|');
+          /* Resolve fill-column-indicator face */
+          int fci_face_id
+              = lookup_named_face (w, f, Qfill_column_indicator, false);
+          if (fci_face_id >= 0)
+            {
+              struct face *fci_face
+                  = FACE_FROM_ID_OR_NULL (f, fci_face_id);
+              if (fci_face)
+                {
+                  unsigned long fg = fci_face->foreground;
+                  params->fill_column_indicator_fg
+                      = (uint32_t) ((RED_FROM_ULONG (fg) << 16)
+                                    | (GREEN_FROM_ULONG (fg) << 8)
+                                    | BLUE_FROM_ULONG (fg));
+                }
+            }
+        }
     }
 
   return 0;

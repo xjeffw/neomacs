@@ -99,6 +99,9 @@ impl LayoutEngine {
                 indicate_empty_lines: wp.indicate_empty_lines,
                 show_trailing_whitespace: wp.show_trailing_whitespace != 0,
                 trailing_ws_bg: wp.trailing_ws_bg,
+                fill_column_indicator: wp.fill_column_indicator,
+                fill_column_indicator_char: char::from_u32(wp.fill_column_indicator_char as u32).unwrap_or('|'),
+                fill_column_indicator_fg: wp.fill_column_indicator_fg,
             };
 
             // Add window background
@@ -1163,6 +1166,27 @@ impl LayoutEngine {
                             frame_glyphs.add_char('~', fx, gy, char_w, char_h, ascent, false);
                         }
                     }
+                }
+            }
+        }
+
+        // Render fill-column indicator
+        if params.fill_column_indicator > 0 {
+            let fci_col = params.fill_column_indicator;
+            let fci_char = params.fill_column_indicator_char;
+            let fci_fg = Color::from_pixel(params.fill_column_indicator_fg);
+
+            frame_glyphs.set_face(
+                0, fci_fg, Some(default_bg),
+                false, false, 0, None, 0, None, 0, None,
+            );
+
+            // Draw indicator character at the fill column on each row
+            if fci_col < cols {
+                for r in 0..max_rows {
+                    let gx = content_x + fci_col as f32 * char_w;
+                    let gy = text_y + r as f32 * char_h;
+                    frame_glyphs.add_char(fci_char, gx, gy, char_w, char_h, ascent, false);
                 }
             }
         }
