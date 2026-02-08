@@ -4636,7 +4636,16 @@ neomacs_draw_glyph_string (struct glyph_string *s)
           break;
 
         case IMAGE_GLYPH:
-          /* TODO: Forward image glyph */
+          /* Forward image glyph to Rust scene graph */
+          if (s->img)
+            {
+              uint32_t gpu_id = neomacs_get_or_load_image (dpyinfo, s->img);
+              if (gpu_id != 0)
+                neomacs_display_add_image_glyph (dpyinfo->display_handle,
+                                                  gpu_id,
+                                                  s->slice.width > 0 ? s->slice.width : s->img->width,
+                                                  s->slice.height > 0 ? s->slice.height : s->img->height);
+            }
           break;
 
         case VIDEO_GLYPH:
@@ -4741,7 +4750,7 @@ neomacs_draw_glyph_string (struct glyph_string *s)
       break;
 
     case IMAGE_GLYPH:
-      /* TODO: Implement image glyph drawing */
+      /* Image glyph rendering is handled by Rust GPU pipeline */
       break;
 
     case VIDEO_GLYPH:
