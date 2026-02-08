@@ -959,6 +959,8 @@ neomacs_extract_window_glyphs (struct window *w, void *user_data)
 {
   struct frame *f = XFRAME (w->frame);
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  if (!dpyinfo)
+    return true;
   void *handle = dpyinfo->display_handle;
   struct glyph_matrix *matrix = w->current_matrix;
 
@@ -3892,9 +3894,13 @@ neomacs_extract_full_frame (struct frame *f)
      the window tree ourselves. */
   {
     /* Simple iterative tree walk using Emacs window tree structure */
-    struct window *root = XWINDOW (FRAME_ROOT_WINDOW (f));
+    Lisp_Object root_window = FRAME_ROOT_WINDOW (f);
+    if (!WINDOWP (root_window))
+      return;
+    struct window *root = XWINDOW (root_window);
     /* Stack-based traversal: find all leaf windows */
-    struct window *stack[64];
+#define WINDOW_STACK_SIZE 128
+    struct window *stack[WINDOW_STACK_SIZE];
     int sp = 0;
     stack[sp++] = root;
 
@@ -3907,7 +3913,7 @@ neomacs_extract_full_frame (struct frame *f)
             struct window *child = XWINDOW (w->contents);
             while (child)
               {
-                if (sp < 64)
+                if (sp < WINDOW_STACK_SIZE)
                   stack[sp++] = child;
                 child = NILP (child->next) ? NULL : XWINDOW (child->next);
               }
@@ -3947,9 +3953,10 @@ neomacs_extract_full_frame (struct frame *f)
      so we must re-add them here as part of the full-frame extraction. */
   if (!FRAME_HAS_VERTICAL_SCROLL_BARS (f) && !FRAME_RIGHT_DIVIDER_WIDTH (f))
     {
-      struct window *bstack[64];
+      struct window *bstack[WINDOW_STACK_SIZE];
       int bsp = 0;
-      bstack[bsp++] = XWINDOW (FRAME_ROOT_WINDOW (f));
+      if (WINDOWP (FRAME_ROOT_WINDOW (f)))
+        bstack[bsp++] = XWINDOW (FRAME_ROOT_WINDOW (f));
 
       while (bsp > 0)
         {
@@ -3959,7 +3966,7 @@ neomacs_extract_full_frame (struct frame *f)
               struct window *child = XWINDOW (w->contents);
               while (child)
                 {
-                  if (bsp < 64)
+                  if (bsp < WINDOW_STACK_SIZE)
                     bstack[bsp++] = child;
                   child = NILP (child->next) ? NULL : XWINDOW (child->next);
                 }
