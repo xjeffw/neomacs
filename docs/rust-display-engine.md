@@ -21,14 +21,51 @@ Emacs redisplay (C, xdisp.c ~30k LOC)
 
 ## Proposed Architecture
 
+**IMPORTANT**: Layout must run on the **Emacs thread**, not the render thread. See [Critical Design Constraint: Synchronization](#critical-design-constraint-synchronization) for why.
+
 ```
 Emacs buffer/overlay/face data
-  → C serializes LayoutSnapshot
-    → Rust reads snapshot directly
-      → Rust layout engine (line breaking, wrapping, positioning)
-        → GPU-ready glyph batches
-          → wgpu renders
+  → Rust layout engine (called on Emacs thread during redisplay)
+    → LayoutOutput (backend-agnostic glyph positions)
+      → sent to render thread via crossbeam
+        → wgpu renders (GPU) or TuiRenderer (terminal)
 ```
+
+Layout results (window-end, cursor position, visibility) are also fed back to Emacs so that Lisp query functions (`pos-visible-in-window-p`, `window-end`, etc.) continue to work.
+
+## Critical Design Constraint: Synchronization
+
+Many Emacs Lisp functions require **synchronous access** to layout results. These aren't obscure — they're called on every keystroke by popular packages:
+
+| Function | Who calls it | What it does |
+|----------|-------------|--------------|
+| `pos-visible-in-window-p` | posframe, company, corfu, vertico | Runs the display iterator from scratch |
+| `window-end` | helm, ivy, magit, every scroll package | Runs `start_display()` + `move_it_vertically()` |
+| `vertical-motion` | `forward-line`, `recenter`, all movement | Runs the full iterator with wrapping |
+| `posn-at-point` / `posn-at-x-y` | Mouse tracking, popup positioning, tooltips | Queries glyph matrix |
+| `move-to-column` | Indentation, `kill-rectangle`, column movement | Scans line with tab/display prop handling |
+| `compute-motion` | Low-level motion, `goto-line` | Full layout computation |
+
+Additionally, **fontification runs DURING layout**. `jit-lock` calls `fontification-functions` as the iterator advances through unfontified text. This is Lisp code that must execute on the Emacs thread. Layout cannot be purely on the render thread — it calls back into Lisp.
+
+**Consequence**: The Rust layout engine must run on the Emacs thread (called during `redisplay_internal()`). Layout results are then sent to the render thread for rendering. Parallel layout (layout on render thread while Emacs executes Lisp) is a future optimization (Phase 8+), not a starting point.
+
+### Synchronous Lisp Function Categories
+
+**Category A — Read cached state (safe to defer):**
+`window-start`, `window-hscroll`, `window-vscroll`, `window-body-width`, `window-body-height`, `window-text-width`, `window-text-height`, `coordinates-in-window-p`
+
+**Category B — Read current matrix (needs up-to-date layout):**
+`window-line-height`, `window-lines-pixel-dimensions`, `posn-at-x-y`
+
+**Category C — Trigger layout computation (CRITICAL — blocks Lisp):**
+`window-end(update=t)`, `pos-visible-in-window-p`, `vertical-motion`, `move-to-column`, `compute-motion`, `move-to-window-line`, `recenter`
+
+**Category D — Modify state and trigger redisplay:**
+`set-window-start`, `set-window-hscroll`, `set-window-vscroll`, `scroll-up`/`scroll-down`, `scroll-left`/`scroll-right`
+
+**Category E — Hooks that expect synchronous state:**
+`pre-redisplay-function` (runs INSIDE `redisplay_internal()`), `fontification-functions` (runs DURING iterator scanning), `window-scroll-functions`, `post-command-hook`
 
 ## What We Keep vs Replace
 
@@ -120,11 +157,34 @@ unsafe fn get_face(frame: *const EmacsFrame, face_id: u32) -> &Face {
 
 ## Phased Implementation
 
+### Phase -1: Direct Glyph Hook (Low-Risk Stepping Stone)
+
+Before the full rewrite, eliminate the matrix intermediary without changing the layout engine. Keep `xdisp.c` but hook into `produce_glyphs` / `append_glyph` so it calls into Rust directly as glyphs are generated, instead of extracting from `current_matrix` after the fact.
+
+```
+CURRENT:   xdisp.c → glyph matrix → neomacsterm.c extracts → FFI → Rust renders
+PHASE -1:  xdisp.c → calls Rust directly during produce_glyphs → Rust renders
+```
+
+**Benefits**:
+- Keeps 100% compatibility (same layout algorithm, all Lisp functions work)
+- Eliminates the matrix → extraction → FFI overhead
+- Still gets Rust rendering, cosmic-text, GPU batching
+- Doesn't break any packages
+- Much lower risk (~2000 LOC changes)
+- Proves the architecture before committing to the full rewrite
+
+**Does not enable**: Pixel-level scrolling, parallel layout, TUI backend (those require the full rewrite).
+
+**Scope**: ~2000 LOC. **Difficulty**: Medium. **Risk**: Low.
+
 ### Phase 0: Layout Snapshot Infrastructure
 
 Add C function `neomacs_build_layout_snapshot()` that serializes buffer text + property intervals + overlays into a flat buffer. Send snapshot to Rust alongside (or replacing) `FrameGlyphBuffer`. Rust ignores snapshot initially, still uses old glyph path.
 
-**Scope**: ~500 C, ~300 Rust.
+Note: Display property serialization is complex — 14 display spec types with composability (lists/vectors of specs), overlay strings with their own properties, 5-level nesting.
+
+**Scope**: ~1000 C, ~500 Rust. **Difficulty**: Medium-Hard.
 
 ### Phase 1: Monospace ASCII Layout Engine
 
@@ -134,53 +194,98 @@ Build `RustLayoutEngine` that handles the simplest case:
 - Line breaking at window width (or `truncate-lines`)
 - Cursor positioning
 - Window-start / point tracking
+- Tab stops (`tab-width`, `tab-stop-list`)
+- Control characters (`^X` = 2 columns, `\NNN` = 4 columns)
+- Wide characters (CJK = 2 columns)
+- Continuation glyphs (line wrapping indicators)
 
 This alone covers ~70% of what you see in a typical coding buffer.
 
-**Scope**: ~1500 Rust. **Difficulty**: Medium.
+Must also implement **layout result feedback** to Emacs: `window-end`, cursor (x,y), and visibility info so that `pos-visible-in-window-p`, `vertical-motion`, `move-to-column` etc. return correct results.
+
+**Scope**: ~2500 Rust. **Difficulty**: Medium.
+
+### Phase 1.5: TUI Renderer
+
+See [TUI Rendering Backend](#tui-rendering-backend) section.
+
+**Scope**: ~1200 Rust. **Difficulty**: Medium.
 
 ### Phase 2: Face Resolution
 
 - Read face intervals from snapshot
 - Apply face attributes (fg, bg, bold, italic, underline)
-- Handle face merging (text property + overlay stacking)
+- Handle face merging (text property face + all overlay faces, priority-ordered)
+- Face realization: compute pixel values, select font from fontset
 - Use existing cosmic-text for font selection per face
+- Unlimited overlays can contribute faces at one position (`face_at_buffer_position` merges all)
 
-**Scope**: ~800 Rust. **Difficulty**: Medium.
+**Scope**: ~1500 Rust. **Difficulty**: Medium-Hard.
 
 ### Phase 3: Display Properties
 
-- `invisible` — skip text ranges
-- `display` strings — replace text with overlay strings
-- `display` spaces — `(space :align-to N)` alignment
-- `before-string` / `after-string` — overlay inserted text
-- `line-prefix` / `wrap-prefix` — indentation on wrapped lines
+This is the most complex phase. Emacs has 14 display spec types with composability:
 
-**Scope**: ~2000 Rust. **Difficulty**: Hard.
+**Display spec types:**
+1. `(when FORM . VALUE)` — conditional display
+2. `(height HEIGHT)` — font height adjustment
+3. `(space-width WIDTH)` — width scaling
+4. `(min-width (WIDTH))` — minimum width padding
+5. `(slice X Y WIDTH HEIGHT)` — image cropping
+6. `(raise FACTOR)` — vertical offset (fraction of line height)
+7. `(left-fringe BITMAP [FACE])` — left fringe bitmap
+8. `(right-fringe BITMAP [FACE])` — right fringe bitmap
+9. `((margin LOCATION) SPEC)` — margin display (left/right/nil)
+10. `(space ...)` — space/stretch specs (`:width`, `:align-to`, `:relative-width`, `:height`)
+11. `(image ...)` — image display
+12. `(video ...)` — video display (neomacs extension)
+13. `(webkit ...)` — WebKit display (neomacs extension)
+14. `string` — replacement string with its own properties
 
-### Phase 4: Mode-line & Header-line
+**Composability**: Specs can be nested in lists/vectors. The display iterator uses a 5-level push/pop stack (`IT_STACK_SIZE = 5`) to handle nested contexts: display strings inside overlay strings inside display properties.
 
-- Evaluate mode-line format (still in Lisp via `format-mode-line`)
-- C sends pre-formatted mode-line string + faces to Rust
-- Rust lays out the mode-line row
+**Overlay strings** (`before-string` / `after-string`):
+- Priority-based sorting (complex ordering: after-strings before before-strings, decreasing/increasing priority)
+- Chunked processing (16 at a time via `OVERLAY_STRING_CHUNK_SIZE`)
+- Overlay strings can have their own text properties (including face and display properties) — creating recursive layout
+- Window-specific overlay filtering
 
-**Scope**: ~500 Rust. **Difficulty**: Medium.
+**Additional features in this phase:**
+- `invisible` property — skip text ranges (with ellipsis option)
+- `line-prefix` / `wrap-prefix` — continuation line indentation
+- Fringe bitmaps — 25 standard types + custom (arrows, brackets, indicators)
+- Margin areas — `display-line-numbers-mode`, margin display specs
+- `format-mode-line` result integration (text with properties from Lisp)
+
+**Scope**: ~5000 Rust. **Difficulty**: Very hard.
+
+### Phase 4: Mode-line, Header-line & Tab-line
+
+- Evaluate mode-line format (stays in Lisp via `format-mode-line`)
+- C sends pre-formatted mode-line/header-line/tab-line strings + faces to Rust
+- Rust lays out each special row
+- Handle `format-mode-line` which evaluates arbitrary Lisp (conditionals, `%e`, `%@`, etc.)
+
+**Scope**: ~1000 Rust. **Difficulty**: Medium.
 
 ### Phase 5: Variable-width & Compositions
 
 - Variable-width font support (cosmic-text already handles this)
 - Emoji/composition support (already working in current system)
 - Ligatures (cosmic-text + rustybuzz)
+- Font fallback chains, metric computation
 
-**Scope**: ~800 Rust. **Difficulty**: Medium.
+**Scope**: ~1200 Rust. **Difficulty**: Medium.
 
 ### Phase 6: Bidi
 
 - Integrate `unicode-bidi` crate for reordering
 - Handle mixed LTR/RTL paragraphs
+- Integration with ALL of the above: line breaking, cursor movement, overlay strings, display properties
+- Every other phase's complexity increases with bidi
 - This is the hardest single feature
 
-**Scope**: ~1500 Rust. **Difficulty**: Very hard.
+**Scope**: ~3000 Rust. **Difficulty**: Very hard.
 
 ### Phase 7: Images & Media
 
@@ -189,50 +294,171 @@ This alone covers ~70% of what you see in a typical coding buffer.
 
 **Scope**: ~400 Rust. **Difficulty**: Easy.
 
+### Phase 8+: Parallel Layout (Future)
+
+Once Phases 0-7 are complete and stable:
+- Move layout to render thread for parallel execution
+- Implement synchronous RPC for Category C Lisp functions
+- Cache layout results for fast Category B queries
+- Enable pixel-level smooth scrolling with async window-start feedback
+
+This phase depends on the entire layout engine being correct and stable first.
+
 ### Summary
 
 | Phase | LOC (Rust) | Difficulty | Enables |
 |-------|-----------|------------|---------|
-| 0: Snapshot infra | ~500 C, ~300 Rust | Medium | Foundation |
-| 1: Monospace ASCII | ~1500 Rust | Medium | Basic editing |
-| 2: Faces | ~800 Rust | Medium | Syntax highlighting |
-| 3: Display props | ~2000 Rust | Hard | Packages (company, which-key) |
-| 4: Mode-line | ~500 Rust | Medium | Status display |
-| 5: Variable-width | ~800 Rust | Medium | Proportional fonts |
-| 6: Bidi | ~1500 Rust | Very hard | International text |
+| -1: Direct glyph hook | ~2000 | Medium | Proves architecture, low risk |
+| 0: Snapshot infra | ~1000 C, ~500 Rust | Medium-Hard | Foundation |
+| 1: Monospace ASCII | ~2500 Rust | Medium | Basic editing |
+| 1.5: TUI renderer | ~1200 Rust | Medium | Terminal Emacs |
+| 2: Faces | ~1500 Rust | Medium-Hard | Syntax highlighting |
+| 3: Display props | ~5000 Rust | Very hard | Packages (company, which-key, org) |
+| 4: Mode-line | ~1000 Rust | Medium | Status display |
+| 5: Variable-width | ~1200 Rust | Medium | Proportional fonts, ligatures |
+| 6: Bidi | ~3000 Rust | Very hard | International text |
 | 7: Images/media | ~400 Rust | Easy | Already working |
 
-Total: ~8-10k LOC Rust replacing ~30k LOC C. The reduction comes from:
+**Total: ~17-18k LOC Rust replacing ~40k LOC C.** The reduction comes from:
 
 - No terminal backend code needed
 - No X11/GTK drawing code needed
 - No incremental matrix diffing (GPU redraws everything)
 - Modern Rust text crates handle Unicode/shaping complexity
 
+### Previously Missing Components (Now Included)
+
+These were absent from the original design and are now incorporated into the phases above:
+
+| Component | Phase | Notes |
+|-----------|-------|-------|
+| Fringe bitmaps (25 standard + custom) | 3 | Arrows, brackets, debugging indicators |
+| Margin areas / `display-line-numbers-mode` | 3 | Very commonly used |
+| `vertical-motion` / `move-to-column` feedback | 1 | Cursor movement depends on layout |
+| `window-end` feedback to Emacs | 1 | Many packages query this |
+| jit-lock / fontification integration | 1 | Rust layout must trigger Lisp fontification |
+| Minibuffer resize (`resize-mini-windows`) | 3 | Dynamic height based on content |
+| Tab-line | 4 | Window tab bar |
+| Iterative window-start computation (2-5 passes) | 1 | Scroll policies: `scroll-margin`, `scroll-step`, etc. |
+| Child frames | 3 | posframe, etc. — independent layout per frame |
+
 ## What This Unlocks
 
-1. **Pixel-level smooth scrolling** — No more line-granular `window-start`. Rust can scroll by arbitrary pixel offsets, interpolating between lines. Feed back the logical position to Emacs lazily.
+**Immediate benefits (Phases 0-7):**
 
-2. **Sub-frame cursor movement** — Cursor position computed in render thread, animated instantly without waiting for Emacs redisplay cycle.
+1. **Unified Rust codebase** — layout and rendering in same language. No more C extraction layer, no FFI serialization per frame.
+2. **Memory safety** — no more buffer overflows in display code. Emacs has had CVEs in xdisp.c.
+3. **Modern text stack** — cosmic-text + rustybuzz = proper ligatures, OpenType features, font fallback.
+4. **Simpler architecture** — no glyph matrix intermediary. Layout produces render-ready data directly.
+5. **TUI backend for free** — same layout engine outputs to terminal.
+6. **Testability** — Rust unit tests for layout logic. Currently impossible to test xdisp.c in isolation.
+7. **Incremental layout** — Rust can diff against previous layout and only re-layout changed regions.
+8. **Ligatures everywhere** — cosmic-text + rustybuzz handle OpenType ligatures natively.
 
-3. **Parallel layout** — Layout runs on render thread while Emacs executes Lisp. Only need new snapshot when buffer actually changes.
+**Future benefits (Phase 8+):**
 
-4. **Incremental layout** — Since Rust owns the layout state, it can diff against previous snapshot and only re-layout changed regions (unlike current clear-and-rebuild).
+9. **Pixel-level smooth scrolling** — sub-line viewport with async position feedback to Emacs.
+10. **Sub-frame cursor movement** — cursor position computed in render thread, animated instantly.
+11. **Parallel layout** — layout on render thread while Emacs executes Lisp.
+12. **Custom rendering effects** — animated text insertion, per-character fade-in, elastic overscroll.
 
-5. **Ligatures everywhere** — cosmic-text + rustybuzz handle OpenType ligatures natively. No need for Emacs composition hacks.
+## Difficulty Analysis
 
-6. **Custom rendering effects** — Since layout and render are in the same language, can do things like animated text insertion, per-character fade-in, elastic overscroll.
+### What's Actually Easy
+
+1. **Monospace ASCII without properties** — count chars, break at width, position on grid. This is what Alacritty does.
+2. **Basic face application** — once positioned, applying fg/bg/bold/italic is straightforward table lookup.
+3. **Cursor rendering** — already done in current Rust renderer.
+4. **Images/video/webkit** — already rendered by wgpu. Layout just reserves space.
+5. **TUI output** — quantize pixel coordinates to cell grid, diff, emit ANSI. Well-understood.
+6. **Glyph rasterization** — cosmic-text handles this well.
+
+### What's Hard (Ranked)
+
+**1. Display properties + overlay strings (Phase 3)**
+
+The single hardest phase. 14 display spec types with composability, 5-level nesting via push/pop stack, recursive overlay string properties. This is where most Emacs redisplay bugs live. `handle_single_display_spec` alone is 634 lines of C with deeply nested conditionals. The overlay string machinery adds another ~400 lines. All interactions between these systems must be faithfully replicated.
+
+**2. Synchronization with Emacs Lisp**
+
+Layout results must flow back to Emacs for `pos-visible-in-window-p`, `window-end`, `vertical-motion`, etc. These are called synchronously from Lisp and must return correct results immediately. The Rust layout engine must maintain queryable state that matches what these functions expect.
+
+**3. Iterative window-start computation**
+
+Emacs does 2-5 layout passes per frame to find the correct `window-start`:
+- Try displaying from current start → check if point is visible
+- If not, adjust `window-start` → retry
+- Handle `scroll-margin`, `scroll-conservatively`, `scroll-step`
+- Three optimization tiers: `try_window_reusing_current_matrix` → `try_window_id` → `try_window`
+
+This iterative process is deeply intertwined with layout and must work correctly.
+
+**4. jit-lock / fontification integration**
+
+Fontification runs DURING layout iteration, calling into Lisp. The Rust layout engine must pause layout, call into C/Lisp for fontification via FFI callback, then resume with the newly-applied faces. This is architecturally messy.
+
+**5. Face realization + merging**
+
+Not just reading a face_id. Involves: merge text property face + ALL overlay faces (unlimited, priority-ordered), then realize (compute pixel values, select font from fontset). `face_at_buffer_position` is ~130 lines, but font selection from the fontset system adds significant complexity.
+
+**6. Bidi (Phase 6)**
+
+Not just "use unicode-bidi crate." The crate handles the algorithm, but integrating bidi with line breaking, cursor movement, overlay strings, and display properties creates multiplicative complexity. Every other phase gets harder with bidi.
+
+### What's Medium
+
+- **Margin areas / line numbers** — `display-line-numbers-mode` is margin-based, needs its own layout per row.
+- **Fringe bitmaps** — 25 standard types + custom. Need bitmap rendering pipeline.
+- **Mode-line** — `format-mode-line` evaluates arbitrary Lisp. Serialization of results is the hard part.
+- **Minibuffer resize** — full buffer scan for height, dynamic window resizing during redisplay.
+
+## Pros vs Cons
+
+### Pros
+
+1. **Unified Rust codebase** — layout and rendering in same language. No C extraction layer, no FFI serialization per frame.
+2. **Memory safety** — no buffer overflows in display code.
+3. **Modern text stack** — cosmic-text, rustybuzz for ligatures, proper Unicode support.
+4. **Simpler architecture** — no glyph matrix intermediary. Layout produces render-ready data.
+5. **TUI backend** — same layout engine for terminal rendering. Currently impossible.
+6. **Testability** — Rust unit tests for layout. Currently impossible to test xdisp.c in isolation.
+7. **Future GPU optimizations** — layout aware of GPU capabilities.
+8. **Incremental layout** — diff against previous layout, only re-layout changed regions.
+
+### Cons
+
+1. **Layout must run on Emacs thread** — the "parallel layout" benefit is deferred to Phase 8+. Many Lisp functions need synchronous layout access. This limits the performance gain vs current architecture.
+2. **Scope is ~2x original estimate** — ~17k LOC Rust, not ~8-10k. Display properties and missing components account for the increase.
+3. **Compatibility risk** — every Emacs package is a test case. Subtle layout differences = visual bugs. Packages like posframe, company, corfu, org-mode, magit depend on exact redisplay behavior.
+4. **Display property complexity** — 14 types with composability, 5-level nesting, recursive overlay string properties. The long tail of edge cases will take months.
+5. **jit-lock callback** — Rust calling back into Lisp during layout is architecturally messy. FFI boundary goes both directions.
+6. **Regression risk** — xdisp.c is battle-tested over 40 years. A rewrite will have bugs the original doesn't.
+7. **Two-way data flow** — layout results must flow back to Emacs for Lisp functions. Not just Emacs→Rust, also Rust→Emacs.
+8. **Parallel development burden** — must maintain both old and new display engines during multi-phase transition.
+9. **Iterative window-start** — the 2-5 pass window-start computation is deeply tied to layout and scroll policies. Getting this wrong breaks scrolling.
 
 ## Compatibility Risk
 
 The biggest risk is Emacs packages that depend on redisplay behavior:
 
-- `posframe` — creates child frames with specific pixel positions
-- `company-mode` / `corfu` — popup overlays positioned relative to point
-- `which-key` — positioned popups
-- `org-mode` — heavy use of display properties, invisible text, overlays
+- **posframe** — creates child frames at specific pixel positions via `posn-at-point`
+- **company-mode / corfu** — popup overlays positioned relative to point via `pos-visible-in-window-p`
+- **which-key** — positioned popups
+- **org-mode** — heavy use of display properties, invisible text, overlays, `line-prefix`
+- **magit** — thousands of overlays for diff coloring, section folding via `invisible`
+- **helm / ivy / vertico** — rapid overlay creation/deletion, face changes on every keystroke
+- **lsp-mode / eglot** — diagnostic overlays with `after-string`, inline hints
 
-**Mitigation**: Keep Emacs's `window-start`, `pos-visible-in-window-p`, `posn-at-point` working by having Rust report layout results back to Emacs. The Lisp API stays the same, only the engine behind it changes.
+**Functions that MUST return correct results:**
+- `pos-visible-in-window-p` — "is buffer position visible?"
+- `posn-at-point` / `posn-at-x-y` — pixel-to-position conversion
+- `window-end` — last visible buffer position
+- `vertical-motion` — move by visual lines
+- `move-to-column` — move to specific column
+- `compute-motion` — full motion computation
+- `current-column` — get current column
+
+**Mitigation**: Phase -1 (direct glyph hook) proves the rendering architecture works without any compatibility risk. Full layout rewrite proceeds incrementally with continuous testing against real packages.
 
 ## Alternative Considered: GPU Compute Layout (Strategy 5)
 
@@ -287,7 +513,7 @@ The **WgpuRenderer** consumes this as pixel-positioned glyph batches (current pa
 ```rust
 struct TuiRenderer {
     terminal: crossterm::Terminal,   // or termwiz / ratatui backend
-    grid: Vec<Vec<Cell>>,           // rows × cols cell grid
+    grid: Vec<Vec<Cell>>,           // rows x cols cell grid
     prev_grid: Vec<Vec<Cell>>,      // previous frame for diffing
 }
 
@@ -367,7 +593,7 @@ TUI backend fits as an additional phase after Phase 1 (monospace ASCII):
 - Cell grid quantization from pixel coordinates
 - ANSI escape sequence output via crossterm
 - Grid diffing for incremental updates
-- Basic face → SGR attribute mapping
+- Basic face -> SGR attribute mapping
 - Cursor display via terminal cursor
 
 **Scope**: ~1200 Rust. **Difficulty**: Medium.

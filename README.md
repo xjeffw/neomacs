@@ -431,17 +431,18 @@ See [docs/rust-display-engine.md](docs/rust-display-engine.md) for the full desi
 
 | Phase | Scope | Difficulty | Enables |
 |-------|-------|------------|---------|
-| 0: Snapshot infra | ~500 C, ~300 Rust | Medium | Foundation |
-| 1: Monospace ASCII layout | ~1500 Rust | Medium | Basic editing |
+| -1: Direct glyph hook | ~2000 | Medium | Proves architecture, low risk |
+| 0: Snapshot infra | ~1000 C, ~500 Rust | Medium-Hard | Foundation |
+| 1: Monospace ASCII layout | ~2500 Rust | Medium | Basic editing |
 | 1.5: TUI renderer | ~1200 Rust | Medium | Terminal Emacs |
-| 2: Face resolution | ~800 Rust | Medium | Syntax highlighting |
-| 3: Display properties | ~2000 Rust | Hard | Packages (company, which-key) |
-| 4: Mode-line & header-line | ~500 Rust | Medium | Status display |
-| 5: Variable-width & compositions | ~800 Rust | Medium | Proportional fonts, ligatures |
-| 6: Bidi | ~1500 Rust | Very hard | International text |
+| 2: Face resolution | ~1500 Rust | Medium-Hard | Syntax highlighting |
+| 3: Display properties | ~5000 Rust | Very hard | Packages (company, which-key, org) |
+| 4: Mode-line & header-line | ~1000 Rust | Medium | Status display |
+| 5: Variable-width & compositions | ~1200 Rust | Medium | Proportional fonts, ligatures |
+| 6: Bidi | ~3000 Rust | Very hard | International text |
 | 7: Images & media | ~400 Rust | Easy | Already working |
 
-**Total: ~8-10k LOC Rust replacing ~30k LOC C** — fewer lines because we skip terminal/X11/GTK backend code, skip incremental matrix diffing (GPU redraws everything), and leverage modern Rust crates (cosmic-text, unicode-bidi) for the hard Unicode/shaping problems.
+**Total: ~17-18k LOC Rust replacing ~40k LOC C** — fewer lines because we skip terminal/X11/GTK backend code, skip incremental matrix diffing (GPU redraws everything), and leverage modern Rust crates (cosmic-text, unicode-bidi) for the hard Unicode/shaping problems.
 
 ---
 
