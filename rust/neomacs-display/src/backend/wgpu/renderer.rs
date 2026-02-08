@@ -4027,7 +4027,8 @@ impl WgpuRenderer {
 
         // === Pass 2: Text glyphs ===
         let padding = 4.0_f32;
-        let char_width = 8.0_f32;
+        let font_size = glyph_atlas.default_font_size();
+        let char_width = font_size * 0.6;
         // Use default font size (0.0 means use atlas default)
         let font_size_bits = 0.0_f32.to_bits();
 
@@ -4254,8 +4255,8 @@ impl WgpuRenderer {
 
         // === Pass 2: Text glyphs ===
         let padding = 6.0_f32;
-        let line_height = 18.0_f32;
-        let char_width = 7.5_f32;
+        let line_height = glyph_atlas.default_line_height();
+        let char_width = glyph_atlas.default_font_size() * 0.6;
         let font_size_bits = 0.0_f32.to_bits();
 
         for (line_idx, line) in tooltip.lines.iter().enumerate() {

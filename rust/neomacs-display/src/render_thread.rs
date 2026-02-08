@@ -190,10 +190,11 @@ pub(crate) struct PopupMenuState {
 }
 
 impl PopupMenuState {
-    fn new(x: f32, y: f32, items: Vec<PopupMenuItem>, title: Option<String>) -> Self {
-        // Layout constants
+    fn new(x: f32, y: f32, items: Vec<PopupMenuItem>, title: Option<String>,
+           font_size: f32, line_height: f32) -> Self {
+        // Layout constants derived from font metrics
         let padding = 4.0_f32;
-        let item_height = 20.0_f32;
+        let item_height = line_height + 3.0;
         let separator_height = 8.0_f32;
         let title_height = if title.is_some() { item_height + separator_height } else { 0.0 };
 
@@ -211,7 +212,7 @@ impl PopupMenuState {
         total_h += padding;
 
         // Compute width based on longest label + shortcut
-        let char_width = 8.0_f32; // Approximate monospace character width
+        let char_width = font_size * 0.6;
         let min_width = 150.0_f32;
         let max_label_len = items.iter()
             .filter(|i| !i.separator)
@@ -390,10 +391,9 @@ pub(crate) struct TooltipState {
 
 impl TooltipState {
     fn new(x: f32, y: f32, text: &str, fg: (f32, f32, f32), bg: (f32, f32, f32),
-           screen_w: f32, screen_h: f32) -> Self {
+           screen_w: f32, screen_h: f32, font_size: f32, line_height: f32) -> Self {
         let padding = 6.0_f32;
-        let line_height = 18.0_f32;
-        let char_width = 7.5_f32;
+        let char_width = font_size * 0.6;
 
         let lines: Vec<String> = text.lines().map(|l| l.to_string()).collect();
         let max_line_len = lines.iter().map(|l| l.len()).max().unwrap_or(1);
@@ -1065,7 +1065,10 @@ impl RenderApp {
                 }
                 RenderCommand::ShowPopupMenu { x, y, items, title } => {
                     log::info!("ShowPopupMenu at ({}, {}) with {} items", x, y, items.len());
-                    self.popup_menu = Some(PopupMenuState::new(x, y, items, title));
+                    let (fs, lh) = self.glyph_atlas.as_ref()
+                        .map(|a| (a.default_font_size(), a.default_line_height()))
+                        .unwrap_or((13.0, 17.0));
+                    self.popup_menu = Some(PopupMenuState::new(x, y, items, title, fs, lh));
                     self.frame_dirty = true;
                 }
                 RenderCommand::HidePopupMenu => {
@@ -1075,12 +1078,16 @@ impl RenderApp {
                 }
                 RenderCommand::ShowTooltip { x, y, text, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b } => {
                     log::debug!("ShowTooltip at ({}, {})", x, y);
+                    let (fs, lh) = self.glyph_atlas.as_ref()
+                        .map(|a| (a.default_font_size(), a.default_line_height()))
+                        .unwrap_or((13.0, 17.0));
                     self.tooltip = Some(TooltipState::new(
                         x, y, &text,
                         (fg_r, fg_g, fg_b),
                         (bg_r, bg_g, bg_b),
                         self.width as f32 / self.scale_factor as f32,
                         self.height as f32 / self.scale_factor as f32,
+                        fs, lh,
                     ));
                     self.frame_dirty = true;
                 }

@@ -413,6 +413,16 @@ impl WgpuGlyphAtlas {
         self.cache.is_empty()
     }
 
+    /// Get the default font size
+    pub fn default_font_size(&self) -> f32 {
+        self.default_font_size
+    }
+
+    /// Get the default line height
+    pub fn default_line_height(&self) -> f32 {
+        self.default_line_height
+    }
+
     /// Set font metrics
     pub fn set_metrics(&mut self, font_size: f32, line_height: f32) {
         if (self.default_font_size - font_size).abs() > 0.1
