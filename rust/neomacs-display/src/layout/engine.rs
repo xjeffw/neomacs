@@ -977,6 +977,18 @@ impl LayoutEngine {
                     }
                 }
                 _ => {
+                    // Combining/non-spacing character: render at previous position, no col advance
+                    if is_combining_char(ch) {
+                        if col > 0 {
+                            let gx = content_x + (col - 1) as f32 * char_w;
+                            let gy = text_y + row as f32 * char_h;
+                            frame_glyphs.add_char(ch, gx, gy, 0.0, char_h, ascent, false);
+                        }
+                        // Don't advance column
+                        window_end_charpos = charpos;
+                        continue;
+                    }
+
                     // Track word-wrap breakpoints: after space/tab
                     if params.word_wrap && (ch == ' ' || ch == '\t') {
                         // Record break AFTER this whitespace
@@ -1428,6 +1440,58 @@ fn decode_utf8(bytes: &[u8]) -> (char, usize) {
 }
 
 /// Check if a character is a wide (CJK) character that occupies 2 columns.
+/// Check if a character is a Unicode combining/non-spacing mark.
+/// These characters overlay the previous base character and don't advance the column.
+fn is_combining_char(ch: char) -> bool {
+    let cp = ch as u32;
+    // Combining Diacritical Marks
+    (0x0300..=0x036F).contains(&cp)
+    // Combining Diacritical Marks Extended
+    || (0x1AB0..=0x1AFF).contains(&cp)
+    // Combining Diacritical Marks Supplement
+    || (0x1DC0..=0x1DFF).contains(&cp)
+    // Combining Diacritical Marks for Symbols
+    || (0x20D0..=0x20FF).contains(&cp)
+    // Combining Half Marks
+    || (0xFE20..=0xFE2F).contains(&cp)
+    // General Category Mn (non-spacing marks) in common scripts
+    // Hebrew points and accents
+    || (0x0591..=0x05BD).contains(&cp)
+    || cp == 0x05BF
+    || (0x05C1..=0x05C2).contains(&cp)
+    || (0x05C4..=0x05C5).contains(&cp)
+    || cp == 0x05C7
+    // Arabic combining marks
+    || (0x0610..=0x061A).contains(&cp)
+    || (0x064B..=0x065F).contains(&cp)
+    || cp == 0x0670
+    || (0x06D6..=0x06DC).contains(&cp)
+    || (0x06DF..=0x06E4).contains(&cp)
+    || (0x06E7..=0x06E8).contains(&cp)
+    || (0x06EA..=0x06ED).contains(&cp)
+    // Devanagari combining marks
+    || (0x0901..=0x0903).contains(&cp)
+    || (0x093A..=0x094F).contains(&cp)
+    || (0x0951..=0x0957).contains(&cp)
+    || (0x0962..=0x0963).contains(&cp)
+    // Thai combining marks
+    || (0x0E31..=0x0E31).contains(&cp)
+    || (0x0E34..=0x0E3A).contains(&cp)
+    || (0x0E47..=0x0E4E).contains(&cp)
+    // Hangul Jamo combining vowels/final consonants
+    || (0x1160..=0x11FF).contains(&cp)
+    // Zero-width characters
+    || cp == 0x200B // zero-width space
+    || cp == 0x200C // zero-width non-joiner
+    || cp == 0x200D // zero-width joiner
+    || cp == 0x200E // left-to-right mark
+    || cp == 0x200F // right-to-left mark
+    || cp == 0xFEFF // zero-width no-break space (BOM)
+    // Variation selectors
+    || (0xFE00..=0xFE0F).contains(&cp)
+    || (0xE0100..=0xE01EF).contains(&cp)
+}
+
 fn is_wide_char(ch: char) -> bool {
     let cp = ch as u32;
     // CJK Unified Ideographs
