@@ -232,6 +232,8 @@ pub enum RenderCommand {
     },
     /// Hide the active tooltip
     HideTooltip,
+    /// Trigger visual bell flash
+    VisualBell,
 }
 
 /// Wakeup pipe for signaling Emacs from render thread

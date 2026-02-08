@@ -372,6 +372,9 @@ struct RenderApp {
 
     // Active tooltip overlay
     tooltip: Option<TooltipState>,
+
+    // Visual bell state (flash overlay)
+    visual_bell_start: Option<std::time::Instant>,
 }
 
 /// State for a tooltip displayed as GPU overlay
@@ -502,6 +505,7 @@ impl RenderApp {
             terminal_manager: crate::terminal::TerminalManager::new(),
             popup_menu: None,
             tooltip: None,
+            visual_bell_start: None,
         }
     }
 
@@ -1094,6 +1098,10 @@ impl RenderApp {
                 RenderCommand::HideTooltip => {
                     log::debug!("HideTooltip");
                     self.tooltip = None;
+                    self.frame_dirty = true;
+                }
+                RenderCommand::VisualBell => {
+                    self.visual_bell_start = Some(std::time::Instant::now());
                     self.frame_dirty = true;
                 }
             }
@@ -2245,6 +2253,25 @@ impl RenderApp {
                 (&self.renderer, &mut self.glyph_atlas)
             {
                 renderer.render_tooltip(&surface_view, tip, glyph_atlas, self.width, self.height);
+            }
+        }
+
+        // Render visual bell flash overlay (above everything)
+        if let Some(start) = self.visual_bell_start {
+            let elapsed = start.elapsed().as_secs_f32();
+            let duration = 0.15; // 150ms flash
+            if elapsed < duration {
+                let alpha = (1.0 - elapsed / duration) * 0.3; // max 30% opacity, fading out
+                if let Some(ref renderer) = self.renderer {
+                    renderer.render_visual_bell(
+                        &surface_view,
+                        self.width, self.height,
+                        alpha,
+                    );
+                }
+                self.frame_dirty = true; // Keep redrawing during animation
+            } else {
+                self.visual_bell_start = None;
             }
         }
 

@@ -2114,6 +2114,18 @@ pub unsafe extern "C" fn neomacs_display_hide_tooltip(
     }
 }
 
+/// Trigger visual bell flash effect.
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_visual_bell(
+    _handle: *mut NeomacsDisplay,
+) {
+    let cmd = RenderCommand::VisualBell;
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Set the window title (threaded mode)
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_title(

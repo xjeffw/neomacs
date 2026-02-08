@@ -4274,4 +4274,61 @@ impl WgpuRenderer {
             }
         }
     }
+
+    /// Render a visual bell flash overlay (semi-transparent white rectangle fading out).
+    pub fn render_visual_bell(
+        &self,
+        view: &wgpu::TextureView,
+        surface_width: u32,
+        surface_height: u32,
+        alpha: f32,
+    ) {
+        use wgpu::util::DeviceExt;
+
+        let logical_w = surface_width as f32 / self.scale_factor;
+        let logical_h = surface_height as f32 / self.scale_factor;
+        let uniforms = Uniforms {
+            screen_size: [logical_w, logical_h],
+            _padding: [0.0, 0.0],
+        };
+        self.queue
+            .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+
+        // Semi-transparent white overlay in linear space
+        let flash_color = Color::new(1.0, 1.0, 1.0, alpha).srgb_to_linear();
+
+        let mut rect_vertices: Vec<RectVertex> = Vec::new();
+        self.add_rect(&mut rect_vertices, 0.0, 0.0, logical_w, logical_h, &flash_color);
+
+        let rect_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Visual Bell Buffer"),
+            contents: bytemuck::cast_slice(&rect_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Visual Bell Encoder"),
+        });
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Visual Bell Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            pass.set_pipeline(&self.rect_pipeline);
+            pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+            pass.set_vertex_buffer(0, rect_buffer.slice(..));
+            pass.draw(0..rect_vertices.len() as u32, 0..1);
+        }
+        self.queue.submit(Some(encoder.finish()));
+    }
 }

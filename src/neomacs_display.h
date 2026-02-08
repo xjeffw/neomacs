@@ -1196,4 +1196,9 @@ char *neomacs_clipboard_get_text(void);
  */
 void neomacs_clipboard_free_text(char *text);
 
+/**
+ * Trigger a visual bell flash effect on the render thread.
+ */
+void neomacs_display_visual_bell(struct NeomacsDisplay *handle);
+
 #endif  /* NEOMACS_DISPLAY_H */

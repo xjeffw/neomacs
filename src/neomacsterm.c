@@ -6398,13 +6398,18 @@ neomacs_delete_frame (struct frame *f)
     dpyinfo->reference_count--;
 }
 
-/* Ring the bell (visual flash).  */
+/* Ring the bell (visual flash + optional system beep).  */
 static void
 neomacs_ring_bell (struct frame *f)
 {
-  /* For now, use GDK beep if available.  */
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
-  if (dpyinfo && dpyinfo->gdpy)
+
+  /* GPU visual bell flash (brief white overlay that fades out) */
+  if (dpyinfo && dpyinfo->display_handle)
+    neomacs_display_visual_bell (dpyinfo->display_handle);
+
+  /* Also send system beep if visible-bell is not set */
+  if (!visible_bell && dpyinfo && dpyinfo->gdpy)
     gdk_display_beep (dpyinfo->gdpy);
 }
 
