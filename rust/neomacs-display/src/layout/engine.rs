@@ -251,27 +251,26 @@ impl LayoutEngine {
         neomacs_layout_ensure_fontified(buffer, params.window_start, fontify_end);
 
         // Read buffer text from window_start
-        if read_chars <= 0 {
-            return;
-        }
+        let bytes_read = if read_chars <= 0 {
+            0
+        } else {
+            let buf_size = (read_chars * 4) as usize;
+            self.text_buf.resize(buf_size, 0);
+            let n = neomacs_layout_buffer_text(
+                buffer,
+                params.window_start,
+                (params.window_start + read_chars).min(params.buffer_size),
+                self.text_buf.as_mut_ptr(),
+                buf_size as i64,
+            );
+            n.max(0)
+        };
 
-        // Ensure text buffer is large enough (4 bytes per char max for UTF-8)
-        let buf_size = (read_chars * 4) as usize;
-        self.text_buf.resize(buf_size, 0);
-
-        let bytes_read = neomacs_layout_buffer_text(
-            buffer,
-            params.window_start,
-            (params.window_start + read_chars).min(params.buffer_size),
-            self.text_buf.as_mut_ptr(),
-            buf_size as i64,
-        );
-
-        if bytes_read <= 0 {
-            return;
-        }
-
-        let text = &self.text_buf[..bytes_read as usize];
+        let text = if bytes_read > 0 {
+            &self.text_buf[..bytes_read as usize]
+        } else {
+            &[]
+        };
 
         // Default face colors (fallback)
         let default_fg = Color::from_pixel(params.default_fg);
@@ -323,6 +322,8 @@ impl LayoutEngine {
         let mut row = 0i32;
         let mut charpos = params.window_start;
         let mut cursor_placed = false;
+        let mut cursor_col = 0i32;
+        let mut cursor_row = 0i32;
         let mut window_end_charpos = params.window_start;
         let mut byte_idx = 0usize;
         // hscroll state: how many columns to skip on each line
@@ -529,6 +530,8 @@ impl LayoutEngine {
 
             // Check if cursor is at this position
             if !cursor_placed && charpos >= params.point {
+                cursor_col = col;
+                cursor_row = row;
                 let cursor_x = content_x + col as f32 * char_w;
                 let cursor_y = text_y + row as f32 * char_h;
 
@@ -774,6 +777,8 @@ impl LayoutEngine {
 
         // If cursor wasn't placed (point is past visible content), place at end
         if !cursor_placed && params.point >= params.window_start {
+            cursor_col = col;
+            cursor_row = row.min(max_rows - 1);
             let cursor_x = content_x + col as f32 * char_w;
             let cursor_y = text_y + row.min(max_rows - 1) as f32 * char_h;
 
@@ -865,6 +870,15 @@ impl LayoutEngine {
             wp.window_ptr,
             window_end_charpos,
             row.min(max_rows - 1),
+        );
+
+        // Set cursor position for Emacs (needed for recenter, scroll, etc.)
+        neomacs_layout_set_cursor(
+            wp.window_ptr,
+            (content_x + cursor_col as f32 * char_w) as i32,
+            (text_y + cursor_row as f32 * char_h) as i32,
+            cursor_col,
+            cursor_row,
         );
     }
 
