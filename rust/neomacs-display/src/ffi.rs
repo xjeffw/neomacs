@@ -2985,6 +2985,30 @@ pub unsafe extern "C" fn neomacs_display_set_window_content_shadow(
     }
 }
 
+/// Configure cursor click halo effect
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_click_halo(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int,
+    g: c_int,
+    b: c_int,
+    duration_ms: c_int,
+    max_radius: c_int,
+) {
+    let cmd = RenderCommand::SetClickHalo {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        duration_ms: duration_ms as u32,
+        max_radius: max_radius as f32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure scroll velocity fade overlay
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_scroll_velocity_fade(

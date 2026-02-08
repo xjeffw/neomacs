@@ -8909,6 +8909,45 @@ OPACITY is 0-100 percentage (default 15).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-click-halo",
+       Fneomacs_set_click_halo,
+       Sneomacs_set_click_halo, 0, 4, 0,
+       doc: /* Configure cursor click halo effect.
+ENABLED non-nil draws an expanding circular halo animation at the
+mouse position when a button is clicked.
+COLOR is an RGB hex string (default "#6699FF").
+DURATION-MS is the animation duration in milliseconds (default 300).
+MAX-RADIUS is the maximum halo radius in pixels (default 30).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object duration_ms, Lisp_Object max_radius)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 102, g = 153, b = 255;
+  int dur = 300;
+  int rad = 30;
+
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (duration_ms)) dur = XFIXNUM (duration_ms);
+  if (FIXNUMP (max_radius)) rad = XFIXNUM (max_radius);
+
+  neomacs_display_set_click_halo (dpyinfo->display_handle, on, r, g, b, dur, rad);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-scroll-velocity-fade",
        Fneomacs_set_scroll_velocity_fade,
        Sneomacs_set_scroll_velocity_fade, 0, 3, 0,
@@ -10619,6 +10658,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_resize_padding);
   defsubr (&Sneomacs_set_minibuffer_highlight);
   defsubr (&Sneomacs_set_scroll_velocity_fade);
+  defsubr (&Sneomacs_set_click_halo);
   defsubr (&Sneomacs_set_region_glow);
   defsubr (&Sneomacs_set_window_glow);
   defsubr (&Sneomacs_set_scroll_progress);

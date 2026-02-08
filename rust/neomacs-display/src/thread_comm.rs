@@ -600,6 +600,18 @@ pub enum RenderCommand {
         /// Shadow opacity 0.0-1.0
         opacity: f32,
     },
+    /// Configure cursor click halo effect
+    SetClickHalo {
+        enabled: bool,
+        /// Halo color (sRGB floats)
+        r: f32,
+        g: f32,
+        b: f32,
+        /// Duration of expanding animation in milliseconds
+        duration_ms: u32,
+        /// Maximum radius of the halo in pixels
+        max_radius: f32,
+    },
     /// Configure scroll velocity fade overlay
     SetScrollVelocityFade {
         enabled: bool,

@@ -1467,6 +1467,17 @@ void neomacs_display_set_window_content_shadow(struct NeomacsDisplay *handle,
                                                int opacity);
 
 /**
+ * Configure cursor click halo effect
+ */
+void neomacs_display_set_click_halo(struct NeomacsDisplay *handle,
+                                    int enabled,
+                                    int r,
+                                    int g,
+                                    int b,
+                                    int durationMs,
+                                    int maxRadius);
+
+/**
  * Configure scroll velocity fade overlay
  */
 void neomacs_display_set_scroll_velocity_fade(struct NeomacsDisplay *handle,

@@ -1778,6 +1778,75 @@ are visible, creating a depth/raised pane illusion."
                 neomacs-window-content-shadow-size nil)
             val))))
 
+;; --- Click halo ---
+
+(declare-function neomacs-set-click-halo "neomacsterm.c"
+  (&optional enabled color duration-ms max-radius))
+
+(defcustom neomacs-click-halo nil
+  "Enable cursor click halo effect.
+Non-nil draws an expanding circular halo animation at the mouse
+position when a button is clicked."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-click-halo)
+           (neomacs-set-click-halo val
+            (if (boundp 'neomacs-click-halo-color)
+                neomacs-click-halo-color nil)
+            (if (boundp 'neomacs-click-halo-duration)
+                neomacs-click-halo-duration nil)
+            (if (boundp 'neomacs-click-halo-radius)
+                neomacs-click-halo-radius nil)))))
+
+(defcustom neomacs-click-halo-color "#6699FF"
+  "Click halo color as hex RGB string."
+  :type '(string :tag "Color (#RRGGBB)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-click-halo)
+                    (boundp 'neomacs-click-halo)
+                    neomacs-click-halo)
+           (neomacs-set-click-halo t val
+            (if (boundp 'neomacs-click-halo-duration)
+                neomacs-click-halo-duration nil)
+            (if (boundp 'neomacs-click-halo-radius)
+                neomacs-click-halo-radius nil)))))
+
+(defcustom neomacs-click-halo-duration 300
+  "Click halo animation duration in milliseconds."
+  :type '(integer :tag "Duration (ms)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-click-halo)
+                    (boundp 'neomacs-click-halo)
+                    neomacs-click-halo)
+           (neomacs-set-click-halo t
+            (if (boundp 'neomacs-click-halo-color)
+                neomacs-click-halo-color nil)
+            val
+            (if (boundp 'neomacs-click-halo-radius)
+                neomacs-click-halo-radius nil)))))
+
+(defcustom neomacs-click-halo-radius 30
+  "Maximum click halo radius in pixels."
+  :type '(integer :tag "Radius (px)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-click-halo)
+                    (boundp 'neomacs-click-halo)
+                    neomacs-click-halo)
+           (neomacs-set-click-halo t
+            (if (boundp 'neomacs-click-halo-color)
+                neomacs-click-halo-color nil)
+            (if (boundp 'neomacs-click-halo-duration)
+                neomacs-click-halo-duration nil)
+            val))))
+
 ;; --- Scroll velocity fade ---
 
 (declare-function neomacs-set-scroll-velocity-fade "neomacsterm.c"

@@ -775,6 +775,11 @@ struct RenderApp {
     window_content_shadow_enabled: bool,
     window_content_shadow_size: f32,
     window_content_shadow_opacity: f32,
+    /// Click halo effect
+    click_halo_enabled: bool,
+    click_halo_color: (f32, f32, f32),
+    click_halo_duration_ms: u32,
+    click_halo_max_radius: f32,
     /// Scroll velocity fade overlay
     scroll_velocity_fade_enabled: bool,
     scroll_velocity_fade_max_opacity: f32,
@@ -1108,6 +1113,10 @@ impl RenderApp {
             window_content_shadow_enabled: false,
             window_content_shadow_size: 6.0,
             window_content_shadow_opacity: 0.15,
+            click_halo_enabled: false,
+            click_halo_color: (0.4, 0.6, 1.0),
+            click_halo_duration_ms: 300,
+            click_halo_max_radius: 30.0,
             scroll_velocity_fade_enabled: false,
             scroll_velocity_fade_max_opacity: 0.15,
             scroll_velocity_fade_ms: 300,
@@ -2198,6 +2207,16 @@ impl RenderApp {
                     self.window_content_shadow_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_window_content_shadow(enabled, size, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetClickHalo { enabled, r, g, b, duration_ms, max_radius } => {
+                    self.click_halo_enabled = enabled;
+                    self.click_halo_color = (r, g, b);
+                    self.click_halo_duration_ms = duration_ms;
+                    self.click_halo_max_radius = max_radius;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_click_halo(enabled, (r, g, b), duration_ms, max_radius);
                     }
                     self.frame_dirty = true;
                 }
@@ -4438,6 +4457,13 @@ impl ApplicationHandler for RenderApp {
                         pressed: state == ElementState::Pressed,
                         modifiers: self.modifiers,
                     });
+                    // Click halo effect on press
+                    if state == ElementState::Pressed && self.click_halo_enabled {
+                        if let Some(renderer) = self.renderer.as_mut() {
+                            renderer.trigger_click_halo(self.mouse_pos.0, self.mouse_pos.1, std::time::Instant::now());
+                        }
+                        self.frame_dirty = true;
+                    }
                 }
             }
 

@@ -264,6 +264,12 @@ pub struct WgpuRenderer {
     window_content_shadow_enabled: bool,
     window_content_shadow_size: f32,
     window_content_shadow_opacity: f32,
+    /// Click halo effect
+    click_halo_enabled: bool,
+    click_halo_color: (f32, f32, f32),
+    click_halo_duration_ms: u32,
+    click_halo_max_radius: f32,
+    click_halos: Vec<ClickHaloEntry>,
     /// Scroll velocity fade overlay
     scroll_velocity_fade_enabled: bool,
     scroll_velocity_fade_max_opacity: f32,
@@ -300,6 +306,14 @@ struct ScrollMomentumEntry {
     window_id: i64,
     bounds: Rect,
     direction: i32, // 1 = down, -1 = up
+    started: std::time::Instant,
+    duration: std::time::Duration,
+}
+
+/// Entry for click halo effect
+struct ClickHaloEntry {
+    x: f32,
+    y: f32,
     started: std::time::Instant,
     duration: std::time::Duration,
 }
@@ -981,6 +995,11 @@ impl WgpuRenderer {
             window_content_shadow_enabled: false,
             window_content_shadow_size: 6.0,
             window_content_shadow_opacity: 0.15,
+            click_halo_enabled: false,
+            click_halo_color: (0.4, 0.6, 1.0),
+            click_halo_duration_ms: 300,
+            click_halo_max_radius: 30.0,
+            click_halos: Vec::new(),
             scroll_velocity_fade_enabled: false,
             scroll_velocity_fade_max_opacity: 0.15,
             scroll_velocity_fade_ms: 300,
@@ -1252,6 +1271,24 @@ impl WgpuRenderer {
         self.minibuffer_highlight_enabled = enabled;
         self.minibuffer_highlight_color = color;
         self.minibuffer_highlight_opacity = opacity;
+    }
+
+    /// Update click halo config
+    pub fn set_click_halo(&mut self, enabled: bool, color: (f32, f32, f32), duration_ms: u32, max_radius: f32) {
+        self.click_halo_enabled = enabled;
+        self.click_halo_color = color;
+        self.click_halo_duration_ms = duration_ms;
+        self.click_halo_max_radius = max_radius;
+    }
+
+    /// Trigger click halo at position
+    pub fn trigger_click_halo(&mut self, x: f32, y: f32, now: std::time::Instant) {
+        self.click_halos.push(ClickHaloEntry {
+            x,
+            y,
+            started: now,
+            duration: std::time::Duration::from_millis(self.click_halo_duration_ms as u64),
+        });
     }
 
     /// Update scroll velocity fade config
@@ -5448,6 +5485,52 @@ impl WgpuRenderer {
                     e.started.elapsed() < e.duration
                 });
                 if !self.scroll_velocity_fades.is_empty() {
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Click halo effect ===
+            if !self.click_halos.is_empty() {
+                let (hr, hg, hb) = self.click_halo_color;
+                let max_r = self.click_halo_max_radius;
+                let mut halo_vertices: Vec<RectVertex> = Vec::new();
+                let ring_steps = 8;
+
+                for entry in &self.click_halos {
+                    let elapsed = entry.started.elapsed().as_millis() as f32;
+                    let duration = entry.duration.as_millis() as f32;
+                    if elapsed >= duration { continue; }
+
+                    let t = elapsed / duration;
+                    let radius = max_r * t;
+                    let alpha = 0.4 * (1.0 - t) * (1.0 - t);
+                    if alpha < 0.005 { continue; }
+
+                    // Draw expanding ring as concentric rectangles
+                    let ring_w = 2.0_f32;
+                    for step in 0..ring_steps {
+                        let angle = step as f32 * std::f32::consts::TAU / ring_steps as f32;
+                        let px = entry.x + radius * angle.cos();
+                        let py = entry.y + radius * angle.sin();
+                        let c = Color::new(hr, hg, hb, alpha);
+                        self.add_rect(&mut halo_vertices, px - ring_w * 0.5, py - ring_w * 0.5, ring_w, ring_w, &c);
+                    }
+                }
+
+                if !halo_vertices.is_empty() {
+                    let halo_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Click Halo Buffer"),
+                        contents: bytemuck::cast_slice(&halo_vertices),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, halo_buffer.slice(..));
+                    render_pass.draw(0..halo_vertices.len() as u32, 0..1);
+                }
+
+                self.click_halos.retain(|e| e.started.elapsed() < e.duration);
+                if !self.click_halos.is_empty() {
                     self.needs_continuous_redraw = true;
                 }
             }
