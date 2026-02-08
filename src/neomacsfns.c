@@ -1658,6 +1658,40 @@ neomacs_create_frame_widgets (struct frame *f)
  * Frame Creation
  * ============================================================================ */
 
+/* Handler for signals raised during Fx_create_frame.
+   FRAME is the frame which is partially constructed.  */
+static Lisp_Object
+unwind_create_frame (Lisp_Object frame)
+{
+  struct frame *f = XFRAME (frame);
+
+  /* If frame is already dead, nothing to do.  This can happen if the
+     display is disconnected after the frame has become official, but
+     before Fx_create_frame removes the unwind protect.  */
+  if (!FRAME_LIVE_P (f))
+    return Qnil;
+
+  /* If frame is ``official'' (already in Vframe_list), nothing to do.  */
+  if (NILP (Fmemq (frame, Vframe_list)))
+    {
+      /* Frame never became official - clean up allocated resources.  */
+      struct neomacs_display_info *dpyinfo
+	= FRAME_NEOMACS_DISPLAY_INFO (f);
+      if (dpyinfo)
+	dpyinfo->reference_count--;
+      free_glyphs (f);
+      return Qt;
+    }
+
+  return Qnil;
+}
+
+static void
+do_unwind_create_frame (Lisp_Object frame)
+{
+  unwind_create_frame (frame);
+}
+
 DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame, 1, 1, 0,
        doc: /* Create a new Neomacs frame.
 PARMS is an alist of frame parameters.
@@ -1674,6 +1708,10 @@ If the parameters specify a display, that display is used.  */)
 
   parms = Fcopy_alist (parms);
 
+  /* Use this general default value to start with
+     until we know if this frame has a specified name.  */
+  Vx_resource_name = Vinvocation_name;
+
   /* Get display info */
   tem = gui_display_get_arg (dpyinfo, parms, Qterminal, 0, 0,
                              RES_TYPE_NUMBER);
@@ -1682,6 +1720,9 @@ If the parameters specify a display, that display is used.  */)
                                RES_TYPE_STRING);
   dpyinfo = check_neomacs_display_info (tem);
   kb = dpyinfo->terminal->kboard;
+
+  if (!dpyinfo->terminal->name)
+    error ("Terminal is not live, can't create new frames on it");
 
   /* Get frame name */
   name = gui_display_get_arg (dpyinfo, parms, Qname, "name", "Name",
@@ -1710,18 +1751,43 @@ If the parameters specify a display, that display is used.  */)
   f->terminal = dpyinfo->terminal;
   f->output_method = output_neomacs;
   f->output_data.neomacs = xzalloc (sizeof (struct neomacs_output));
+  FRAME_FONTSET (f) = -1;
   FRAME_NEOMACS_OUTPUT (f)->display_info = dpyinfo;
   dpyinfo->reference_count++;
 
-  /* Initialize frame pixels - standard Emacs: black text on white background */
-  /* This is critical because face realization uses FRAME_FOREGROUND_PIXEL */
-  f->foreground_pixel = 0x000000;  /* black text */
-  f->background_pixel = 0xffffff;  /* white background */
-  FRAME_NEOMACS_OUTPUT (f)->foreground_pixel = 0x000000;  /* black text */
-  FRAME_NEOMACS_OUTPUT (f)->background_pixel = 0xffffff;  /* white background */
+  /* With FRAME_DISPLAY_INFO set up, this unwind-protect is safe.  */
+  record_unwind_protect (do_unwind_create_frame, frame);
+
+  /* Initialize color slots to -1 so we won't try to free colors
+     we haven't allocated if x_decode_color signals an error.  */
+  {
+    Lisp_Object black = build_string ("black");
+
+    FRAME_FOREGROUND_PIXEL (f) = -1;
+    FRAME_BACKGROUND_PIXEL (f) = -1;
+    FRAME_NEOMACS_OUTPUT (f)->cursor_pixel = -1;
+    FRAME_NEOMACS_OUTPUT (f)->cursor_foreground_pixel = -1;
+    FRAME_NEOMACS_OUTPUT (f)->border_pixel = -1;
+
+    FRAME_FOREGROUND_PIXEL (f)
+      = x_decode_color (f, black, BLACK_PIX_DEFAULT (f));
+    FRAME_BACKGROUND_PIXEL (f)
+      = x_decode_color (f, build_string ("white"),
+			WHITE_PIX_DEFAULT (f));
+    FRAME_NEOMACS_OUTPUT (f)->cursor_pixel
+      = x_decode_color (f, black, BLACK_PIX_DEFAULT (f));
+    FRAME_NEOMACS_OUTPUT (f)->cursor_foreground_pixel
+      = x_decode_color (f, build_string ("white"),
+			WHITE_PIX_DEFAULT (f));
+    FRAME_NEOMACS_OUTPUT (f)->border_pixel
+      = x_decode_color (f, black, BLACK_PIX_DEFAULT (f));
+    FRAME_NEOMACS_OUTPUT (f)->foreground_pixel
+      = FRAME_FOREGROUND_PIXEL (f);
+    FRAME_NEOMACS_OUTPUT (f)->background_pixel
+      = FRAME_BACKGROUND_PIXEL (f);
+  }
 
   /* Initialize frame dimensions */
-  FRAME_FONTSET (f) = -1;
   f->border_width = 0;
   f->internal_border_width = 0;
 
@@ -1758,13 +1824,29 @@ If the parameters specify a display, that display is used.  */)
   FRAME_PIXEL_WIDTH (f) = width * char_width;
   FRAME_PIXEL_HEIGHT (f) = height * char_height;
 
-  /* Set frame name */
-  if (STRINGP (name))
-    Fmodify_frame_parameters (frame,
-                              list1 (Fcons (Qname, name)));
+  /* Set the name; the functions to which we pass f expect the name to
+     be set.  */
+  if (BASE_EQ (name, Qunbound) || NILP (name))
+    {
+      fset_name (f, Vinvocation_name);
+      f->explicit_name = false;
+    }
+  else
+    {
+      fset_name (f, name);
+      f->explicit_name = true;
+      specbind (Qx_resource_name, name);
+    }
 
   /* Set up font - required before face realization */
   neomacs_default_font_parameter (f, parms);
+
+  /* Validate that we got a font.  */
+  if (!FRAME_FONT (f))
+    {
+      delete_frame (frame, Qnoelisp);
+      error ("Invalid frame font");
+    }
 
   /* Border and divider parameters */
   gui_default_parameter (f, parms, Qborder_width, make_fixnum (0),
@@ -1865,10 +1947,6 @@ If the parameters specify a display, that display is used.  */)
 			 "inhibitDoubleBuffering", "InhibitDoubleBuffering",
 			 RES_TYPE_BOOLEAN);
 
-  /* Initialize cursor */
-  FRAME_NEOMACS_OUTPUT (f)->cursor_pixel = dpyinfo->black_pixel;
-  FRAME_NEOMACS_OUTPUT (f)->cursor_foreground_pixel = dpyinfo->white_pixel;
-
   /* Initialize mouse pointer cursor shapes.
      Values are integer constants matching Rust CursorIcon mapping:
      1=default/arrow, 2=text/ibeam, 3=hand/pointer,
@@ -1880,6 +1958,10 @@ If the parameters specify a display, that display is used.  */)
   FRAME_NEOMACS_OUTPUT (f)->hourglass_cursor = (Emacs_Cursor) 7;
   FRAME_NEOMACS_OUTPUT (f)->horizontal_drag_cursor = (Emacs_Cursor) 5;
   FRAME_NEOMACS_OUTPUT (f)->vertical_drag_cursor = (Emacs_Cursor) 6;
+
+  tem = gui_display_get_arg (dpyinfo, parms, Qunsplittable, 0, 0,
+			     RES_TYPE_BOOLEAN);
+  f->no_split = minibuffer_only || EQ (tem, Qt);
 
   /* Now consider frame official.  */
   f->terminal->reference_count++;
@@ -1929,6 +2011,25 @@ If the parameters specify a display, that display is used.  */)
   /* Make the frame visible */
   gui_default_parameter (f, parms, Qvisibility, Qt,
 			 "visibility", "Visibility", RES_TYPE_SYMBOL);
+
+  /* Initialize `default-minibuffer-frame' in case this is the first
+     frame on this terminal.  */
+  if (FRAME_HAS_MINIBUF_P (f)
+      && (!FRAMEP (KVAR (kb, Vdefault_minibuffer_frame))
+	  || !FRAME_LIVE_P (XFRAME (KVAR (kb,
+					   Vdefault_minibuffer_frame)))))
+    kset_default_minibuffer_frame (kb, frame);
+
+  /* All remaining specified parameters, which have not been "used" by
+     gui_display_get_arg and friends, now go in the misc. alist of the
+     frame.  */
+  for (tem = parms; CONSP (tem); tem = XCDR (tem))
+    if (CONSP (XCAR (tem)) && !NILP (XCAR (XCAR (tem))))
+      fset_param_alist (f, Fcons (XCAR (tem), f->param_alist));
+
+  /* Make sure windows on this frame appear in calls to next-window
+     and similar functions.  */
+  Vwindow_list = Qnil;
 
   return unbind_to (count, frame);
 }
