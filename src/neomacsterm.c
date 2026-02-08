@@ -66,6 +66,8 @@ static void neomacs_extract_full_frame (struct frame *f);
 static void neomacs_define_frame_cursor (struct frame *f, Emacs_Cursor cursor);
 static void neomacs_show_hourglass (struct frame *f);
 static void neomacs_hide_hourglass (struct frame *f);
+static void neomacs_compute_glyph_string_overhangs (struct glyph_string *s);
+static void neomacs_clear_under_internal_border (struct frame *f);
 
 /* Rust layout engine FFI entry point (defined in layout/engine.rs via ffi.rs) */
 extern void neomacs_rust_layout_frame (void *display_handle, void *frame_ptr,
@@ -220,11 +222,11 @@ static struct redisplay_interface neomacs_redisplay_interface = {
   .draw_fringe_bitmap = neomacs_draw_fringe_bitmap,
   .define_fringe_bitmap = NULL,
   .destroy_fringe_bitmap = NULL,
-  .compute_glyph_string_overhangs = NULL,
+  .compute_glyph_string_overhangs = neomacs_compute_glyph_string_overhangs,
   .draw_glyph_string = neomacs_draw_glyph_string,
   .define_frame_cursor = neomacs_define_frame_cursor,
   .clear_frame_area = neomacs_clear_frame_area,
-  .clear_under_internal_border = NULL,
+  .clear_under_internal_border = neomacs_clear_under_internal_border,
   .draw_window_cursor = neomacs_draw_window_cursor,
   .draw_vertical_window_border = neomacs_draw_vertical_window_border,
   .draw_window_divider = neomacs_draw_window_divider,
@@ -5076,6 +5078,100 @@ neomacs_clear_frame_area (struct frame *f, int x, int y, int width, int height)
   cairo_set_source_rgb (cr, r, g, b);
   cairo_rectangle (cr, x, y, width, height);
   cairo_fill (cr);
+}
+
+/* Clear under internal border — draws the internal border face background
+   at the four frame edges so the border is visible.  */
+static void
+neomacs_clear_under_internal_border (struct frame *f)
+{
+  if (FRAME_INTERNAL_BORDER_WIDTH (f) > 0)
+    {
+      int border = FRAME_INTERNAL_BORDER_WIDTH (f);
+      int width = FRAME_PIXEL_WIDTH (f);
+      int height = FRAME_PIXEL_HEIGHT (f);
+      int margin = FRAME_TOP_MARGIN_HEIGHT (f);
+      int bottom_margin = FRAME_BOTTOM_MARGIN_HEIGHT (f);
+      int face_id = (FRAME_PARENT_FRAME (f)
+                     ? (!NILP (Vface_remapping_alist)
+                        ? lookup_basic_face (NULL, f,
+                                             CHILD_FRAME_BORDER_FACE_ID)
+                        : CHILD_FRAME_BORDER_FACE_ID)
+                     : (!NILP (Vface_remapping_alist)
+                        ? lookup_basic_face (NULL, f,
+                                             INTERNAL_BORDER_FACE_ID)
+                        : INTERNAL_BORDER_FACE_ID));
+      struct face *face = FACE_FROM_ID_OR_NULL (f, face_id);
+
+      if (face)
+        {
+          unsigned long color = face->background;
+          uint32_t rgba = 0xFF000000
+            | ((color & 0xFF0000))
+            | ((color & 0x00FF00))
+            | ((color & 0x0000FF));
+
+          struct neomacs_display_info *dpyinfo
+            = FRAME_NEOMACS_DISPLAY_INFO (f);
+          if (dpyinfo && dpyinfo->display_handle)
+            {
+              /* Top edge */
+              neomacs_display_draw_border (dpyinfo->display_handle,
+                                           0, margin, width, border,
+                                           rgba);
+              /* Left edge */
+              neomacs_display_draw_border (dpyinfo->display_handle,
+                                           0, 0, border, height,
+                                           rgba);
+              /* Right edge */
+              neomacs_display_draw_border (dpyinfo->display_handle,
+                                           width - border, 0, border,
+                                           height, rgba);
+              /* Bottom edge */
+              neomacs_display_draw_border (dpyinfo->display_handle,
+                                           0,
+                                           height - bottom_margin - border,
+                                           width, border, rgba);
+            }
+        }
+    }
+}
+
+/* Compute overhangs for glyph string S — needed so Emacs knows
+   whether neighbouring strings overlap.  */
+static void
+neomacs_compute_glyph_string_overhangs (struct glyph_string *s)
+{
+  if (s->cmp == NULL
+      && (s->first_glyph->type == CHAR_GLYPH
+          || s->first_glyph->type == COMPOSITE_GLYPH))
+    {
+      struct font_metrics metrics;
+
+      if (s->first_glyph->type == CHAR_GLYPH)
+        {
+          unsigned *code = alloca (sizeof (unsigned) * s->nchars);
+          struct font *font = s->font;
+
+          for (int i = 0; i < s->nchars; i++)
+            code[i] = s->char2b[i];
+          font->driver->text_extents (font, code, s->nchars, &metrics);
+        }
+      else
+        {
+          Lisp_Object gstring = composition_gstring_from_id (s->cmp_id);
+          composition_gstring_width (gstring, s->cmp_from, s->cmp_to,
+                                     &metrics);
+        }
+      s->right_overhang = (metrics.rbearing > metrics.width
+                           ? metrics.rbearing - metrics.width : 0);
+      s->left_overhang = metrics.lbearing < 0 ? -metrics.lbearing : 0;
+    }
+  else if (s->cmp)
+    {
+      s->right_overhang = s->cmp->rbearing - s->cmp->pixel_width;
+      s->left_overhang = -s->cmp->lbearing;
+    }
 }
 
 /* Get GPU image ID for an Emacs image, loading it if necessary */
