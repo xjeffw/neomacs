@@ -7098,7 +7098,7 @@ have changed.  */)
 #ifdef HAVE_WINDOW_SYSTEM
 
 # if (defined USE_GTK || defined HAVE_PGTK || defined HAVE_NS || defined HAVE_XINERAMA \
-      || defined HAVE_XRANDR)
+      || defined HAVE_XRANDR || defined HAVE_NEOMACS)
 void
 free_monitors (struct MonitorInfo *monitors, int n_monitors)
 {

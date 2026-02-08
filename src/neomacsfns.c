@@ -2400,6 +2400,98 @@ The position is returned as a cons cell (X . Y).  */)
                 make_fixnum (dpyinfo->last_mouse_motion_y));
 }
 
+DEFUN ("neomacs-display-monitor-attributes-list",
+       Fneomacs_display_monitor_attributes_list,
+       Sneomacs_display_monitor_attributes_list,
+       0, 1, 0,
+       doc: /* Return a list of physical monitor attributes on TERMINAL.
+The optional argument TERMINAL specifies which display to ask about.
+TERMINAL should be a terminal object, a frame or a display name (a string).
+If omitted or nil, that stands for the selected frame's display.
+
+Internal use only, use `display-monitor-attributes-list' instead.  */)
+  (Lisp_Object terminal)
+{
+  struct neomacs_display_info *dpyinfo
+    = check_neomacs_display_info (terminal);
+  Lisp_Object attributes_list = Qnil;
+  GdkDisplay *gdpy;
+  int n_monitors, primary_monitor = 0;
+  Lisp_Object monitor_frames, rest, frame;
+  static const char *source = "Gdk";
+  struct MonitorInfo *monitors;
+
+  block_input ();
+  gdpy = dpyinfo->gdpy;
+  if (!gdpy)
+    {
+      unblock_input ();
+      return Qnil;
+    }
+
+  GListModel *monitor_list = gdk_display_get_monitors (gdpy);
+  n_monitors = g_list_model_get_n_items (monitor_list);
+  if (n_monitors == 0)
+    {
+      unblock_input ();
+      return Qnil;
+    }
+
+  monitor_frames = make_nil_vector (n_monitors);
+  monitors = xzalloc (n_monitors * sizeof *monitors);
+
+  /* Collect frames per monitor.  Since neomacs uses a single winit
+     window, all frames are effectively on the same monitor.  Assign
+     all non-tooltip frames to the primary monitor.  */
+  FOR_EACH_FRAME (rest, frame)
+    {
+      struct frame *f = XFRAME (frame);
+      if (FRAME_NEOMACS_P (f)
+	  && FRAME_DISPLAY_INFO (f) == dpyinfo
+	  && !FRAME_TOOLTIP_P (f))
+	ASET (monitor_frames, 0,
+	      Fcons (frame, AREF (monitor_frames, 0)));
+    }
+
+  for (int i = 0; i < n_monitors; i++)
+    {
+      GdkMonitor *monitor
+	= GDK_MONITOR (g_list_model_get_item (monitor_list, i));
+      GdkRectangle geom;
+      int width_mm, height_mm;
+      struct MonitorInfo *mi = &monitors[i];
+
+      gdk_monitor_get_geometry (monitor, &geom);
+      width_mm = gdk_monitor_get_width_mm (monitor);
+      height_mm = gdk_monitor_get_height_mm (monitor);
+
+      mi->geom.x = geom.x;
+      mi->geom.y = geom.y;
+      mi->geom.width = geom.width;
+      mi->geom.height = geom.height;
+      /* GTK4 removed gdk_monitor_get_workarea; use geometry.  */
+      mi->work = mi->geom;
+      mi->mm_width = width_mm;
+      mi->mm_height = height_mm;
+
+      const char *model = gdk_monitor_get_model (monitor);
+      if (model)
+	dupstring (&mi->name, model);
+
+      g_object_unref (monitor);
+    }
+
+  attributes_list = make_monitor_attribute_list (monitors,
+						 n_monitors,
+						 primary_monitor,
+						 monitor_frames,
+						 source);
+  free_monitors (monitors, n_monitors);
+  unblock_input ();
+
+  return attributes_list;
+}
+
 DEFUN ("x-open-connection", Fx_open_connection, Sx_open_connection, 1, 3, 0,
        doc: /* Open a connection to a Neomacs display.
 DISPLAY is the name of the display.  Optional second arg
@@ -2616,6 +2708,7 @@ syms_of_neomacsfns (void)
   defsubr (&Sneomacs_frame_geometry);
   defsubr (&Sneomacs_frame_edges);
   defsubr (&Sneomacs_mouse_absolute_pixel_position);
+  defsubr (&Sneomacs_display_monitor_attributes_list);
 
   /* Connection functions */
   defsubr (&Sx_open_connection);
