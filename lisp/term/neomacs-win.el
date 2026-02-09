@@ -4554,6 +4554,218 @@ Non-nil renders animated flowing color bands at the top of the frame."
                 neomacs-aurora-height nil)
             val))))
 
+;; Heat distortion effect
+(declare-function neomacs-set-heat-distortion "neomacsterm.c")
+
+(defcustom neomacs-heat-distortion nil
+  "Enable heat distortion/shimmer effect along window edges."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-heat-distortion)
+           (neomacs-set-heat-distortion val))))
+
+(defcustom neomacs-heat-distortion-intensity 30
+  "Intensity of heat distortion effect (0-100)."
+  :type '(integer :tag "Intensity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-heat-distortion)
+                    (boundp 'neomacs-heat-distortion)
+                    neomacs-heat-distortion)
+           (neomacs-set-heat-distortion t val))))
+
+(defcustom neomacs-heat-distortion-speed 100
+  "Animation speed for heat distortion (0-100)."
+  :type '(integer :tag "Speed (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-heat-distortion)
+                    (boundp 'neomacs-heat-distortion)
+                    neomacs-heat-distortion)
+           (neomacs-set-heat-distortion t
+            (if (boundp 'neomacs-heat-distortion-intensity)
+                neomacs-heat-distortion-intensity nil)
+            val))))
+
+(defcustom neomacs-heat-distortion-edge-width 30
+  "Width of heat distortion edge region in pixels."
+  :type '(integer :tag "Edge width (pixels)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-heat-distortion)
+                    (boundp 'neomacs-heat-distortion)
+                    neomacs-heat-distortion)
+           (neomacs-set-heat-distortion t
+            (if (boundp 'neomacs-heat-distortion-intensity)
+                neomacs-heat-distortion-intensity nil)
+            (if (boundp 'neomacs-heat-distortion-speed)
+                neomacs-heat-distortion-speed nil)
+            val))))
+
+;; Cursor lighthouse beam effect
+(declare-function neomacs-set-cursor-lighthouse "neomacsterm.c")
+
+(defcustom neomacs-cursor-lighthouse nil
+  "Enable cursor lighthouse beam effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-lighthouse)
+           (neomacs-set-cursor-lighthouse val))))
+
+(defcustom neomacs-cursor-lighthouse-color "#FFE64D"
+  "Color of the lighthouse beam."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-lighthouse)
+                    (boundp 'neomacs-cursor-lighthouse)
+                    neomacs-cursor-lighthouse)
+           (neomacs-set-cursor-lighthouse t val))))
+
+(defcustom neomacs-cursor-lighthouse-beam-width 15
+  "Angular width of the lighthouse beam in degrees."
+  :type '(integer :tag "Beam width (degrees)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-lighthouse)
+                    (boundp 'neomacs-cursor-lighthouse)
+                    neomacs-cursor-lighthouse)
+           (neomacs-set-cursor-lighthouse t
+            (if (boundp 'neomacs-cursor-lighthouse-color)
+                neomacs-cursor-lighthouse-color nil)
+            val))))
+
+(defcustom neomacs-cursor-lighthouse-rotation-speed 50
+  "Rotation speed of lighthouse beam (revolutions/sec * 100)."
+  :type '(integer :tag "Speed (0-200)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-lighthouse)
+                    (boundp 'neomacs-cursor-lighthouse)
+                    neomacs-cursor-lighthouse)
+           (neomacs-set-cursor-lighthouse t
+            (if (boundp 'neomacs-cursor-lighthouse-color)
+                neomacs-cursor-lighthouse-color nil)
+            (if (boundp 'neomacs-cursor-lighthouse-beam-width)
+                neomacs-cursor-lighthouse-beam-width nil)
+            val))))
+
+;; Neon border effect
+(declare-function neomacs-set-neon-border "neomacsterm.c")
+
+(defcustom neomacs-neon-border nil
+  "Enable neon border glow effect."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-neon-border)
+           (neomacs-set-neon-border val))))
+
+(defcustom neomacs-neon-border-color "#00FFCC"
+  "Color of the neon border glow."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-neon-border)
+                    (boundp 'neomacs-neon-border)
+                    neomacs-neon-border)
+           (neomacs-set-neon-border t val))))
+
+(defcustom neomacs-neon-border-intensity 60
+  "Neon border glow intensity (0-100)."
+  :type '(integer :tag "Intensity (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-neon-border)
+                    (boundp 'neomacs-neon-border)
+                    neomacs-neon-border)
+           (neomacs-set-neon-border t
+            (if (boundp 'neomacs-neon-border-color)
+                neomacs-neon-border-color nil)
+            val))))
+
+(defcustom neomacs-neon-border-flicker 10
+  "Neon border flicker amount (0-100, 0=no flicker)."
+  :type '(integer :tag "Flicker (0-100)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-neon-border)
+                    (boundp 'neomacs-neon-border)
+                    neomacs-neon-border)
+           (neomacs-set-neon-border t
+            (if (boundp 'neomacs-neon-border-color)
+                neomacs-neon-border-color nil)
+            (if (boundp 'neomacs-neon-border-intensity)
+                neomacs-neon-border-intensity nil)
+            val))))
+
+;; Cursor sonar ping effect
+(declare-function neomacs-set-cursor-sonar-ping "neomacsterm.c")
+
+(defcustom neomacs-cursor-sonar-ping nil
+  "Enable cursor sonar ping effect (expanding rings on keypress)."
+  :type 'boolean
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-sonar-ping)
+           (neomacs-set-cursor-sonar-ping val))))
+
+(defcustom neomacs-cursor-sonar-ping-color "#4DB3FF"
+  "Color of sonar ping rings."
+  :type 'color
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-sonar-ping)
+                    (boundp 'neomacs-cursor-sonar-ping)
+                    neomacs-cursor-sonar-ping)
+           (neomacs-set-cursor-sonar-ping t val))))
+
+(defcustom neomacs-cursor-sonar-ping-ring-count 3
+  "Number of concentric rings per sonar ping."
+  :type '(integer :tag "Ring count")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-sonar-ping)
+                    (boundp 'neomacs-cursor-sonar-ping)
+                    neomacs-cursor-sonar-ping)
+           (neomacs-set-cursor-sonar-ping t
+            (if (boundp 'neomacs-cursor-sonar-ping-color)
+                neomacs-cursor-sonar-ping-color nil)
+            val))))
+
+(defcustom neomacs-cursor-sonar-ping-max-radius 60
+  "Maximum expansion radius in pixels for sonar ping."
+  :type '(integer :tag "Max radius (pixels)")
+  :group 'neomacs
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-sonar-ping)
+                    (boundp 'neomacs-cursor-sonar-ping)
+                    neomacs-cursor-sonar-ping)
+           (neomacs-set-cursor-sonar-ping t
+            (if (boundp 'neomacs-cursor-sonar-ping-color)
+                neomacs-cursor-sonar-ping-color nil)
+            (if (boundp 'neomacs-cursor-sonar-ping-ring-count)
+                neomacs-cursor-sonar-ping-ring-count nil)
+            val))))
+
 ;; Provide the feature
 (provide 'neomacs-win)
 (provide 'term/neomacs-win)

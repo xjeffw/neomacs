@@ -424,6 +424,34 @@ pub struct WgpuRenderer {
     cursor_ghost_drift: f32,
     cursor_ghost_opacity: f32,
     cursor_ghost_entries: Vec<CursorGhostEntry>,
+    /// Heat distortion/shimmer effect
+    heat_distortion_enabled: bool,
+    heat_distortion_intensity: f32,
+    heat_distortion_speed: f32,
+    heat_distortion_edge_width: f32,
+    heat_distortion_opacity: f32,
+    /// Cursor lighthouse beam effect
+    cursor_lighthouse_enabled: bool,
+    cursor_lighthouse_color: (f32, f32, f32),
+    cursor_lighthouse_beam_width: f32,
+    cursor_lighthouse_rotation_speed: f32,
+    cursor_lighthouse_beam_length: f32,
+    cursor_lighthouse_opacity: f32,
+    /// Neon border effect
+    neon_border_enabled: bool,
+    neon_border_color: (f32, f32, f32),
+    neon_border_intensity: f32,
+    neon_border_flicker: f32,
+    neon_border_thickness: f32,
+    neon_border_opacity: f32,
+    /// Cursor sonar ping effect
+    cursor_sonar_ping_enabled: bool,
+    cursor_sonar_ping_color: (f32, f32, f32),
+    cursor_sonar_ping_ring_count: u32,
+    cursor_sonar_ping_max_radius: f32,
+    cursor_sonar_ping_duration_ms: u32,
+    cursor_sonar_ping_opacity: f32,
+    cursor_sonar_ping_entries: Vec<SonarPingEntry>,
     /// Window edge glow on scroll boundaries
     edge_glow_enabled: bool,
     edge_glow_color: (f32, f32, f32),
@@ -481,6 +509,14 @@ struct CursorGhostEntry {
     width: f32,
     height: f32,
     started: std::time::Instant,
+}
+
+/// Entry for cursor sonar ping
+struct SonarPingEntry {
+    cx: f32,
+    cy: f32,
+    started: std::time::Instant,
+    duration: std::time::Duration,
 }
 
 /// Entry for window edge glow (scroll boundary indicator)
@@ -1353,6 +1389,30 @@ impl WgpuRenderer {
             cursor_ghost_drift: 20.0,
             cursor_ghost_opacity: 0.4,
             cursor_ghost_entries: Vec::new(),
+            heat_distortion_enabled: false,
+            heat_distortion_intensity: 0.3,
+            heat_distortion_speed: 1.0,
+            heat_distortion_edge_width: 30.0,
+            heat_distortion_opacity: 0.15,
+            cursor_lighthouse_enabled: false,
+            cursor_lighthouse_color: (1.0, 0.9, 0.3),
+            cursor_lighthouse_beam_width: 15.0,
+            cursor_lighthouse_rotation_speed: 0.5,
+            cursor_lighthouse_beam_length: 200.0,
+            cursor_lighthouse_opacity: 0.12,
+            neon_border_enabled: false,
+            neon_border_color: (0.0, 1.0, 0.8),
+            neon_border_intensity: 0.6,
+            neon_border_flicker: 0.1,
+            neon_border_thickness: 3.0,
+            neon_border_opacity: 0.4,
+            cursor_sonar_ping_enabled: false,
+            cursor_sonar_ping_color: (0.3, 0.7, 1.0),
+            cursor_sonar_ping_ring_count: 3,
+            cursor_sonar_ping_max_radius: 60.0,
+            cursor_sonar_ping_duration_ms: 600,
+            cursor_sonar_ping_opacity: 0.25,
+            cursor_sonar_ping_entries: Vec::new(),
             edge_glow_enabled: false,
             edge_glow_color: (0.4, 0.6, 1.0),
             edge_glow_height: 40.0,
@@ -2018,6 +2078,55 @@ impl WgpuRenderer {
         self.aurora_height = height;
         self.aurora_speed = speed;
         self.aurora_opacity = opacity;
+    }
+
+    /// Update heat distortion config
+    pub fn set_heat_distortion(&mut self, enabled: bool, intensity: f32, speed: f32, edge_width: f32, opacity: f32) {
+        self.heat_distortion_enabled = enabled;
+        self.heat_distortion_intensity = intensity;
+        self.heat_distortion_speed = speed;
+        self.heat_distortion_edge_width = edge_width;
+        self.heat_distortion_opacity = opacity;
+    }
+
+    /// Update cursor lighthouse config
+    pub fn set_cursor_lighthouse(&mut self, enabled: bool, color: (f32, f32, f32), beam_width: f32, rotation_speed: f32, beam_length: f32, opacity: f32) {
+        self.cursor_lighthouse_enabled = enabled;
+        self.cursor_lighthouse_color = color;
+        self.cursor_lighthouse_beam_width = beam_width;
+        self.cursor_lighthouse_rotation_speed = rotation_speed;
+        self.cursor_lighthouse_beam_length = beam_length;
+        self.cursor_lighthouse_opacity = opacity;
+    }
+
+    /// Update neon border config
+    pub fn set_neon_border(&mut self, enabled: bool, color: (f32, f32, f32), intensity: f32, flicker: f32, thickness: f32, opacity: f32) {
+        self.neon_border_enabled = enabled;
+        self.neon_border_color = color;
+        self.neon_border_intensity = intensity;
+        self.neon_border_flicker = flicker;
+        self.neon_border_thickness = thickness;
+        self.neon_border_opacity = opacity;
+    }
+
+    /// Update cursor sonar ping config
+    pub fn set_cursor_sonar_ping(&mut self, enabled: bool, color: (f32, f32, f32), ring_count: u32, max_radius: f32, duration_ms: u32, opacity: f32) {
+        self.cursor_sonar_ping_enabled = enabled;
+        self.cursor_sonar_ping_color = color;
+        self.cursor_sonar_ping_ring_count = ring_count;
+        self.cursor_sonar_ping_max_radius = max_radius;
+        self.cursor_sonar_ping_duration_ms = duration_ms;
+        self.cursor_sonar_ping_opacity = opacity;
+    }
+
+    /// Trigger a sonar ping at cursor position
+    pub fn trigger_sonar_ping(&mut self, cx: f32, cy: f32, now: std::time::Instant) {
+        self.cursor_sonar_ping_entries.push(SonarPingEntry {
+            cx,
+            cy,
+            started: now,
+            duration: std::time::Duration::from_millis(self.cursor_sonar_ping_duration_ms as u64),
+        });
     }
 
     /// Update mode-line transition config
@@ -5165,6 +5274,195 @@ impl WgpuRenderer {
                     render_pass.draw(0..aurora_verts.len() as u32, 0..1);
                 }
                 self.needs_continuous_redraw = true;
+            }
+
+            // === Heat distortion effect ===
+            if self.heat_distortion_enabled {
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let ew = self.heat_distortion_edge_width;
+                let intensity = self.heat_distortion_intensity;
+                let spd = self.heat_distortion_speed;
+                let op = self.heat_distortion_opacity;
+                let fw = self.width() as f32;
+                let fh = self.height() as f32;
+                let mut heat_verts: Vec<RectVertex> = Vec::new();
+                let strip_count = 12;
+                for i in 0..strip_count {
+                    let phase = i as f32 / strip_count as f32 * std::f32::consts::PI * 2.0;
+                    let wave = ((now * spd * 3.0 + phase).sin() * 0.5 + 0.5) * intensity;
+                    let alpha = op * wave;
+                    let cr = 1.0;
+                    let cg = 0.6 + wave * 0.4;
+                    let cb = 0.2;
+                    let ty = i as f32 * ew / strip_count as f32;
+                    let fade = 1.0 - ty / ew;
+                    let sh = ew / strip_count as f32;
+                    let c = Color::new(cr, cg, cb, alpha * fade);
+                    self.add_rect(&mut heat_verts, 0.0, ty, fw, sh, &c);
+                    let by = fh - ew + ty;
+                    self.add_rect(&mut heat_verts, 0.0, by, fw, sh, &c);
+                    let lx = i as f32 * ew / strip_count as f32;
+                    self.add_rect(&mut heat_verts, lx, 0.0, sh, fh, &c);
+                    let rx = fw - ew + lx;
+                    self.add_rect(&mut heat_verts, rx, 0.0, sh, fh, &c);
+                }
+                if !heat_verts.is_empty() {
+                    let heat_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Heat Distortion Buffer"),
+                            contents: bytemuck::cast_slice(&heat_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, heat_buf.slice(..));
+                    render_pass.draw(0..heat_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // === Cursor lighthouse beam effect ===
+            if self.cursor_lighthouse_enabled && cursor_visible {
+                if let Some(ref anim) = animated_cursor {
+                    let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                    let center_x = anim.x + anim.width / 2.0;
+                    let center_y = anim.y + anim.height / 2.0;
+                    let angle = now * self.cursor_lighthouse_rotation_speed * std::f32::consts::PI * 2.0;
+                    let beam_half = (self.cursor_lighthouse_beam_width / 2.0).to_radians();
+                    let beam_len = self.cursor_lighthouse_beam_length;
+                    let (lr, lg, lb) = self.cursor_lighthouse_color;
+                    let lop = self.cursor_lighthouse_opacity;
+                    let mut beam_verts: Vec<RectVertex> = Vec::new();
+                    let segments = 20;
+                    for seg in 0..segments {
+                        let t = seg as f32 / segments as f32;
+                        let dist = t * beam_len;
+                        let bw = 2.0 * dist * beam_half.sin().max(0.02);
+                        let dx = angle.cos() * dist;
+                        let dy = angle.sin() * dist;
+                        let fade = 1.0 - t;
+                        let seg_len = beam_len / segments as f32;
+                        let rx = center_x + dx - bw / 2.0;
+                        let ry = center_y + dy - seg_len / 2.0;
+                        let c = Color::new(lr, lg, lb, lop * fade * fade);
+                        self.add_rect(&mut beam_verts, rx, ry, bw, seg_len, &c);
+                    }
+                    if !beam_verts.is_empty() {
+                        let beam_buf = self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Lighthouse Beam Buffer"),
+                                contents: bytemuck::cast_slice(&beam_verts),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            },
+                        );
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, beam_buf.slice(..));
+                        render_pass.draw(0..beam_verts.len() as u32, 0..1);
+                    }
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // === Neon border effect ===
+            if self.neon_border_enabled {
+                let now = std::time::Instant::now().duration_since(self.aurora_start).as_secs_f32();
+                let (nr, ng, nb) = self.neon_border_color;
+                let thick = self.neon_border_thickness;
+                let intensity = self.neon_border_intensity;
+                let flicker = self.neon_border_flicker;
+                let nop = self.neon_border_opacity;
+                let fw = self.width() as f32;
+                let fh = self.height() as f32;
+                let flicker_val = if flicker > 0.0 {
+                    let f1 = (now * 7.3).sin() * 0.5 + 0.5;
+                    let f2 = (now * 13.7).sin() * 0.5 + 0.5;
+                    1.0 - flicker * f1 * f2
+                } else {
+                    1.0
+                };
+                let final_op = nop * intensity * flicker_val;
+                let glow_layers = 4;
+                let mut neon_verts: Vec<RectVertex> = Vec::new();
+                for layer in 0..glow_layers {
+                    let expand = layer as f32 * thick * 0.8;
+                    let layer_alpha = final_op / (1.0 + layer as f32 * 1.5);
+                    let t = thick + expand;
+                    let c = Color::new(nr, ng, nb, layer_alpha);
+                    self.add_rect(&mut neon_verts, 0.0, 0.0, fw, t, &c);
+                    self.add_rect(&mut neon_verts, 0.0, fh - t, fw, t, &c);
+                    self.add_rect(&mut neon_verts, 0.0, t, t, fh - 2.0 * t, &c);
+                    self.add_rect(&mut neon_verts, fw - t, t, t, fh - 2.0 * t, &c);
+                }
+                if !neon_verts.is_empty() {
+                    let neon_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Neon Border Buffer"),
+                            contents: bytemuck::cast_slice(&neon_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, neon_buf.slice(..));
+                    render_pass.draw(0..neon_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // === Cursor sonar ping effect ===
+            if self.cursor_sonar_ping_enabled {
+                let now = std::time::Instant::now();
+                self.cursor_sonar_ping_entries.retain(|e| now.duration_since(e.started) < e.duration);
+                let (pr, pg, pb) = self.cursor_sonar_ping_color;
+                let ring_count = self.cursor_sonar_ping_ring_count;
+                let max_r = self.cursor_sonar_ping_max_radius;
+                let pop = self.cursor_sonar_ping_opacity;
+                let mut ping_verts: Vec<RectVertex> = Vec::new();
+                for entry in &self.cursor_sonar_ping_entries {
+                    let elapsed = now.duration_since(entry.started).as_secs_f32();
+                    let t = elapsed / entry.duration.as_secs_f32();
+                    for ring_idx in 0..ring_count {
+                        let ring_t = t - ring_idx as f32 * 0.15;
+                        if ring_t < 0.0 || ring_t > 1.0 { continue; }
+                        let radius = ring_t * max_r;
+                        let fade = 1.0 - ring_t;
+                        let ring_op = pop * fade * fade;
+                        let ring_thick = 2.0;
+                        let seg_count = 24;
+                        for seg in 0..seg_count {
+                            let a1 = seg as f32 / seg_count as f32 * std::f32::consts::PI * 2.0;
+                            let a2 = (seg + 1) as f32 / seg_count as f32 * std::f32::consts::PI * 2.0;
+                            let x1 = entry.cx + a1.cos() * radius;
+                            let y1 = entry.cy + a1.sin() * radius;
+                            let x2 = entry.cx + a2.cos() * radius;
+                            let y2 = entry.cy + a2.sin() * radius;
+                            let mx = x1.min(x2);
+                            let my = y1.min(y2);
+                            let sw = (x2 - x1).abs().max(ring_thick);
+                            let sh = (y2 - y1).abs().max(ring_thick);
+                            let c = Color::new(pr, pg, pb, ring_op);
+                            self.add_rect(&mut ping_verts, mx, my, sw, sh, &c);
+                        }
+                    }
+                }
+                if !ping_verts.is_empty() {
+                    let ping_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Sonar Ping Buffer"),
+                            contents: bytemuck::cast_slice(&ping_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, ping_buf.slice(..));
+                    render_pass.draw(0..ping_verts.len() as u32, 0..1);
+                }
+                if !self.cursor_sonar_ping_entries.is_empty() {
+                    self.needs_continuous_redraw = true;
+                }
             }
 
             // === Step 2: Draw cursor bg rect (inverse video background) ===

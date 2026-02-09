@@ -1811,6 +1811,53 @@ void neomacs_display_set_aurora(
     int opacity);
 
 /**
+ * Configure heat distortion/shimmer effect along window edges.
+ */
+void neomacs_display_set_heat_distortion(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int intensity,
+    int speed,
+    int edge_width,
+    int opacity);
+
+/**
+ * Configure cursor lighthouse beam effect.
+ */
+void neomacs_display_set_cursor_lighthouse(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int beam_width,
+    int rotation_speed,
+    int beam_length,
+    int opacity);
+
+/**
+ * Configure neon border glow effect.
+ */
+void neomacs_display_set_neon_border(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int intensity,
+    int flicker,
+    int thickness,
+    int opacity);
+
+/**
+ * Configure cursor sonar ping effect.
+ */
+void neomacs_display_set_cursor_sonar_ping(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int ring_count,
+    int max_radius,
+    int duration_ms,
+    int opacity);
+
+/**
  * Get dropped file paths (call after NEOMACS_EVENT_FILE_DROP).
  * Returns number of paths written to out_paths.
  * Each path must be freed with neomacs_display_free_dropped_path().

@@ -10208,6 +10208,152 @@ OPACITY is a percentage 0-100 (default 12).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-heat-distortion",
+       Fneomacs_set_heat_distortion,
+       Sneomacs_set_heat_distortion, 0, 5, 0,
+       doc: /* Configure heat distortion/shimmer effect along window edges.
+ENABLED non-nil activates the effect.
+INTENSITY is 0-100 for distortion strength (default 30).
+SPEED is 0-100 for animation speed (default 100).
+EDGE-WIDTH is pixel width of affected region (default 30).
+OPACITY is 0-100 for peak opacity (default 15). */)
+  (Lisp_Object enabled, Lisp_Object intensity, Lisp_Object speed,
+   Lisp_Object edge_width, Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int intens = 30, spd = 100, ew = 30, op = 15;
+  if (FIXNUMP (intensity)) intens = XFIXNUM (intensity);
+  if (FIXNUMP (speed)) spd = XFIXNUM (speed);
+  if (FIXNUMP (edge_width)) ew = XFIXNUM (edge_width);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_heat_distortion (dpyinfo->display_handle, on, intens, spd, ew, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-lighthouse",
+       Fneomacs_set_cursor_lighthouse,
+       Sneomacs_set_cursor_lighthouse, 0, 7, 0,
+       doc: /* Configure cursor lighthouse beam effect.
+ENABLED non-nil activates a rotating beam from cursor position.
+COLOR is a hex color string like "#RRGGBB" (default "#FFE64D").
+BEAM-WIDTH is angular width in degrees (default 15).
+ROTATION-SPEED is revolutions per second * 100 (default 50).
+BEAM-LENGTH is max beam reach in pixels (default 200).
+OPACITY is 0-100 for beam opacity (default 12). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object beam_width,
+   Lisp_Object rotation_speed, Lisp_Object beam_length, Lisp_Object opacity,
+   Lisp_Object _dummy)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 255, g = 230, b = 77, bw = 15, rs = 50, bl = 200, op = 12;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (beam_width)) bw = XFIXNUM (beam_width);
+  if (FIXNUMP (rotation_speed)) rs = XFIXNUM (rotation_speed);
+  if (FIXNUMP (beam_length)) bl = XFIXNUM (beam_length);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_lighthouse (dpyinfo->display_handle, on, r, g, b, bw, rs, bl, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-neon-border",
+       Fneomacs_set_neon_border,
+       Sneomacs_set_neon_border, 0, 7, 0,
+       doc: /* Configure neon border glow effect.
+ENABLED non-nil activates the neon border.
+COLOR is a hex color string like "#RRGGBB" (default "#00FFCC").
+INTENSITY is 0-100 for glow intensity (default 60).
+FLICKER is 0-100 for flicker amount (default 10).
+THICKNESS is border thickness in pixels (default 3).
+OPACITY is 0-100 for overall opacity (default 40). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object intensity,
+   Lisp_Object flicker, Lisp_Object thickness, Lisp_Object opacity,
+   Lisp_Object _dummy)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 0, g = 255, b = 204, intens = 60, fl = 10, th = 3, op = 40;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (intensity)) intens = XFIXNUM (intensity);
+  if (FIXNUMP (flicker)) fl = XFIXNUM (flicker);
+  if (FIXNUMP (thickness)) th = XFIXNUM (thickness);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_neon_border (dpyinfo->display_handle, on, r, g, b, intens, fl, th, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-sonar-ping",
+       Fneomacs_set_cursor_sonar_ping,
+       Sneomacs_set_cursor_sonar_ping, 0, 7, 0,
+       doc: /* Configure cursor sonar ping effect.
+ENABLED non-nil activates expanding concentric rings from cursor.
+COLOR is a hex color string like "#RRGGBB" (default "#4DB3FF").
+RING-COUNT is the number of concentric rings per ping (default 3).
+MAX-RADIUS is maximum expansion radius in pixels (default 60).
+DURATION-MS is duration of each ping in milliseconds (default 600).
+OPACITY is 0-100 for ring opacity (default 25). */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object ring_count,
+   Lisp_Object max_radius, Lisp_Object duration_ms, Lisp_Object opacity,
+   Lisp_Object _dummy)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+  int on = !NILP (enabled);
+  int r = 77, g = 179, b = 255, rc = 3, mr = 60, dur = 600, op = 25;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (ring_count)) rc = XFIXNUM (ring_count);
+  if (FIXNUMP (max_radius)) mr = XFIXNUM (max_radius);
+  if (FIXNUMP (duration_ms)) dur = XFIXNUM (duration_ms);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_sonar_ping (dpyinfo->display_handle, on, r, g, b, rc, mr, dur, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-padding-gradient",
        Fneomacs_set_padding_gradient,
        Sneomacs_set_padding_gradient, 0, 6, 0,
@@ -11719,6 +11865,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_rain_effect);
   defsubr (&Sneomacs_set_cursor_ripple_wave);
   defsubr (&Sneomacs_set_aurora);
+  defsubr (&Sneomacs_set_heat_distortion);
+  defsubr (&Sneomacs_set_cursor_lighthouse);
+  defsubr (&Sneomacs_set_neon_border);
+  defsubr (&Sneomacs_set_cursor_sonar_ping);
   defsubr (&Sneomacs_set_mode_line_gradient);
   defsubr (&Sneomacs_set_region_glow);
   defsubr (&Sneomacs_set_window_glow);

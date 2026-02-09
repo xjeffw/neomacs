@@ -5930,6 +5930,110 @@ pub unsafe extern "C" fn neomacs_display_set_aurora(
     }
 }
 
+/// Configure heat distortion effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_heat_distortion(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    intensity: c_int,
+    speed: c_int,
+    edge_width: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetHeatDistortion {
+        enabled: enabled != 0,
+        intensity: intensity as f32 / 100.0,
+        speed: speed as f32 / 100.0,
+        edge_width: edge_width as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor lighthouse beam effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_lighthouse(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    beam_width: c_int,
+    rotation_speed: c_int,
+    beam_length: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorLighthouse {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        beam_width: beam_width as f32,
+        rotation_speed: rotation_speed as f32 / 100.0,
+        beam_length: beam_length as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure neon border effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_neon_border(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    intensity: c_int,
+    flicker: c_int,
+    thickness: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetNeonBorder {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        intensity: intensity as f32 / 100.0,
+        flicker: flicker as f32 / 100.0,
+        thickness: thickness as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor sonar ping effect
+#[cfg(feature = "winit-backend")]
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_sonar_ping(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    ring_count: c_int,
+    max_radius: c_int,
+    duration_ms: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorSonarPing {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        ring_count: ring_count as u32,
+        max_radius: max_radius as f32,
+        duration_ms: duration_ms as u32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Shutdown threaded display
 #[cfg(feature = "winit-backend")]
 #[no_mangle]

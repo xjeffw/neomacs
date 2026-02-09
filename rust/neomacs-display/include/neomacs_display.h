@@ -2430,6 +2430,55 @@ void neomacs_display_set_aurora(struct NeomacsDisplay *handle,
                                 int opacity);
 
 /**
+ * Configure heat distortion effect
+ */
+void neomacs_display_set_heat_distortion(struct NeomacsDisplay *handle,
+                                         int enabled,
+                                         int intensity,
+                                         int speed,
+                                         int edgeWidth,
+                                         int opacity);
+
+/**
+ * Configure cursor lighthouse beam effect
+ */
+void neomacs_display_set_cursor_lighthouse(struct NeomacsDisplay *handle,
+                                           int enabled,
+                                           int r,
+                                           int g,
+                                           int b,
+                                           int beamWidth,
+                                           int rotationSpeed,
+                                           int beamLength,
+                                           int opacity);
+
+/**
+ * Configure neon border effect
+ */
+void neomacs_display_set_neon_border(struct NeomacsDisplay *handle,
+                                     int enabled,
+                                     int r,
+                                     int g,
+                                     int b,
+                                     int intensity,
+                                     int flicker,
+                                     int thickness,
+                                     int opacity);
+
+/**
+ * Configure cursor sonar ping effect
+ */
+void neomacs_display_set_cursor_sonar_ping(struct NeomacsDisplay *handle,
+                                           int enabled,
+                                           int r,
+                                           int g,
+                                           int b,
+                                           int ringCount,
+                                           int maxRadius,
+                                           int durationMs,
+                                           int opacity);
+
+/**
  * Shutdown threaded display
  */
 void neomacs_display_shutdown_threaded(void);

@@ -593,6 +593,34 @@ struct RenderApp {
     aurora_speed: f32,
     aurora_opacity: f32,
 
+    // Heat distortion
+    heat_distortion_enabled: bool,
+    heat_distortion_intensity: f32,
+    heat_distortion_speed: f32,
+    heat_distortion_edge_width: f32,
+    heat_distortion_opacity: f32,
+    // Cursor lighthouse beam
+    cursor_lighthouse_enabled: bool,
+    cursor_lighthouse_color: (f32, f32, f32),
+    cursor_lighthouse_beam_width: f32,
+    cursor_lighthouse_rotation_speed: f32,
+    cursor_lighthouse_beam_length: f32,
+    cursor_lighthouse_opacity: f32,
+    // Neon border
+    neon_border_enabled: bool,
+    neon_border_color: (f32, f32, f32),
+    neon_border_intensity: f32,
+    neon_border_flicker: f32,
+    neon_border_thickness: f32,
+    neon_border_opacity: f32,
+    // Cursor sonar ping
+    cursor_sonar_ping_enabled: bool,
+    cursor_sonar_ping_color: (f32, f32, f32),
+    cursor_sonar_ping_ring_count: u32,
+    cursor_sonar_ping_max_radius: f32,
+    cursor_sonar_ping_duration_ms: u32,
+    cursor_sonar_ping_opacity: f32,
+
     // Per-window metadata from previous frame (for transition detection)
     prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
 
@@ -1150,6 +1178,29 @@ impl RenderApp {
             aurora_height: 60.0,
             aurora_speed: 1.0,
             aurora_opacity: 0.12,
+            heat_distortion_enabled: false,
+            heat_distortion_intensity: 0.3,
+            heat_distortion_speed: 1.0,
+            heat_distortion_edge_width: 30.0,
+            heat_distortion_opacity: 0.15,
+            cursor_lighthouse_enabled: false,
+            cursor_lighthouse_color: (1.0, 0.9, 0.3),
+            cursor_lighthouse_beam_width: 15.0,
+            cursor_lighthouse_rotation_speed: 0.5,
+            cursor_lighthouse_beam_length: 200.0,
+            cursor_lighthouse_opacity: 0.12,
+            neon_border_enabled: false,
+            neon_border_color: (0.0, 1.0, 0.8),
+            neon_border_intensity: 0.6,
+            neon_border_flicker: 0.1,
+            neon_border_thickness: 3.0,
+            neon_border_opacity: 0.4,
+            cursor_sonar_ping_enabled: false,
+            cursor_sonar_ping_color: (0.3, 0.7, 1.0),
+            cursor_sonar_ping_ring_count: 3,
+            cursor_sonar_ping_max_radius: 60.0,
+            cursor_sonar_ping_duration_ms: 600,
+            cursor_sonar_ping_opacity: 0.25,
             prev_window_infos: HashMap::new(),
             crossfade_enabled: true,
             crossfade_duration: std::time::Duration::from_millis(200),
@@ -2887,6 +2938,53 @@ impl RenderApp {
                     self.aurora_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_aurora(enabled, (r1, g1, b1), (r2, g2, b2), height, speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetHeatDistortion { enabled, intensity, speed, edge_width, opacity } => {
+                    self.heat_distortion_enabled = enabled;
+                    self.heat_distortion_intensity = intensity;
+                    self.heat_distortion_speed = speed;
+                    self.heat_distortion_edge_width = edge_width;
+                    self.heat_distortion_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_heat_distortion(enabled, intensity, speed, edge_width, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorLighthouse { enabled, r, g, b, beam_width, rotation_speed, beam_length, opacity } => {
+                    self.cursor_lighthouse_enabled = enabled;
+                    self.cursor_lighthouse_color = (r, g, b);
+                    self.cursor_lighthouse_beam_width = beam_width;
+                    self.cursor_lighthouse_rotation_speed = rotation_speed;
+                    self.cursor_lighthouse_beam_length = beam_length;
+                    self.cursor_lighthouse_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_lighthouse(enabled, (r, g, b), beam_width, rotation_speed, beam_length, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetNeonBorder { enabled, r, g, b, intensity, flicker, thickness, opacity } => {
+                    self.neon_border_enabled = enabled;
+                    self.neon_border_color = (r, g, b);
+                    self.neon_border_intensity = intensity;
+                    self.neon_border_flicker = flicker;
+                    self.neon_border_thickness = thickness;
+                    self.neon_border_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_neon_border(enabled, (r, g, b), intensity, flicker, thickness, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorSonarPing { enabled, r, g, b, ring_count, max_radius, duration_ms, opacity } => {
+                    self.cursor_sonar_ping_enabled = enabled;
+                    self.cursor_sonar_ping_color = (r, g, b);
+                    self.cursor_sonar_ping_ring_count = ring_count;
+                    self.cursor_sonar_ping_max_radius = max_radius;
+                    self.cursor_sonar_ping_duration_ms = duration_ms;
+                    self.cursor_sonar_ping_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_sonar_ping(enabled, (r, g, b), ring_count, max_radius, duration_ms, opacity);
                     }
                     self.frame_dirty = true;
                 }

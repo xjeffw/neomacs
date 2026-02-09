@@ -982,6 +982,60 @@ pub enum RenderCommand {
         /// Opacity (0.0-1.0)
         opacity: f32,
     },
+    /// Configure heat distortion effect
+    SetHeatDistortion {
+        enabled: bool,
+        /// Intensity of distortion (0.0-1.0)
+        intensity: f32,
+        /// Speed of shimmer animation
+        speed: f32,
+        /// Width of affected edge region in pixels
+        edge_width: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure cursor lighthouse beam effect
+    SetCursorLighthouse {
+        enabled: bool,
+        /// Beam color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Beam angular width in degrees
+        beam_width: f32,
+        /// Rotation speed (revolutions per second)
+        rotation_speed: f32,
+        /// Beam length in pixels
+        beam_length: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure neon border effect
+    SetNeonBorder {
+        enabled: bool,
+        /// Neon tube color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Glow intensity (0.0-1.0)
+        intensity: f32,
+        /// Flicker amount (0.0-1.0, 0=no flicker)
+        flicker: f32,
+        /// Border thickness in pixels
+        thickness: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure cursor sonar ping effect
+    SetCursorSonarPing {
+        enabled: bool,
+        /// Ring color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Number of concentric rings per ping
+        ring_count: u32,
+        /// Max expansion radius in pixels
+        max_radius: f32,
+        /// Duration of each ping in ms
+        duration_ms: u32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
     /// Configure background pattern
     SetBackgroundPattern {
         /// 0=none, 1=dots, 2=grid, 3=crosshatch
