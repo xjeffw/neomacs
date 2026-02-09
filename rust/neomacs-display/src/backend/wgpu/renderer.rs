@@ -279,6 +279,14 @@ pub struct WgpuRenderer {
     cursor_crosshair_enabled: bool,
     cursor_crosshair_color: (f32, f32, f32),
     cursor_crosshair_opacity: f32,
+    /// Cursor particle trail effect
+    cursor_particles_enabled: bool,
+    cursor_particles_color: (f32, f32, f32),
+    cursor_particles_count: u32,
+    cursor_particles_lifetime_ms: u32,
+    cursor_particles_gravity: f32,
+    cursor_particles: Vec<CursorParticle>,
+    cursor_particles_prev_pos: Option<(f32, f32)>,
     /// Per-window rounded border
     window_border_radius_enabled: bool,
     window_border_radius: f32,
@@ -338,6 +346,16 @@ struct ScrollMomentumEntry {
 }
 
 /// Entry for window edge snap indicator
+/// Entry for cursor particle effect
+struct CursorParticle {
+    x: f32,
+    y: f32,
+    vx: f32,
+    vy: f32,
+    started: std::time::Instant,
+    lifetime: std::time::Duration,
+}
+
 /// Entry for typing heat map (records where cursor was during edits)
 struct HeatMapEntry {
     x: f32,
@@ -1053,6 +1071,13 @@ impl WgpuRenderer {
             cursor_crosshair_enabled: false,
             cursor_crosshair_color: (0.5, 0.5, 0.5),
             cursor_crosshair_opacity: 0.15,
+            cursor_particles_enabled: false,
+            cursor_particles_color: (1.0, 0.6, 0.2),
+            cursor_particles_count: 6,
+            cursor_particles_lifetime_ms: 800,
+            cursor_particles_gravity: 120.0,
+            cursor_particles: Vec::new(),
+            cursor_particles_prev_pos: None,
             window_border_radius_enabled: false,
             window_border_radius: 8.0,
             window_border_width: 1.0,
@@ -1365,6 +1390,19 @@ impl WgpuRenderer {
         self.cursor_crosshair_enabled = enabled;
         self.cursor_crosshair_color = color;
         self.cursor_crosshair_opacity = opacity;
+    }
+
+    /// Update cursor particle trail config
+    pub fn set_cursor_particles(&mut self, enabled: bool, color: (f32, f32, f32), count: u32, lifetime_ms: u32, gravity: f32) {
+        self.cursor_particles_enabled = enabled;
+        self.cursor_particles_color = color;
+        self.cursor_particles_count = count;
+        self.cursor_particles_lifetime_ms = lifetime_ms;
+        self.cursor_particles_gravity = gravity;
+        if !enabled {
+            self.cursor_particles.clear();
+            self.cursor_particles_prev_pos = None;
+        }
     }
 
     /// Update per-window rounded border config
@@ -3651,6 +3689,78 @@ impl WgpuRenderer {
                     render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
                     render_pass.set_vertex_buffer(0, border_buf.slice(..));
                     render_pass.draw(0..border_verts.len() as u32, 0..1);
+                }
+            }
+
+            // === Step 1h: Cursor particle trail effect ===
+            if self.cursor_particles_enabled {
+                let now = std::time::Instant::now();
+                let lifetime = std::time::Duration::from_millis(self.cursor_particles_lifetime_ms as u64);
+
+                // Detect cursor movement and emit particles
+                if let Some(ref anim) = animated_cursor {
+                    let cur_pos = (anim.x + anim.width / 2.0, anim.y + anim.height / 2.0);
+                    if let Some(prev_pos) = self.cursor_particles_prev_pos {
+                        let dx = (cur_pos.0 - prev_pos.0).abs();
+                        let dy = (cur_pos.1 - prev_pos.1).abs();
+                        if dx > 1.0 || dy > 1.0 {
+                            // Emit particles from cursor center
+                            let seed = (now.elapsed().subsec_nanos() as u64).wrapping_mul(2654435761);
+                            for i in 0..self.cursor_particles_count {
+                                // Simple hash-based pseudo-random
+                                let h = seed.wrapping_add(i as u64).wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                                let rx = ((h >> 16) & 0xFFFF) as f32 / 65535.0 - 0.5; // -0.5..0.5
+                                let ry = ((h >> 32) & 0xFFFF) as f32 / 65535.0 - 0.5;
+                                self.cursor_particles.push(CursorParticle {
+                                    x: cur_pos.0,
+                                    y: cur_pos.1,
+                                    vx: rx * 80.0, // random horizontal velocity
+                                    vy: ry * 60.0 - 30.0, // slight upward bias
+                                    started: now,
+                                    lifetime,
+                                });
+                            }
+                        }
+                    }
+                    self.cursor_particles_prev_pos = Some(cur_pos);
+                }
+
+                // Prune expired particles
+                self.cursor_particles.retain(|p| now.duration_since(p.started) < p.lifetime);
+
+                // Render particles
+                if !self.cursor_particles.is_empty() {
+                    let (pr, pg, pb) = self.cursor_particles_color;
+                    let gravity = self.cursor_particles_gravity;
+                    let mut part_verts: Vec<RectVertex> = Vec::new();
+                    for p in &self.cursor_particles {
+                        let elapsed = now.duration_since(p.started).as_secs_f32();
+                        let t = (elapsed / p.lifetime.as_secs_f32()).min(1.0);
+                        let alpha = (1.0 - t) * 0.8;
+                        if alpha > 0.001 {
+                            let px = p.x + p.vx * elapsed;
+                            let py = p.y + p.vy * elapsed + 0.5 * gravity * elapsed * elapsed;
+                            let size = 2.0 * (1.0 - t) + 0.5; // shrink over time
+                            let c = Color::new(pr, pg, pb, alpha);
+                            self.add_rect(&mut part_verts, px - size / 2.0, py - size / 2.0, size, size, &c);
+                        }
+                    }
+                    if !part_verts.is_empty() {
+                        let part_buf = self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Cursor Particles Buffer"),
+                                contents: bytemuck::cast_slice(&part_verts),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            },
+                        );
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, part_buf.slice(..));
+                        render_pass.draw(0..part_verts.len() as u32, 0..1);
+                    }
+
+                    // Keep redrawing while particles exist
+                    self.needs_continuous_redraw = true;
                 }
             }
 

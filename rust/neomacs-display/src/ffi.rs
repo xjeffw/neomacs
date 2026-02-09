@@ -3055,6 +3055,32 @@ pub unsafe extern "C" fn neomacs_display_set_modified_indicator(
     }
 }
 
+/// Configure cursor particle trail effect
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_particles(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int,
+    g: c_int,
+    b: c_int,
+    count: c_int,
+    lifetime_ms: c_int,
+    gravity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorParticles {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0,
+        g: g as f32 / 255.0,
+        b: b as f32 / 255.0,
+        count: count as u32,
+        lifetime_ms: lifetime_ms as u32,
+        gravity: gravity as f32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure per-window rounded border
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_window_border_radius(

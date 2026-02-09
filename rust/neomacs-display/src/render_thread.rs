@@ -788,6 +788,12 @@ struct RenderApp {
     modified_indicator_color: (f32, f32, f32),
     modified_indicator_width: f32,
     modified_indicator_opacity: f32,
+    /// Cursor particle trail effect
+    cursor_particles_enabled: bool,
+    cursor_particles_color: (f32, f32, f32),
+    cursor_particles_count: u32,
+    cursor_particles_lifetime_ms: u32,
+    cursor_particles_gravity: f32,
     /// Per-window rounded border
     window_border_radius_enabled: bool,
     window_border_radius: f32,
@@ -1151,6 +1157,11 @@ impl RenderApp {
             modified_indicator_color: (1.0, 0.6, 0.2),
             modified_indicator_width: 3.0,
             modified_indicator_opacity: 0.8,
+            cursor_particles_enabled: false,
+            cursor_particles_color: (1.0, 0.6, 0.2),
+            cursor_particles_count: 6,
+            cursor_particles_lifetime_ms: 800,
+            cursor_particles_gravity: 120.0,
             window_border_radius_enabled: false,
             window_border_radius: 8.0,
             window_border_width: 1.0,
@@ -2309,6 +2320,17 @@ impl RenderApp {
                     self.modified_indicator_opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_modified_indicator(enabled, (r, g, b), width, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorParticles { enabled, r, g, b, count, lifetime_ms, gravity } => {
+                    self.cursor_particles_enabled = enabled;
+                    self.cursor_particles_color = (r, g, b);
+                    self.cursor_particles_count = count;
+                    self.cursor_particles_lifetime_ms = lifetime_ms;
+                    self.cursor_particles_gravity = gravity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_particles(enabled, (r, g, b), count, lifetime_ms, gravity);
                     }
                     self.frame_dirty = true;
                 }

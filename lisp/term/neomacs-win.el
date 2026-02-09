@@ -2240,6 +2240,100 @@ whose buffers have unsaved modifications."
                 neomacs-modified-indicator-width nil)
             val))))
 
+;; --- Cursor particle trail effect ---
+(declare-function neomacs-set-cursor-particles "neomacsterm.c"
+  (&optional enabled color count lifetime-ms gravity))
+
+(defcustom neomacs-cursor-particles nil
+  "Enable cursor particle trail effect.
+Non-nil emits small colored particles that scatter from the cursor
+position when it moves, with physics-based motion and fade-out."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-particles)
+           (neomacs-set-cursor-particles val
+            (if (boundp 'neomacs-cursor-particles-color)
+                neomacs-cursor-particles-color nil)
+            (if (boundp 'neomacs-cursor-particles-count)
+                neomacs-cursor-particles-count nil)
+            (if (boundp 'neomacs-cursor-particles-lifetime)
+                neomacs-cursor-particles-lifetime nil)
+            (if (boundp 'neomacs-cursor-particles-gravity)
+                neomacs-cursor-particles-gravity nil)))))
+
+(defcustom neomacs-cursor-particles-color "#FF9933"
+  "Cursor particle color as hex RGB string."
+  :type '(string :tag "Color (#RRGGBB)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-particles)
+                    (boundp 'neomacs-cursor-particles)
+                    neomacs-cursor-particles)
+           (neomacs-set-cursor-particles t val
+            (if (boundp 'neomacs-cursor-particles-count)
+                neomacs-cursor-particles-count nil)
+            (if (boundp 'neomacs-cursor-particles-lifetime)
+                neomacs-cursor-particles-lifetime nil)
+            (if (boundp 'neomacs-cursor-particles-gravity)
+                neomacs-cursor-particles-gravity nil)))))
+
+(defcustom neomacs-cursor-particles-count 6
+  "Number of particles emitted per cursor move."
+  :type '(integer :tag "Count")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-particles)
+                    (boundp 'neomacs-cursor-particles)
+                    neomacs-cursor-particles)
+           (neomacs-set-cursor-particles t
+            (if (boundp 'neomacs-cursor-particles-color)
+                neomacs-cursor-particles-color nil)
+            val
+            (if (boundp 'neomacs-cursor-particles-lifetime)
+                neomacs-cursor-particles-lifetime nil)
+            (if (boundp 'neomacs-cursor-particles-gravity)
+                neomacs-cursor-particles-gravity nil)))))
+
+(defcustom neomacs-cursor-particles-lifetime 800
+  "Cursor particle lifetime in milliseconds."
+  :type '(integer :tag "Lifetime (ms)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-particles)
+                    (boundp 'neomacs-cursor-particles)
+                    neomacs-cursor-particles)
+           (neomacs-set-cursor-particles t
+            (if (boundp 'neomacs-cursor-particles-color)
+                neomacs-cursor-particles-color nil)
+            (if (boundp 'neomacs-cursor-particles-count)
+                neomacs-cursor-particles-count nil)
+            val
+            (if (boundp 'neomacs-cursor-particles-gravity)
+                neomacs-cursor-particles-gravity nil)))))
+
+(defcustom neomacs-cursor-particles-gravity 120
+  "Cursor particle gravity in pixels/sec^2 (positive = downward)."
+  :type '(integer :tag "Gravity (px/s^2)")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-particles)
+                    (boundp 'neomacs-cursor-particles)
+                    neomacs-cursor-particles)
+           (neomacs-set-cursor-particles t
+            (if (boundp 'neomacs-cursor-particles-color)
+                neomacs-cursor-particles-color nil)
+            (if (boundp 'neomacs-cursor-particles-count)
+                neomacs-cursor-particles-count nil)
+            (if (boundp 'neomacs-cursor-particles-lifetime)
+                neomacs-cursor-particles-lifetime nil)
+            val))))
+
 ;; --- Per-window rounded border ---
 (declare-function neomacs-set-window-border-radius "neomacsterm.c"
   (&optional enabled radius border-width color opacity))

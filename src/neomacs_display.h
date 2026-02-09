@@ -1536,6 +1536,16 @@ void neomacs_display_set_modified_indicator(
     int width,
     int opacity);
 
+void neomacs_display_set_cursor_particles(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r,
+    int g,
+    int b,
+    int count,
+    int lifetime_ms,
+    int gravity);
+
 void neomacs_display_set_window_border_radius(
     struct NeomacsDisplay *handle,
     int enabled,

@@ -9146,6 +9146,46 @@ OPACITY is a percentage 0-100 (default 80).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-cursor-particles",
+       Fneomacs_set_cursor_particles,
+       Sneomacs_set_cursor_particles, 0, 5, 0,
+       doc: /* Configure cursor particle trail effect.
+ENABLED non-nil emits small colored particles that scatter from the
+cursor position when it moves, with physics-based motion and fade-out.
+COLOR is an RGB hex string (default "#FF9933").
+COUNT is the number of particles per cursor move (default 6).
+LIFETIME-MS is the particle lifetime in milliseconds (default 800).
+GRAVITY is the downward acceleration in pixels/sec^2 (default 120).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object count,
+   Lisp_Object lifetime_ms, Lisp_Object gravity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 255, g = 153, b = 51;
+  int cnt = 6, lt = 800, grav = 120;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned int hex;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (count)) cnt = XFIXNUM (count);
+  if (FIXNUMP (lifetime_ms)) lt = XFIXNUM (lifetime_ms);
+  if (FIXNUMP (gravity)) grav = XFIXNUM (gravity);
+
+  neomacs_display_set_cursor_particles (dpyinfo->display_handle, on, r, g, b, cnt, lt, grav);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-window-border-radius",
        Fneomacs_set_window_border_radius,
        Sneomacs_set_window_border_radius, 0, 5, 0,
@@ -10880,6 +10920,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_theme_transition);
   defsubr (&Sneomacs_set_typing_heatmap);
   defsubr (&Sneomacs_set_window_border_radius);
+  defsubr (&Sneomacs_set_cursor_particles);
   defsubr (&Sneomacs_set_region_glow);
   defsubr (&Sneomacs_set_window_glow);
   defsubr (&Sneomacs_set_scroll_progress);

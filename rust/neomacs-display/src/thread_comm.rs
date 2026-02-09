@@ -632,6 +632,20 @@ pub enum RenderCommand {
         /// Opacity (0.0-1.0)
         opacity: f32,
     },
+    /// Configure cursor particle trail effect
+    SetCursorParticles {
+        enabled: bool,
+        /// Particle color (sRGB floats)
+        r: f32,
+        g: f32,
+        b: f32,
+        /// Number of particles emitted per cursor move
+        count: u32,
+        /// Particle lifetime in milliseconds
+        lifetime_ms: u32,
+        /// Gravity strength (pixels/sec^2, positive = downward)
+        gravity: f32,
+    },
     /// Configure per-window rounded border
     SetWindowBorderRadius {
         enabled: bool,

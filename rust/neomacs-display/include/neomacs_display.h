@@ -1503,6 +1503,18 @@ void neomacs_display_set_modified_indicator(struct NeomacsDisplay *handle,
                                             int opacity);
 
 /**
+ * Configure cursor particle trail effect
+ */
+void neomacs_display_set_cursor_particles(struct NeomacsDisplay *handle,
+                                          int enabled,
+                                          int r,
+                                          int g,
+                                          int b,
+                                          int count,
+                                          int lifetimeMs,
+                                          int gravity);
+
+/**
  * Configure per-window rounded border
  */
 void neomacs_display_set_window_border_radius(struct NeomacsDisplay *handle,
