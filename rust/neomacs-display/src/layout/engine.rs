@@ -1049,17 +1049,23 @@ impl LayoutEngine {
                         let gx = content_x + col as f32 * char_w + hmargin;
                         let gy_base = row_y[row as usize];
 
-                        // Compute ascent-based vertical offset
-                        let img_ascent = display_prop.image_ascent;
-                        let ascent_px = if img_ascent == -1 {
-                            // Centered: align middle of image with font baseline center
-                            (total_h + ascent - (char_h - ascent) + 1.0) / 2.0
+                        // For images that fit within one text line, use ascent-based
+                        // alignment with the text baseline. For taller images, place
+                        // at the row top and extend downward.
+                        let gy = if total_h <= char_h {
+                            let img_ascent = display_prop.image_ascent;
+                            let ascent_px = if img_ascent == -1 {
+                                // Centered: align middle of image with font baseline center
+                                (total_h + ascent - (char_h - ascent) + 1.0) / 2.0
+                            } else {
+                                // Percentage: ascent% of total height
+                                total_h * (img_ascent as f32 / 100.0)
+                            };
+                            gy_base + ascent - ascent_px + vmargin
                         } else {
-                            // Percentage: ascent% of total height
-                            total_h * (img_ascent as f32 / 100.0)
+                            // Large image: start at current row top
+                            gy_base + vmargin
                         };
-                        // Offset so image ascent aligns with text baseline
-                        let gy = gy_base + ascent - ascent_px + vmargin;
 
                         frame_glyphs.add_image(
                             display_prop.image_gpu_id,

@@ -6933,7 +6933,9 @@ neomacs_new_font (struct frame *f, Lisp_Object font_object, int fontset)
 
 /* Re-send the current frame to the render thread.
    Used after mouse highlight changes to immediately update the display
-   without waiting for a full redisplay cycle.  Does NOT clear cursors. */
+   without waiting for a full redisplay cycle.  Does NOT clear cursors.
+   Only works with the C display engine (legacy path), since the Rust
+   layout engine doesn't use current_matrix.  */
 static void
 neomacs_resend_frame (struct frame *f)
 {
@@ -6942,6 +6944,14 @@ neomacs_resend_frame (struct frame *f)
 
   if (!dpyinfo || !dpyinfo->display_handle || !output
       || !output->use_gpu_widget)
+    return;
+
+  /* The Rust layout engine produces frames independently — resending
+     via neomacs_extract_full_frame would produce an empty frame
+     (current_matrix is not populated by the Rust path), causing a
+     white flash.  Skip the resend; mouse-face highlighting will be
+     picked up on the next regular redisplay cycle.  */
+  if (use_rust_display_engine)
     return;
 
   void *handle = dpyinfo->display_handle;
