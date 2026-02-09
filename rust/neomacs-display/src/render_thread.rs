@@ -563,486 +563,8 @@ struct RenderApp {
     cursor_size_target_h: f32,
     cursor_size_anim_start: std::time::Instant,
 
-    // Matrix/digital rain effect
-    matrix_rain_enabled: bool,
-    matrix_rain_color: (f32, f32, f32),
-    matrix_rain_column_count: u32,
-    matrix_rain_speed: f32,
-    matrix_rain_opacity: f32,
-    // Cursor elastic snap
-    cursor_elastic_snap_enabled: bool,
-    cursor_elastic_snap_overshoot: f32,
-    cursor_elastic_snap_duration_ms: u32,
-    // Frost/ice border
-    frost_border_enabled: bool,
-    frost_border_color: (f32, f32, f32),
-    frost_border_width: f32,
-    frost_border_opacity: f32,
-    // Cursor ghost afterimage
-    cursor_ghost_enabled: bool,
-    cursor_ghost_color: (f32, f32, f32),
-    cursor_ghost_count: u32,
-    cursor_ghost_fade_ms: u32,
-    cursor_ghost_drift: f32,
-    cursor_ghost_opacity: f32,
-    // Edge glow on scroll boundaries
-    edge_glow_enabled: bool,
-    edge_glow_color: (f32, f32, f32),
-    edge_glow_height: f32,
-    edge_glow_opacity: f32,
-    edge_glow_fade_ms: u32,
-    // Rain/drip ambient effect
-    rain_effect_enabled: bool,
-    rain_effect_color: (f32, f32, f32),
-    rain_effect_drop_count: u32,
-    rain_effect_speed: f32,
-    rain_effect_opacity: f32,
-    // Cursor ripple wave
-    cursor_ripple_wave_enabled: bool,
-    cursor_ripple_wave_color: (f32, f32, f32),
-    cursor_ripple_wave_ring_count: u32,
-    cursor_ripple_wave_max_radius: f32,
-    cursor_ripple_wave_duration_ms: u32,
-    cursor_ripple_wave_opacity: f32,
-    // Aurora/northern lights
-    aurora_enabled: bool,
-    aurora_color1: (f32, f32, f32),
-    aurora_color2: (f32, f32, f32),
-    aurora_height: f32,
-    aurora_speed: f32,
-    aurora_opacity: f32,
-
-    // Heat distortion
-    heat_distortion_enabled: bool,
-    heat_distortion_intensity: f32,
-    heat_distortion_speed: f32,
-    heat_distortion_edge_width: f32,
-    heat_distortion_opacity: f32,
-    // Cursor lighthouse beam
-    cursor_lighthouse_enabled: bool,
-    cursor_lighthouse_color: (f32, f32, f32),
-    cursor_lighthouse_beam_width: f32,
-    cursor_lighthouse_rotation_speed: f32,
-    cursor_lighthouse_beam_length: f32,
-    cursor_lighthouse_opacity: f32,
-    // Neon border
-    neon_border_enabled: bool,
-    neon_border_color: (f32, f32, f32),
-    neon_border_intensity: f32,
-    neon_border_flicker: f32,
-    neon_border_thickness: f32,
-    neon_border_opacity: f32,
-    // Cursor sonar ping
-    cursor_sonar_ping_enabled: bool,
-    cursor_sonar_ping_color: (f32, f32, f32),
-    cursor_sonar_ping_ring_count: u32,
-    cursor_sonar_ping_max_radius: f32,
-    cursor_sonar_ping_duration_ms: u32,
-    cursor_sonar_ping_opacity: f32,
-
-    // Lightning bolt
-    lightning_bolt_enabled: bool,
-    lightning_bolt_color: (f32, f32, f32),
-    lightning_bolt_frequency: f32,
-    lightning_bolt_intensity: f32,
-    lightning_bolt_opacity: f32,
-    // Cursor orbit particles
-    cursor_orbit_particles_enabled: bool,
-    cursor_orbit_particles_color: (f32, f32, f32),
-    cursor_orbit_particles_count: u32,
-    cursor_orbit_particles_radius: f32,
-    cursor_orbit_particles_speed: f32,
-    cursor_orbit_particles_opacity: f32,
-    // Plasma border
-    plasma_border_enabled: bool,
-    plasma_border_color1: (f32, f32, f32),
-    plasma_border_color2: (f32, f32, f32),
-    plasma_border_width: f32,
-    plasma_border_speed: f32,
-    plasma_border_opacity: f32,
-    // Cursor heartbeat
-    cursor_heartbeat_enabled: bool,
-    cursor_heartbeat_color: (f32, f32, f32),
-    cursor_heartbeat_bpm: f32,
-    cursor_heartbeat_max_radius: f32,
-    cursor_heartbeat_opacity: f32,
-
-    // Topographic contour effect
-    topo_contour_enabled: bool,
-    topo_contour_color: (f32, f32, f32),
-    topo_contour_spacing: f32,
-    topo_contour_speed: f32,
-    topo_contour_opacity: f32,
-    // Cursor metronome tick
-    cursor_metronome_enabled: bool,
-    cursor_metronome_color: (f32, f32, f32),
-    cursor_metronome_tick_height: f32,
-    cursor_metronome_fade_ms: u32,
-    cursor_metronome_opacity: f32,
-    // Constellation overlay
-    constellation_enabled: bool,
-    constellation_color: (f32, f32, f32),
-    constellation_star_count: u32,
-    constellation_connect_dist: f32,
-    constellation_twinkle_speed: f32,
-    constellation_opacity: f32,
-    // Cursor radar sweep
-    cursor_radar_enabled: bool,
-    cursor_radar_color: (f32, f32, f32),
-    cursor_radar_radius: f32,
-    cursor_radar_speed: f32,
-    cursor_radar_opacity: f32,
-
-    // Hex grid overlay
-    hex_grid_enabled: bool,
-    hex_grid_color: (f32, f32, f32),
-    hex_grid_cell_size: f32,
-    hex_grid_pulse_speed: f32,
-    hex_grid_opacity: f32,
-    // Cursor sparkle burst
-    cursor_sparkle_burst_enabled: bool,
-    cursor_sparkle_burst_color: (f32, f32, f32),
-    cursor_sparkle_burst_count: u32,
-    cursor_sparkle_burst_radius: f32,
-    cursor_sparkle_burst_opacity: f32,
-    // Circuit board trace
-    circuit_trace_enabled: bool,
-    circuit_trace_color: (f32, f32, f32),
-    circuit_trace_width: f32,
-    circuit_trace_speed: f32,
-    circuit_trace_opacity: f32,
-    // Cursor compass rose
-    cursor_compass_enabled: bool,
-    cursor_compass_color: (f32, f32, f32),
-    cursor_compass_size: f32,
-    cursor_compass_speed: f32,
-    cursor_compass_opacity: f32,
-
-    // Warp grid effect
-    warp_grid_enabled: bool,
-    warp_grid_color: (f32, f32, f32),
-    warp_grid_density: u32,
-    warp_grid_amplitude: f32,
-    warp_grid_speed: f32,
-    warp_grid_opacity: f32,
-    // Cursor DNA helix trail
-    cursor_dna_helix_enabled: bool,
-    cursor_dna_helix_color1: (f32, f32, f32),
-    cursor_dna_helix_color2: (f32, f32, f32),
-    cursor_dna_helix_radius: f32,
-    cursor_dna_helix_speed: f32,
-    cursor_dna_helix_opacity: f32,
-    // Prism/rainbow edge effect
-    prism_edge_enabled: bool,
-    prism_edge_width: f32,
-    prism_edge_speed: f32,
-    prism_edge_saturation: f32,
-    prism_edge_opacity: f32,
-    // Cursor pendulum swing
-    cursor_pendulum_enabled: bool,
-    cursor_pendulum_color: (f32, f32, f32),
-    cursor_pendulum_arc_length: f32,
-    cursor_pendulum_damping: f32,
-    cursor_pendulum_opacity: f32,
-
-    // Kaleidoscope overlay
-    kaleidoscope_enabled: bool,
-    kaleidoscope_color: (f32, f32, f32),
-    kaleidoscope_segments: u32,
-    kaleidoscope_speed: f32,
-    kaleidoscope_opacity: f32,
-    // Cursor ripple ring
-    cursor_ripple_ring_enabled: bool,
-    cursor_ripple_ring_color: (f32, f32, f32),
-    cursor_ripple_ring_max_radius: f32,
-    cursor_ripple_ring_count: u32,
-    cursor_ripple_ring_speed: f32,
-    cursor_ripple_ring_opacity: f32,
-    // Noise field overlay
-    noise_field_enabled: bool,
-    noise_field_color: (f32, f32, f32),
-    noise_field_scale: f32,
-    noise_field_speed: f32,
-    noise_field_opacity: f32,
-    // Cursor scope
-    cursor_scope_enabled: bool,
-    cursor_scope_color: (f32, f32, f32),
-    cursor_scope_thickness: f32,
-    cursor_scope_gap: f32,
-    cursor_scope_opacity: f32,
-
-    // Spiral vortex overlay
-    spiral_vortex_enabled: bool,
-    spiral_vortex_color: (f32, f32, f32),
-    spiral_vortex_arms: u32,
-    spiral_vortex_speed: f32,
-    spiral_vortex_opacity: f32,
-    // Cursor shockwave
-    cursor_shockwave_enabled: bool,
-    cursor_shockwave_color: (f32, f32, f32),
-    cursor_shockwave_radius: f32,
-    cursor_shockwave_decay: f32,
-    cursor_shockwave_opacity: f32,
-    // Diamond lattice overlay
-    diamond_lattice_enabled: bool,
-    diamond_lattice_color: (f32, f32, f32),
-    diamond_lattice_cell_size: f32,
-    diamond_lattice_shimmer_speed: f32,
-    diamond_lattice_opacity: f32,
-    // Cursor gravity well
-    cursor_gravity_well_enabled: bool,
-    cursor_gravity_well_color: (f32, f32, f32),
-    cursor_gravity_well_field_radius: f32,
-    cursor_gravity_well_line_count: u32,
-    cursor_gravity_well_opacity: f32,
-    // Wave interference overlay
-    wave_interference_enabled: bool,
-    wave_interference_color: (f32, f32, f32),
-    wave_interference_wavelength: f32,
-    wave_interference_source_count: u32,
-    wave_interference_speed: f32,
-    wave_interference_opacity: f32,
-    // Cursor portal
-    cursor_portal_enabled: bool,
-    cursor_portal_color: (f32, f32, f32),
-    cursor_portal_radius: f32,
-    cursor_portal_speed: f32,
-    cursor_portal_opacity: f32,
-    // Chevron pattern overlay
-    chevron_pattern_enabled: bool,
-    chevron_pattern_color: (f32, f32, f32),
-    chevron_pattern_spacing: f32,
-    chevron_pattern_speed: f32,
-    chevron_pattern_opacity: f32,
-    // Cursor bubble
-    cursor_bubble_enabled: bool,
-    cursor_bubble_color: (f32, f32, f32),
-    cursor_bubble_count: u32,
-    cursor_bubble_rise_speed: f32,
-    cursor_bubble_opacity: f32,
-
-    // Sunburst pattern
-    sunburst_pattern_enabled: bool,
-    sunburst_pattern_color: (f32, f32, f32),
-    sunburst_pattern_ray_count: u32,
-    sunburst_pattern_speed: f32,
-    sunburst_pattern_opacity: f32,
-    // Cursor firework
-    cursor_firework_enabled: bool,
-    cursor_firework_color: (f32, f32, f32),
-    cursor_firework_particle_count: u32,
-    cursor_firework_burst_radius: f32,
-    cursor_firework_opacity: f32,
-    // Honeycomb dissolve
-    honeycomb_dissolve_enabled: bool,
-    honeycomb_dissolve_color: (f32, f32, f32),
-    honeycomb_dissolve_cell_size: f32,
-    honeycomb_dissolve_speed: f32,
-    honeycomb_dissolve_opacity: f32,
-    // Cursor tornado
-    cursor_tornado_enabled: bool,
-    cursor_tornado_color: (f32, f32, f32),
-    cursor_tornado_radius: f32,
-    cursor_tornado_particle_count: u32,
-    cursor_tornado_opacity: f32,
-
-    // Moiré pattern
-    moire_pattern_enabled: bool,
-    moire_pattern_color: (f32, f32, f32),
-    moire_pattern_line_spacing: f32,
-    moire_pattern_angle_offset: f32,
-    moire_pattern_speed: f32,
-    moire_pattern_opacity: f32,
-    // Cursor lightning
-    cursor_lightning_enabled: bool,
-    cursor_lightning_color: (f32, f32, f32),
-    cursor_lightning_bolt_count: u32,
-    cursor_lightning_max_length: f32,
-    cursor_lightning_opacity: f32,
-    // Dot matrix
-    dot_matrix_enabled: bool,
-    dot_matrix_color: (f32, f32, f32),
-    dot_matrix_spacing: f32,
-    dot_matrix_pulse_speed: f32,
-    dot_matrix_opacity: f32,
-    // Cursor snowflake
-    cursor_snowflake_enabled: bool,
-    cursor_snowflake_color: (f32, f32, f32),
-    cursor_snowflake_count: u32,
-    cursor_snowflake_fall_speed: f32,
-    cursor_snowflake_opacity: f32,
-    // Concentric rings
-    concentric_rings_enabled: bool,
-    concentric_rings_color: (f32, f32, f32),
-    concentric_rings_spacing: f32,
-    concentric_rings_expansion_speed: f32,
-    concentric_rings_opacity: f32,
-    // Cursor flame
-    cursor_flame_enabled: bool,
-    cursor_flame_color: (f32, f32, f32),
-    cursor_flame_particle_count: u32,
-    cursor_flame_height: f32,
-    cursor_flame_opacity: f32,
-    // Zigzag pattern
-    zigzag_pattern_enabled: bool,
-    zigzag_pattern_color: (f32, f32, f32),
-    zigzag_pattern_amplitude: f32,
-    zigzag_pattern_frequency: f32,
-    zigzag_pattern_speed: f32,
-    zigzag_pattern_opacity: f32,
-    // Cursor crystal
-    cursor_crystal_enabled: bool,
-    cursor_crystal_color: (f32, f32, f32),
-    cursor_crystal_facet_count: u32,
-    cursor_crystal_radius: f32,
-    cursor_crystal_opacity: f32,
-
-    tessellation_enabled: bool,
-    tessellation_color: (f32, f32, f32),
-    tessellation_tile_size: f32,
-    tessellation_rotation: f32,
-    tessellation_opacity: f32,
-    cursor_water_drop_enabled: bool,
-    cursor_water_drop_color: (f32, f32, f32),
-    cursor_water_drop_ripple_count: u32,
-    cursor_water_drop_expand_speed: f32,
-    cursor_water_drop_opacity: f32,
-    guilloche_enabled: bool,
-    guilloche_color: (f32, f32, f32),
-    guilloche_curve_count: u32,
-    guilloche_wave_freq: f32,
-    guilloche_opacity: f32,
-    cursor_pixel_dust_enabled: bool,
-    cursor_pixel_dust_color: (f32, f32, f32),
-    cursor_pixel_dust_count: u32,
-    cursor_pixel_dust_scatter_speed: f32,
-    cursor_pixel_dust_opacity: f32,
-
-    celtic_knot_enabled: bool,
-    celtic_knot_color: (f32, f32, f32),
-    celtic_knot_scale: f32,
-    celtic_knot_weave_speed: f32,
-    celtic_knot_opacity: f32,
-    cursor_candle_flame_enabled: bool,
-    cursor_candle_flame_color: (f32, f32, f32),
-    cursor_candle_flame_height: u32,
-    cursor_candle_flame_flicker_speed: f32,
-    cursor_candle_flame_opacity: f32,
-    argyle_pattern_enabled: bool,
-    argyle_pattern_color: (f32, f32, f32),
-    argyle_pattern_diamond_size: f32,
-    argyle_pattern_line_width: f32,
-    argyle_pattern_opacity: f32,
-    cursor_moth_flame_enabled: bool,
-    cursor_moth_flame_color: (f32, f32, f32),
-    cursor_moth_flame_moth_count: u32,
-    cursor_moth_flame_orbit_speed: f32,
-    cursor_moth_flame_opacity: f32,
-
-    basket_weave_enabled: bool,
-    basket_weave_color: (f32, f32, f32),
-    basket_weave_strip_width: f32,
-    basket_weave_strip_spacing: f32,
-    basket_weave_opacity: f32,
-    cursor_sparkler_enabled: bool,
-    cursor_sparkler_color: (f32, f32, f32),
-    cursor_sparkler_spark_count: u32,
-    cursor_sparkler_burn_speed: f32,
-    cursor_sparkler_opacity: f32,
-    fish_scale_enabled: bool,
-    fish_scale_color: (f32, f32, f32),
-    fish_scale_size: f32,
-    fish_scale_row_offset: f32,
-    fish_scale_opacity: f32,
-    cursor_plasma_ball_enabled: bool,
-    cursor_plasma_ball_color: (f32, f32, f32),
-    cursor_plasma_ball_tendril_count: u32,
-    cursor_plasma_ball_arc_speed: f32,
-    cursor_plasma_ball_opacity: f32,
-
-    trefoil_knot_enabled: bool,
-    trefoil_knot_color: (f32, f32, f32),
-    trefoil_knot_size: f32,
-    trefoil_knot_rotation_speed: f32,
-    trefoil_knot_opacity: f32,
-    cursor_quill_pen_enabled: bool,
-    cursor_quill_pen_color: (f32, f32, f32),
-    cursor_quill_pen_trail_length: u32,
-    cursor_quill_pen_ink_speed: f32,
-    cursor_quill_pen_opacity: f32,
-    herringbone_pattern_enabled: bool,
-    herringbone_pattern_color: (f32, f32, f32),
-    herringbone_pattern_tile_width: f32,
-    herringbone_pattern_tile_height: f32,
-    herringbone_pattern_opacity: f32,
-    cursor_aurora_borealis_enabled: bool,
-    cursor_aurora_borealis_color: (f32, f32, f32),
-    cursor_aurora_borealis_band_count: u32,
-    cursor_aurora_borealis_shimmer_speed: f32,
-    cursor_aurora_borealis_opacity: f32,
-
-    target_reticle_enabled: bool,
-    target_reticle_color: (f32, f32, f32),
-    target_reticle_ring_count: u32,
-    target_reticle_pulse_speed: f32,
-    target_reticle_opacity: f32,
-    cursor_feather_enabled: bool,
-    cursor_feather_color: (f32, f32, f32),
-    cursor_feather_count: u32,
-    cursor_feather_drift_speed: f32,
-    cursor_feather_opacity: f32,
-    plaid_pattern_enabled: bool,
-    plaid_pattern_color: (f32, f32, f32),
-    plaid_pattern_band_width: f32,
-    plaid_pattern_band_spacing: f32,
-    plaid_pattern_opacity: f32,
-    cursor_stardust_enabled: bool,
-    cursor_stardust_color: (f32, f32, f32),
-    cursor_stardust_particle_count: u32,
-    cursor_stardust_fall_speed: f32,
-    cursor_stardust_opacity: f32,
-    brick_wall_enabled: bool,
-    brick_wall_color: (f32, f32, f32),
-    brick_wall_width: f32,
-    brick_wall_height: f32,
-    brick_wall_opacity: f32,
-    cursor_compass_needle_enabled: bool,
-    cursor_compass_needle_color: (f32, f32, f32),
-    cursor_compass_needle_length: f32,
-    cursor_compass_needle_spin_speed: f32,
-    cursor_compass_needle_opacity: f32,
-    sine_wave_enabled: bool,
-    sine_wave_color: (f32, f32, f32),
-    sine_wave_amplitude: f32,
-    sine_wave_wavelength: f32,
-    sine_wave_speed: f32,
-    sine_wave_opacity: f32,
-    cursor_galaxy_enabled: bool,
-    cursor_galaxy_color: (f32, f32, f32),
-    cursor_galaxy_star_count: u32,
-    cursor_galaxy_radius: f32,
-    cursor_galaxy_opacity: f32,
-    rotating_gear_enabled: bool,
-    rotating_gear_color: (f32, f32, f32),
-    rotating_gear_size: f32,
-    rotating_gear_speed: f32,
-    rotating_gear_opacity: f32,
-    cursor_prism_enabled: bool,
-    cursor_prism_color: (f32, f32, f32),
-    cursor_prism_ray_count: u32,
-    cursor_prism_spread: f32,
-    cursor_prism_opacity: f32,
-    crosshatch_pattern_enabled: bool,
-    crosshatch_pattern_color: (f32, f32, f32),
-    crosshatch_pattern_line_spacing: f32,
-    crosshatch_pattern_angle: f32,
-    crosshatch_pattern_speed: f32,
-    crosshatch_pattern_opacity: f32,
-    cursor_moth_enabled: bool,
-    cursor_moth_color: (f32, f32, f32),
-    cursor_moth_count: u32,
-    cursor_moth_wing_size: f32,
-    cursor_moth_opacity: f32,
+    // All visual effect configurations
+    effects: crate::effect_config::EffectsConfig,
 
     // Per-window metadata from previous frame (for transition detection)
     prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
@@ -1133,319 +655,15 @@ struct RenderApp {
     extra_line_spacing: f32,
     /// Extra letter spacing in pixels (added between characters)
     extra_letter_spacing: f32,
-    /// Background gradient (top and bottom colors, linear sRGB)
-    bg_gradient_enabled: bool,
-    bg_gradient_top: (f32, f32, f32),
-    bg_gradient_bottom: (f32, f32, f32),
-
-    /// Scroll bar config
-    scroll_bar_width: i32,
-    scroll_bar_thumb_radius: f32,
-    scroll_bar_track_opacity: f32,
-    scroll_bar_hover_brightness: f32,
-
-    /// Indent guide config
-    indent_guides_enabled: bool,
-    indent_guide_color: (f32, f32, f32, f32),
-    /// Rainbow indent guide colors (cycling by depth level)
-    indent_guide_rainbow_enabled: bool,
-    indent_guide_rainbow_colors: Vec<(f32, f32, f32, f32)>,
-
-    /// Current line highlight config
-    line_highlight_enabled: bool,
-    line_highlight_color: (f32, f32, f32, f32),
-
-    /// Visible whitespace config
-    show_whitespace_enabled: bool,
-    show_whitespace_color: (f32, f32, f32, f32),
-
-    /// Inactive window dimming
-    inactive_dim_enabled: bool,
-    inactive_dim_opacity: f32,
-
-    /// Mode-line separator style (0=none, 1=line, 2=shadow, 3=gradient)
-    mode_line_separator_style: u32,
-    mode_line_separator_color: (f32, f32, f32),
-    mode_line_separator_height: f32,
-
-    /// Cursor glow effect
-    cursor_glow_enabled: bool,
-    cursor_glow_color: (f32, f32, f32),
-    cursor_glow_radius: f32,
-    cursor_glow_opacity: f32,
-    /// Cursor pulse animation (sinusoidal glow modulation)
-    cursor_pulse_enabled: bool,
-    cursor_pulse_speed: f32,
-    cursor_pulse_min_opacity: f32,
-    /// Focus mode (dim outside current paragraph)
-    focus_mode_enabled: bool,
-    focus_mode_opacity: f32,
-    /// Minimap (code overview column)
-    minimap_enabled: bool,
-    minimap_width: f32,
-    /// Typing ripple effect
-    typing_ripple_enabled: bool,
-    typing_ripple_max_radius: f32,
-    typing_ripple_duration_ms: u32,
-    /// Search highlight pulse
-    search_pulse_enabled: bool,
-    search_pulse_face_id: u32,
-    /// Background pattern (0=none, 1=dots, 2=grid, 3=crosshatch)
-    bg_pattern_style: u32,
-    bg_pattern_spacing: f32,
-    bg_pattern_color: (f32, f32, f32),
-    bg_pattern_opacity: f32,
-    /// Zen mode (centered distraction-free)
-    zen_mode_enabled: bool,
-    zen_mode_content_width_pct: f32,
-    zen_mode_margin_opacity: f32,
-    /// Vignette effect
-    vignette_enabled: bool,
-    vignette_intensity: f32,
-    vignette_radius: f32,
-    /// Line insertion/deletion animation
-    line_animation_enabled: bool,
-    line_animation_duration_ms: u32,
-    /// Header/mode-line shadow depth effect
-    header_shadow_enabled: bool,
-    header_shadow_intensity: f32,
-    header_shadow_size: f32,
-    /// Cursor color cycling (rainbow hue rotation)
-    cursor_color_cycle_enabled: bool,
-    cursor_color_cycle_speed: f32,
-    cursor_color_cycle_saturation: f32,
-    cursor_color_cycle_lightness: f32,
-    /// Window switch highlight fade
-    window_switch_fade_enabled: bool,
-    window_switch_fade_duration_ms: u32,
-    window_switch_fade_intensity: f32,
     prev_selected_window_id: i64,
-    /// Breadcrumb/path bar overlay
-    breadcrumb_enabled: bool,
-    breadcrumb_opacity: f32,
-    /// Title fade animation for breadcrumbs
-    title_fade_enabled: bool,
-    title_fade_duration_ms: u32,
-    /// Typing speed indicator
-    typing_speed_enabled: bool,
-    /// Smooth border color transition
-    border_transition_enabled: bool,
-    border_transition_active_color: (f32, f32, f32),
-    border_transition_duration_ms: u32,
-    /// Buffer-local accent color strip
-    accent_strip_enabled: bool,
-    accent_strip_width: f32,
-    /// Cursor trail fade
-    cursor_trail_fade_enabled: bool,
-    cursor_trail_fade_length: u32,
-    cursor_trail_fade_ms: u32,
-    /// Cursor drop shadow
-    cursor_shadow_enabled: bool,
-    cursor_shadow_offset_x: f32,
-    cursor_shadow_offset_y: f32,
-    cursor_shadow_opacity: f32,
-    /// Animated focus ring
-    focus_ring_enabled: bool,
-    focus_ring_color: (f32, f32, f32),
-    focus_ring_opacity: f32,
-    focus_ring_dash_length: f32,
-    focus_ring_speed: f32,
-    /// Window background tint based on file type
-    window_mode_tint_enabled: bool,
-    window_mode_tint_opacity: f32,
-    /// Window watermark for empty buffers
-    window_watermark_enabled: bool,
-    window_watermark_opacity: f32,
-    window_watermark_threshold: u32,
-    /// Mode-line content transition
-    mode_line_transition_enabled: bool,
-    mode_line_transition_duration_ms: u32,
-    /// Text fade-in animation for new content
-    text_fade_in_enabled: bool,
-    text_fade_in_duration_ms: u32,
-    /// Scroll line spacing animation (accordion effect)
-    scroll_line_spacing_enabled: bool,
-    scroll_line_spacing_max: f32,
-    scroll_line_spacing_duration: std::time::Duration,
-    /// Cursor wake animation (pop/scale effect on blink-on)
-    cursor_wake_enabled: bool,
-    cursor_wake_duration_ms: u32,
-    cursor_wake_scale: f32,
-    /// Window content shadow/depth between split panes
-    window_content_shadow_enabled: bool,
-    window_content_shadow_size: f32,
-    window_content_shadow_opacity: f32,
-    /// Window edge snap indicator
-    edge_snap_enabled: bool,
-    edge_snap_color: (f32, f32, f32),
-    edge_snap_duration_ms: u32,
-    /// Cursor crosshair guide lines
-    cursor_crosshair_enabled: bool,
-    cursor_crosshair_color: (f32, f32, f32),
-    cursor_crosshair_opacity: f32,
-    /// Buffer modified border indicator
-    modified_indicator_enabled: bool,
-    modified_indicator_color: (f32, f32, f32),
-    modified_indicator_width: f32,
-    modified_indicator_opacity: f32,
-    /// Inactive window stained glass effect
-    stained_glass_enabled: bool,
-    stained_glass_opacity: f32,
-    stained_glass_saturation: f32,
-    /// Focus gradient border
-    focus_gradient_border_enabled: bool,
-    focus_gradient_border_top_color: (f32, f32, f32),
-    focus_gradient_border_bot_color: (f32, f32, f32),
-    focus_gradient_border_width: f32,
-    focus_gradient_border_opacity: f32,
-    /// Cursor magnetism effect
-    cursor_magnetism_enabled: bool,
-    cursor_magnetism_color: (f32, f32, f32),
-    cursor_magnetism_ring_count: u32,
-    cursor_magnetism_duration_ms: u32,
-    cursor_magnetism_opacity: f32,
-    /// Depth shadow layers
-    depth_shadow_enabled: bool,
-    depth_shadow_layers: u32,
-    depth_shadow_offset: f32,
-    depth_shadow_color: (f32, f32, f32),
-    depth_shadow_opacity: f32,
-    /// Mode-line gradient background
-    mode_line_gradient_enabled: bool,
-    mode_line_gradient_left_color: (f32, f32, f32),
-    mode_line_gradient_right_color: (f32, f32, f32),
-    mode_line_gradient_opacity: f32,
-    /// Window corner fold effect
-    corner_fold_enabled: bool,
-    corner_fold_size: f32,
-    corner_fold_color: (f32, f32, f32),
-    corner_fold_opacity: f32,
-    /// Frosted window border effect
-    frosted_border_enabled: bool,
-    frosted_border_width: f32,
-    frosted_border_opacity: f32,
-    frosted_border_color: (f32, f32, f32),
-    /// Line number pulse effect
-    line_number_pulse_enabled: bool,
-    line_number_pulse_color: (f32, f32, f32),
-    line_number_pulse_intensity: f32,
-    line_number_pulse_cycle_ms: u32,
-    /// Window breathing border
-    breathing_border_enabled: bool,
-    breathing_border_color: (f32, f32, f32),
-    breathing_border_min_opacity: f32,
-    breathing_border_max_opacity: f32,
-    breathing_border_cycle_ms: u32,
-    /// Window scanline (CRT) effect
-    scanlines_enabled: bool,
-    scanlines_spacing: u32,
-    scanlines_opacity: f32,
-    scanlines_color: (f32, f32, f32),
-    /// Cursor comet tail effect
-    cursor_comet_enabled: bool,
-    cursor_comet_trail_length: u32,
-    cursor_comet_fade_ms: u32,
-    cursor_comet_color: (f32, f32, f32),
-    cursor_comet_opacity: f32,
-    /// Cursor spotlight effect
-    cursor_spotlight_enabled: bool,
-    cursor_spotlight_radius: f32,
-    cursor_spotlight_intensity: f32,
-    cursor_spotlight_color: (f32, f32, f32),
-    /// Cursor particle trail effect
-    cursor_particles_enabled: bool,
-    cursor_particles_color: (f32, f32, f32),
-    cursor_particles_count: u32,
-    cursor_particles_lifetime_ms: u32,
-    cursor_particles_gravity: f32,
-    /// Per-window rounded border
-    window_border_radius_enabled: bool,
-    window_border_radius: f32,
-    window_border_width: f32,
-    window_border_color: (f32, f32, f32),
-    window_border_opacity: f32,
-    /// Typing heat map overlay
-    typing_heatmap_enabled: bool,
-    typing_heatmap_color: (f32, f32, f32),
-    typing_heatmap_fade_ms: u32,
-    typing_heatmap_opacity: f32,
-    /// Theme transition (crossfade on background color change)
-    theme_transition_enabled: bool,
-    theme_transition_duration: std::time::Duration,
     prev_background: Option<(f32, f32, f32, f32)>,
-    /// Click halo effect
-    click_halo_enabled: bool,
-    click_halo_color: (f32, f32, f32),
-    click_halo_duration_ms: u32,
-    click_halo_max_radius: f32,
-    /// Scroll velocity fade overlay
-    scroll_velocity_fade_enabled: bool,
-    scroll_velocity_fade_max_opacity: f32,
-    scroll_velocity_fade_ms: u32,
-    /// Mini-buffer completion highlight glow
-    minibuffer_highlight_enabled: bool,
-    minibuffer_highlight_color: (f32, f32, f32),
-    minibuffer_highlight_opacity: f32,
-    /// Smooth window padding transition on resize
-    resize_padding_enabled: bool,
-    resize_padding_duration_ms: u32,
-    resize_padding_max: f32,
-    /// Cursor error pulse (brief color flash on bell)
-    cursor_error_pulse_enabled: bool,
-    cursor_error_pulse_color: (f32, f32, f32),
-    cursor_error_pulse_duration_ms: u32,
-    /// Line wrap indicator overlay
-    wrap_indicator_enabled: bool,
-    wrap_indicator_color: (f32, f32, f32),
-    wrap_indicator_opacity: f32,
-    /// Per-window scroll momentum indicator
-    scroll_momentum_enabled: bool,
-    scroll_momentum_fade_ms: u32,
-    scroll_momentum_width: f32,
-    /// Selection region glow
-    region_glow_enabled: bool,
-    region_glow_face_id: u32,
-    region_glow_radius: f32,
-    region_glow_opacity: f32,
-    /// Idle screen dimming
-    idle_dim_enabled: bool,
-    idle_dim_delay: std::time::Duration,
-    idle_dim_opacity: f32,
-    idle_dim_fade_duration: std::time::Duration,
     last_activity_time: std::time::Instant,
     idle_dim_current_alpha: f32, // current dimming alpha 0.0 (none) to opacity (full)
     idle_dim_active: bool,       // true when dimmed or fading
-    /// Noise/film grain overlay
-    noise_grain_enabled: bool,
-    noise_grain_intensity: f32,
-    noise_grain_size: f32,
-    /// Window padding gradient
-    padding_gradient_enabled: bool,
-    padding_gradient_color: (f32, f32, f32),
-    padding_gradient_opacity: f32,
-    padding_gradient_width: f32,
-    /// Frosted glass effect on mode-lines
-    frosted_glass_enabled: bool,
-    frosted_glass_opacity: f32,
-    frosted_glass_blur: f32,
     /// Key press timestamps for WPM calculation
     key_press_times: Vec<std::time::Instant>,
     /// Smoothed WPM value for display
     displayed_wpm: f32,
-    /// Active window border glow
-    window_glow_enabled: bool,
-    window_glow_color: (f32, f32, f32),
-    window_glow_radius: f32,
-    window_glow_intensity: f32,
-    /// Scroll progress indicator bar
-    scroll_progress_enabled: bool,
-    scroll_progress_height: f32,
-    scroll_progress_color: (f32, f32, f32),
-    scroll_progress_opacity: f32,
-    /// Inactive window color tint
-    inactive_tint_enabled: bool,
-    inactive_tint_color: (f32, f32, f32),
-    inactive_tint_opacity: f32,
 
     /// Shared monitor info (populated in resumed(), read from FFI thread)
     shared_monitors: Option<SharedMonitorInfo>,
@@ -1566,420 +784,7 @@ impl RenderApp {
             cursor_size_target_w: 0.0,
             cursor_size_target_h: 0.0,
             cursor_size_anim_start: std::time::Instant::now(),
-            matrix_rain_enabled: false,
-            matrix_rain_color: (0.0, 0.8, 0.2),
-            matrix_rain_column_count: 40,
-            matrix_rain_speed: 150.0,
-            matrix_rain_opacity: 0.12,
-            cursor_elastic_snap_enabled: false,
-            cursor_elastic_snap_overshoot: 0.15,
-            cursor_elastic_snap_duration_ms: 200,
-            frost_border_enabled: false,
-            frost_border_color: (0.7, 0.85, 1.0),
-            frost_border_width: 6.0,
-            frost_border_opacity: 0.2,
-            cursor_ghost_enabled: false,
-            cursor_ghost_color: (0.5, 0.5, 1.0),
-            cursor_ghost_count: 4,
-            cursor_ghost_fade_ms: 600,
-            cursor_ghost_drift: 20.0,
-            cursor_ghost_opacity: 0.4,
-            edge_glow_enabled: false,
-            edge_glow_color: (0.4, 0.6, 1.0),
-            edge_glow_height: 40.0,
-            edge_glow_opacity: 0.3,
-            edge_glow_fade_ms: 400,
-            rain_effect_enabled: false,
-            rain_effect_color: (0.5, 0.6, 0.8),
-            rain_effect_drop_count: 30,
-            rain_effect_speed: 120.0,
-            rain_effect_opacity: 0.15,
-            cursor_ripple_wave_enabled: false,
-            cursor_ripple_wave_color: (0.4, 0.6, 1.0),
-            cursor_ripple_wave_ring_count: 3,
-            cursor_ripple_wave_max_radius: 80.0,
-            cursor_ripple_wave_duration_ms: 500,
-            cursor_ripple_wave_opacity: 0.3,
-            aurora_enabled: false,
-            aurora_color1: (0.2, 0.8, 0.4),
-            aurora_color2: (0.3, 0.4, 0.9),
-            aurora_height: 60.0,
-            aurora_speed: 1.0,
-            aurora_opacity: 0.12,
-            heat_distortion_enabled: false,
-            heat_distortion_intensity: 0.3,
-            heat_distortion_speed: 1.0,
-            heat_distortion_edge_width: 30.0,
-            heat_distortion_opacity: 0.15,
-            cursor_lighthouse_enabled: false,
-            cursor_lighthouse_color: (1.0, 0.9, 0.3),
-            cursor_lighthouse_beam_width: 15.0,
-            cursor_lighthouse_rotation_speed: 0.5,
-            cursor_lighthouse_beam_length: 200.0,
-            cursor_lighthouse_opacity: 0.12,
-            neon_border_enabled: false,
-            neon_border_color: (0.0, 1.0, 0.8),
-            neon_border_intensity: 0.6,
-            neon_border_flicker: 0.1,
-            neon_border_thickness: 3.0,
-            neon_border_opacity: 0.4,
-            cursor_sonar_ping_enabled: false,
-            cursor_sonar_ping_color: (0.3, 0.7, 1.0),
-            cursor_sonar_ping_ring_count: 3,
-            cursor_sonar_ping_max_radius: 60.0,
-            cursor_sonar_ping_duration_ms: 600,
-            cursor_sonar_ping_opacity: 0.25,
-            lightning_bolt_enabled: false,
-            lightning_bolt_color: (0.7, 0.8, 1.0),
-            lightning_bolt_frequency: 1.0,
-            lightning_bolt_intensity: 0.8,
-            lightning_bolt_opacity: 0.3,
-            cursor_orbit_particles_enabled: false,
-            cursor_orbit_particles_color: (1.0, 0.8, 0.3),
-            cursor_orbit_particles_count: 6,
-            cursor_orbit_particles_radius: 25.0,
-            cursor_orbit_particles_speed: 1.5,
-            cursor_orbit_particles_opacity: 0.35,
-            plasma_border_enabled: false,
-            plasma_border_color1: (1.0, 0.2, 0.5),
-            plasma_border_color2: (0.2, 0.5, 1.0),
-            plasma_border_width: 4.0,
-            plasma_border_speed: 1.0,
-            plasma_border_opacity: 0.3,
-            cursor_heartbeat_enabled: false,
-            cursor_heartbeat_color: (1.0, 0.3, 0.3),
-            cursor_heartbeat_bpm: 72.0,
-            cursor_heartbeat_max_radius: 50.0,
-            cursor_heartbeat_opacity: 0.2,
-            topo_contour_enabled: false,
-            topo_contour_color: (0.4, 0.7, 0.5),
-            topo_contour_spacing: 30.0,
-            topo_contour_speed: 1.0,
-            topo_contour_opacity: 0.1,
-            cursor_metronome_enabled: false,
-            cursor_metronome_color: (0.9, 0.5, 0.2),
-            cursor_metronome_tick_height: 20.0,
-            cursor_metronome_fade_ms: 300,
-            cursor_metronome_opacity: 0.4,
-            constellation_enabled: false,
-            constellation_color: (0.7, 0.8, 1.0),
-            constellation_star_count: 50,
-            constellation_connect_dist: 80.0,
-            constellation_twinkle_speed: 1.0,
-            constellation_opacity: 0.15,
-            cursor_radar_enabled: false,
-            cursor_radar_color: (0.2, 0.9, 0.4),
-            cursor_radar_radius: 40.0,
-            cursor_radar_speed: 1.5,
-            cursor_radar_opacity: 0.2,
-            hex_grid_enabled: false,
-            hex_grid_color: (0.3, 0.6, 0.9),
-            hex_grid_cell_size: 40.0,
-            hex_grid_pulse_speed: 1.0,
-            hex_grid_opacity: 0.1,
-            cursor_sparkle_burst_enabled: false,
-            cursor_sparkle_burst_color: (1.0, 0.85, 0.3),
-            cursor_sparkle_burst_count: 12,
-            cursor_sparkle_burst_radius: 30.0,
-            cursor_sparkle_burst_opacity: 0.4,
-            circuit_trace_enabled: false,
-            circuit_trace_color: (0.2, 0.8, 0.4),
-            circuit_trace_width: 2.0,
-            circuit_trace_speed: 1.0,
-            circuit_trace_opacity: 0.2,
-            cursor_compass_enabled: false,
-            cursor_compass_color: (0.9, 0.6, 0.2),
-            cursor_compass_size: 20.0,
-            cursor_compass_speed: 1.0,
-            cursor_compass_opacity: 0.25,
-            warp_grid_enabled: false,
-            warp_grid_color: (0.3, 0.5, 0.9),
-            warp_grid_density: 20,
-            warp_grid_amplitude: 5.0,
-            warp_grid_speed: 1.0,
-            warp_grid_opacity: 0.15,
-            cursor_dna_helix_enabled: false,
-            cursor_dna_helix_color1: (0.3, 0.9, 0.5),
-            cursor_dna_helix_color2: (0.5, 0.3, 0.9),
-            cursor_dna_helix_radius: 12.0,
-            cursor_dna_helix_speed: 1.5,
-            cursor_dna_helix_opacity: 0.3,
-            prism_edge_enabled: false,
-            prism_edge_width: 6.0,
-            prism_edge_speed: 1.0,
-            prism_edge_saturation: 0.8,
-            prism_edge_opacity: 0.25,
-            cursor_pendulum_enabled: false,
-            cursor_pendulum_color: (0.9, 0.7, 0.3),
-            cursor_pendulum_arc_length: 40.0,
-            cursor_pendulum_damping: 0.5,
-            cursor_pendulum_opacity: 0.3,
-            kaleidoscope_enabled: false,
-            kaleidoscope_color: (0.6, 0.3, 0.9),
-            kaleidoscope_segments: 6,
-            kaleidoscope_speed: 0.5,
-            kaleidoscope_opacity: 0.1,
-            cursor_ripple_ring_enabled: false,
-            cursor_ripple_ring_color: (0.3, 0.8, 1.0),
-            cursor_ripple_ring_max_radius: 60.0,
-            cursor_ripple_ring_count: 3,
-            cursor_ripple_ring_speed: 2.0,
-            cursor_ripple_ring_opacity: 0.25,
-            noise_field_enabled: false,
-            noise_field_color: (0.5, 0.7, 0.3),
-            noise_field_scale: 50.0,
-            noise_field_speed: 0.5,
-            noise_field_opacity: 0.08,
-            cursor_scope_enabled: false,
-            cursor_scope_color: (1.0, 0.8, 0.2),
-            cursor_scope_thickness: 1.0,
-            cursor_scope_gap: 10.0,
-            cursor_scope_opacity: 0.3,
-            spiral_vortex_enabled: false,
-            spiral_vortex_color: (0.4, 0.2, 0.8),
-            spiral_vortex_arms: 4,
-            spiral_vortex_speed: 0.5,
-            spiral_vortex_opacity: 0.1,
-            cursor_shockwave_enabled: false,
-            cursor_shockwave_color: (1.0, 0.6, 0.2),
-            cursor_shockwave_radius: 80.0,
-            cursor_shockwave_decay: 2.0,
-            cursor_shockwave_opacity: 0.3,
-            diamond_lattice_enabled: false,
-            diamond_lattice_color: (0.7, 0.5, 0.9),
-            diamond_lattice_cell_size: 30.0,
-            diamond_lattice_shimmer_speed: 0.8,
-            diamond_lattice_opacity: 0.08,
-            cursor_gravity_well_enabled: false,
-            cursor_gravity_well_color: (0.3, 0.6, 1.0),
-            cursor_gravity_well_field_radius: 80.0,
-            cursor_gravity_well_line_count: 8,
-            cursor_gravity_well_opacity: 0.2,
-            wave_interference_enabled: false,
-            wave_interference_color: (0.3, 0.5, 0.9),
-            wave_interference_wavelength: 30.0,
-            wave_interference_source_count: 3,
-            wave_interference_speed: 1.0,
-            wave_interference_opacity: 0.08,
-            cursor_portal_enabled: false,
-            cursor_portal_color: (0.6, 0.2, 0.9),
-            cursor_portal_radius: 30.0,
-            cursor_portal_speed: 2.0,
-            cursor_portal_opacity: 0.25,
-            chevron_pattern_enabled: false,
-            chevron_pattern_color: (0.4, 0.7, 0.5),
-            chevron_pattern_spacing: 40.0,
-            chevron_pattern_speed: 0.5,
-            chevron_pattern_opacity: 0.06,
-            cursor_bubble_enabled: false,
-            cursor_bubble_color: (0.4, 0.8, 1.0),
-            cursor_bubble_count: 6,
-            cursor_bubble_rise_speed: 80.0,
-            cursor_bubble_opacity: 0.2,
-            sunburst_pattern_enabled: false,
-            sunburst_pattern_color: (1.0, 0.8, 0.3),
-            sunburst_pattern_ray_count: 12,
-            sunburst_pattern_speed: 0.5,
-            sunburst_pattern_opacity: 0.08,
-            cursor_firework_enabled: false,
-            cursor_firework_color: (1.0, 0.6, 0.2),
-            cursor_firework_particle_count: 16,
-            cursor_firework_burst_radius: 60.0,
-            cursor_firework_opacity: 0.3,
-            honeycomb_dissolve_enabled: false,
-            honeycomb_dissolve_color: (0.8, 0.6, 0.2),
-            honeycomb_dissolve_cell_size: 30.0,
-            honeycomb_dissolve_speed: 0.8,
-            honeycomb_dissolve_opacity: 0.08,
-            cursor_tornado_enabled: false,
-            cursor_tornado_color: (0.5, 0.7, 1.0),
-            cursor_tornado_radius: 40.0,
-            cursor_tornado_particle_count: 12,
-            cursor_tornado_opacity: 0.25,
-            moire_pattern_enabled: false,
-            moire_pattern_color: (0.5, 0.5, 0.8),
-            moire_pattern_line_spacing: 8.0,
-            moire_pattern_angle_offset: 5.0,
-            moire_pattern_speed: 0.3,
-            moire_pattern_opacity: 0.06,
-            cursor_lightning_enabled: false,
-            cursor_lightning_color: (0.6, 0.8, 1.0),
-            cursor_lightning_bolt_count: 4,
-            cursor_lightning_max_length: 50.0,
-            cursor_lightning_opacity: 0.4,
-            dot_matrix_enabled: false,
-            dot_matrix_color: (0.3, 1.0, 0.3),
-            dot_matrix_spacing: 12.0,
-            dot_matrix_pulse_speed: 1.0,
-            dot_matrix_opacity: 0.06,
-            cursor_snowflake_enabled: false,
-            cursor_snowflake_color: (0.8, 0.9, 1.0),
-            cursor_snowflake_count: 8,
-            cursor_snowflake_fall_speed: 30.0,
-            cursor_snowflake_opacity: 0.3,
-            concentric_rings_enabled: false,
-            concentric_rings_color: (0.4, 0.6, 1.0),
-            concentric_rings_spacing: 30.0,
-            concentric_rings_expansion_speed: 1.0,
-            concentric_rings_opacity: 0.06,
-            cursor_flame_enabled: false,
-            cursor_flame_color: (1.0, 0.5, 0.1),
-            cursor_flame_particle_count: 10,
-            cursor_flame_height: 40.0,
-            cursor_flame_opacity: 0.3,
-            zigzag_pattern_enabled: false,
-            zigzag_pattern_color: (0.6, 0.4, 1.0),
-            zigzag_pattern_amplitude: 15.0,
-            zigzag_pattern_frequency: 0.1,
-            zigzag_pattern_speed: 1.0,
-            zigzag_pattern_opacity: 0.06,
-            cursor_crystal_enabled: false,
-            cursor_crystal_color: (0.7, 0.9, 1.0),
-            cursor_crystal_facet_count: 6,
-            cursor_crystal_radius: 25.0,
-            cursor_crystal_opacity: 0.3,
-            tessellation_enabled: false,
-            tessellation_color: (0.5, 0.5, 0.7),
-            tessellation_tile_size: 40.0,
-            tessellation_rotation: 0.0,
-            tessellation_opacity: 0.04,
-            cursor_water_drop_enabled: false,
-            cursor_water_drop_color: (0.3, 0.6, 0.9),
-            cursor_water_drop_ripple_count: 4,
-            cursor_water_drop_expand_speed: 1.0,
-            cursor_water_drop_opacity: 0.15,
-            guilloche_enabled: false,
-            guilloche_color: (0.6, 0.4, 0.7),
-            guilloche_curve_count: 8,
-            guilloche_wave_freq: 1.0,
-            guilloche_opacity: 0.05,
-            cursor_pixel_dust_enabled: false,
-            cursor_pixel_dust_color: (0.8, 0.8, 0.6),
-            cursor_pixel_dust_count: 15,
-            cursor_pixel_dust_scatter_speed: 1.0,
-            cursor_pixel_dust_opacity: 0.2,
-            celtic_knot_enabled: false,
-            celtic_knot_color: (0.0, 0.6, 0.3),
-            celtic_knot_scale: 60.0,
-            celtic_knot_weave_speed: 1.0,
-            celtic_knot_opacity: 0.06,
-            cursor_candle_flame_enabled: false,
-            cursor_candle_flame_color: (1.0, 0.7, 0.2),
-            cursor_candle_flame_height: 20,
-            cursor_candle_flame_flicker_speed: 1.0,
-            cursor_candle_flame_opacity: 0.2,
-            argyle_pattern_enabled: false,
-            argyle_pattern_color: (0.5, 0.3, 0.3),
-            argyle_pattern_diamond_size: 30.0,
-            argyle_pattern_line_width: 1.0,
-            argyle_pattern_opacity: 0.05,
-            cursor_moth_flame_enabled: false,
-            cursor_moth_flame_color: (0.8, 0.7, 0.5),
-            cursor_moth_flame_moth_count: 5,
-            cursor_moth_flame_orbit_speed: 1.0,
-            cursor_moth_flame_opacity: 0.18,
-            basket_weave_enabled: false,
-            basket_weave_color: (0.55, 0.4, 0.25),
-            basket_weave_strip_width: 6.0,
-            basket_weave_strip_spacing: 20.0,
-            basket_weave_opacity: 0.05,
-            cursor_sparkler_enabled: false,
-            cursor_sparkler_color: (1.0, 0.85, 0.3),
-            cursor_sparkler_spark_count: 12,
-            cursor_sparkler_burn_speed: 1.0,
-            cursor_sparkler_opacity: 0.25,
-            fish_scale_enabled: false,
-            fish_scale_color: (0.3, 0.6, 0.7),
-            fish_scale_size: 16.0,
-            fish_scale_row_offset: 0.5,
-            fish_scale_opacity: 0.04,
-            cursor_plasma_ball_enabled: false,
-            cursor_plasma_ball_color: (0.7, 0.3, 1.0),
-            cursor_plasma_ball_tendril_count: 6,
-            cursor_plasma_ball_arc_speed: 1.0,
-            cursor_plasma_ball_opacity: 0.2,
-            trefoil_knot_enabled: false,
-            trefoil_knot_color: (0.4, 0.6, 0.9),
-            trefoil_knot_size: 80.0,
-            trefoil_knot_rotation_speed: 1.0,
-            trefoil_knot_opacity: 0.06,
-            cursor_quill_pen_enabled: false,
-            cursor_quill_pen_color: (0.3, 0.15, 0.05),
-            cursor_quill_pen_trail_length: 8,
-            cursor_quill_pen_ink_speed: 1.0,
-            cursor_quill_pen_opacity: 0.2,
-            herringbone_pattern_enabled: false,
-            herringbone_pattern_color: (0.6, 0.5, 0.4),
-            herringbone_pattern_tile_width: 20.0,
-            herringbone_pattern_tile_height: 10.0,
-            herringbone_pattern_opacity: 0.05,
-            cursor_aurora_borealis_enabled: false,
-            cursor_aurora_borealis_color: (0.2, 0.9, 0.5),
-            cursor_aurora_borealis_band_count: 5,
-            cursor_aurora_borealis_shimmer_speed: 1.0,
-            cursor_aurora_borealis_opacity: 0.15,
-            target_reticle_enabled: false,
-            target_reticle_color: (0.2, 0.8, 0.2),
-            target_reticle_ring_count: 3,
-            target_reticle_pulse_speed: 1.0,
-            target_reticle_opacity: 0.08,
-            cursor_feather_enabled: false,
-            cursor_feather_color: (0.9, 0.85, 0.7),
-            cursor_feather_count: 4,
-            cursor_feather_drift_speed: 1.0,
-            cursor_feather_opacity: 0.18,
-            plaid_pattern_enabled: false,
-            plaid_pattern_color: (0.7, 0.3, 0.3),
-            plaid_pattern_band_width: 4.0,
-            plaid_pattern_band_spacing: 30.0,
-            plaid_pattern_opacity: 0.05,
-            cursor_stardust_enabled: false,
-            cursor_stardust_color: (1.0, 0.9, 0.5),
-            cursor_stardust_particle_count: 20,
-            cursor_stardust_fall_speed: 1.0,
-            cursor_stardust_opacity: 0.2,
-            brick_wall_enabled: false,
-            brick_wall_color: (0.6, 0.4, 0.3),
-            brick_wall_width: 40.0,
-            brick_wall_height: 20.0,
-            brick_wall_opacity: 0.06,
-            cursor_compass_needle_enabled: false,
-            cursor_compass_needle_color: (1.0, 0.3, 0.3),
-            cursor_compass_needle_length: 20.0,
-            cursor_compass_needle_spin_speed: 2.0,
-            cursor_compass_needle_opacity: 0.2,
-            sine_wave_enabled: false,
-            sine_wave_color: (0.3, 0.7, 1.0),
-            sine_wave_amplitude: 20.0,
-            sine_wave_wavelength: 80.0,
-            sine_wave_speed: 1.0,
-            sine_wave_opacity: 0.06,
-            cursor_galaxy_enabled: false,
-            cursor_galaxy_color: (0.8, 0.8, 1.0),
-            cursor_galaxy_star_count: 30,
-            cursor_galaxy_radius: 30.0,
-            cursor_galaxy_opacity: 0.2,
-            rotating_gear_enabled: false,
-            rotating_gear_color: (0.6, 0.7, 0.8),
-            rotating_gear_size: 40.0,
-            rotating_gear_speed: 0.5,
-            rotating_gear_opacity: 0.08,
-            cursor_prism_enabled: false,
-            cursor_prism_color: (1.0, 1.0, 1.0),
-            cursor_prism_ray_count: 7,
-            cursor_prism_spread: 30.0,
-            cursor_prism_opacity: 0.15,
-            crosshatch_pattern_enabled: false,
-            crosshatch_pattern_color: (0.5, 0.6, 0.4),
-            crosshatch_pattern_line_spacing: 20.0,
-            crosshatch_pattern_angle: 45.0,
-            crosshatch_pattern_speed: 0.3,
-            crosshatch_pattern_opacity: 0.06,
-            cursor_moth_enabled: false,
-            cursor_moth_color: (0.9, 0.8, 0.5),
-            cursor_moth_count: 5,
-            cursor_moth_wing_size: 8.0,
-            cursor_moth_opacity: 0.2,
+            effects: crate::effect_config::EffectsConfig::default(),
             prev_window_infos: HashMap::new(),
             crossfade_enabled: true,
             crossfade_duration: std::time::Duration::from_millis(200),
@@ -2029,240 +834,13 @@ impl RenderApp {
             fps_render_start: std::time::Instant::now(),
             extra_line_spacing: 0.0,
             extra_letter_spacing: 0.0,
-            bg_gradient_enabled: false,
-            bg_gradient_top: (0.0, 0.0, 0.0),
-            bg_gradient_bottom: (0.0, 0.0, 0.0),
-            scroll_bar_width: 0,
-            scroll_bar_thumb_radius: 0.4,
-            scroll_bar_track_opacity: 0.6,
-            scroll_bar_hover_brightness: 1.4,
-            indent_guides_enabled: false,
-            indent_guide_color: (0.3, 0.3, 0.3, 0.3),
-            indent_guide_rainbow_enabled: false,
-            indent_guide_rainbow_colors: Vec::new(),
-            line_highlight_enabled: false,
-            line_highlight_color: (0.2, 0.2, 0.3, 0.15),
-            show_whitespace_enabled: false,
-            show_whitespace_color: (0.4, 0.4, 0.4, 0.3),
-            inactive_dim_enabled: false,
-            inactive_dim_opacity: 0.15,
-            mode_line_separator_style: 0,
-            mode_line_separator_color: (0.0, 0.0, 0.0),
-            mode_line_separator_height: 3.0,
-            cursor_glow_enabled: false,
-            cursor_glow_color: (0.4, 0.6, 1.0),
-            cursor_glow_radius: 30.0,
-            cursor_glow_opacity: 0.15,
-            cursor_pulse_enabled: false,
-            cursor_pulse_speed: 1.0,
-            cursor_pulse_min_opacity: 0.3,
-            focus_mode_enabled: false,
-            focus_mode_opacity: 0.4,
-            minimap_enabled: false,
-            minimap_width: 80.0,
-            typing_ripple_enabled: false,
-            typing_ripple_max_radius: 40.0,
-            typing_ripple_duration_ms: 300,
-            search_pulse_enabled: false,
-            search_pulse_face_id: 0,
-            bg_pattern_style: 0,
-            bg_pattern_spacing: 20.0,
-            bg_pattern_color: (0.5, 0.5, 0.5),
-            bg_pattern_opacity: 0.05,
-            zen_mode_enabled: false,
-            zen_mode_content_width_pct: 60.0,
-            zen_mode_margin_opacity: 0.3,
-            vignette_enabled: false,
-            vignette_intensity: 0.3,
-            vignette_radius: 50.0,
-            line_animation_enabled: false,
-            line_animation_duration_ms: 150,
-            header_shadow_enabled: false,
-            header_shadow_intensity: 0.3,
-            header_shadow_size: 6.0,
-            cursor_color_cycle_enabled: false,
-            cursor_color_cycle_speed: 0.5,
-            cursor_color_cycle_saturation: 0.8,
-            cursor_color_cycle_lightness: 0.6,
-            window_switch_fade_enabled: false,
-            window_switch_fade_duration_ms: 200,
-            window_switch_fade_intensity: 0.15,
             prev_selected_window_id: 0,
-            breadcrumb_enabled: false,
-            breadcrumb_opacity: 0.7,
-            title_fade_enabled: false,
-            title_fade_duration_ms: 300,
-            typing_speed_enabled: false,
             key_press_times: Vec::new(),
             displayed_wpm: 0.0,
-            border_transition_enabled: false,
-            border_transition_active_color: (0.4, 0.6, 1.0),
-            border_transition_duration_ms: 200,
-            accent_strip_enabled: false,
-            accent_strip_width: 3.0,
-            cursor_trail_fade_enabled: false,
-            cursor_trail_fade_length: 8,
-            cursor_trail_fade_ms: 300,
-            cursor_shadow_enabled: false,
-            cursor_shadow_offset_x: 2.0,
-            cursor_shadow_offset_y: 2.0,
-            cursor_shadow_opacity: 0.3,
-            focus_ring_enabled: false,
-            focus_ring_color: (0.4, 0.6, 1.0),
-            focus_ring_opacity: 0.5,
-            focus_ring_dash_length: 8.0,
-            focus_ring_speed: 40.0,
-            window_mode_tint_enabled: false,
-            window_mode_tint_opacity: 0.03,
-            window_watermark_enabled: false,
-            window_watermark_opacity: 0.08,
-            window_watermark_threshold: 10,
-            mode_line_transition_enabled: false,
-            mode_line_transition_duration_ms: 200,
-            text_fade_in_enabled: false,
-            text_fade_in_duration_ms: 150,
-            scroll_line_spacing_enabled: false,
-            scroll_line_spacing_max: 6.0,
-            scroll_line_spacing_duration: std::time::Duration::from_millis(200),
-            cursor_wake_enabled: false,
-            cursor_wake_duration_ms: 120,
-            cursor_wake_scale: 1.3,
-            window_content_shadow_enabled: false,
-            window_content_shadow_size: 6.0,
-            window_content_shadow_opacity: 0.15,
-            edge_snap_enabled: false,
-            edge_snap_color: (1.0, 0.5, 0.2),
-            edge_snap_duration_ms: 200,
-            cursor_crosshair_enabled: false,
-            cursor_crosshair_color: (0.5, 0.5, 0.5),
-            cursor_crosshair_opacity: 0.15,
-            modified_indicator_enabled: false,
-            modified_indicator_color: (1.0, 0.6, 0.2),
-            modified_indicator_width: 3.0,
-            modified_indicator_opacity: 0.8,
-            stained_glass_enabled: false,
-            stained_glass_opacity: 0.08,
-            stained_glass_saturation: 0.6,
-            focus_gradient_border_enabled: false,
-            focus_gradient_border_top_color: (0.3, 0.6, 1.0),
-            focus_gradient_border_bot_color: (0.6, 0.3, 1.0),
-            focus_gradient_border_width: 2.0,
-            focus_gradient_border_opacity: 0.6,
-            cursor_magnetism_enabled: false,
-            cursor_magnetism_color: (0.4, 0.7, 1.0),
-            cursor_magnetism_ring_count: 3,
-            cursor_magnetism_duration_ms: 300,
-            cursor_magnetism_opacity: 0.5,
-            depth_shadow_enabled: false,
-            depth_shadow_layers: 3,
-            depth_shadow_offset: 2.0,
-            depth_shadow_color: (0.0, 0.0, 0.0),
-            depth_shadow_opacity: 0.15,
-            mode_line_gradient_enabled: false,
-            mode_line_gradient_left_color: (0.2, 0.3, 0.5),
-            mode_line_gradient_right_color: (0.5, 0.3, 0.2),
-            mode_line_gradient_opacity: 0.3,
-            corner_fold_enabled: false,
-            corner_fold_size: 20.0,
-            corner_fold_color: (0.6, 0.4, 0.2),
-            corner_fold_opacity: 0.5,
-            frosted_border_enabled: false,
-            frosted_border_width: 4.0,
-            frosted_border_opacity: 0.15,
-            frosted_border_color: (1.0, 1.0, 1.0),
-            line_number_pulse_enabled: false,
-            line_number_pulse_color: (0.4, 0.6, 1.0),
-            line_number_pulse_intensity: 0.3,
-            line_number_pulse_cycle_ms: 2000,
-            breathing_border_enabled: false,
-            breathing_border_color: (0.5, 0.5, 0.5),
-            breathing_border_min_opacity: 0.05,
-            breathing_border_max_opacity: 0.3,
-            breathing_border_cycle_ms: 3000,
-            scanlines_enabled: false,
-            scanlines_spacing: 2,
-            scanlines_opacity: 0.08,
-            scanlines_color: (0.0, 0.0, 0.0),
-            cursor_comet_enabled: false,
-            cursor_comet_trail_length: 5,
-            cursor_comet_fade_ms: 300,
-            cursor_comet_color: (0.5, 0.7, 1.0),
-            cursor_comet_opacity: 0.6,
-            cursor_spotlight_enabled: false,
-            cursor_spotlight_radius: 200.0,
-            cursor_spotlight_intensity: 0.15,
-            cursor_spotlight_color: (1.0, 1.0, 0.9),
-            cursor_particles_enabled: false,
-            cursor_particles_color: (1.0, 0.6, 0.2),
-            cursor_particles_count: 6,
-            cursor_particles_lifetime_ms: 800,
-            cursor_particles_gravity: 120.0,
-            window_border_radius_enabled: false,
-            window_border_radius: 8.0,
-            window_border_width: 1.0,
-            window_border_color: (0.5, 0.5, 0.5),
-            window_border_opacity: 0.3,
-            typing_heatmap_enabled: false,
-            typing_heatmap_color: (1.0, 0.4, 0.1),
-            typing_heatmap_fade_ms: 2000,
-            typing_heatmap_opacity: 0.15,
-            theme_transition_enabled: false,
-            theme_transition_duration: std::time::Duration::from_millis(300),
             prev_background: None,
-            click_halo_enabled: false,
-            click_halo_color: (0.4, 0.6, 1.0),
-            click_halo_duration_ms: 300,
-            click_halo_max_radius: 30.0,
-            scroll_velocity_fade_enabled: false,
-            scroll_velocity_fade_max_opacity: 0.15,
-            scroll_velocity_fade_ms: 300,
-            minibuffer_highlight_enabled: false,
-            minibuffer_highlight_color: (0.4, 0.6, 1.0),
-            minibuffer_highlight_opacity: 0.25,
-            resize_padding_enabled: false,
-            resize_padding_duration_ms: 200,
-            resize_padding_max: 12.0,
-            cursor_error_pulse_enabled: false,
-            cursor_error_pulse_color: (1.0, 0.2, 0.2),
-            cursor_error_pulse_duration_ms: 250,
-            wrap_indicator_enabled: false,
-            wrap_indicator_color: (0.5, 0.6, 0.8),
-            wrap_indicator_opacity: 0.3,
-            scroll_momentum_enabled: false,
-            scroll_momentum_fade_ms: 300,
-            scroll_momentum_width: 3.0,
-            region_glow_enabled: false,
-            region_glow_face_id: 0,
-            region_glow_radius: 6.0,
-            region_glow_opacity: 0.3,
-            idle_dim_enabled: false,
-            idle_dim_delay: std::time::Duration::from_secs(60),
-            idle_dim_opacity: 0.4,
-            idle_dim_fade_duration: std::time::Duration::from_millis(500),
             last_activity_time: std::time::Instant::now(),
             idle_dim_current_alpha: 0.0,
             idle_dim_active: false,
-            noise_grain_enabled: false,
-            noise_grain_intensity: 0.03,
-            noise_grain_size: 2.0,
-            padding_gradient_enabled: false,
-            padding_gradient_color: (0.0, 0.0, 0.0),
-            padding_gradient_opacity: 0.15,
-            padding_gradient_width: 8.0,
-            frosted_glass_enabled: false,
-            frosted_glass_opacity: 0.3,
-            frosted_glass_blur: 4.0,
-            window_glow_enabled: false,
-            window_glow_color: (0.4, 0.6, 1.0),
-            window_glow_radius: 8.0,
-            window_glow_intensity: 0.4,
-            scroll_progress_enabled: false,
-            scroll_progress_height: 2.0,
-            scroll_progress_color: (0.4, 0.6, 1.0),
-            scroll_progress_opacity: 0.8,
-            inactive_tint_enabled: false,
-            inactive_tint_color: (0.2, 0.1, 0.0),
-            inactive_tint_opacity: 0.1,
 
             shared_monitors: Some(shared_monitors),
             monitors_populated: false,
@@ -2441,7 +1019,7 @@ impl RenderApp {
         self.scroll_slides.clear();
 
         // Trigger resize padding transition
-        if self.resize_padding_enabled {
+        if self.effects.resize_padding.enabled {
             if let Some(renderer) = self.renderer.as_mut() {
                 renderer.trigger_resize_padding(std::time::Instant::now());
             }
@@ -2905,13 +1483,13 @@ impl RenderApp {
                 RenderCommand::VisualBell => {
                     self.visual_bell_start = Some(std::time::Instant::now());
                     // Trigger cursor error pulse if enabled
-                    if self.cursor_error_pulse_enabled {
+                    if self.effects.cursor_error_pulse.enabled {
                         if let Some(renderer) = self.renderer.as_mut() {
                             renderer.trigger_cursor_error_pulse(std::time::Instant::now());
                         }
                     }
                     // Trigger edge snap indicator if enabled
-                    if self.edge_snap_enabled {
+                    if self.effects.edge_snap.enabled {
                         if let Some(ref frame) = self.current_frame {
                             // Find selected window and check boundary
                             for info in &frame.window_infos {
@@ -2970,18 +1548,18 @@ impl RenderApp {
                 RenderCommand::SetBackgroundGradient {
                     enabled, top_r, top_g, top_b, bottom_r, bottom_g, bottom_b,
                 } => {
-                    self.bg_gradient_enabled = enabled;
-                    self.bg_gradient_top = (top_r, top_g, top_b);
-                    self.bg_gradient_bottom = (bottom_r, bottom_g, bottom_b);
+                    self.effects.bg_gradient.enabled = enabled;
+                    self.effects.bg_gradient.top = (top_r, top_g, top_b);
+                    self.effects.bg_gradient.bottom = (bottom_r, bottom_g, bottom_b);
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetScrollBarConfig {
                     width, thumb_radius, track_opacity, hover_brightness,
                 } => {
-                    self.scroll_bar_width = width;
-                    self.scroll_bar_thumb_radius = thumb_radius;
-                    self.scroll_bar_track_opacity = track_opacity;
-                    self.scroll_bar_hover_brightness = hover_brightness;
+                    self.effects.scroll_bar.width = width;
+                    self.effects.scroll_bar.thumb_radius = thumb_radius;
+                    self.effects.scroll_bar.track_opacity = track_opacity;
+                    self.effects.scroll_bar.hover_brightness = hover_brightness;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_scroll_bar_config(
                             thumb_radius, track_opacity, hover_brightness,
@@ -2994,8 +1572,8 @@ impl RenderApp {
                 } => {
                     // Convert sRGB to linear for GPU rendering
                     let c = crate::core::types::Color::new(r, g, b, opacity).srgb_to_linear();
-                    self.indent_guides_enabled = enabled;
-                    self.indent_guide_color = (c.r, c.g, c.b, c.a);
+                    self.effects.indent_guides.enabled = enabled;
+                    self.effects.indent_guides.color = (c.r, c.g, c.b, c.a);
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_indent_guide_config(enabled, (c.r, c.g, c.b, c.a));
                     }
@@ -3009,8 +1587,8 @@ impl RenderApp {
                         let c = crate::core::types::Color::new(*r, *g, *b, *a).srgb_to_linear();
                         (c.r, c.g, c.b, c.a)
                     }).collect();
-                    self.indent_guide_rainbow_enabled = enabled;
-                    self.indent_guide_rainbow_colors = linear_colors.clone();
+                    self.effects.indent_guides.rainbow_enabled = enabled;
+                    self.effects.indent_guides.rainbow_colors = linear_colors.clone();
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_indent_guide_rainbow(enabled, linear_colors);
                     }
@@ -3020,8 +1598,8 @@ impl RenderApp {
                     enabled, r, g, b, opacity,
                 } => {
                     let c = crate::core::types::Color::new(r, g, b, opacity).srgb_to_linear();
-                    self.line_highlight_enabled = enabled;
-                    self.line_highlight_color = (c.r, c.g, c.b, c.a);
+                    self.effects.line_highlight.enabled = enabled;
+                    self.effects.line_highlight.color = (c.r, c.g, c.b, c.a);
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_line_highlight_config(enabled, (c.r, c.g, c.b, c.a));
                     }
@@ -3031,16 +1609,16 @@ impl RenderApp {
                     enabled, r, g, b, opacity,
                 } => {
                     let c = crate::core::types::Color::new(r, g, b, opacity).srgb_to_linear();
-                    self.show_whitespace_enabled = enabled;
-                    self.show_whitespace_color = (c.r, c.g, c.b, c.a);
+                    self.effects.show_whitespace.enabled = enabled;
+                    self.effects.show_whitespace.color = (c.r, c.g, c.b, c.a);
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_show_whitespace_config(enabled, (c.r, c.g, c.b, c.a));
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetInactiveDim { enabled, opacity } => {
-                    self.inactive_dim_enabled = enabled;
-                    self.inactive_dim_opacity = opacity;
+                    self.effects.inactive_dim.enabled = enabled;
+                    self.effects.inactive_dim.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_inactive_dim_config(enabled, opacity);
                     }
@@ -3048,9 +1626,9 @@ impl RenderApp {
                 }
 
                 RenderCommand::SetModeLineSeparator { style, r, g, b, height } => {
-                    self.mode_line_separator_style = style;
-                    self.mode_line_separator_color = (r, g, b);
-                    self.mode_line_separator_height = height;
+                    self.effects.mode_line_separator.style = style;
+                    self.effects.mode_line_separator.color = (r, g, b);
+                    self.effects.mode_line_separator.height = height;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_mode_line_separator(style, (r, g, b), height);
                     }
@@ -3058,168 +1636,168 @@ impl RenderApp {
                 }
 
                 RenderCommand::SetCursorGlow { enabled, r, g, b, radius, opacity } => {
-                    self.cursor_glow_enabled = enabled;
-                    self.cursor_glow_color = (r, g, b);
-                    self.cursor_glow_radius = radius;
-                    self.cursor_glow_opacity = opacity;
+                    self.effects.cursor_glow.enabled = enabled;
+                    self.effects.cursor_glow.color = (r, g, b);
+                    self.effects.cursor_glow.radius = radius;
+                    self.effects.cursor_glow.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_glow(enabled, (r, g, b), radius, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorPulse { enabled, speed, min_opacity } => {
-                    self.cursor_pulse_enabled = enabled;
-                    self.cursor_pulse_speed = speed;
-                    self.cursor_pulse_min_opacity = min_opacity;
+                    self.effects.cursor_pulse.enabled = enabled;
+                    self.effects.cursor_pulse.speed = speed;
+                    self.effects.cursor_pulse.min_opacity = min_opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_pulse(enabled, speed, min_opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetFocusMode { enabled, opacity } => {
-                    self.focus_mode_enabled = enabled;
-                    self.focus_mode_opacity = opacity;
+                    self.effects.focus_mode.enabled = enabled;
+                    self.effects.focus_mode.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_focus_mode(enabled, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetMinimap { enabled, width } => {
-                    self.minimap_enabled = enabled;
-                    self.minimap_width = width;
+                    self.effects.minimap.enabled = enabled;
+                    self.effects.minimap.width = width;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_minimap(enabled, width);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTypingRipple { enabled, max_radius, duration_ms } => {
-                    self.typing_ripple_enabled = enabled;
-                    self.typing_ripple_max_radius = max_radius;
-                    self.typing_ripple_duration_ms = duration_ms;
+                    self.effects.typing_ripple.enabled = enabled;
+                    self.effects.typing_ripple.max_radius = max_radius;
+                    self.effects.typing_ripple.duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_typing_ripple(enabled, max_radius, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetSearchPulse { enabled, face_id } => {
-                    self.search_pulse_enabled = enabled;
-                    self.search_pulse_face_id = face_id;
+                    self.effects.search_pulse.enabled = enabled;
+                    self.effects.search_pulse.face_id = face_id;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_search_pulse(enabled, face_id);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetBackgroundPattern { style, spacing, r, g, b, opacity } => {
-                    self.bg_pattern_style = style;
-                    self.bg_pattern_spacing = spacing;
-                    self.bg_pattern_color = (r, g, b);
-                    self.bg_pattern_opacity = opacity;
+                    self.effects.bg_pattern.style = style;
+                    self.effects.bg_pattern.spacing = spacing;
+                    self.effects.bg_pattern.color = (r, g, b);
+                    self.effects.bg_pattern.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_background_pattern(style, spacing, r, g, b, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetZenMode { enabled, content_width_pct, margin_opacity } => {
-                    self.zen_mode_enabled = enabled;
-                    self.zen_mode_content_width_pct = content_width_pct;
-                    self.zen_mode_margin_opacity = margin_opacity;
+                    self.effects.zen_mode.enabled = enabled;
+                    self.effects.zen_mode.content_width_pct = content_width_pct;
+                    self.effects.zen_mode.margin_opacity = margin_opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_zen_mode(enabled, content_width_pct, margin_opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetVignette { enabled, intensity, radius } => {
-                    self.vignette_enabled = enabled;
-                    self.vignette_intensity = intensity;
-                    self.vignette_radius = radius;
+                    self.effects.vignette.enabled = enabled;
+                    self.effects.vignette.intensity = intensity;
+                    self.effects.vignette.radius = radius;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_vignette(enabled, intensity, radius);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetLineAnimation { enabled, duration_ms } => {
-                    self.line_animation_enabled = enabled;
-                    self.line_animation_duration_ms = duration_ms;
+                    self.effects.line_animation.enabled = enabled;
+                    self.effects.line_animation.duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_line_animation(enabled, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetHeaderShadow { enabled, intensity, size } => {
-                    self.header_shadow_enabled = enabled;
-                    self.header_shadow_intensity = intensity;
-                    self.header_shadow_size = size;
+                    self.effects.header_shadow.enabled = enabled;
+                    self.effects.header_shadow.intensity = intensity;
+                    self.effects.header_shadow.size = size;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_header_shadow(enabled, intensity, size);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorColorCycle { enabled, speed, saturation, lightness } => {
-                    self.cursor_color_cycle_enabled = enabled;
-                    self.cursor_color_cycle_speed = speed;
-                    self.cursor_color_cycle_saturation = saturation;
-                    self.cursor_color_cycle_lightness = lightness;
+                    self.effects.cursor_color_cycle.enabled = enabled;
+                    self.effects.cursor_color_cycle.speed = speed;
+                    self.effects.cursor_color_cycle.saturation = saturation;
+                    self.effects.cursor_color_cycle.lightness = lightness;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_color_cycle(enabled, speed, saturation, lightness);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetWindowSwitchFade { enabled, duration_ms, intensity } => {
-                    self.window_switch_fade_enabled = enabled;
-                    self.window_switch_fade_duration_ms = duration_ms;
-                    self.window_switch_fade_intensity = intensity;
+                    self.effects.window_switch_fade.enabled = enabled;
+                    self.effects.window_switch_fade.duration_ms = duration_ms;
+                    self.effects.window_switch_fade.intensity = intensity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_window_switch_fade(enabled, duration_ms, intensity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetInactiveTint { enabled, color, opacity } => {
-                    self.inactive_tint_enabled = enabled;
-                    self.inactive_tint_color = color;
-                    self.inactive_tint_opacity = opacity;
+                    self.effects.inactive_tint.enabled = enabled;
+                    self.effects.inactive_tint.color = color;
+                    self.effects.inactive_tint.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_inactive_tint(enabled, color, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetScrollProgress { enabled, height, color, opacity } => {
-                    self.scroll_progress_enabled = enabled;
-                    self.scroll_progress_height = height;
-                    self.scroll_progress_color = color;
-                    self.scroll_progress_opacity = opacity;
+                    self.effects.scroll_progress.enabled = enabled;
+                    self.effects.scroll_progress.height = height;
+                    self.effects.scroll_progress.color = color;
+                    self.effects.scroll_progress.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_scroll_progress(enabled, height, color, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetWindowGlow { enabled, color, radius, intensity } => {
-                    self.window_glow_enabled = enabled;
-                    self.window_glow_color = color;
-                    self.window_glow_radius = radius;
-                    self.window_glow_intensity = intensity;
+                    self.effects.window_glow.enabled = enabled;
+                    self.effects.window_glow.color = color;
+                    self.effects.window_glow.radius = radius;
+                    self.effects.window_glow.intensity = intensity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_window_glow(enabled, color, radius, intensity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetBreadcrumb { enabled, opacity } => {
-                    self.breadcrumb_enabled = enabled;
-                    self.breadcrumb_opacity = opacity;
+                    self.effects.breadcrumb.enabled = enabled;
+                    self.effects.breadcrumb.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_breadcrumb(enabled, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTitleFade { enabled, duration_ms } => {
-                    self.title_fade_enabled = enabled;
-                    self.title_fade_duration_ms = duration_ms;
+                    self.effects.title_fade.enabled = enabled;
+                    self.effects.title_fade.duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_title_fade(enabled, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTypingSpeed { enabled } => {
-                    self.typing_speed_enabled = enabled;
+                    self.effects.typing_speed.enabled = enabled;
                     if !enabled {
                         self.key_press_times.clear();
                         self.displayed_wpm = 0.0;
@@ -3227,380 +1805,380 @@ impl RenderApp {
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetBorderTransition { enabled, active_color, duration_ms } => {
-                    self.border_transition_enabled = enabled;
-                    self.border_transition_active_color = active_color;
-                    self.border_transition_duration_ms = duration_ms;
+                    self.effects.border_transition.enabled = enabled;
+                    self.effects.border_transition.active_color = active_color;
+                    self.effects.border_transition.duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_border_transition(enabled, active_color, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetAccentStrip { enabled, width } => {
-                    self.accent_strip_enabled = enabled;
-                    self.accent_strip_width = width;
+                    self.effects.accent_strip.enabled = enabled;
+                    self.effects.accent_strip.width = width;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_accent_strip(enabled, width);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorTrailFade { enabled, length, fade_ms } => {
-                    self.cursor_trail_fade_enabled = enabled;
-                    self.cursor_trail_fade_length = length;
-                    self.cursor_trail_fade_ms = fade_ms;
+                    self.effects.cursor_trail_fade.enabled = enabled;
+                    self.effects.cursor_trail_fade.length = length;
+                    self.effects.cursor_trail_fade.ms = fade_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_trail_fade(enabled, length as usize, fade_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorShadow { enabled, offset_x, offset_y, opacity } => {
-                    self.cursor_shadow_enabled = enabled;
-                    self.cursor_shadow_offset_x = offset_x;
-                    self.cursor_shadow_offset_y = offset_y;
-                    self.cursor_shadow_opacity = opacity;
+                    self.effects.cursor_shadow.enabled = enabled;
+                    self.effects.cursor_shadow.offset_x = offset_x;
+                    self.effects.cursor_shadow.offset_y = offset_y;
+                    self.effects.cursor_shadow.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_shadow(enabled, offset_x, offset_y, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetFocusRing { enabled, color, opacity, dash_length, speed } => {
-                    self.focus_ring_enabled = enabled;
-                    self.focus_ring_color = color;
-                    self.focus_ring_opacity = opacity;
-                    self.focus_ring_dash_length = dash_length;
-                    self.focus_ring_speed = speed;
+                    self.effects.focus_ring.enabled = enabled;
+                    self.effects.focus_ring.color = color;
+                    self.effects.focus_ring.opacity = opacity;
+                    self.effects.focus_ring.dash_length = dash_length;
+                    self.effects.focus_ring.speed = speed;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_focus_ring(enabled, color, opacity, dash_length, speed);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetWindowModeTint { enabled, opacity } => {
-                    self.window_mode_tint_enabled = enabled;
-                    self.window_mode_tint_opacity = opacity;
+                    self.effects.window_mode_tint.enabled = enabled;
+                    self.effects.window_mode_tint.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_window_mode_tint(enabled, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetWindowWatermark { enabled, opacity, threshold } => {
-                    self.window_watermark_enabled = enabled;
-                    self.window_watermark_opacity = opacity;
-                    self.window_watermark_threshold = threshold;
+                    self.effects.window_watermark.enabled = enabled;
+                    self.effects.window_watermark.opacity = opacity;
+                    self.effects.window_watermark.threshold = threshold;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_window_watermark(enabled, opacity, threshold);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetModeLineTransition { enabled, duration_ms } => {
-                    self.mode_line_transition_enabled = enabled;
-                    self.mode_line_transition_duration_ms = duration_ms;
+                    self.effects.mode_line_transition.enabled = enabled;
+                    self.effects.mode_line_transition.duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_mode_line_transition(enabled, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTextFadeIn { enabled, duration_ms } => {
-                    self.text_fade_in_enabled = enabled;
-                    self.text_fade_in_duration_ms = duration_ms;
+                    self.effects.text_fade_in.enabled = enabled;
+                    self.effects.text_fade_in.duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_text_fade_in(enabled, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetScrollLineSpacing { enabled, max_spacing, duration_ms } => {
-                    self.scroll_line_spacing_enabled = enabled;
-                    self.scroll_line_spacing_max = max_spacing;
-                    self.scroll_line_spacing_duration = std::time::Duration::from_millis(duration_ms as u64);
+                    self.effects.scroll_line_spacing.enabled = enabled;
+                    self.effects.scroll_line_spacing.max = max_spacing;
+                    self.effects.scroll_line_spacing.duration = std::time::Duration::from_millis(duration_ms as u64);
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_scroll_line_spacing(enabled, max_spacing, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorWake { enabled, duration_ms, scale } => {
-                    self.cursor_wake_enabled = enabled;
-                    self.cursor_wake_duration_ms = duration_ms;
-                    self.cursor_wake_scale = scale;
+                    self.effects.cursor_wake.enabled = enabled;
+                    self.effects.cursor_wake.duration_ms = duration_ms;
+                    self.effects.cursor_wake.scale = scale;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_wake(enabled, duration_ms, scale);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetWindowContentShadow { enabled, size, opacity } => {
-                    self.window_content_shadow_enabled = enabled;
-                    self.window_content_shadow_size = size;
-                    self.window_content_shadow_opacity = opacity;
+                    self.effects.window_content_shadow.enabled = enabled;
+                    self.effects.window_content_shadow.size = size;
+                    self.effects.window_content_shadow.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_window_content_shadow(enabled, size, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetEdgeSnap { enabled, r, g, b, duration_ms } => {
-                    self.edge_snap_enabled = enabled;
-                    self.edge_snap_color = (r, g, b);
-                    self.edge_snap_duration_ms = duration_ms;
+                    self.effects.edge_snap.enabled = enabled;
+                    self.effects.edge_snap.color = (r, g, b);
+                    self.effects.edge_snap.duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_edge_snap(enabled, (r, g, b), duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorCrosshair { enabled, r, g, b, opacity } => {
-                    self.cursor_crosshair_enabled = enabled;
-                    self.cursor_crosshair_color = (r, g, b);
-                    self.cursor_crosshair_opacity = opacity;
+                    self.effects.cursor_crosshair.enabled = enabled;
+                    self.effects.cursor_crosshair.color = (r, g, b);
+                    self.effects.cursor_crosshair.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_crosshair(enabled, (r, g, b), opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetModifiedIndicator { enabled, r, g, b, width, opacity } => {
-                    self.modified_indicator_enabled = enabled;
-                    self.modified_indicator_color = (r, g, b);
-                    self.modified_indicator_width = width;
-                    self.modified_indicator_opacity = opacity;
+                    self.effects.modified_indicator.enabled = enabled;
+                    self.effects.modified_indicator.color = (r, g, b);
+                    self.effects.modified_indicator.width = width;
+                    self.effects.modified_indicator.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_modified_indicator(enabled, (r, g, b), width, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetStainedGlass { enabled, opacity, saturation } => {
-                    self.stained_glass_enabled = enabled;
-                    self.stained_glass_opacity = opacity;
-                    self.stained_glass_saturation = saturation;
+                    self.effects.stained_glass.enabled = enabled;
+                    self.effects.stained_glass.opacity = opacity;
+                    self.effects.stained_glass.saturation = saturation;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_stained_glass(enabled, opacity, saturation);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetFocusGradientBorder { enabled, top_r, top_g, top_b, bot_r, bot_g, bot_b, width, opacity } => {
-                    self.focus_gradient_border_enabled = enabled;
-                    self.focus_gradient_border_top_color = (top_r, top_g, top_b);
-                    self.focus_gradient_border_bot_color = (bot_r, bot_g, bot_b);
-                    self.focus_gradient_border_width = width;
-                    self.focus_gradient_border_opacity = opacity;
+                    self.effects.focus_gradient_border.enabled = enabled;
+                    self.effects.focus_gradient_border.top_color = (top_r, top_g, top_b);
+                    self.effects.focus_gradient_border.bot_color = (bot_r, bot_g, bot_b);
+                    self.effects.focus_gradient_border.width = width;
+                    self.effects.focus_gradient_border.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_focus_gradient_border(enabled, (top_r, top_g, top_b), (bot_r, bot_g, bot_b), width, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorMagnetism { enabled, r, g, b, ring_count, duration_ms, opacity } => {
-                    self.cursor_magnetism_enabled = enabled;
-                    self.cursor_magnetism_color = (r, g, b);
-                    self.cursor_magnetism_ring_count = ring_count;
-                    self.cursor_magnetism_duration_ms = duration_ms;
-                    self.cursor_magnetism_opacity = opacity;
+                    self.effects.cursor_magnetism.enabled = enabled;
+                    self.effects.cursor_magnetism.color = (r, g, b);
+                    self.effects.cursor_magnetism.ring_count = ring_count;
+                    self.effects.cursor_magnetism.duration_ms = duration_ms;
+                    self.effects.cursor_magnetism.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_magnetism(enabled, (r, g, b), ring_count, duration_ms, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetDepthShadow { enabled, layers, offset, r, g, b, opacity } => {
-                    self.depth_shadow_enabled = enabled;
-                    self.depth_shadow_layers = layers;
-                    self.depth_shadow_offset = offset;
-                    self.depth_shadow_color = (r, g, b);
-                    self.depth_shadow_opacity = opacity;
+                    self.effects.depth_shadow.enabled = enabled;
+                    self.effects.depth_shadow.layers = layers;
+                    self.effects.depth_shadow.offset = offset;
+                    self.effects.depth_shadow.color = (r, g, b);
+                    self.effects.depth_shadow.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_depth_shadow(enabled, layers, offset, (r, g, b), opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetModeLineGradient { enabled, left_r, left_g, left_b, right_r, right_g, right_b, opacity } => {
-                    self.mode_line_gradient_enabled = enabled;
-                    self.mode_line_gradient_left_color = (left_r, left_g, left_b);
-                    self.mode_line_gradient_right_color = (right_r, right_g, right_b);
-                    self.mode_line_gradient_opacity = opacity;
+                    self.effects.mode_line_gradient.enabled = enabled;
+                    self.effects.mode_line_gradient.left_color = (left_r, left_g, left_b);
+                    self.effects.mode_line_gradient.right_color = (right_r, right_g, right_b);
+                    self.effects.mode_line_gradient.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_mode_line_gradient(enabled, (left_r, left_g, left_b), (right_r, right_g, right_b), opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCornerFold { enabled, size, r, g, b, opacity } => {
-                    self.corner_fold_enabled = enabled;
-                    self.corner_fold_size = size;
-                    self.corner_fold_color = (r, g, b);
-                    self.corner_fold_opacity = opacity;
+                    self.effects.corner_fold.enabled = enabled;
+                    self.effects.corner_fold.size = size;
+                    self.effects.corner_fold.color = (r, g, b);
+                    self.effects.corner_fold.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_corner_fold(enabled, size, (r, g, b), opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetFrostedBorder { enabled, width, opacity, r, g, b } => {
-                    self.frosted_border_enabled = enabled;
-                    self.frosted_border_width = width;
-                    self.frosted_border_opacity = opacity;
-                    self.frosted_border_color = (r, g, b);
+                    self.effects.frosted_border.enabled = enabled;
+                    self.effects.frosted_border.width = width;
+                    self.effects.frosted_border.opacity = opacity;
+                    self.effects.frosted_border.color = (r, g, b);
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_frosted_border(enabled, width, opacity, (r, g, b));
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetLineNumberPulse { enabled, r, g, b, intensity, cycle_ms } => {
-                    self.line_number_pulse_enabled = enabled;
-                    self.line_number_pulse_color = (r, g, b);
-                    self.line_number_pulse_intensity = intensity;
-                    self.line_number_pulse_cycle_ms = cycle_ms;
+                    self.effects.line_number_pulse.enabled = enabled;
+                    self.effects.line_number_pulse.color = (r, g, b);
+                    self.effects.line_number_pulse.intensity = intensity;
+                    self.effects.line_number_pulse.cycle_ms = cycle_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_line_number_pulse(enabled, (r, g, b), intensity, cycle_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetBreathingBorder { enabled, r, g, b, min_opacity, max_opacity, cycle_ms } => {
-                    self.breathing_border_enabled = enabled;
-                    self.breathing_border_color = (r, g, b);
-                    self.breathing_border_min_opacity = min_opacity;
-                    self.breathing_border_max_opacity = max_opacity;
-                    self.breathing_border_cycle_ms = cycle_ms;
+                    self.effects.breathing_border.enabled = enabled;
+                    self.effects.breathing_border.color = (r, g, b);
+                    self.effects.breathing_border.min_opacity = min_opacity;
+                    self.effects.breathing_border.max_opacity = max_opacity;
+                    self.effects.breathing_border.cycle_ms = cycle_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_breathing_border(enabled, (r, g, b), min_opacity, max_opacity, cycle_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetScanlines { enabled, spacing, opacity, r, g, b } => {
-                    self.scanlines_enabled = enabled;
-                    self.scanlines_spacing = spacing;
-                    self.scanlines_opacity = opacity;
-                    self.scanlines_color = (r, g, b);
+                    self.effects.scanlines.enabled = enabled;
+                    self.effects.scanlines.spacing = spacing;
+                    self.effects.scanlines.opacity = opacity;
+                    self.effects.scanlines.color = (r, g, b);
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_scanlines(enabled, spacing, opacity, (r, g, b));
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorComet { enabled, trail_length, fade_ms, r, g, b, opacity } => {
-                    self.cursor_comet_enabled = enabled;
-                    self.cursor_comet_trail_length = trail_length;
-                    self.cursor_comet_fade_ms = fade_ms;
-                    self.cursor_comet_color = (r, g, b);
-                    self.cursor_comet_opacity = opacity;
+                    self.effects.cursor_comet.enabled = enabled;
+                    self.effects.cursor_comet.trail_length = trail_length;
+                    self.effects.cursor_comet.fade_ms = fade_ms;
+                    self.effects.cursor_comet.color = (r, g, b);
+                    self.effects.cursor_comet.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_comet(enabled, trail_length, fade_ms, (r, g, b), opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorSpotlight { enabled, radius, intensity, r, g, b } => {
-                    self.cursor_spotlight_enabled = enabled;
-                    self.cursor_spotlight_radius = radius;
-                    self.cursor_spotlight_intensity = intensity;
-                    self.cursor_spotlight_color = (r, g, b);
+                    self.effects.cursor_spotlight.enabled = enabled;
+                    self.effects.cursor_spotlight.radius = radius;
+                    self.effects.cursor_spotlight.intensity = intensity;
+                    self.effects.cursor_spotlight.color = (r, g, b);
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_spotlight(enabled, radius, intensity, (r, g, b));
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorParticles { enabled, r, g, b, count, lifetime_ms, gravity } => {
-                    self.cursor_particles_enabled = enabled;
-                    self.cursor_particles_color = (r, g, b);
-                    self.cursor_particles_count = count;
-                    self.cursor_particles_lifetime_ms = lifetime_ms;
-                    self.cursor_particles_gravity = gravity;
+                    self.effects.cursor_particles.enabled = enabled;
+                    self.effects.cursor_particles.color = (r, g, b);
+                    self.effects.cursor_particles.count = count;
+                    self.effects.cursor_particles.lifetime_ms = lifetime_ms;
+                    self.effects.cursor_particles.gravity = gravity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_particles(enabled, (r, g, b), count, lifetime_ms, gravity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetWindowBorderRadius { enabled, radius, border_width, r, g, b, opacity } => {
-                    self.window_border_radius_enabled = enabled;
-                    self.window_border_radius = radius;
-                    self.window_border_width = border_width;
-                    self.window_border_color = (r, g, b);
-                    self.window_border_opacity = opacity;
+                    self.effects.window_border_radius.enabled = enabled;
+                    self.effects.window_border_radius.radius = radius;
+                    self.effects.window_border_radius.width = border_width;
+                    self.effects.window_border_radius.color = (r, g, b);
+                    self.effects.window_border_radius.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_window_border_radius(enabled, radius, border_width, (r, g, b), opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTypingHeatMap { enabled, hot_r, hot_g, hot_b, fade_ms, opacity } => {
-                    self.typing_heatmap_enabled = enabled;
-                    self.typing_heatmap_color = (hot_r, hot_g, hot_b);
-                    self.typing_heatmap_fade_ms = fade_ms;
-                    self.typing_heatmap_opacity = opacity;
+                    self.effects.typing_heatmap.enabled = enabled;
+                    self.effects.typing_heatmap.color = (hot_r, hot_g, hot_b);
+                    self.effects.typing_heatmap.fade_ms = fade_ms;
+                    self.effects.typing_heatmap.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_typing_heatmap(enabled, (hot_r, hot_g, hot_b), fade_ms, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetThemeTransition { enabled, duration_ms } => {
-                    self.theme_transition_enabled = enabled;
-                    self.theme_transition_duration = std::time::Duration::from_millis(duration_ms as u64);
+                    self.effects.theme_transition.enabled = enabled;
+                    self.effects.theme_transition.duration = std::time::Duration::from_millis(duration_ms as u64);
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetClickHalo { enabled, r, g, b, duration_ms, max_radius } => {
-                    self.click_halo_enabled = enabled;
-                    self.click_halo_color = (r, g, b);
-                    self.click_halo_duration_ms = duration_ms;
-                    self.click_halo_max_radius = max_radius;
+                    self.effects.click_halo.enabled = enabled;
+                    self.effects.click_halo.color = (r, g, b);
+                    self.effects.click_halo.duration_ms = duration_ms;
+                    self.effects.click_halo.max_radius = max_radius;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_click_halo(enabled, (r, g, b), duration_ms, max_radius);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetScrollVelocityFade { enabled, max_opacity, fade_ms } => {
-                    self.scroll_velocity_fade_enabled = enabled;
-                    self.scroll_velocity_fade_max_opacity = max_opacity;
-                    self.scroll_velocity_fade_ms = fade_ms;
+                    self.effects.scroll_velocity_fade.enabled = enabled;
+                    self.effects.scroll_velocity_fade.max_opacity = max_opacity;
+                    self.effects.scroll_velocity_fade.ms = fade_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_scroll_velocity_fade(enabled, max_opacity, fade_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetMinibufferHighlight { enabled, r, g, b, opacity } => {
-                    self.minibuffer_highlight_enabled = enabled;
-                    self.minibuffer_highlight_color = (r, g, b);
-                    self.minibuffer_highlight_opacity = opacity;
+                    self.effects.minibuffer_highlight.enabled = enabled;
+                    self.effects.minibuffer_highlight.color = (r, g, b);
+                    self.effects.minibuffer_highlight.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_minibuffer_highlight(enabled, (r, g, b), opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetResizePadding { enabled, duration_ms, max_padding } => {
-                    self.resize_padding_enabled = enabled;
-                    self.resize_padding_duration_ms = duration_ms;
-                    self.resize_padding_max = max_padding;
+                    self.effects.resize_padding.enabled = enabled;
+                    self.effects.resize_padding.duration_ms = duration_ms;
+                    self.effects.resize_padding.max = max_padding;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_resize_padding(enabled, duration_ms, max_padding);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorErrorPulse { enabled, r, g, b, duration_ms } => {
-                    self.cursor_error_pulse_enabled = enabled;
-                    self.cursor_error_pulse_color = (r, g, b);
-                    self.cursor_error_pulse_duration_ms = duration_ms;
+                    self.effects.cursor_error_pulse.enabled = enabled;
+                    self.effects.cursor_error_pulse.color = (r, g, b);
+                    self.effects.cursor_error_pulse.duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_error_pulse(enabled, r, g, b, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetWrapIndicator { enabled, r, g, b, opacity } => {
-                    self.wrap_indicator_enabled = enabled;
-                    self.wrap_indicator_color = (r, g, b);
-                    self.wrap_indicator_opacity = opacity;
+                    self.effects.wrap_indicator.enabled = enabled;
+                    self.effects.wrap_indicator.color = (r, g, b);
+                    self.effects.wrap_indicator.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_wrap_indicator(enabled, r, g, b, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetScrollMomentum { enabled, fade_ms, width } => {
-                    self.scroll_momentum_enabled = enabled;
-                    self.scroll_momentum_fade_ms = fade_ms;
-                    self.scroll_momentum_width = width;
+                    self.effects.scroll_momentum.enabled = enabled;
+                    self.effects.scroll_momentum.fade_ms = fade_ms;
+                    self.effects.scroll_momentum.width = width;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_scroll_momentum(enabled, fade_ms, width);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetRegionGlow { enabled, face_id, radius, opacity } => {
-                    self.region_glow_enabled = enabled;
-                    self.region_glow_face_id = face_id;
-                    self.region_glow_radius = radius;
-                    self.region_glow_opacity = opacity;
+                    self.effects.region_glow.enabled = enabled;
+                    self.effects.region_glow.face_id = face_id;
+                    self.effects.region_glow.radius = radius;
+                    self.effects.region_glow.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_region_glow(enabled, face_id, radius, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetIdleDim { enabled, delay_secs, opacity, fade_ms } => {
-                    self.idle_dim_enabled = enabled;
-                    self.idle_dim_delay = std::time::Duration::from_secs_f32(delay_secs);
-                    self.idle_dim_opacity = opacity;
-                    self.idle_dim_fade_duration = std::time::Duration::from_millis(fade_ms as u64);
+                    self.effects.idle_dim.enabled = enabled;
+                    self.effects.idle_dim.delay = std::time::Duration::from_secs_f32(delay_secs);
+                    self.effects.idle_dim.opacity = opacity;
+                    self.effects.idle_dim.fade_duration = std::time::Duration::from_millis(fade_ms as u64);
                     if !enabled {
                         self.idle_dim_current_alpha = 0.0;
                         self.idle_dim_active = false;
@@ -3608,922 +2186,922 @@ impl RenderApp {
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetNoiseGrain { enabled, intensity, size } => {
-                    self.noise_grain_enabled = enabled;
-                    self.noise_grain_intensity = intensity;
-                    self.noise_grain_size = size;
+                    self.effects.noise_grain.enabled = enabled;
+                    self.effects.noise_grain.intensity = intensity;
+                    self.effects.noise_grain.size = size;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_noise_grain(enabled, intensity, size);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetPaddingGradient { enabled, color, opacity, width } => {
-                    self.padding_gradient_enabled = enabled;
-                    self.padding_gradient_color = color;
-                    self.padding_gradient_opacity = opacity;
-                    self.padding_gradient_width = width;
+                    self.effects.padding_gradient.enabled = enabled;
+                    self.effects.padding_gradient.color = color;
+                    self.effects.padding_gradient.opacity = opacity;
+                    self.effects.padding_gradient.width = width;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_padding_gradient(enabled, color, opacity, width);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetFrostedGlass { enabled, opacity, blur } => {
-                    self.frosted_glass_enabled = enabled;
-                    self.frosted_glass_opacity = opacity;
-                    self.frosted_glass_blur = blur;
+                    self.effects.frosted_glass.enabled = enabled;
+                    self.effects.frosted_glass.opacity = opacity;
+                    self.effects.frosted_glass.blur = blur;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_frosted_glass(enabled, opacity, blur);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetMatrixRain { enabled, r, g, b, column_count, speed, opacity } => {
-                    self.matrix_rain_enabled = enabled;
-                    self.matrix_rain_color = (r, g, b);
-                    self.matrix_rain_column_count = column_count;
-                    self.matrix_rain_speed = speed;
-                    self.matrix_rain_opacity = opacity;
+                    self.effects.matrix_rain.enabled = enabled;
+                    self.effects.matrix_rain.color = (r, g, b);
+                    self.effects.matrix_rain.column_count = column_count;
+                    self.effects.matrix_rain.speed = speed;
+                    self.effects.matrix_rain.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_matrix_rain(enabled, (r, g, b), column_count, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorElasticSnap { enabled, overshoot, duration_ms } => {
-                    self.cursor_elastic_snap_enabled = enabled;
-                    self.cursor_elastic_snap_overshoot = overshoot;
-                    self.cursor_elastic_snap_duration_ms = duration_ms;
+                    self.effects.cursor_elastic_snap.enabled = enabled;
+                    self.effects.cursor_elastic_snap.overshoot = overshoot;
+                    self.effects.cursor_elastic_snap.duration_ms = duration_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_elastic_snap(enabled, overshoot, duration_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetFrostBorder { enabled, r, g, b, width, opacity } => {
-                    self.frost_border_enabled = enabled;
-                    self.frost_border_color = (r, g, b);
-                    self.frost_border_width = width;
-                    self.frost_border_opacity = opacity;
+                    self.effects.frost_border.enabled = enabled;
+                    self.effects.frost_border.color = (r, g, b);
+                    self.effects.frost_border.width = width;
+                    self.effects.frost_border.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_frost_border_effect(enabled, (r, g, b), width, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorGhost { enabled, r, g, b, count, fade_ms, drift, opacity } => {
-                    self.cursor_ghost_enabled = enabled;
-                    self.cursor_ghost_color = (r, g, b);
-                    self.cursor_ghost_count = count;
-                    self.cursor_ghost_fade_ms = fade_ms;
-                    self.cursor_ghost_drift = drift;
-                    self.cursor_ghost_opacity = opacity;
+                    self.effects.cursor_ghost.enabled = enabled;
+                    self.effects.cursor_ghost.color = (r, g, b);
+                    self.effects.cursor_ghost.count = count;
+                    self.effects.cursor_ghost.fade_ms = fade_ms;
+                    self.effects.cursor_ghost.drift = drift;
+                    self.effects.cursor_ghost.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_ghost(enabled, (r, g, b), count, fade_ms, drift, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetEdgeGlow { enabled, r, g, b, height, opacity, fade_ms } => {
-                    self.edge_glow_enabled = enabled;
-                    self.edge_glow_color = (r, g, b);
-                    self.edge_glow_height = height;
-                    self.edge_glow_opacity = opacity;
-                    self.edge_glow_fade_ms = fade_ms;
+                    self.effects.edge_glow.enabled = enabled;
+                    self.effects.edge_glow.color = (r, g, b);
+                    self.effects.edge_glow.height = height;
+                    self.effects.edge_glow.opacity = opacity;
+                    self.effects.edge_glow.fade_ms = fade_ms;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_edge_glow(enabled, (r, g, b), height, opacity, fade_ms);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetRainEffect { enabled, r, g, b, drop_count, speed, opacity } => {
-                    self.rain_effect_enabled = enabled;
-                    self.rain_effect_color = (r, g, b);
-                    self.rain_effect_drop_count = drop_count;
-                    self.rain_effect_speed = speed;
-                    self.rain_effect_opacity = opacity;
+                    self.effects.rain_effect.enabled = enabled;
+                    self.effects.rain_effect.color = (r, g, b);
+                    self.effects.rain_effect.drop_count = drop_count;
+                    self.effects.rain_effect.speed = speed;
+                    self.effects.rain_effect.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_rain_effect(enabled, (r, g, b), drop_count, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorRippleWave { enabled, r, g, b, ring_count, max_radius, duration_ms, opacity } => {
-                    self.cursor_ripple_wave_enabled = enabled;
-                    self.cursor_ripple_wave_color = (r, g, b);
-                    self.cursor_ripple_wave_ring_count = ring_count;
-                    self.cursor_ripple_wave_max_radius = max_radius;
-                    self.cursor_ripple_wave_duration_ms = duration_ms;
-                    self.cursor_ripple_wave_opacity = opacity;
+                    self.effects.cursor_ripple_wave.enabled = enabled;
+                    self.effects.cursor_ripple_wave.color = (r, g, b);
+                    self.effects.cursor_ripple_wave.ring_count = ring_count;
+                    self.effects.cursor_ripple_wave.max_radius = max_radius;
+                    self.effects.cursor_ripple_wave.duration_ms = duration_ms;
+                    self.effects.cursor_ripple_wave.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_ripple_wave(enabled, (r, g, b), ring_count, max_radius, duration_ms, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetAurora { enabled, r1, g1, b1, r2, g2, b2, height, speed, opacity } => {
-                    self.aurora_enabled = enabled;
-                    self.aurora_color1 = (r1, g1, b1);
-                    self.aurora_color2 = (r2, g2, b2);
-                    self.aurora_height = height;
-                    self.aurora_speed = speed;
-                    self.aurora_opacity = opacity;
+                    self.effects.aurora.enabled = enabled;
+                    self.effects.aurora.color1 = (r1, g1, b1);
+                    self.effects.aurora.color2 = (r2, g2, b2);
+                    self.effects.aurora.height = height;
+                    self.effects.aurora.speed = speed;
+                    self.effects.aurora.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_aurora(enabled, (r1, g1, b1), (r2, g2, b2), height, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetHeatDistortion { enabled, intensity, speed, edge_width, opacity } => {
-                    self.heat_distortion_enabled = enabled;
-                    self.heat_distortion_intensity = intensity;
-                    self.heat_distortion_speed = speed;
-                    self.heat_distortion_edge_width = edge_width;
-                    self.heat_distortion_opacity = opacity;
+                    self.effects.heat_distortion.enabled = enabled;
+                    self.effects.heat_distortion.intensity = intensity;
+                    self.effects.heat_distortion.speed = speed;
+                    self.effects.heat_distortion.edge_width = edge_width;
+                    self.effects.heat_distortion.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_heat_distortion(enabled, intensity, speed, edge_width, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorLighthouse { enabled, r, g, b, beam_width, rotation_speed, beam_length, opacity } => {
-                    self.cursor_lighthouse_enabled = enabled;
-                    self.cursor_lighthouse_color = (r, g, b);
-                    self.cursor_lighthouse_beam_width = beam_width;
-                    self.cursor_lighthouse_rotation_speed = rotation_speed;
-                    self.cursor_lighthouse_beam_length = beam_length;
-                    self.cursor_lighthouse_opacity = opacity;
+                    self.effects.cursor_lighthouse.enabled = enabled;
+                    self.effects.cursor_lighthouse.color = (r, g, b);
+                    self.effects.cursor_lighthouse.beam_width = beam_width;
+                    self.effects.cursor_lighthouse.rotation_speed = rotation_speed;
+                    self.effects.cursor_lighthouse.beam_length = beam_length;
+                    self.effects.cursor_lighthouse.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_lighthouse(enabled, (r, g, b), beam_width, rotation_speed, beam_length, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetNeonBorder { enabled, r, g, b, intensity, flicker, thickness, opacity } => {
-                    self.neon_border_enabled = enabled;
-                    self.neon_border_color = (r, g, b);
-                    self.neon_border_intensity = intensity;
-                    self.neon_border_flicker = flicker;
-                    self.neon_border_thickness = thickness;
-                    self.neon_border_opacity = opacity;
+                    self.effects.neon_border.enabled = enabled;
+                    self.effects.neon_border.color = (r, g, b);
+                    self.effects.neon_border.intensity = intensity;
+                    self.effects.neon_border.flicker = flicker;
+                    self.effects.neon_border.thickness = thickness;
+                    self.effects.neon_border.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_neon_border(enabled, (r, g, b), intensity, flicker, thickness, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorSonarPing { enabled, r, g, b, ring_count, max_radius, duration_ms, opacity } => {
-                    self.cursor_sonar_ping_enabled = enabled;
-                    self.cursor_sonar_ping_color = (r, g, b);
-                    self.cursor_sonar_ping_ring_count = ring_count;
-                    self.cursor_sonar_ping_max_radius = max_radius;
-                    self.cursor_sonar_ping_duration_ms = duration_ms;
-                    self.cursor_sonar_ping_opacity = opacity;
+                    self.effects.cursor_sonar_ping.enabled = enabled;
+                    self.effects.cursor_sonar_ping.color = (r, g, b);
+                    self.effects.cursor_sonar_ping.ring_count = ring_count;
+                    self.effects.cursor_sonar_ping.max_radius = max_radius;
+                    self.effects.cursor_sonar_ping.duration_ms = duration_ms;
+                    self.effects.cursor_sonar_ping.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_sonar_ping(enabled, (r, g, b), ring_count, max_radius, duration_ms, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetLightningBolt { enabled, r, g, b, frequency, intensity, opacity } => {
-                    self.lightning_bolt_enabled = enabled;
-                    self.lightning_bolt_color = (r, g, b);
-                    self.lightning_bolt_frequency = frequency;
-                    self.lightning_bolt_intensity = intensity;
-                    self.lightning_bolt_opacity = opacity;
+                    self.effects.lightning_bolt.enabled = enabled;
+                    self.effects.lightning_bolt.color = (r, g, b);
+                    self.effects.lightning_bolt.frequency = frequency;
+                    self.effects.lightning_bolt.intensity = intensity;
+                    self.effects.lightning_bolt.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_lightning_bolt(enabled, (r, g, b), frequency, intensity, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorOrbitParticles { enabled, r, g, b, particle_count, orbit_radius, speed, opacity } => {
-                    self.cursor_orbit_particles_enabled = enabled;
-                    self.cursor_orbit_particles_color = (r, g, b);
-                    self.cursor_orbit_particles_count = particle_count;
-                    self.cursor_orbit_particles_radius = orbit_radius;
-                    self.cursor_orbit_particles_speed = speed;
-                    self.cursor_orbit_particles_opacity = opacity;
+                    self.effects.cursor_orbit_particles.enabled = enabled;
+                    self.effects.cursor_orbit_particles.color = (r, g, b);
+                    self.effects.cursor_orbit_particles.count = particle_count;
+                    self.effects.cursor_orbit_particles.radius = orbit_radius;
+                    self.effects.cursor_orbit_particles.speed = speed;
+                    self.effects.cursor_orbit_particles.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_orbit_particles(enabled, (r, g, b), particle_count, orbit_radius, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetPlasmaBorder { enabled, r1, g1, b1, r2, g2, b2, width, speed, opacity } => {
-                    self.plasma_border_enabled = enabled;
-                    self.plasma_border_color1 = (r1, g1, b1);
-                    self.plasma_border_color2 = (r2, g2, b2);
-                    self.plasma_border_width = width;
-                    self.plasma_border_speed = speed;
-                    self.plasma_border_opacity = opacity;
+                    self.effects.plasma_border.enabled = enabled;
+                    self.effects.plasma_border.color1 = (r1, g1, b1);
+                    self.effects.plasma_border.color2 = (r2, g2, b2);
+                    self.effects.plasma_border.width = width;
+                    self.effects.plasma_border.speed = speed;
+                    self.effects.plasma_border.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_plasma_border(enabled, (r1, g1, b1), (r2, g2, b2), width, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorHeartbeat { enabled, r, g, b, bpm, max_radius, opacity } => {
-                    self.cursor_heartbeat_enabled = enabled;
-                    self.cursor_heartbeat_color = (r, g, b);
-                    self.cursor_heartbeat_bpm = bpm;
-                    self.cursor_heartbeat_max_radius = max_radius;
-                    self.cursor_heartbeat_opacity = opacity;
+                    self.effects.cursor_heartbeat.enabled = enabled;
+                    self.effects.cursor_heartbeat.color = (r, g, b);
+                    self.effects.cursor_heartbeat.bpm = bpm;
+                    self.effects.cursor_heartbeat.max_radius = max_radius;
+                    self.effects.cursor_heartbeat.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_heartbeat(enabled, (r, g, b), bpm, max_radius, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTopoContour { enabled, r, g, b, spacing, speed, opacity } => {
-                    self.topo_contour_enabled = enabled;
-                    self.topo_contour_color = (r, g, b);
-                    self.topo_contour_spacing = spacing;
-                    self.topo_contour_speed = speed;
-                    self.topo_contour_opacity = opacity;
+                    self.effects.topo_contour.enabled = enabled;
+                    self.effects.topo_contour.color = (r, g, b);
+                    self.effects.topo_contour.spacing = spacing;
+                    self.effects.topo_contour.speed = speed;
+                    self.effects.topo_contour.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_topo_contour(enabled, (r, g, b), spacing, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorMetronome { enabled, r, g, b, tick_height, fade_ms, opacity } => {
-                    self.cursor_metronome_enabled = enabled;
-                    self.cursor_metronome_color = (r, g, b);
-                    self.cursor_metronome_tick_height = tick_height;
-                    self.cursor_metronome_fade_ms = fade_ms;
-                    self.cursor_metronome_opacity = opacity;
+                    self.effects.cursor_metronome.enabled = enabled;
+                    self.effects.cursor_metronome.color = (r, g, b);
+                    self.effects.cursor_metronome.tick_height = tick_height;
+                    self.effects.cursor_metronome.fade_ms = fade_ms;
+                    self.effects.cursor_metronome.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_metronome(enabled, (r, g, b), tick_height, fade_ms, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetConstellation { enabled, r, g, b, star_count, connect_dist, twinkle_speed, opacity } => {
-                    self.constellation_enabled = enabled;
-                    self.constellation_color = (r, g, b);
-                    self.constellation_star_count = star_count;
-                    self.constellation_connect_dist = connect_dist;
-                    self.constellation_twinkle_speed = twinkle_speed;
-                    self.constellation_opacity = opacity;
+                    self.effects.constellation.enabled = enabled;
+                    self.effects.constellation.color = (r, g, b);
+                    self.effects.constellation.star_count = star_count;
+                    self.effects.constellation.connect_dist = connect_dist;
+                    self.effects.constellation.twinkle_speed = twinkle_speed;
+                    self.effects.constellation.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_constellation(enabled, (r, g, b), star_count, connect_dist, twinkle_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorRadar { enabled, r, g, b, radius, speed, opacity } => {
-                    self.cursor_radar_enabled = enabled;
-                    self.cursor_radar_color = (r, g, b);
-                    self.cursor_radar_radius = radius;
-                    self.cursor_radar_speed = speed;
-                    self.cursor_radar_opacity = opacity;
+                    self.effects.cursor_radar.enabled = enabled;
+                    self.effects.cursor_radar.color = (r, g, b);
+                    self.effects.cursor_radar.radius = radius;
+                    self.effects.cursor_radar.speed = speed;
+                    self.effects.cursor_radar.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_radar(enabled, (r, g, b), radius, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetKaleidoscope { enabled, r, g, b, segments, speed, opacity } => {
-                    self.kaleidoscope_enabled = enabled;
-                    self.kaleidoscope_color = (r, g, b);
-                    self.kaleidoscope_segments = segments;
-                    self.kaleidoscope_speed = speed;
-                    self.kaleidoscope_opacity = opacity;
+                    self.effects.kaleidoscope.enabled = enabled;
+                    self.effects.kaleidoscope.color = (r, g, b);
+                    self.effects.kaleidoscope.segments = segments;
+                    self.effects.kaleidoscope.speed = speed;
+                    self.effects.kaleidoscope.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_kaleidoscope(enabled, (r, g, b), segments, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorRippleRing { enabled, r, g, b, max_radius, ring_count, speed, opacity } => {
-                    self.cursor_ripple_ring_enabled = enabled;
-                    self.cursor_ripple_ring_color = (r, g, b);
-                    self.cursor_ripple_ring_max_radius = max_radius;
-                    self.cursor_ripple_ring_count = ring_count;
-                    self.cursor_ripple_ring_speed = speed;
-                    self.cursor_ripple_ring_opacity = opacity;
+                    self.effects.cursor_ripple_ring.enabled = enabled;
+                    self.effects.cursor_ripple_ring.color = (r, g, b);
+                    self.effects.cursor_ripple_ring.max_radius = max_radius;
+                    self.effects.cursor_ripple_ring.count = ring_count;
+                    self.effects.cursor_ripple_ring.speed = speed;
+                    self.effects.cursor_ripple_ring.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_ripple_ring(enabled, (r, g, b), max_radius, ring_count, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetNoiseField { enabled, r, g, b, scale, speed, opacity } => {
-                    self.noise_field_enabled = enabled;
-                    self.noise_field_color = (r, g, b);
-                    self.noise_field_scale = scale;
-                    self.noise_field_speed = speed;
-                    self.noise_field_opacity = opacity;
+                    self.effects.noise_field.enabled = enabled;
+                    self.effects.noise_field.color = (r, g, b);
+                    self.effects.noise_field.scale = scale;
+                    self.effects.noise_field.speed = speed;
+                    self.effects.noise_field.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_noise_field(enabled, (r, g, b), scale, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorScope { enabled, r, g, b, thickness, gap, opacity } => {
-                    self.cursor_scope_enabled = enabled;
-                    self.cursor_scope_color = (r, g, b);
-                    self.cursor_scope_thickness = thickness;
-                    self.cursor_scope_gap = gap;
-                    self.cursor_scope_opacity = opacity;
+                    self.effects.cursor_scope.enabled = enabled;
+                    self.effects.cursor_scope.color = (r, g, b);
+                    self.effects.cursor_scope.thickness = thickness;
+                    self.effects.cursor_scope.gap = gap;
+                    self.effects.cursor_scope.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_scope(enabled, (r, g, b), thickness, gap, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetSpiralVortex { enabled, r, g, b, arms, speed, opacity } => {
-                    self.spiral_vortex_enabled = enabled;
-                    self.spiral_vortex_color = (r, g, b);
-                    self.spiral_vortex_arms = arms;
-                    self.spiral_vortex_speed = speed;
-                    self.spiral_vortex_opacity = opacity;
+                    self.effects.spiral_vortex.enabled = enabled;
+                    self.effects.spiral_vortex.color = (r, g, b);
+                    self.effects.spiral_vortex.arms = arms;
+                    self.effects.spiral_vortex.speed = speed;
+                    self.effects.spiral_vortex.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_spiral_vortex(enabled, (r, g, b), arms, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorShockwave { enabled, r, g, b, radius, decay, opacity } => {
-                    self.cursor_shockwave_enabled = enabled;
-                    self.cursor_shockwave_color = (r, g, b);
-                    self.cursor_shockwave_radius = radius;
-                    self.cursor_shockwave_decay = decay;
-                    self.cursor_shockwave_opacity = opacity;
+                    self.effects.cursor_shockwave.enabled = enabled;
+                    self.effects.cursor_shockwave.color = (r, g, b);
+                    self.effects.cursor_shockwave.radius = radius;
+                    self.effects.cursor_shockwave.decay = decay;
+                    self.effects.cursor_shockwave.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_shockwave(enabled, (r, g, b), radius, decay, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetDiamondLattice { enabled, r, g, b, cell_size, shimmer_speed, opacity } => {
-                    self.diamond_lattice_enabled = enabled;
-                    self.diamond_lattice_color = (r, g, b);
-                    self.diamond_lattice_cell_size = cell_size;
-                    self.diamond_lattice_shimmer_speed = shimmer_speed;
-                    self.diamond_lattice_opacity = opacity;
+                    self.effects.diamond_lattice.enabled = enabled;
+                    self.effects.diamond_lattice.color = (r, g, b);
+                    self.effects.diamond_lattice.cell_size = cell_size;
+                    self.effects.diamond_lattice.shimmer_speed = shimmer_speed;
+                    self.effects.diamond_lattice.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_diamond_lattice(enabled, (r, g, b), cell_size, shimmer_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorGravityWell { enabled, r, g, b, field_radius, line_count, opacity } => {
-                    self.cursor_gravity_well_enabled = enabled;
-                    self.cursor_gravity_well_color = (r, g, b);
-                    self.cursor_gravity_well_field_radius = field_radius;
-                    self.cursor_gravity_well_line_count = line_count;
-                    self.cursor_gravity_well_opacity = opacity;
+                    self.effects.cursor_gravity_well.enabled = enabled;
+                    self.effects.cursor_gravity_well.color = (r, g, b);
+                    self.effects.cursor_gravity_well.field_radius = field_radius;
+                    self.effects.cursor_gravity_well.line_count = line_count;
+                    self.effects.cursor_gravity_well.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_gravity_well(enabled, (r, g, b), field_radius, line_count, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetWaveInterference { enabled, r, g, b, wavelength, source_count, speed, opacity } => {
-                    self.wave_interference_enabled = enabled;
-                    self.wave_interference_color = (r, g, b);
-                    self.wave_interference_wavelength = wavelength;
-                    self.wave_interference_source_count = source_count;
-                    self.wave_interference_speed = speed;
-                    self.wave_interference_opacity = opacity;
+                    self.effects.wave_interference.enabled = enabled;
+                    self.effects.wave_interference.color = (r, g, b);
+                    self.effects.wave_interference.wavelength = wavelength;
+                    self.effects.wave_interference.source_count = source_count;
+                    self.effects.wave_interference.speed = speed;
+                    self.effects.wave_interference.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_wave_interference(enabled, (r, g, b), wavelength, source_count, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorPortal { enabled, r, g, b, radius, speed, opacity } => {
-                    self.cursor_portal_enabled = enabled;
-                    self.cursor_portal_color = (r, g, b);
-                    self.cursor_portal_radius = radius;
-                    self.cursor_portal_speed = speed;
-                    self.cursor_portal_opacity = opacity;
+                    self.effects.cursor_portal.enabled = enabled;
+                    self.effects.cursor_portal.color = (r, g, b);
+                    self.effects.cursor_portal.radius = radius;
+                    self.effects.cursor_portal.speed = speed;
+                    self.effects.cursor_portal.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_portal(enabled, (r, g, b), radius, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetChevronPattern { enabled, r, g, b, spacing, speed, opacity } => {
-                    self.chevron_pattern_enabled = enabled;
-                    self.chevron_pattern_color = (r, g, b);
-                    self.chevron_pattern_spacing = spacing;
-                    self.chevron_pattern_speed = speed;
-                    self.chevron_pattern_opacity = opacity;
+                    self.effects.chevron_pattern.enabled = enabled;
+                    self.effects.chevron_pattern.color = (r, g, b);
+                    self.effects.chevron_pattern.spacing = spacing;
+                    self.effects.chevron_pattern.speed = speed;
+                    self.effects.chevron_pattern.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_chevron_pattern(enabled, (r, g, b), spacing, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorBubble { enabled, r, g, b, count, rise_speed, opacity } => {
-                    self.cursor_bubble_enabled = enabled;
-                    self.cursor_bubble_color = (r, g, b);
-                    self.cursor_bubble_count = count;
-                    self.cursor_bubble_rise_speed = rise_speed;
-                    self.cursor_bubble_opacity = opacity;
+                    self.effects.cursor_bubble.enabled = enabled;
+                    self.effects.cursor_bubble.color = (r, g, b);
+                    self.effects.cursor_bubble.count = count;
+                    self.effects.cursor_bubble.rise_speed = rise_speed;
+                    self.effects.cursor_bubble.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_bubble(enabled, (r, g, b), count, rise_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetSunburstPattern { enabled, r, g, b, ray_count, speed, opacity } => {
-                    self.sunburst_pattern_enabled = enabled;
-                    self.sunburst_pattern_color = (r, g, b);
-                    self.sunburst_pattern_ray_count = ray_count;
-                    self.sunburst_pattern_speed = speed;
-                    self.sunburst_pattern_opacity = opacity;
+                    self.effects.sunburst_pattern.enabled = enabled;
+                    self.effects.sunburst_pattern.color = (r, g, b);
+                    self.effects.sunburst_pattern.ray_count = ray_count;
+                    self.effects.sunburst_pattern.speed = speed;
+                    self.effects.sunburst_pattern.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_sunburst_pattern(enabled, (r, g, b), ray_count, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorFirework { enabled, r, g, b, particle_count, burst_radius, opacity } => {
-                    self.cursor_firework_enabled = enabled;
-                    self.cursor_firework_color = (r, g, b);
-                    self.cursor_firework_particle_count = particle_count;
-                    self.cursor_firework_burst_radius = burst_radius;
-                    self.cursor_firework_opacity = opacity;
+                    self.effects.cursor_firework.enabled = enabled;
+                    self.effects.cursor_firework.color = (r, g, b);
+                    self.effects.cursor_firework.particle_count = particle_count;
+                    self.effects.cursor_firework.burst_radius = burst_radius;
+                    self.effects.cursor_firework.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_firework(enabled, (r, g, b), particle_count, burst_radius, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetHoneycombDissolve { enabled, r, g, b, cell_size, dissolve_speed, opacity } => {
-                    self.honeycomb_dissolve_enabled = enabled;
-                    self.honeycomb_dissolve_color = (r, g, b);
-                    self.honeycomb_dissolve_cell_size = cell_size;
-                    self.honeycomb_dissolve_speed = dissolve_speed;
-                    self.honeycomb_dissolve_opacity = opacity;
+                    self.effects.honeycomb_dissolve.enabled = enabled;
+                    self.effects.honeycomb_dissolve.color = (r, g, b);
+                    self.effects.honeycomb_dissolve.cell_size = cell_size;
+                    self.effects.honeycomb_dissolve.speed = dissolve_speed;
+                    self.effects.honeycomb_dissolve.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_honeycomb_dissolve(enabled, (r, g, b), cell_size, dissolve_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorTornado { enabled, r, g, b, radius, particle_count, opacity } => {
-                    self.cursor_tornado_enabled = enabled;
-                    self.cursor_tornado_color = (r, g, b);
-                    self.cursor_tornado_radius = radius;
-                    self.cursor_tornado_particle_count = particle_count;
-                    self.cursor_tornado_opacity = opacity;
+                    self.effects.cursor_tornado.enabled = enabled;
+                    self.effects.cursor_tornado.color = (r, g, b);
+                    self.effects.cursor_tornado.radius = radius;
+                    self.effects.cursor_tornado.particle_count = particle_count;
+                    self.effects.cursor_tornado.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_tornado(enabled, (r, g, b), radius, particle_count, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTessellation { enabled, r, g, b, tile_size, rotation, opacity } => {
-                    self.tessellation_enabled = enabled;
-                    self.tessellation_color = (r, g, b);
-                    self.tessellation_tile_size = tile_size;
-                    self.tessellation_rotation = rotation;
-                    self.tessellation_opacity = opacity;
+                    self.effects.tessellation.enabled = enabled;
+                    self.effects.tessellation.color = (r, g, b);
+                    self.effects.tessellation.tile_size = tile_size;
+                    self.effects.tessellation.rotation = rotation;
+                    self.effects.tessellation.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_tessellation(enabled, (r, g, b), tile_size, rotation, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorWaterDrop { enabled, r, g, b, ripple_count, expand_speed, opacity } => {
-                    self.cursor_water_drop_enabled = enabled;
-                    self.cursor_water_drop_color = (r, g, b);
-                    self.cursor_water_drop_ripple_count = ripple_count;
-                    self.cursor_water_drop_expand_speed = expand_speed;
-                    self.cursor_water_drop_opacity = opacity;
+                    self.effects.cursor_water_drop.enabled = enabled;
+                    self.effects.cursor_water_drop.color = (r, g, b);
+                    self.effects.cursor_water_drop.ripple_count = ripple_count;
+                    self.effects.cursor_water_drop.expand_speed = expand_speed;
+                    self.effects.cursor_water_drop.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_water_drop(enabled, (r, g, b), ripple_count, expand_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetGuilloche { enabled, r, g, b, curve_count, wave_freq, opacity } => {
-                    self.guilloche_enabled = enabled;
-                    self.guilloche_color = (r, g, b);
-                    self.guilloche_curve_count = curve_count;
-                    self.guilloche_wave_freq = wave_freq;
-                    self.guilloche_opacity = opacity;
+                    self.effects.guilloche.enabled = enabled;
+                    self.effects.guilloche.color = (r, g, b);
+                    self.effects.guilloche.curve_count = curve_count;
+                    self.effects.guilloche.wave_freq = wave_freq;
+                    self.effects.guilloche.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_guilloche(enabled, (r, g, b), curve_count, wave_freq, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorPixelDust { enabled, r, g, b, dust_count, scatter_speed, opacity } => {
-                    self.cursor_pixel_dust_enabled = enabled;
-                    self.cursor_pixel_dust_color = (r, g, b);
-                    self.cursor_pixel_dust_count = dust_count;
-                    self.cursor_pixel_dust_scatter_speed = scatter_speed;
-                    self.cursor_pixel_dust_opacity = opacity;
+                    self.effects.cursor_pixel_dust.enabled = enabled;
+                    self.effects.cursor_pixel_dust.color = (r, g, b);
+                    self.effects.cursor_pixel_dust.count = dust_count;
+                    self.effects.cursor_pixel_dust.scatter_speed = scatter_speed;
+                    self.effects.cursor_pixel_dust.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_pixel_dust(enabled, (r, g, b), dust_count, scatter_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCelticKnot { enabled, r, g, b, knot_scale, weave_speed, opacity } => {
-                    self.celtic_knot_enabled = enabled;
-                    self.celtic_knot_color = (r, g, b);
-                    self.celtic_knot_scale = knot_scale;
-                    self.celtic_knot_weave_speed = weave_speed;
-                    self.celtic_knot_opacity = opacity;
+                    self.effects.celtic_knot.enabled = enabled;
+                    self.effects.celtic_knot.color = (r, g, b);
+                    self.effects.celtic_knot.scale = knot_scale;
+                    self.effects.celtic_knot.weave_speed = weave_speed;
+                    self.effects.celtic_knot.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_celtic_knot(enabled, (r, g, b), knot_scale, weave_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorCandleFlame { enabled, r, g, b, flame_height, flicker_speed, opacity } => {
-                    self.cursor_candle_flame_enabled = enabled;
-                    self.cursor_candle_flame_color = (r, g, b);
-                    self.cursor_candle_flame_height = flame_height;
-                    self.cursor_candle_flame_flicker_speed = flicker_speed;
-                    self.cursor_candle_flame_opacity = opacity;
+                    self.effects.cursor_candle_flame.enabled = enabled;
+                    self.effects.cursor_candle_flame.color = (r, g, b);
+                    self.effects.cursor_candle_flame.height = flame_height;
+                    self.effects.cursor_candle_flame.flicker_speed = flicker_speed;
+                    self.effects.cursor_candle_flame.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_candle_flame(enabled, (r, g, b), flame_height, flicker_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetArgylePattern { enabled, r, g, b, diamond_size, line_width, opacity } => {
-                    self.argyle_pattern_enabled = enabled;
-                    self.argyle_pattern_color = (r, g, b);
-                    self.argyle_pattern_diamond_size = diamond_size;
-                    self.argyle_pattern_line_width = line_width;
-                    self.argyle_pattern_opacity = opacity;
+                    self.effects.argyle_pattern.enabled = enabled;
+                    self.effects.argyle_pattern.color = (r, g, b);
+                    self.effects.argyle_pattern.diamond_size = diamond_size;
+                    self.effects.argyle_pattern.line_width = line_width;
+                    self.effects.argyle_pattern.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_argyle_pattern(enabled, (r, g, b), diamond_size, line_width, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorMothFlame { enabled, r, g, b, moth_count, orbit_speed, opacity } => {
-                    self.cursor_moth_flame_enabled = enabled;
-                    self.cursor_moth_flame_color = (r, g, b);
-                    self.cursor_moth_flame_moth_count = moth_count;
-                    self.cursor_moth_flame_orbit_speed = orbit_speed;
-                    self.cursor_moth_flame_opacity = opacity;
+                    self.effects.cursor_moth_flame.enabled = enabled;
+                    self.effects.cursor_moth_flame.color = (r, g, b);
+                    self.effects.cursor_moth_flame.moth_count = moth_count;
+                    self.effects.cursor_moth_flame.orbit_speed = orbit_speed;
+                    self.effects.cursor_moth_flame.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_moth_flame(enabled, (r, g, b), moth_count, orbit_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetBasketWeave { enabled, r, g, b, strip_width, strip_spacing, opacity } => {
-                    self.basket_weave_enabled = enabled;
-                    self.basket_weave_color = (r, g, b);
-                    self.basket_weave_strip_width = strip_width;
-                    self.basket_weave_strip_spacing = strip_spacing;
-                    self.basket_weave_opacity = opacity;
+                    self.effects.basket_weave.enabled = enabled;
+                    self.effects.basket_weave.color = (r, g, b);
+                    self.effects.basket_weave.strip_width = strip_width;
+                    self.effects.basket_weave.strip_spacing = strip_spacing;
+                    self.effects.basket_weave.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_basket_weave(enabled, (r, g, b), strip_width, strip_spacing, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorSparkler { enabled, r, g, b, spark_count, burn_speed, opacity } => {
-                    self.cursor_sparkler_enabled = enabled;
-                    self.cursor_sparkler_color = (r, g, b);
-                    self.cursor_sparkler_spark_count = spark_count;
-                    self.cursor_sparkler_burn_speed = burn_speed;
-                    self.cursor_sparkler_opacity = opacity;
+                    self.effects.cursor_sparkler.enabled = enabled;
+                    self.effects.cursor_sparkler.color = (r, g, b);
+                    self.effects.cursor_sparkler.spark_count = spark_count;
+                    self.effects.cursor_sparkler.burn_speed = burn_speed;
+                    self.effects.cursor_sparkler.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_sparkler(enabled, (r, g, b), spark_count, burn_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetFishScale { enabled, r, g, b, scale_size, row_offset, opacity } => {
-                    self.fish_scale_enabled = enabled;
-                    self.fish_scale_color = (r, g, b);
-                    self.fish_scale_size = scale_size;
-                    self.fish_scale_row_offset = row_offset;
-                    self.fish_scale_opacity = opacity;
+                    self.effects.fish_scale.enabled = enabled;
+                    self.effects.fish_scale.color = (r, g, b);
+                    self.effects.fish_scale.size = scale_size;
+                    self.effects.fish_scale.row_offset = row_offset;
+                    self.effects.fish_scale.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_fish_scale(enabled, (r, g, b), scale_size, row_offset, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorPlasmaBall { enabled, r, g, b, tendril_count, arc_speed, opacity } => {
-                    self.cursor_plasma_ball_enabled = enabled;
-                    self.cursor_plasma_ball_color = (r, g, b);
-                    self.cursor_plasma_ball_tendril_count = tendril_count;
-                    self.cursor_plasma_ball_arc_speed = arc_speed;
-                    self.cursor_plasma_ball_opacity = opacity;
+                    self.effects.cursor_plasma_ball.enabled = enabled;
+                    self.effects.cursor_plasma_ball.color = (r, g, b);
+                    self.effects.cursor_plasma_ball.tendril_count = tendril_count;
+                    self.effects.cursor_plasma_ball.arc_speed = arc_speed;
+                    self.effects.cursor_plasma_ball.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_plasma_ball(enabled, (r, g, b), tendril_count, arc_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTrefoilKnot { enabled, r, g, b, knot_size, rotation_speed, opacity } => {
-                    self.trefoil_knot_enabled = enabled;
-                    self.trefoil_knot_color = (r, g, b);
-                    self.trefoil_knot_size = knot_size;
-                    self.trefoil_knot_rotation_speed = rotation_speed;
-                    self.trefoil_knot_opacity = opacity;
+                    self.effects.trefoil_knot.enabled = enabled;
+                    self.effects.trefoil_knot.color = (r, g, b);
+                    self.effects.trefoil_knot.size = knot_size;
+                    self.effects.trefoil_knot.rotation_speed = rotation_speed;
+                    self.effects.trefoil_knot.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_trefoil_knot(enabled, (r, g, b), knot_size, rotation_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorQuillPen { enabled, r, g, b, trail_length, ink_speed, opacity } => {
-                    self.cursor_quill_pen_enabled = enabled;
-                    self.cursor_quill_pen_color = (r, g, b);
-                    self.cursor_quill_pen_trail_length = trail_length;
-                    self.cursor_quill_pen_ink_speed = ink_speed;
-                    self.cursor_quill_pen_opacity = opacity;
+                    self.effects.cursor_quill_pen.enabled = enabled;
+                    self.effects.cursor_quill_pen.color = (r, g, b);
+                    self.effects.cursor_quill_pen.trail_length = trail_length;
+                    self.effects.cursor_quill_pen.ink_speed = ink_speed;
+                    self.effects.cursor_quill_pen.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_quill_pen(enabled, (r, g, b), trail_length, ink_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetHerringbonePattern { enabled, r, g, b, tile_width, tile_height, opacity } => {
-                    self.herringbone_pattern_enabled = enabled;
-                    self.herringbone_pattern_color = (r, g, b);
-                    self.herringbone_pattern_tile_width = tile_width;
-                    self.herringbone_pattern_tile_height = tile_height;
-                    self.herringbone_pattern_opacity = opacity;
+                    self.effects.herringbone_pattern.enabled = enabled;
+                    self.effects.herringbone_pattern.color = (r, g, b);
+                    self.effects.herringbone_pattern.tile_width = tile_width;
+                    self.effects.herringbone_pattern.tile_height = tile_height;
+                    self.effects.herringbone_pattern.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_herringbone_pattern(enabled, (r, g, b), tile_width, tile_height, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorAuroraBorealis { enabled, r, g, b, band_count, shimmer_speed, opacity } => {
-                    self.cursor_aurora_borealis_enabled = enabled;
-                    self.cursor_aurora_borealis_color = (r, g, b);
-                    self.cursor_aurora_borealis_band_count = band_count;
-                    self.cursor_aurora_borealis_shimmer_speed = shimmer_speed;
-                    self.cursor_aurora_borealis_opacity = opacity;
+                    self.effects.cursor_aurora_borealis.enabled = enabled;
+                    self.effects.cursor_aurora_borealis.color = (r, g, b);
+                    self.effects.cursor_aurora_borealis.band_count = band_count;
+                    self.effects.cursor_aurora_borealis.shimmer_speed = shimmer_speed;
+                    self.effects.cursor_aurora_borealis.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_aurora_borealis(enabled, (r, g, b), band_count, shimmer_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetTargetReticle { enabled, r, g, b, ring_count, pulse_speed, opacity } => {
-                    self.target_reticle_enabled = enabled;
-                    self.target_reticle_color = (r, g, b);
-                    self.target_reticle_ring_count = ring_count;
-                    self.target_reticle_pulse_speed = pulse_speed;
-                    self.target_reticle_opacity = opacity;
+                    self.effects.target_reticle.enabled = enabled;
+                    self.effects.target_reticle.color = (r, g, b);
+                    self.effects.target_reticle.ring_count = ring_count;
+                    self.effects.target_reticle.pulse_speed = pulse_speed;
+                    self.effects.target_reticle.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_target_reticle(enabled, (r, g, b), ring_count, pulse_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorFeather { enabled, r, g, b, feather_count, drift_speed, opacity } => {
-                    self.cursor_feather_enabled = enabled;
-                    self.cursor_feather_color = (r, g, b);
-                    self.cursor_feather_count = feather_count;
-                    self.cursor_feather_drift_speed = drift_speed;
-                    self.cursor_feather_opacity = opacity;
+                    self.effects.cursor_feather.enabled = enabled;
+                    self.effects.cursor_feather.color = (r, g, b);
+                    self.effects.cursor_feather.count = feather_count;
+                    self.effects.cursor_feather.drift_speed = drift_speed;
+                    self.effects.cursor_feather.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_feather(enabled, (r, g, b), feather_count, drift_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetPlaidPattern { enabled, r, g, b, band_width, band_spacing, opacity } => {
-                    self.plaid_pattern_enabled = enabled;
-                    self.plaid_pattern_color = (r, g, b);
-                    self.plaid_pattern_band_width = band_width;
-                    self.plaid_pattern_band_spacing = band_spacing;
-                    self.plaid_pattern_opacity = opacity;
+                    self.effects.plaid_pattern.enabled = enabled;
+                    self.effects.plaid_pattern.color = (r, g, b);
+                    self.effects.plaid_pattern.band_width = band_width;
+                    self.effects.plaid_pattern.band_spacing = band_spacing;
+                    self.effects.plaid_pattern.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_plaid_pattern(enabled, (r, g, b), band_width, band_spacing, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorStardust { enabled, r, g, b, particle_count, fall_speed, opacity } => {
-                    self.cursor_stardust_enabled = enabled;
-                    self.cursor_stardust_color = (r, g, b);
-                    self.cursor_stardust_particle_count = particle_count;
-                    self.cursor_stardust_fall_speed = fall_speed;
-                    self.cursor_stardust_opacity = opacity;
+                    self.effects.cursor_stardust.enabled = enabled;
+                    self.effects.cursor_stardust.color = (r, g, b);
+                    self.effects.cursor_stardust.particle_count = particle_count;
+                    self.effects.cursor_stardust.fall_speed = fall_speed;
+                    self.effects.cursor_stardust.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_stardust(enabled, (r, g, b), particle_count, fall_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetBrickWall { enabled, r, g, b, brick_width, brick_height, opacity } => {
-                    self.brick_wall_enabled = enabled;
-                    self.brick_wall_color = (r, g, b);
-                    self.brick_wall_width = brick_width;
-                    self.brick_wall_height = brick_height;
-                    self.brick_wall_opacity = opacity;
+                    self.effects.brick_wall.enabled = enabled;
+                    self.effects.brick_wall.color = (r, g, b);
+                    self.effects.brick_wall.width = brick_width;
+                    self.effects.brick_wall.height = brick_height;
+                    self.effects.brick_wall.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_brick_wall(enabled, (r, g, b), brick_width, brick_height, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorCompassNeedle { enabled, r, g, b, needle_length, spin_speed, opacity } => {
-                    self.cursor_compass_needle_enabled = enabled;
-                    self.cursor_compass_needle_color = (r, g, b);
-                    self.cursor_compass_needle_length = needle_length;
-                    self.cursor_compass_needle_spin_speed = spin_speed;
-                    self.cursor_compass_needle_opacity = opacity;
+                    self.effects.cursor_compass_needle.enabled = enabled;
+                    self.effects.cursor_compass_needle.color = (r, g, b);
+                    self.effects.cursor_compass_needle.length = needle_length;
+                    self.effects.cursor_compass_needle.spin_speed = spin_speed;
+                    self.effects.cursor_compass_needle.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_compass_needle(enabled, (r, g, b), needle_length, spin_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetSineWave { enabled, r, g, b, amplitude, wavelength, speed, opacity } => {
-                    self.sine_wave_enabled = enabled;
-                    self.sine_wave_color = (r, g, b);
-                    self.sine_wave_amplitude = amplitude;
-                    self.sine_wave_wavelength = wavelength;
-                    self.sine_wave_speed = speed;
-                    self.sine_wave_opacity = opacity;
+                    self.effects.sine_wave.enabled = enabled;
+                    self.effects.sine_wave.color = (r, g, b);
+                    self.effects.sine_wave.amplitude = amplitude;
+                    self.effects.sine_wave.wavelength = wavelength;
+                    self.effects.sine_wave.speed = speed;
+                    self.effects.sine_wave.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_sine_wave(enabled, (r, g, b), amplitude, wavelength, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorGalaxy { enabled, r, g, b, star_count, radius, opacity } => {
-                    self.cursor_galaxy_enabled = enabled;
-                    self.cursor_galaxy_color = (r, g, b);
-                    self.cursor_galaxy_star_count = star_count;
-                    self.cursor_galaxy_radius = radius;
-                    self.cursor_galaxy_opacity = opacity;
+                    self.effects.cursor_galaxy.enabled = enabled;
+                    self.effects.cursor_galaxy.color = (r, g, b);
+                    self.effects.cursor_galaxy.star_count = star_count;
+                    self.effects.cursor_galaxy.radius = radius;
+                    self.effects.cursor_galaxy.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_galaxy(enabled, (r, g, b), star_count, radius, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetRotatingGear { enabled, r, g, b, gear_size, rotation_speed, opacity } => {
-                    self.rotating_gear_enabled = enabled;
-                    self.rotating_gear_color = (r, g, b);
-                    self.rotating_gear_size = gear_size;
-                    self.rotating_gear_speed = rotation_speed;
-                    self.rotating_gear_opacity = opacity;
+                    self.effects.rotating_gear.enabled = enabled;
+                    self.effects.rotating_gear.color = (r, g, b);
+                    self.effects.rotating_gear.size = gear_size;
+                    self.effects.rotating_gear.speed = rotation_speed;
+                    self.effects.rotating_gear.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_rotating_gear(enabled, (r, g, b), gear_size, rotation_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorPrism { enabled, r, g, b, ray_count, spread, opacity } => {
-                    self.cursor_prism_enabled = enabled;
-                    self.cursor_prism_color = (r, g, b);
-                    self.cursor_prism_ray_count = ray_count;
-                    self.cursor_prism_spread = spread;
-                    self.cursor_prism_opacity = opacity;
+                    self.effects.cursor_prism.enabled = enabled;
+                    self.effects.cursor_prism.color = (r, g, b);
+                    self.effects.cursor_prism.ray_count = ray_count;
+                    self.effects.cursor_prism.spread = spread;
+                    self.effects.cursor_prism.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_prism(enabled, (r, g, b), ray_count, spread, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCrosshatchPattern { enabled, r, g, b, line_spacing, angle, speed, opacity } => {
-                    self.crosshatch_pattern_enabled = enabled;
-                    self.crosshatch_pattern_color = (r, g, b);
-                    self.crosshatch_pattern_line_spacing = line_spacing;
-                    self.crosshatch_pattern_angle = angle;
-                    self.crosshatch_pattern_speed = speed;
-                    self.crosshatch_pattern_opacity = opacity;
+                    self.effects.crosshatch_pattern.enabled = enabled;
+                    self.effects.crosshatch_pattern.color = (r, g, b);
+                    self.effects.crosshatch_pattern.line_spacing = line_spacing;
+                    self.effects.crosshatch_pattern.angle = angle;
+                    self.effects.crosshatch_pattern.speed = speed;
+                    self.effects.crosshatch_pattern.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_crosshatch_pattern(enabled, (r, g, b), line_spacing, angle, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorMoth { enabled, r, g, b, moth_count, wing_size, opacity } => {
-                    self.cursor_moth_enabled = enabled;
-                    self.cursor_moth_color = (r, g, b);
-                    self.cursor_moth_count = moth_count;
-                    self.cursor_moth_wing_size = wing_size;
-                    self.cursor_moth_opacity = opacity;
+                    self.effects.cursor_moth.enabled = enabled;
+                    self.effects.cursor_moth.color = (r, g, b);
+                    self.effects.cursor_moth.count = moth_count;
+                    self.effects.cursor_moth.wing_size = wing_size;
+                    self.effects.cursor_moth.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_moth(enabled, (r, g, b), moth_count, wing_size, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetConcentricRings { enabled, r, g, b, ring_spacing, expansion_speed, opacity } => {
-                    self.concentric_rings_enabled = enabled;
-                    self.concentric_rings_color = (r, g, b);
-                    self.concentric_rings_spacing = ring_spacing;
-                    self.concentric_rings_expansion_speed = expansion_speed;
-                    self.concentric_rings_opacity = opacity;
+                    self.effects.concentric_rings.enabled = enabled;
+                    self.effects.concentric_rings.color = (r, g, b);
+                    self.effects.concentric_rings.spacing = ring_spacing;
+                    self.effects.concentric_rings.expansion_speed = expansion_speed;
+                    self.effects.concentric_rings.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_concentric_rings(enabled, (r, g, b), ring_spacing, expansion_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorFlame { enabled, r, g, b, particle_count, height, opacity } => {
-                    self.cursor_flame_enabled = enabled;
-                    self.cursor_flame_color = (r, g, b);
-                    self.cursor_flame_particle_count = particle_count;
-                    self.cursor_flame_height = height;
-                    self.cursor_flame_opacity = opacity;
+                    self.effects.cursor_flame.enabled = enabled;
+                    self.effects.cursor_flame.color = (r, g, b);
+                    self.effects.cursor_flame.particle_count = particle_count;
+                    self.effects.cursor_flame.height = height;
+                    self.effects.cursor_flame.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_flame(enabled, (r, g, b), particle_count, height, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetZigzagPattern { enabled, r, g, b, amplitude, frequency, speed, opacity } => {
-                    self.zigzag_pattern_enabled = enabled;
-                    self.zigzag_pattern_color = (r, g, b);
-                    self.zigzag_pattern_amplitude = amplitude;
-                    self.zigzag_pattern_frequency = frequency;
-                    self.zigzag_pattern_speed = speed;
-                    self.zigzag_pattern_opacity = opacity;
+                    self.effects.zigzag_pattern.enabled = enabled;
+                    self.effects.zigzag_pattern.color = (r, g, b);
+                    self.effects.zigzag_pattern.amplitude = amplitude;
+                    self.effects.zigzag_pattern.frequency = frequency;
+                    self.effects.zigzag_pattern.speed = speed;
+                    self.effects.zigzag_pattern.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_zigzag_pattern(enabled, (r, g, b), amplitude, frequency, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorCrystal { enabled, r, g, b, facet_count, radius, opacity } => {
-                    self.cursor_crystal_enabled = enabled;
-                    self.cursor_crystal_color = (r, g, b);
-                    self.cursor_crystal_facet_count = facet_count;
-                    self.cursor_crystal_radius = radius;
-                    self.cursor_crystal_opacity = opacity;
+                    self.effects.cursor_crystal.enabled = enabled;
+                    self.effects.cursor_crystal.color = (r, g, b);
+                    self.effects.cursor_crystal.facet_count = facet_count;
+                    self.effects.cursor_crystal.radius = radius;
+                    self.effects.cursor_crystal.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_crystal(enabled, (r, g, b), facet_count, radius, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetMoirePattern { enabled, r, g, b, line_spacing, angle_offset, speed, opacity } => {
-                    self.moire_pattern_enabled = enabled;
-                    self.moire_pattern_color = (r, g, b);
-                    self.moire_pattern_line_spacing = line_spacing;
-                    self.moire_pattern_angle_offset = angle_offset;
-                    self.moire_pattern_speed = speed;
-                    self.moire_pattern_opacity = opacity;
+                    self.effects.moire_pattern.enabled = enabled;
+                    self.effects.moire_pattern.color = (r, g, b);
+                    self.effects.moire_pattern.line_spacing = line_spacing;
+                    self.effects.moire_pattern.angle_offset = angle_offset;
+                    self.effects.moire_pattern.speed = speed;
+                    self.effects.moire_pattern.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_moire_pattern(enabled, (r, g, b), line_spacing, angle_offset, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorLightning { enabled, r, g, b, bolt_count, max_length, opacity } => {
-                    self.cursor_lightning_enabled = enabled;
-                    self.cursor_lightning_color = (r, g, b);
-                    self.cursor_lightning_bolt_count = bolt_count;
-                    self.cursor_lightning_max_length = max_length;
-                    self.cursor_lightning_opacity = opacity;
+                    self.effects.cursor_lightning.enabled = enabled;
+                    self.effects.cursor_lightning.color = (r, g, b);
+                    self.effects.cursor_lightning.bolt_count = bolt_count;
+                    self.effects.cursor_lightning.max_length = max_length;
+                    self.effects.cursor_lightning.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_lightning(enabled, (r, g, b), bolt_count, max_length, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetDotMatrix { enabled, r, g, b, dot_spacing, pulse_speed, opacity } => {
-                    self.dot_matrix_enabled = enabled;
-                    self.dot_matrix_color = (r, g, b);
-                    self.dot_matrix_spacing = dot_spacing;
-                    self.dot_matrix_pulse_speed = pulse_speed;
-                    self.dot_matrix_opacity = opacity;
+                    self.effects.dot_matrix.enabled = enabled;
+                    self.effects.dot_matrix.color = (r, g, b);
+                    self.effects.dot_matrix.spacing = dot_spacing;
+                    self.effects.dot_matrix.pulse_speed = pulse_speed;
+                    self.effects.dot_matrix.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_dot_matrix(enabled, (r, g, b), dot_spacing, pulse_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorSnowflake { enabled, r, g, b, count, fall_speed, opacity } => {
-                    self.cursor_snowflake_enabled = enabled;
-                    self.cursor_snowflake_color = (r, g, b);
-                    self.cursor_snowflake_count = count;
-                    self.cursor_snowflake_fall_speed = fall_speed;
-                    self.cursor_snowflake_opacity = opacity;
+                    self.effects.cursor_snowflake.enabled = enabled;
+                    self.effects.cursor_snowflake.color = (r, g, b);
+                    self.effects.cursor_snowflake.count = count;
+                    self.effects.cursor_snowflake.fall_speed = fall_speed;
+                    self.effects.cursor_snowflake.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_snowflake(enabled, (r, g, b), count, fall_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetHexGrid { enabled, r, g, b, cell_size, pulse_speed, opacity } => {
-                    self.hex_grid_enabled = enabled;
-                    self.hex_grid_color = (r, g, b);
-                    self.hex_grid_cell_size = cell_size;
-                    self.hex_grid_pulse_speed = pulse_speed;
-                    self.hex_grid_opacity = opacity;
+                    self.effects.hex_grid.enabled = enabled;
+                    self.effects.hex_grid.color = (r, g, b);
+                    self.effects.hex_grid.cell_size = cell_size;
+                    self.effects.hex_grid.pulse_speed = pulse_speed;
+                    self.effects.hex_grid.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_hex_grid(enabled, (r, g, b), cell_size, pulse_speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorSparkleBurst { enabled, r, g, b, particle_count, burst_radius, opacity } => {
-                    self.cursor_sparkle_burst_enabled = enabled;
-                    self.cursor_sparkle_burst_color = (r, g, b);
-                    self.cursor_sparkle_burst_count = particle_count;
-                    self.cursor_sparkle_burst_radius = burst_radius;
-                    self.cursor_sparkle_burst_opacity = opacity;
+                    self.effects.cursor_sparkle_burst.enabled = enabled;
+                    self.effects.cursor_sparkle_burst.color = (r, g, b);
+                    self.effects.cursor_sparkle_burst.count = particle_count;
+                    self.effects.cursor_sparkle_burst.radius = burst_radius;
+                    self.effects.cursor_sparkle_burst.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_sparkle_burst(enabled, (r, g, b), particle_count, burst_radius, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCircuitTrace { enabled, r, g, b, trace_width, speed, opacity } => {
-                    self.circuit_trace_enabled = enabled;
-                    self.circuit_trace_color = (r, g, b);
-                    self.circuit_trace_width = trace_width;
-                    self.circuit_trace_speed = speed;
-                    self.circuit_trace_opacity = opacity;
+                    self.effects.circuit_trace.enabled = enabled;
+                    self.effects.circuit_trace.color = (r, g, b);
+                    self.effects.circuit_trace.width = trace_width;
+                    self.effects.circuit_trace.speed = speed;
+                    self.effects.circuit_trace.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_circuit_trace(enabled, (r, g, b), trace_width, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorCompass { enabled, r, g, b, size, speed, opacity } => {
-                    self.cursor_compass_enabled = enabled;
-                    self.cursor_compass_color = (r, g, b);
-                    self.cursor_compass_size = size;
-                    self.cursor_compass_speed = speed;
-                    self.cursor_compass_opacity = opacity;
+                    self.effects.cursor_compass.enabled = enabled;
+                    self.effects.cursor_compass.color = (r, g, b);
+                    self.effects.cursor_compass.size = size;
+                    self.effects.cursor_compass.speed = speed;
+                    self.effects.cursor_compass.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_compass(enabled, (r, g, b), size, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetWarpGrid { enabled, r, g, b, density, amplitude, speed, opacity } => {
-                    self.warp_grid_enabled = enabled;
-                    self.warp_grid_color = (r, g, b);
-                    self.warp_grid_density = density;
-                    self.warp_grid_amplitude = amplitude;
-                    self.warp_grid_speed = speed;
-                    self.warp_grid_opacity = opacity;
+                    self.effects.warp_grid.enabled = enabled;
+                    self.effects.warp_grid.color = (r, g, b);
+                    self.effects.warp_grid.density = density;
+                    self.effects.warp_grid.amplitude = amplitude;
+                    self.effects.warp_grid.speed = speed;
+                    self.effects.warp_grid.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_warp_grid(enabled, (r, g, b), density, amplitude, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorDnaHelix { enabled, r1, g1, b1, r2, g2, b2, radius, speed, opacity } => {
-                    self.cursor_dna_helix_enabled = enabled;
-                    self.cursor_dna_helix_color1 = (r1, g1, b1);
-                    self.cursor_dna_helix_color2 = (r2, g2, b2);
-                    self.cursor_dna_helix_radius = radius;
-                    self.cursor_dna_helix_speed = speed;
-                    self.cursor_dna_helix_opacity = opacity;
+                    self.effects.cursor_dna_helix.enabled = enabled;
+                    self.effects.cursor_dna_helix.color1 = (r1, g1, b1);
+                    self.effects.cursor_dna_helix.color2 = (r2, g2, b2);
+                    self.effects.cursor_dna_helix.radius = radius;
+                    self.effects.cursor_dna_helix.speed = speed;
+                    self.effects.cursor_dna_helix.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_dna_helix(enabled, (r1, g1, b1), (r2, g2, b2), radius, speed, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetPrismEdge { enabled, width, speed, saturation, opacity } => {
-                    self.prism_edge_enabled = enabled;
-                    self.prism_edge_width = width;
-                    self.prism_edge_speed = speed;
-                    self.prism_edge_saturation = saturation;
-                    self.prism_edge_opacity = opacity;
+                    self.effects.prism_edge.enabled = enabled;
+                    self.effects.prism_edge.width = width;
+                    self.effects.prism_edge.speed = speed;
+                    self.effects.prism_edge.saturation = saturation;
+                    self.effects.prism_edge.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_prism_edge(enabled, width, speed, saturation, opacity);
                     }
                     self.frame_dirty = true;
                 }
                 RenderCommand::SetCursorPendulum { enabled, r, g, b, arc_length, damping, opacity } => {
-                    self.cursor_pendulum_enabled = enabled;
-                    self.cursor_pendulum_color = (r, g, b);
-                    self.cursor_pendulum_arc_length = arc_length;
-                    self.cursor_pendulum_damping = damping;
-                    self.cursor_pendulum_opacity = opacity;
+                    self.effects.cursor_pendulum.enabled = enabled;
+                    self.effects.cursor_pendulum.color = (r, g, b);
+                    self.effects.cursor_pendulum.arc_length = arc_length;
+                    self.effects.cursor_pendulum.damping = damping;
+                    self.effects.cursor_pendulum.opacity = opacity;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_cursor_pendulum(enabled, (r, g, b), arc_length, damping, opacity);
                     }
@@ -4660,7 +3238,7 @@ impl RenderApp {
                 }
 
                 // Spawn typing ripple when cursor moves (if enabled)
-                if target_moved && had_target && self.typing_ripple_enabled {
+                if target_moved && had_target && self.effects.typing_ripple.enabled {
                     if let Some(renderer) = self.renderer.as_mut() {
                         let cx = new_target.x + new_target.width / 2.0;
                         let cy = new_target.y + new_target.height / 2.0;
@@ -4669,7 +3247,7 @@ impl RenderApp {
                 }
 
                 // Record cursor trail fade position when cursor moves
-                if target_moved && had_target && self.cursor_trail_fade_enabled {
+                if target_moved && had_target && self.effects.cursor_trail_fade.enabled {
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.record_cursor_trail(
                             self.cursor_current_x,
@@ -4913,7 +3491,7 @@ impl RenderApp {
             self.cursor_blink_on = !self.cursor_blink_on;
             self.last_cursor_toggle = now;
             // Trigger wake animation when cursor becomes visible after blink-off
-            if was_off && self.cursor_blink_on && self.cursor_wake_enabled {
+            if was_off && self.cursor_blink_on && self.effects.cursor_wake.enabled {
                 if let Some(renderer) = self.renderer.as_mut() {
                     renderer.trigger_cursor_wake(now);
                 }
@@ -5235,7 +3813,7 @@ impl RenderApp {
                 if prev.buffer_id != 0 && info.buffer_id != 0 {
                     if prev.buffer_id != info.buffer_id {
                         // Text fade-in on buffer switch
-                        if self.text_fade_in_enabled && !info.is_minibuffer {
+                        if self.effects.text_fade_in.enabled && !info.is_minibuffer {
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_text_fade_in(info.window_id, info.bounds, now);
                             }
@@ -5286,27 +3864,27 @@ impl RenderApp {
                         }
                     } else if prev.window_start != info.window_start {
                         // Text fade-in on scroll
-                        if self.text_fade_in_enabled && !info.is_minibuffer {
+                        if self.effects.text_fade_in.enabled && !info.is_minibuffer {
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_text_fade_in(info.window_id, info.bounds, now);
                             }
                         }
                         // Scroll line spacing animation (accordion effect)
-                        if self.scroll_line_spacing_enabled {
+                        if self.effects.scroll_line_spacing.enabled {
                             let dir = if info.window_start > prev.window_start { 1 } else { -1 };
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_scroll_line_spacing(info.window_id, info.bounds, dir, now);
                             }
                         }
                         // Scroll momentum indicator
-                        if self.scroll_momentum_enabled && !info.is_minibuffer {
+                        if self.effects.scroll_momentum.enabled && !info.is_minibuffer {
                             let dir = if info.window_start > prev.window_start { 1 } else { -1 };
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_scroll_momentum(info.window_id, info.bounds, dir, now);
                             }
                         }
                         // Scroll velocity fade overlay
-                        if self.scroll_velocity_fade_enabled && !info.is_minibuffer {
+                        if self.effects.scroll_velocity_fade.enabled && !info.is_minibuffer {
                             let delta = (info.window_start - prev.window_start).unsigned_abs() as f32;
                             if let Some(renderer) = self.renderer.as_mut() {
                                 renderer.trigger_scroll_velocity_fade(info.window_id, info.bounds, delta, now);
@@ -5364,7 +3942,7 @@ impl RenderApp {
                                 });
                             }
                         }
-                    } else if self.line_animation_enabled
+                    } else if self.effects.line_animation.enabled
                         && prev.buffer_size != info.buffer_size
                         && !info.is_minibuffer
                     {
@@ -5393,7 +3971,7 @@ impl RenderApp {
                                     info.bounds,
                                     edit_y + ch, // animate rows below cursor
                                     offset,
-                                    self.line_animation_duration_ms,
+                                    self.effects.line_animation.duration_ms,
                                 );
                             }
                         }
@@ -5462,7 +4040,7 @@ impl RenderApp {
         }
 
         // Detect window switch (selected window changed) → highlight fade
-        if self.window_switch_fade_enabled {
+        if self.effects.window_switch_fade.enabled {
             let mut new_selected: Option<(i64, Rect)> = None;
             for info in &frame.window_infos {
                 if info.selected && !info.is_minibuffer {
@@ -5482,7 +4060,7 @@ impl RenderApp {
         }
 
         // Detect theme change (background color changed significantly)
-        if self.theme_transition_enabled {
+        if self.effects.theme_transition.enabled {
             let bg = &frame.background;
             let new_bg = (bg.r, bg.g, bg.b, bg.a);
             if let Some(old_bg) = self.prev_background {
@@ -5497,7 +4075,7 @@ impl RenderApp {
                             log::debug!("Starting theme transition crossfade (bg changed)");
                             self.crossfades.insert(-1, CrossfadeTransition {
                                 started: now,
-                                duration: self.theme_transition_duration,
+                                duration: self.effects.theme_transition.duration,
                                 bounds: full_bounds,
                                 effect: self.crossfade_effect,
                                 easing: self.crossfade_easing,
@@ -5986,8 +4564,8 @@ impl RenderApp {
         };
 
         // Build background gradient option
-        let bg_gradient = if self.bg_gradient_enabled {
-            Some((self.bg_gradient_top, self.bg_gradient_bottom))
+        let bg_gradient = if self.effects.bg_gradient.enabled {
+            Some((self.effects.bg_gradient.top, self.effects.bg_gradient.bottom))
         } else {
             None
         };
@@ -6066,7 +4644,7 @@ impl RenderApp {
         }
 
         // Render breadcrumb/path bar overlay
-        if self.breadcrumb_enabled {
+        if self.effects.breadcrumb.enabled {
             if let (Some(ref mut renderer), Some(ref mut glyph_atlas), Some(ref frame)) =
                 (&mut self.renderer, &mut self.glyph_atlas, &self.current_frame)
             {
@@ -6087,7 +4665,7 @@ impl RenderApp {
         }
 
         // Render window watermarks for empty/small buffers
-        if self.window_watermark_enabled {
+        if self.effects.window_watermark.enabled {
             if let (Some(ref renderer), Some(ref mut glyph_atlas), Some(ref frame)) =
                 (&self.renderer, &mut self.glyph_atlas, &self.current_frame)
             {
@@ -6215,7 +4793,7 @@ impl RenderApp {
         }
 
         // Render typing speed indicator
-        if self.typing_speed_enabled {
+        if self.effects.typing_speed.enabled {
             let now = std::time::Instant::now();
             let window_secs = 5.0_f64;
             // Remove key presses older than the window
@@ -6604,11 +5182,11 @@ impl ApplicationHandler for RenderApp {
                             }
                         }
                         // Track key presses for typing speed indicator
-                        if self.typing_speed_enabled && state == ElementState::Pressed {
+                        if self.effects.typing_speed.enabled && state == ElementState::Pressed {
                             self.key_press_times.push(std::time::Instant::now());
                         }
                         // Track activity for idle dimming
-                        if self.idle_dim_enabled {
+                        if self.effects.idle_dim.enabled {
                             self.last_activity_time = std::time::Instant::now();
                         }
                         self.comms.send_input(InputEvent::Key {
@@ -6738,7 +5316,7 @@ impl ApplicationHandler for RenderApp {
                         modifiers: self.modifiers,
                     });
                     // Click halo effect on press
-                    if state == ElementState::Pressed && self.click_halo_enabled {
+                    if state == ElementState::Pressed && self.effects.click_halo.enabled {
                         if let Some(renderer) = self.renderer.as_mut() {
                             renderer.trigger_click_halo(self.mouse_pos.0, self.mouse_pos.1, std::time::Instant::now());
                         }
@@ -6753,7 +5331,7 @@ impl ApplicationHandler for RenderApp {
                 let ly = (position.y / self.scale_factor) as f32;
                 self.mouse_pos = (lx, ly);
                 // Track activity for idle dimming
-                if self.idle_dim_enabled {
+                if self.effects.idle_dim.enabled {
                     self.last_activity_time = std::time::Instant::now();
                 }
 
@@ -6992,24 +5570,24 @@ impl ApplicationHandler for RenderApp {
         }
 
         // Tick idle dimming
-        if self.idle_dim_enabled {
+        if self.effects.idle_dim.enabled {
             let idle_time = self.last_activity_time.elapsed();
-            let target_alpha = if idle_time >= self.idle_dim_delay {
-                self.idle_dim_opacity
+            let target_alpha = if idle_time >= self.effects.idle_dim.delay {
+                self.effects.idle_dim.opacity
             } else {
                 0.0
             };
             let diff = target_alpha - self.idle_dim_current_alpha;
             if diff.abs() > 0.001 {
-                let fade_speed = if self.idle_dim_fade_duration.as_secs_f32() > 0.0 {
-                    1.0 / self.idle_dim_fade_duration.as_secs_f32() * 0.016
+                let fade_speed = if self.effects.idle_dim.fade_duration.as_secs_f32() > 0.0 {
+                    1.0 / self.effects.idle_dim.fade_duration.as_secs_f32() * 0.016
                 } else {
                     1.0
                 };
                 if diff > 0.0 {
-                    self.idle_dim_current_alpha = (self.idle_dim_current_alpha + fade_speed * self.idle_dim_opacity).min(target_alpha);
+                    self.idle_dim_current_alpha = (self.idle_dim_current_alpha + fade_speed * self.effects.idle_dim.opacity).min(target_alpha);
                 } else {
-                    self.idle_dim_current_alpha = (self.idle_dim_current_alpha - fade_speed * self.idle_dim_opacity).max(0.0);
+                    self.idle_dim_current_alpha = (self.idle_dim_current_alpha - fade_speed * self.effects.idle_dim.opacity).max(0.0);
                 }
                 self.idle_dim_active = true;
                 self.frame_dirty = true;
@@ -7022,7 +5600,7 @@ impl ApplicationHandler for RenderApp {
         }
 
         // Keep dirty if cursor pulse is active (needs continuous redraw)
-        if self.cursor_pulse_enabled && self.cursor_glow_enabled {
+        if self.effects.cursor_pulse.enabled && self.effects.cursor_glow.enabled {
             self.frame_dirty = true;
         }
 
