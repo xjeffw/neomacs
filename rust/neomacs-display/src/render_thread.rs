@@ -757,6 +757,61 @@ impl CursorState {
 }
 
 
+/// Window transition state (crossfade and scroll animations).
+///
+/// Groups configuration, double-buffer textures, and active transition maps.
+struct TransitionState {
+    // Configuration
+    crossfade_enabled: bool,
+    crossfade_duration: std::time::Duration,
+    crossfade_effect: crate::core::scroll_animation::ScrollEffect,
+    crossfade_easing: crate::core::scroll_animation::ScrollEasing,
+    scroll_enabled: bool,
+    scroll_duration: std::time::Duration,
+    scroll_effect: crate::core::scroll_animation::ScrollEffect,
+    scroll_easing: crate::core::scroll_animation::ScrollEasing,
+
+    // Double-buffer offscreen textures
+    offscreen_a: Option<(wgpu::Texture, wgpu::TextureView, wgpu::BindGroup)>,
+    offscreen_b: Option<(wgpu::Texture, wgpu::TextureView, wgpu::BindGroup)>,
+    current_is_a: bool,
+
+    // Active transitions
+    crossfades: HashMap<i64, CrossfadeTransition>,
+    scroll_slides: HashMap<i64, ScrollTransition>,
+
+    // Per-window metadata from previous frame (for transition detection)
+    prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
+}
+
+impl Default for TransitionState {
+    fn default() -> Self {
+        Self {
+            crossfade_enabled: true,
+            crossfade_duration: std::time::Duration::from_millis(200),
+            crossfade_effect: crate::core::scroll_animation::ScrollEffect::Crossfade,
+            crossfade_easing: crate::core::scroll_animation::ScrollEasing::EaseOutQuad,
+            scroll_enabled: true,
+            scroll_duration: std::time::Duration::from_millis(150),
+            scroll_effect: crate::core::scroll_animation::ScrollEffect::default(),
+            scroll_easing: crate::core::scroll_animation::ScrollEasing::default(),
+            offscreen_a: None,
+            offscreen_b: None,
+            current_is_a: true,
+            crossfades: HashMap::new(),
+            scroll_slides: HashMap::new(),
+            prev_window_infos: HashMap::new(),
+        }
+    }
+}
+
+impl TransitionState {
+    /// Check if any transitions are currently active
+    fn has_active(&self) -> bool {
+        !self.crossfades.is_empty() || !self.scroll_slides.is_empty()
+    }
+}
+
 struct RenderApp {
     comms: RenderComms,
     window: Option<Arc<Window>>,
@@ -799,27 +854,8 @@ struct RenderApp {
     // All visual effect configurations
     effects: crate::effect_config::EffectsConfig,
 
-    // Per-window metadata from previous frame (for transition detection)
-    prev_window_infos: HashMap<i64, crate::core::frame_glyphs::WindowInfo>,
-
-    // Transition state
-    crossfade_enabled: bool,
-    crossfade_duration: std::time::Duration,
-    crossfade_effect: crate::core::scroll_animation::ScrollEffect,
-    crossfade_easing: crate::core::scroll_animation::ScrollEasing,
-    scroll_enabled: bool,
-    scroll_duration: std::time::Duration,
-    scroll_effect: crate::core::scroll_animation::ScrollEffect,
-    scroll_easing: crate::core::scroll_animation::ScrollEasing,
-
-    // Double-buffer offscreen textures for transitions
-    offscreen_a: Option<(wgpu::Texture, wgpu::TextureView, wgpu::BindGroup)>,
-    offscreen_b: Option<(wgpu::Texture, wgpu::TextureView, wgpu::BindGroup)>,
-    current_is_a: bool,
-
-    // Active transitions
-    crossfades: HashMap<i64, CrossfadeTransition>,
-    scroll_slides: HashMap<i64, ScrollTransition>,
+    // Window transition state (crossfade, scroll)
+    transitions: TransitionState,
 
     // WebKit state (video cache is managed by renderer)
     #[cfg(feature = "wpe-webkit")]
@@ -980,20 +1016,7 @@ impl RenderApp {
             frame_dirty: false,
             cursor: CursorState::default(),
             effects: crate::effect_config::EffectsConfig::default(),
-            prev_window_infos: HashMap::new(),
-            crossfade_enabled: true,
-            crossfade_duration: std::time::Duration::from_millis(200),
-            crossfade_effect: crate::core::scroll_animation::ScrollEffect::Crossfade,
-            crossfade_easing: crate::core::scroll_animation::ScrollEasing::EaseOutQuad,
-            scroll_enabled: true,
-            scroll_duration: std::time::Duration::from_millis(150),
-            scroll_effect: crate::core::scroll_animation::ScrollEffect::default(),
-            scroll_easing: crate::core::scroll_animation::ScrollEasing::default(),
-            offscreen_a: None,
-            offscreen_b: None,
-            current_is_a: true,
-            crossfades: HashMap::new(),
-            scroll_slides: HashMap::new(),
+            transitions: TransitionState::default(),
             #[cfg(feature = "wpe-webkit")]
             wpe_backend: None,
             #[cfg(feature = "wpe-webkit")]
@@ -1207,11 +1230,11 @@ impl RenderApp {
         }
 
         // Invalidate offscreen textures (they reference old size)
-        self.offscreen_a = None;
-        self.offscreen_b = None;
+        self.transitions.offscreen_a = None;
+        self.transitions.offscreen_b = None;
         // Cancel active transitions (they reference old-sized textures)
-        self.crossfades.clear();
-        self.scroll_slides.clear();
+        self.transitions.crossfades.clear();
+        self.transitions.scroll_slides.clear();
 
         // Trigger resize padding transition
         if self.effects.resize_padding.enabled {
@@ -1568,22 +1591,22 @@ impl RenderApp {
                     self.cursor.anim_style = cursor_style;
                     self.cursor.anim_duration = cursor_duration_ms as f32 / 1000.0;
                     self.cursor.trail_size = trail_size.clamp(0.0, 1.0);
-                    self.crossfade_enabled = crossfade_enabled;
-                    self.crossfade_duration = std::time::Duration::from_millis(crossfade_duration_ms as u64);
-                    self.crossfade_effect = cf_effect;
-                    self.crossfade_easing = cf_easing;
-                    self.scroll_enabled = scroll_enabled;
-                    self.scroll_duration = std::time::Duration::from_millis(scroll_duration_ms as u64);
-                    self.scroll_effect = effect;
-                    self.scroll_easing = easing;
+                    self.transitions.crossfade_enabled = crossfade_enabled;
+                    self.transitions.crossfade_duration = std::time::Duration::from_millis(crossfade_duration_ms as u64);
+                    self.transitions.crossfade_effect = cf_effect;
+                    self.transitions.crossfade_easing = cf_easing;
+                    self.transitions.scroll_enabled = scroll_enabled;
+                    self.transitions.scroll_duration = std::time::Duration::from_millis(scroll_duration_ms as u64);
+                    self.transitions.scroll_effect = effect;
+                    self.transitions.scroll_easing = easing;
                     if !cursor_enabled {
                         self.cursor.animating = false;
                     }
                     if !crossfade_enabled {
-                        self.crossfades.clear();
+                        self.transitions.crossfades.clear();
                     }
                     if !scroll_enabled {
-                        self.scroll_slides.clear();
+                        self.transitions.scroll_slides.clear();
                     }
                 }
                 #[cfg(feature = "neo-term")]
@@ -1947,10 +1970,7 @@ impl RenderApp {
 
 
 
-    /// Check if any transitions are currently active
-    fn has_active_transitions(&self) -> bool {
-        !self.crossfades.is_empty() || !self.scroll_slides.is_empty()
-    }
+
 
     /// Update cursor blink state, returns true if blink toggled
     fn tick_cursor_blink(&mut self) -> bool {
@@ -2200,7 +2220,7 @@ impl RenderApp {
 
     /// Ensure offscreen textures exist (lazily created)
     fn ensure_offscreen_textures(&mut self) {
-        if self.offscreen_a.is_some() && self.offscreen_b.is_some() {
+        if self.transitions.offscreen_a.is_some() && self.transitions.offscreen_b.is_some() {
             return;
         }
         let renderer = match self.renderer.as_ref() {
@@ -2210,34 +2230,34 @@ impl RenderApp {
         let w = self.width;
         let h = self.height;
 
-        if self.offscreen_a.is_none() {
+        if self.transitions.offscreen_a.is_none() {
             let (tex, view) = renderer.create_offscreen_texture(w, h);
             let bg = renderer.create_texture_bind_group(&view);
-            self.offscreen_a = Some((tex, view, bg));
+            self.transitions.offscreen_a = Some((tex, view, bg));
         }
-        if self.offscreen_b.is_none() {
+        if self.transitions.offscreen_b.is_none() {
             let (tex, view) = renderer.create_offscreen_texture(w, h);
             let bg = renderer.create_texture_bind_group(&view);
-            self.offscreen_b = Some((tex, view, bg));
+            self.transitions.offscreen_b = Some((tex, view, bg));
         }
     }
 
     /// Get the "current" offscreen texture view and bind group
     fn current_offscreen_view_and_bg(&self) -> Option<(&wgpu::TextureView, &wgpu::BindGroup)> {
-        let (_, ref view, ref bg) = if self.current_is_a {
-            self.offscreen_a.as_ref()?
+        let (_, ref view, ref bg) = if self.transitions.current_is_a {
+            self.transitions.offscreen_a.as_ref()?
         } else {
-            self.offscreen_b.as_ref()?
+            self.transitions.offscreen_b.as_ref()?
         };
         Some((view, bg))
     }
 
     /// Get the "previous" offscreen texture, view, and bind group
     fn previous_offscreen(&self) -> Option<(&wgpu::Texture, &wgpu::TextureView, &wgpu::BindGroup)> {
-        let (ref tex, ref view, ref bg) = if self.current_is_a {
-            self.offscreen_b.as_ref()?
+        let (ref tex, ref view, ref bg) = if self.transitions.current_is_a {
+            self.transitions.offscreen_b.as_ref()?
         } else {
-            self.offscreen_a.as_ref()?
+            self.transitions.offscreen_a.as_ref()?
         };
         Some((tex, view, bg))
     }
@@ -2288,7 +2308,7 @@ impl RenderApp {
         let now = std::time::Instant::now();
 
         for info in &frame.window_infos {
-            if let Some(prev) = self.prev_window_infos.get(&info.window_id) {
+            if let Some(prev) = self.transitions.prev_window_infos.get(&info.window_id) {
                 if prev.buffer_id != 0 && info.buffer_id != 0 {
                     if prev.buffer_id != info.buffer_id {
                         // Text fade-in on buffer switch
@@ -2299,19 +2319,19 @@ impl RenderApp {
                         }
                         // Buffer switch → crossfade
                         // Suppress for minibuffer (small windows change buffers on every keystroke)
-                        if self.crossfade_enabled && info.bounds.height >= 50.0 {
+                        if self.transitions.crossfade_enabled && info.bounds.height >= 50.0 {
                             // Cancel existing transition for this window
-                            self.crossfades.remove(&info.window_id);
-                            self.scroll_slides.remove(&info.window_id);
+                            self.transitions.crossfades.remove(&info.window_id);
+                            self.transitions.scroll_slides.remove(&info.window_id);
 
                             if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
-                                log::debug!("Starting crossfade for window {} (buffer changed, effect={:?})", info.window_id, self.crossfade_effect);
-                                self.crossfades.insert(info.window_id, CrossfadeTransition {
+                                log::debug!("Starting crossfade for window {} (buffer changed, effect={:?})", info.window_id, self.transitions.crossfade_effect);
+                                self.transitions.crossfades.insert(info.window_id, CrossfadeTransition {
                                     started: now,
-                                    duration: self.crossfade_duration,
+                                    duration: self.transitions.crossfade_duration,
                                     bounds: info.bounds,
-                                    effect: self.crossfade_effect,
-                                    easing: self.crossfade_easing,
+                                    effect: self.transitions.crossfade_effect,
+                                    easing: self.transitions.crossfade_easing,
                                     old_texture: tex,
                                     old_view: view,
                                     old_bind_group: bg,
@@ -2322,19 +2342,19 @@ impl RenderApp {
                         && (prev.bounds.height - info.bounds.height).abs() > 2.0
                     {
                         // Minibuffer height change → crossfade
-                        if self.crossfade_enabled {
-                            self.crossfades.remove(&info.window_id);
-                            self.scroll_slides.remove(&info.window_id);
+                        if self.transitions.crossfade_enabled {
+                            self.transitions.crossfades.remove(&info.window_id);
+                            self.transitions.scroll_slides.remove(&info.window_id);
 
                             if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
                                 log::debug!("Starting minibuffer crossfade (height {} → {})",
                                     prev.bounds.height, info.bounds.height);
-                                self.crossfades.insert(info.window_id, CrossfadeTransition {
+                                self.transitions.crossfades.insert(info.window_id, CrossfadeTransition {
                                     started: now,
                                     duration: std::time::Duration::from_millis(150),
                                     bounds: info.bounds,
-                                    effect: self.crossfade_effect,
-                                    easing: self.crossfade_easing,
+                                    effect: self.transitions.crossfade_effect,
+                                    easing: self.transitions.crossfade_easing,
                                     old_texture: tex,
                                     old_view: view,
                                     old_bind_group: bg,
@@ -2371,10 +2391,10 @@ impl RenderApp {
                         }
                         // Scroll → slide (content area only, excluding mode-line)
                         let content_height = info.bounds.height - info.mode_line_height;
-                        if self.scroll_enabled && content_height >= 50.0 {
+                        if self.transitions.scroll_enabled && content_height >= 50.0 {
                             // Cancel existing transition for this window
-                            self.crossfades.remove(&info.window_id);
-                            self.scroll_slides.remove(&info.window_id);
+                            self.transitions.crossfades.remove(&info.window_id);
+                            self.transitions.scroll_slides.remove(&info.window_id);
 
                             let dir = if info.window_start > prev.window_start { 1 } else { -1 };
 
@@ -2386,14 +2406,14 @@ impl RenderApp {
 
                             if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
                                 log::debug!("Starting scroll slide for window {} (dir={}, effect={:?}, content_h={})",
-                                    info.window_id, dir, self.scroll_effect, content_height);
-                                self.scroll_slides.insert(info.window_id, ScrollTransition {
+                                    info.window_id, dir, self.transitions.scroll_effect, content_height);
+                                self.transitions.scroll_slides.insert(info.window_id, ScrollTransition {
                                     started: now,
-                                    duration: self.scroll_duration,
+                                    duration: self.transitions.scroll_duration,
                                     bounds: content_bounds,
                                     direction: dir,
-                                    effect: self.scroll_effect,
-                                    easing: self.scroll_easing,
+                                    effect: self.transitions.scroll_effect,
+                                    easing: self.transitions.scroll_easing,
                                     old_texture: tex,
                                     old_view: view,
                                     old_bind_group: bg,
@@ -2402,19 +2422,19 @@ impl RenderApp {
                         }
                     } else if (prev.char_height - info.char_height).abs() > 1.0 {
                         // Font size changed (text-scale-adjust) → crossfade
-                        if self.crossfade_enabled {
-                            self.crossfades.remove(&info.window_id);
-                            self.scroll_slides.remove(&info.window_id);
+                        if self.transitions.crossfade_enabled {
+                            self.transitions.crossfades.remove(&info.window_id);
+                            self.transitions.scroll_slides.remove(&info.window_id);
 
                             if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
                                 log::debug!("Starting font-size crossfade for window {} (char_height {} → {})",
                                     info.window_id, prev.char_height, info.char_height);
-                                self.crossfades.insert(info.window_id, CrossfadeTransition {
+                                self.transitions.crossfades.insert(info.window_id, CrossfadeTransition {
                                     started: now,
                                     duration: std::time::Duration::from_millis(200),
                                     bounds: info.bounds,
-                                    effect: self.crossfade_effect,
-                                    easing: self.crossfade_easing,
+                                    effect: self.transitions.crossfade_effect,
+                                    easing: self.transitions.crossfade_easing,
                                     old_texture: tex,
                                     old_view: view,
                                     old_bind_group: bg,
@@ -2458,22 +2478,22 @@ impl RenderApp {
                         || (prev.bounds.height - info.bounds.height).abs() > 2.0
                     {
                         // Window resized (balance-windows, divider drag) → crossfade
-                        if self.crossfade_enabled && !info.is_minibuffer {
-                            self.crossfades.remove(&info.window_id);
-                            self.scroll_slides.remove(&info.window_id);
+                        if self.transitions.crossfade_enabled && !info.is_minibuffer {
+                            self.transitions.crossfades.remove(&info.window_id);
+                            self.transitions.scroll_slides.remove(&info.window_id);
 
                             // Use full-frame crossfade (window_id 0) since
                             // all windows resize together during balance
                             let full_bounds = Rect::new(0.0, 0.0, frame.width, frame.height);
-                            if !self.crossfades.contains_key(&0) {
+                            if !self.transitions.crossfades.contains_key(&0) {
                                 if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
                                     log::debug!("Starting window-resize crossfade (bounds changed)");
-                                    self.crossfades.insert(0, CrossfadeTransition {
+                                    self.transitions.crossfades.insert(0, CrossfadeTransition {
                                         started: now,
                                         duration: std::time::Duration::from_millis(150),
                                         bounds: full_bounds,
-                                        effect: self.crossfade_effect,
-                                        easing: self.crossfade_easing,
+                                        effect: self.transitions.crossfade_effect,
+                                        easing: self.transitions.crossfade_easing,
                                         old_texture: tex,
                                         old_view: view,
                                         old_bind_group: bg,
@@ -2487,12 +2507,12 @@ impl RenderApp {
         }
 
         // Detect window split/delete (window count or IDs changed)
-        if self.crossfade_enabled && !self.prev_window_infos.is_empty() {
+        if self.transitions.crossfade_enabled && !self.transitions.prev_window_infos.is_empty() {
             let curr_ids: std::collections::HashSet<i64> = frame.window_infos.iter()
                 .filter(|i| !i.is_minibuffer)
                 .map(|i| i.window_id)
                 .collect();
-            let prev_non_mini: std::collections::HashSet<i64> = self.prev_window_infos.iter()
+            let prev_non_mini: std::collections::HashSet<i64> = self.transitions.prev_window_infos.iter()
                 .filter(|(_, v)| !v.is_minibuffer)
                 .map(|(k, _)| *k)
                 .collect();
@@ -2504,12 +2524,12 @@ impl RenderApp {
                 if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
                     log::debug!("Starting window split/delete crossfade ({} → {} windows)",
                         prev_non_mini.len(), curr_ids.len());
-                    self.crossfades.insert(0, CrossfadeTransition {
+                    self.transitions.crossfades.insert(0, CrossfadeTransition {
                         started: now,
                         duration: std::time::Duration::from_millis(200),
                         bounds: full_bounds,
-                        effect: self.crossfade_effect,
-                        easing: self.crossfade_easing,
+                        effect: self.transitions.crossfade_effect,
+                        easing: self.transitions.crossfade_easing,
                         old_texture: tex,
                         old_view: view,
                         old_bind_group: bg,
@@ -2549,15 +2569,15 @@ impl RenderApp {
                 // Threshold: any channel changed by more than ~2% means theme switch
                 if dr > 0.02 || dg > 0.02 || db > 0.02 {
                     let full_bounds = Rect::new(0.0, 0.0, frame.width, frame.height);
-                    if !self.crossfades.contains_key(&-1) {
+                    if !self.transitions.crossfades.contains_key(&-1) {
                         if let Some((tex, view, bg_group)) = self.snapshot_prev_texture() {
                             log::debug!("Starting theme transition crossfade (bg changed)");
-                            self.crossfades.insert(-1, CrossfadeTransition {
+                            self.transitions.crossfades.insert(-1, CrossfadeTransition {
                                 started: now,
                                 duration: self.effects.theme_transition.duration,
                                 bounds: full_bounds,
-                                effect: self.crossfade_effect,
-                                easing: self.crossfade_easing,
+                                effect: self.transitions.crossfade_effect,
+                                easing: self.transitions.crossfade_easing,
                                 old_texture: tex,
                                 old_view: view,
                                 old_bind_group: bg_group,
@@ -2570,9 +2590,9 @@ impl RenderApp {
         }
 
         // Update prev_window_infos from current frame
-        self.prev_window_infos.clear();
+        self.transitions.prev_window_infos.clear();
         for info in &frame.window_infos {
-            self.prev_window_infos.insert(info.window_id, info.clone());
+            self.transitions.prev_window_infos.insert(info.window_id, info.clone());
         }
     }
 
@@ -2592,7 +2612,7 @@ impl RenderApp {
 
         // Render crossfades (using per-transition effect/easing)
         let mut completed_crossfades = Vec::new();
-        for (&wid, transition) in &self.crossfades {
+        for (&wid, transition) in &self.transitions.crossfades {
             let elapsed = now.duration_since(transition.started);
             let raw_t = (elapsed.as_secs_f32() / transition.duration.as_secs_f32()).min(1.0);
             let elapsed_secs = elapsed.as_secs_f32();
@@ -2617,12 +2637,12 @@ impl RenderApp {
             }
         }
         for wid in completed_crossfades {
-            self.crossfades.remove(&wid);
+            self.transitions.crossfades.remove(&wid);
         }
 
         // Render scroll slides
         let mut completed_scrolls = Vec::new();
-        for (&wid, transition) in &self.scroll_slides {
+        for (&wid, transition) in &self.transitions.scroll_slides {
             let elapsed = now.duration_since(transition.started);
             let raw_t = (elapsed.as_secs_f32() / transition.duration.as_secs_f32()).min(1.0);
             let elapsed_secs = elapsed.as_secs_f32();
@@ -2646,7 +2666,7 @@ impl RenderApp {
             }
         }
         for wid in completed_scrolls {
-            self.scroll_slides.remove(&wid);
+            self.transitions.scroll_slides.remove(&wid);
         }
     }
 
@@ -3050,11 +3070,11 @@ impl RenderApp {
         };
 
         // Check if we need offscreen rendering (for transitions)
-        let need_offscreen = self.crossfade_enabled || self.scroll_enabled;
+        let need_offscreen = self.transitions.crossfade_enabled || self.transitions.scroll_enabled;
 
         if need_offscreen {
             // Swap: previous ← current
-            self.current_is_a = !self.current_is_a;
+            self.transitions.current_is_a = !self.transitions.current_is_a;
 
             // Ensure offscreen textures exist
             self.ensure_offscreen_textures();
@@ -3249,7 +3269,7 @@ impl RenderApp {
             let window_count = self.current_frame.as_ref()
                 .map(|f| f.window_infos.len())
                 .unwrap_or(0);
-            let transition_count = self.crossfades.len() + self.scroll_slides.len();
+            let transition_count = self.transitions.crossfades.len() + self.transitions.scroll_slides.len();
 
             // Build multi-line stats text
             let stats_lines = vec![
@@ -4091,7 +4111,7 @@ impl ApplicationHandler for RenderApp {
         }
 
         // Keep dirty if transitions are active
-        if self.has_active_transitions() {
+        if self.transitions.has_active() {
             self.frame_dirty = true;
         }
 
@@ -4116,7 +4136,7 @@ impl ApplicationHandler for RenderApp {
         let now = std::time::Instant::now();
         let next_wake = if self.frame_dirty || has_active_content
             || self.cursor.animating || self.cursor.size_animating
-            || self.idle_dim_active || self.has_active_transitions()
+            || self.idle_dim_active || self.transitions.has_active()
         {
             // Active rendering: cap at ~240fps to avoid spinning
             now + std::time::Duration::from_millis(4)
