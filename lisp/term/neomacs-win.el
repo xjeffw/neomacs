@@ -3952,6 +3952,256 @@ frame, creating a subtle depth/focus effect."
                 neomacs-vignette-intensity nil)
             val))))
 
+;; --- Matrix/digital rain effect ---
+(declare-function neomacs-set-matrix-rain "neomacsterm.c"
+  (&optional enabled color speed opacity))
+
+(defcustom neomacs-matrix-rain nil
+  "Enable matrix/digital rain effect.
+Non-nil renders animated vertical columns of cascading drops."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-matrix-rain)
+           (neomacs-set-matrix-rain
+            val
+            (if (boundp 'neomacs-matrix-rain-color)
+                neomacs-matrix-rain-color nil)
+            (if (boundp 'neomacs-matrix-rain-speed)
+                neomacs-matrix-rain-speed nil)
+            (if (boundp 'neomacs-matrix-rain-opacity)
+                neomacs-matrix-rain-opacity nil)))))
+
+(defcustom neomacs-matrix-rain-color "#00CC33"
+  "Matrix rain drop color as a hex string."
+  :type 'string
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-matrix-rain)
+                    (boundp 'neomacs-matrix-rain)
+                    neomacs-matrix-rain)
+           (neomacs-set-matrix-rain t val
+            (if (boundp 'neomacs-matrix-rain-speed)
+                neomacs-matrix-rain-speed nil)
+            (if (boundp 'neomacs-matrix-rain-opacity)
+                neomacs-matrix-rain-opacity nil)))))
+
+(defcustom neomacs-matrix-rain-speed 150
+  "Matrix rain fall speed in pixels per second."
+  :type '(integer :tag "Speed")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-matrix-rain)
+                    (boundp 'neomacs-matrix-rain)
+                    neomacs-matrix-rain)
+           (neomacs-set-matrix-rain t
+            (if (boundp 'neomacs-matrix-rain-color)
+                neomacs-matrix-rain-color nil)
+            val
+            (if (boundp 'neomacs-matrix-rain-opacity)
+                neomacs-matrix-rain-opacity nil)))))
+
+(defcustom neomacs-matrix-rain-opacity 12
+  "Matrix rain opacity percentage (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-matrix-rain)
+                    (boundp 'neomacs-matrix-rain)
+                    neomacs-matrix-rain)
+           (neomacs-set-matrix-rain t
+            (if (boundp 'neomacs-matrix-rain-color)
+                neomacs-matrix-rain-color nil)
+            (if (boundp 'neomacs-matrix-rain-speed)
+                neomacs-matrix-rain-speed nil)
+            val))))
+
+;; --- Cursor elastic snap animation ---
+(declare-function neomacs-set-cursor-elastic-snap "neomacsterm.c"
+  (&optional enabled overshoot duration-ms))
+
+(defcustom neomacs-cursor-elastic-snap nil
+  "Enable cursor elastic snap animation.
+Non-nil makes the cursor overshoot its target and bounce back."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-elastic-snap)
+           (neomacs-set-cursor-elastic-snap
+            val
+            (if (boundp 'neomacs-cursor-elastic-snap-overshoot)
+                neomacs-cursor-elastic-snap-overshoot nil)
+            (if (boundp 'neomacs-cursor-elastic-snap-duration)
+                neomacs-cursor-elastic-snap-duration nil)))))
+
+(defcustom neomacs-cursor-elastic-snap-overshoot 15
+  "Cursor elastic snap overshoot amount (0-50 percent)."
+  :type '(integer :tag "Overshoot %")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-elastic-snap)
+                    (boundp 'neomacs-cursor-elastic-snap)
+                    neomacs-cursor-elastic-snap)
+           (neomacs-set-cursor-elastic-snap t val
+            (if (boundp 'neomacs-cursor-elastic-snap-duration)
+                neomacs-cursor-elastic-snap-duration nil)))))
+
+(defcustom neomacs-cursor-elastic-snap-duration 200
+  "Cursor elastic snap duration in milliseconds."
+  :type '(integer :tag "Duration ms")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-elastic-snap)
+                    (boundp 'neomacs-cursor-elastic-snap)
+                    neomacs-cursor-elastic-snap)
+           (neomacs-set-cursor-elastic-snap t
+            (if (boundp 'neomacs-cursor-elastic-snap-overshoot)
+                neomacs-cursor-elastic-snap-overshoot nil)
+            val))))
+
+;; --- Frost/ice border effect ---
+(declare-function neomacs-set-frost-border "neomacsterm.c"
+  (&optional enabled color width opacity))
+
+(defcustom neomacs-frost-border nil
+  "Enable frost/ice border effect.
+Non-nil renders irregular crystalline frost patterns around window edges."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-frost-border)
+           (neomacs-set-frost-border
+            val
+            (if (boundp 'neomacs-frost-border-color)
+                neomacs-frost-border-color nil)
+            (if (boundp 'neomacs-frost-border-width)
+                neomacs-frost-border-width nil)
+            (if (boundp 'neomacs-frost-border-opacity)
+                neomacs-frost-border-opacity nil)))))
+
+(defcustom neomacs-frost-border-color "#B3D9FF"
+  "Frost border color as a hex string."
+  :type 'string
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-frost-border)
+                    (boundp 'neomacs-frost-border)
+                    neomacs-frost-border)
+           (neomacs-set-frost-border t val
+            (if (boundp 'neomacs-frost-border-width)
+                neomacs-frost-border-width nil)
+            (if (boundp 'neomacs-frost-border-opacity)
+                neomacs-frost-border-opacity nil)))))
+
+(defcustom neomacs-frost-border-width 6
+  "Frost border width in pixels."
+  :type '(integer :tag "Width")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-frost-border)
+                    (boundp 'neomacs-frost-border)
+                    neomacs-frost-border)
+           (neomacs-set-frost-border t
+            (if (boundp 'neomacs-frost-border-color)
+                neomacs-frost-border-color nil)
+            val
+            (if (boundp 'neomacs-frost-border-opacity)
+                neomacs-frost-border-opacity nil)))))
+
+(defcustom neomacs-frost-border-opacity 20
+  "Frost border opacity percentage (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-frost-border)
+                    (boundp 'neomacs-frost-border)
+                    neomacs-frost-border)
+           (neomacs-set-frost-border t
+            (if (boundp 'neomacs-frost-border-color)
+                neomacs-frost-border-color nil)
+            (if (boundp 'neomacs-frost-border-width)
+                neomacs-frost-border-width nil)
+            val))))
+
+;; --- Cursor afterimage ghost effect ---
+(declare-function neomacs-set-cursor-ghost "neomacsterm.c"
+  (&optional enabled color fade-ms opacity))
+
+(defcustom neomacs-cursor-ghost nil
+  "Enable cursor afterimage ghost effect.
+Non-nil draws ghost copies of the cursor at previous positions."
+  :type 'boolean
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-cursor-ghost)
+           (neomacs-set-cursor-ghost
+            val
+            (if (boundp 'neomacs-cursor-ghost-color)
+                neomacs-cursor-ghost-color nil)
+            (if (boundp 'neomacs-cursor-ghost-fade-ms)
+                neomacs-cursor-ghost-fade-ms nil)
+            (if (boundp 'neomacs-cursor-ghost-opacity)
+                neomacs-cursor-ghost-opacity nil)))))
+
+(defcustom neomacs-cursor-ghost-color "#8080FF"
+  "Cursor ghost color as a hex string."
+  :type 'string
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-ghost)
+                    (boundp 'neomacs-cursor-ghost)
+                    neomacs-cursor-ghost)
+           (neomacs-set-cursor-ghost t val
+            (if (boundp 'neomacs-cursor-ghost-fade-ms)
+                neomacs-cursor-ghost-fade-ms nil)
+            (if (boundp 'neomacs-cursor-ghost-opacity)
+                neomacs-cursor-ghost-opacity nil)))))
+
+(defcustom neomacs-cursor-ghost-fade-ms 600
+  "Cursor ghost fade duration in milliseconds."
+  :type '(integer :tag "Fade ms")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-ghost)
+                    (boundp 'neomacs-cursor-ghost)
+                    neomacs-cursor-ghost)
+           (neomacs-set-cursor-ghost t
+            (if (boundp 'neomacs-cursor-ghost-color)
+                neomacs-cursor-ghost-color nil)
+            val
+            (if (boundp 'neomacs-cursor-ghost-opacity)
+                neomacs-cursor-ghost-opacity nil)))))
+
+(defcustom neomacs-cursor-ghost-opacity 40
+  "Cursor ghost opacity percentage (0-100)."
+  :type '(integer :tag "Opacity")
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (and (fboundp 'neomacs-set-cursor-ghost)
+                    (boundp 'neomacs-cursor-ghost)
+                    neomacs-cursor-ghost)
+           (neomacs-set-cursor-ghost t
+            (if (boundp 'neomacs-cursor-ghost-color)
+                neomacs-cursor-ghost-color nil)
+            (if (boundp 'neomacs-cursor-ghost-fade-ms)
+                neomacs-cursor-ghost-fade-ms nil)
+            val))))
+
 ;; --- Edge glow on scroll boundaries ---
 (declare-function neomacs-set-edge-glow "neomacsterm.c"
   (&optional enabled color height opacity))

@@ -9901,6 +9901,143 @@ SIZE is the grain cell size in pixels (default 2).  */)
   return on ? Qt : Qnil;
 }
 
+DEFUN ("neomacs-set-matrix-rain",
+       Fneomacs_set_matrix_rain,
+       Sneomacs_set_matrix_rain, 0, 4, 0,
+       doc: /* Configure matrix/digital rain effect.
+ENABLED non-nil renders animated vertical columns of green cascading
+drops across the frame, reminiscent of the Matrix film.
+COLOR is an RGB hex string (default "#00CC33").
+SPEED is the fall speed in pixels/sec (default 150).
+OPACITY is a percentage 0-100 (default 12).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object speed,
+   Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 0x00, g = 0xCC, b = 0x33;
+  int col_count = 40, spd = 150, op = 12;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (speed)) spd = XFIXNUM (speed);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_matrix_rain (dpyinfo->display_handle, on, r, g, b, col_count, spd, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-elastic-snap",
+       Fneomacs_set_cursor_elastic_snap,
+       Sneomacs_set_cursor_elastic_snap, 0, 3, 0,
+       doc: /* Configure cursor elastic snap animation.
+ENABLED non-nil makes the cursor overshoot its target position slightly
+and bounce back, creating a rubber-band effect.
+OVERSHOOT is the overshoot amount as percentage (default 15).
+DURATION-MS is the snap animation duration in milliseconds (default 200).  */)
+  (Lisp_Object enabled, Lisp_Object overshoot, Lisp_Object duration_ms)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int os = 15, dur = 200;
+  if (FIXNUMP (overshoot)) os = XFIXNUM (overshoot);
+  if (FIXNUMP (duration_ms)) dur = XFIXNUM (duration_ms);
+
+  neomacs_display_set_cursor_elastic_snap (dpyinfo->display_handle, on, os, dur);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-frost-border",
+       Fneomacs_set_frost_border_effect,
+       Sneomacs_set_frost_border_effect, 0, 4, 0,
+       doc: /* Configure window frost/ice border effect.
+ENABLED non-nil renders irregular crystalline frost patterns around
+the edges of each window, simulating ice crystals.
+COLOR is an RGB hex string (default "#B3D9FF").
+WIDTH is the frost border width in pixels (default 6).
+OPACITY is a percentage 0-100 (default 20).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object width,
+   Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 0xB3, g = 0xD9, b = 0xFF;
+  int w = 6, op = 20;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (width)) w = XFIXNUM (width);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_frost_border_effect (dpyinfo->display_handle, on, r, g, b, w, op);
+  return on ? Qt : Qnil;
+}
+
+DEFUN ("neomacs-set-cursor-ghost",
+       Fneomacs_set_cursor_ghost,
+       Sneomacs_set_cursor_ghost, 0, 4, 0,
+       doc: /* Configure cursor afterimage ghost effect.
+ENABLED non-nil draws ghost copies of the cursor at previous positions
+that slowly fade and drift upward, creating a spectral echo.
+COLOR is an RGB hex string (default "#8080FF").
+FADE-MS is the ghost duration in milliseconds (default 600).
+OPACITY is a percentage 0-100 (default 40).  */)
+  (Lisp_Object enabled, Lisp_Object color, Lisp_Object fade_ms,
+   Lisp_Object opacity)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int on = !NILP (enabled);
+  int r = 0x80, g = 0x80, b = 0xFF;
+  int count = 4, fm = 600, drift = 20, op = 40;
+  if (STRINGP (color))
+    {
+      const char *s = SSDATA (color);
+      if (s[0] == '#' && strlen (s) == 7)
+        {
+          unsigned hex = 0;
+          sscanf (s + 1, "%06x", &hex);
+          r = (hex >> 16) & 0xFF;
+          g = (hex >> 8) & 0xFF;
+          b = hex & 0xFF;
+        }
+    }
+  if (FIXNUMP (fade_ms)) fm = XFIXNUM (fade_ms);
+  if (FIXNUMP (opacity)) op = XFIXNUM (opacity);
+
+  neomacs_display_set_cursor_ghost (dpyinfo->display_handle, on, r, g, b, count, fm, drift, op);
+  return on ? Qt : Qnil;
+}
+
 DEFUN ("neomacs-set-edge-glow",
        Fneomacs_set_edge_glow,
        Sneomacs_set_edge_glow, 0, 4, 0,
@@ -11574,6 +11711,10 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_set_focus_gradient_border);
   defsubr (&Sneomacs_set_cursor_magnetism);
   defsubr (&Sneomacs_set_depth_shadow);
+  defsubr (&Sneomacs_set_matrix_rain);
+  defsubr (&Sneomacs_set_cursor_elastic_snap);
+  defsubr (&Sneomacs_set_frost_border_effect);
+  defsubr (&Sneomacs_set_cursor_ghost);
   defsubr (&Sneomacs_set_edge_glow);
   defsubr (&Sneomacs_set_rain_effect);
   defsubr (&Sneomacs_set_cursor_ripple_wave);

@@ -5754,6 +5754,90 @@ pub unsafe extern "C" fn neomacs_display_send_command(
     let _ = state.emacs_comms.cmd_tx.try_send(cmd);
 }
 
+/// Configure matrix/digital rain effect
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_matrix_rain(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    column_count: c_int,
+    speed: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetMatrixRain {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0, g: g as f32 / 255.0, b: b as f32 / 255.0,
+        column_count: column_count as u32,
+        speed: speed as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor elastic snap animation
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_elastic_snap(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    overshoot: c_int,
+    duration_ms: c_int,
+) {
+    let cmd = RenderCommand::SetCursorElasticSnap {
+        enabled: enabled != 0,
+        overshoot: overshoot as f32 / 100.0,
+        duration_ms: duration_ms as u32,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure window frost/ice border effect
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_frost_border_effect(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    width: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetFrostBorder {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0, g: g as f32 / 255.0, b: b as f32 / 255.0,
+        width: width as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
+/// Configure cursor afterimage ghost effect
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_cursor_ghost(
+    _handle: *mut NeomacsDisplay,
+    enabled: c_int,
+    r: c_int, g: c_int, b: c_int,
+    count: c_int,
+    fade_ms: c_int,
+    drift: c_int,
+    opacity: c_int,
+) {
+    let cmd = RenderCommand::SetCursorGhost {
+        enabled: enabled != 0,
+        r: r as f32 / 255.0, g: g as f32 / 255.0, b: b as f32 / 255.0,
+        count: count as u32,
+        fade_ms: fade_ms as u32,
+        drift: drift as f32,
+        opacity: opacity as f32 / 100.0,
+    };
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+    }
+}
+
 /// Configure window edge glow on scroll boundaries
 #[no_mangle]
 pub unsafe extern "C" fn neomacs_display_set_edge_glow(

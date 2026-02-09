@@ -886,6 +886,50 @@ pub enum RenderCommand {
         /// Bar width in pixels
         width: f32,
     },
+    /// Configure matrix/digital rain effect
+    SetMatrixRain {
+        enabled: bool,
+        /// Drop color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Number of columns
+        column_count: u32,
+        /// Fall speed in pixels/sec
+        speed: f32,
+        /// Drop opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure cursor elastic snap animation
+    SetCursorElasticSnap {
+        enabled: bool,
+        /// Overshoot amount (0.0-1.0, fraction of distance to overshoot)
+        overshoot: f32,
+        /// Duration in milliseconds
+        duration_ms: u32,
+    },
+    /// Configure window frost/ice border effect
+    SetFrostBorder {
+        enabled: bool,
+        /// Ice color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Border width in pixels
+        width: f32,
+        /// Opacity (0.0-1.0)
+        opacity: f32,
+    },
+    /// Configure cursor afterimage ghost effect
+    SetCursorGhost {
+        enabled: bool,
+        /// Ghost color (sRGB floats)
+        r: f32, g: f32, b: f32,
+        /// Number of ghost copies
+        count: u32,
+        /// Ghost fade duration in ms
+        fade_ms: u32,
+        /// Drift speed in pixels/sec
+        drift: f32,
+        /// Max opacity (0.0-1.0)
+        opacity: f32,
+    },
     /// Configure window edge glow on scroll boundaries
     SetEdgeGlow {
         enabled: bool,

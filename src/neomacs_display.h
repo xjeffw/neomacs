@@ -1746,6 +1746,36 @@ void neomacs_display_set_inactive_tint(
     int r, int g, int b,
     int opacity);
 
+void neomacs_display_set_matrix_rain(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int column_count,
+    int speed,
+    int opacity);
+
+void neomacs_display_set_cursor_elastic_snap(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int overshoot,
+    int duration_ms);
+
+void neomacs_display_set_frost_border_effect(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int width,
+    int opacity);
+
+void neomacs_display_set_cursor_ghost(
+    struct NeomacsDisplay *handle,
+    int enabled,
+    int r, int g, int b,
+    int count,
+    int fade_ms,
+    int drift,
+    int opacity);
+
 void neomacs_display_set_edge_glow(
     struct NeomacsDisplay *handle,
     int enabled,

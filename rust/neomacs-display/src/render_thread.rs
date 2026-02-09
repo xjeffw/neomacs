@@ -544,6 +544,28 @@ struct RenderApp {
     cursor_size_target_h: f32,
     cursor_size_anim_start: std::time::Instant,
 
+    // Matrix/digital rain effect
+    matrix_rain_enabled: bool,
+    matrix_rain_color: (f32, f32, f32),
+    matrix_rain_column_count: u32,
+    matrix_rain_speed: f32,
+    matrix_rain_opacity: f32,
+    // Cursor elastic snap
+    cursor_elastic_snap_enabled: bool,
+    cursor_elastic_snap_overshoot: f32,
+    cursor_elastic_snap_duration_ms: u32,
+    // Frost/ice border
+    frost_border_enabled: bool,
+    frost_border_color: (f32, f32, f32),
+    frost_border_width: f32,
+    frost_border_opacity: f32,
+    // Cursor ghost afterimage
+    cursor_ghost_enabled: bool,
+    cursor_ghost_color: (f32, f32, f32),
+    cursor_ghost_count: u32,
+    cursor_ghost_fade_ms: u32,
+    cursor_ghost_drift: f32,
+    cursor_ghost_opacity: f32,
     // Edge glow on scroll boundaries
     edge_glow_enabled: bool,
     edge_glow_color: (f32, f32, f32),
@@ -1088,6 +1110,24 @@ impl RenderApp {
             cursor_size_target_w: 0.0,
             cursor_size_target_h: 0.0,
             cursor_size_anim_start: std::time::Instant::now(),
+            matrix_rain_enabled: false,
+            matrix_rain_color: (0.0, 0.8, 0.2),
+            matrix_rain_column_count: 40,
+            matrix_rain_speed: 150.0,
+            matrix_rain_opacity: 0.12,
+            cursor_elastic_snap_enabled: false,
+            cursor_elastic_snap_overshoot: 0.15,
+            cursor_elastic_snap_duration_ms: 200,
+            frost_border_enabled: false,
+            frost_border_color: (0.7, 0.85, 1.0),
+            frost_border_width: 6.0,
+            frost_border_opacity: 0.2,
+            cursor_ghost_enabled: false,
+            cursor_ghost_color: (0.5, 0.5, 1.0),
+            cursor_ghost_count: 4,
+            cursor_ghost_fade_ms: 600,
+            cursor_ghost_drift: 20.0,
+            cursor_ghost_opacity: 0.4,
             edge_glow_enabled: false,
             edge_glow_color: (0.4, 0.6, 1.0),
             edge_glow_height: 40.0,
@@ -2759,6 +2799,48 @@ impl RenderApp {
                     self.frosted_glass_blur = blur;
                     if let Some(renderer) = self.renderer.as_mut() {
                         renderer.set_frosted_glass(enabled, opacity, blur);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetMatrixRain { enabled, r, g, b, column_count, speed, opacity } => {
+                    self.matrix_rain_enabled = enabled;
+                    self.matrix_rain_color = (r, g, b);
+                    self.matrix_rain_column_count = column_count;
+                    self.matrix_rain_speed = speed;
+                    self.matrix_rain_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_matrix_rain(enabled, (r, g, b), column_count, speed, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorElasticSnap { enabled, overshoot, duration_ms } => {
+                    self.cursor_elastic_snap_enabled = enabled;
+                    self.cursor_elastic_snap_overshoot = overshoot;
+                    self.cursor_elastic_snap_duration_ms = duration_ms;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_elastic_snap(enabled, overshoot, duration_ms);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetFrostBorder { enabled, r, g, b, width, opacity } => {
+                    self.frost_border_enabled = enabled;
+                    self.frost_border_color = (r, g, b);
+                    self.frost_border_width = width;
+                    self.frost_border_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_frost_border_effect(enabled, (r, g, b), width, opacity);
+                    }
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetCursorGhost { enabled, r, g, b, count, fade_ms, drift, opacity } => {
+                    self.cursor_ghost_enabled = enabled;
+                    self.cursor_ghost_color = (r, g, b);
+                    self.cursor_ghost_count = count;
+                    self.cursor_ghost_fade_ms = fade_ms;
+                    self.cursor_ghost_drift = drift;
+                    self.cursor_ghost_opacity = opacity;
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.set_cursor_ghost(enabled, (r, g, b), count, fade_ms, drift, opacity);
                     }
                     self.frame_dirty = true;
                 }

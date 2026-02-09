@@ -400,6 +400,30 @@ pub struct WgpuRenderer {
     scroll_momentum_width: f32,
     /// Active scroll momentum entries
     active_scroll_momentums: Vec<ScrollMomentumEntry>,
+    /// Matrix/digital rain effect
+    matrix_rain_enabled: bool,
+    matrix_rain_color: (f32, f32, f32),
+    matrix_rain_column_count: u32,
+    matrix_rain_speed: f32,
+    matrix_rain_opacity: f32,
+    matrix_rain_columns: Vec<MatrixColumn>,
+    /// Cursor elastic snap animation
+    cursor_elastic_snap_enabled: bool,
+    cursor_elastic_snap_overshoot: f32,
+    cursor_elastic_snap_duration_ms: u32,
+    /// Window frost/ice border effect
+    frost_border_enabled: bool,
+    frost_border_color: (f32, f32, f32),
+    frost_border_width: f32,
+    frost_border_opacity: f32,
+    /// Cursor afterimage ghost effect
+    cursor_ghost_enabled: bool,
+    cursor_ghost_color: (f32, f32, f32),
+    cursor_ghost_count: u32,
+    cursor_ghost_fade_ms: u32,
+    cursor_ghost_drift: f32,
+    cursor_ghost_opacity: f32,
+    cursor_ghost_entries: Vec<CursorGhostEntry>,
     /// Window edge glow on scroll boundaries
     edge_glow_enabled: bool,
     edge_glow_color: (f32, f32, f32),
@@ -440,6 +464,23 @@ struct ScrollMomentumEntry {
     direction: i32, // 1 = down, -1 = up
     started: std::time::Instant,
     duration: std::time::Duration,
+}
+
+/// Entry for matrix rain column
+struct MatrixColumn {
+    x: f32,
+    y: f32,
+    speed: f32,
+    length: f32,
+}
+
+/// Entry for cursor ghost afterimage
+struct CursorGhostEntry {
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    started: std::time::Instant,
 }
 
 /// Entry for window edge glow (scroll boundary indicator)
@@ -1292,6 +1333,26 @@ impl WgpuRenderer {
             scroll_momentum_fade_ms: 300,
             scroll_momentum_width: 3.0,
             active_scroll_momentums: Vec::new(),
+            matrix_rain_enabled: false,
+            matrix_rain_color: (0.0, 0.8, 0.2),
+            matrix_rain_column_count: 40,
+            matrix_rain_speed: 150.0,
+            matrix_rain_opacity: 0.12,
+            matrix_rain_columns: Vec::new(),
+            cursor_elastic_snap_enabled: false,
+            cursor_elastic_snap_overshoot: 0.15,
+            cursor_elastic_snap_duration_ms: 200,
+            frost_border_enabled: false,
+            frost_border_color: (0.7, 0.85, 1.0),
+            frost_border_width: 6.0,
+            frost_border_opacity: 0.2,
+            cursor_ghost_enabled: false,
+            cursor_ghost_color: (0.5, 0.5, 1.0),
+            cursor_ghost_count: 4,
+            cursor_ghost_fade_ms: 600,
+            cursor_ghost_drift: 20.0,
+            cursor_ghost_opacity: 0.4,
+            cursor_ghost_entries: Vec::new(),
             edge_glow_enabled: false,
             edge_glow_color: (0.4, 0.6, 1.0),
             edge_glow_height: 40.0,
@@ -1867,6 +1928,43 @@ impl WgpuRenderer {
             started: now,
             duration: std::time::Duration::from_millis(self.scroll_momentum_fade_ms as u64),
         });
+    }
+
+    /// Update matrix rain config
+    pub fn set_matrix_rain(&mut self, enabled: bool, color: (f32, f32, f32), column_count: u32, speed: f32, opacity: f32) {
+        self.matrix_rain_enabled = enabled;
+        self.matrix_rain_color = color;
+        self.matrix_rain_column_count = column_count;
+        self.matrix_rain_speed = speed;
+        self.matrix_rain_opacity = opacity;
+        if !enabled {
+            self.matrix_rain_columns.clear();
+        }
+    }
+
+    /// Update cursor elastic snap config
+    pub fn set_cursor_elastic_snap(&mut self, enabled: bool, overshoot: f32, duration_ms: u32) {
+        self.cursor_elastic_snap_enabled = enabled;
+        self.cursor_elastic_snap_overshoot = overshoot;
+        self.cursor_elastic_snap_duration_ms = duration_ms;
+    }
+
+    /// Update frost border config
+    pub fn set_frost_border_effect(&mut self, enabled: bool, color: (f32, f32, f32), width: f32, opacity: f32) {
+        self.frost_border_enabled = enabled;
+        self.frost_border_color = color;
+        self.frost_border_width = width;
+        self.frost_border_opacity = opacity;
+    }
+
+    /// Update cursor ghost config
+    pub fn set_cursor_ghost(&mut self, enabled: bool, color: (f32, f32, f32), count: u32, fade_ms: u32, drift: f32, opacity: f32) {
+        self.cursor_ghost_enabled = enabled;
+        self.cursor_ghost_color = color;
+        self.cursor_ghost_count = count;
+        self.cursor_ghost_fade_ms = fade_ms;
+        self.cursor_ghost_drift = drift;
+        self.cursor_ghost_opacity = opacity;
     }
 
     /// Update edge glow config
@@ -4631,6 +4729,209 @@ impl WgpuRenderer {
                     }
 
                     // Keep redrawing while particles exist
+                    self.needs_continuous_redraw = true;
+                }
+            }
+
+            // Matrix/digital rain effect
+            if self.matrix_rain_enabled {
+                let fw = self.width as f32 / self.scale_factor;
+                let fh = self.height as f32 / self.scale_factor;
+                let dt = 1.0 / 60.0_f32;
+                let now_ns = std::time::Instant::now().elapsed().subsec_nanos() as u64;
+
+                // Spawn columns if needed
+                while self.matrix_rain_columns.len() < self.matrix_rain_column_count as usize {
+                    let i = self.matrix_rain_columns.len() as u64;
+                    let h = now_ns.wrapping_mul(2654435761).wrapping_add(i * 6364136223846793005);
+                    let x = (i as f32 / self.matrix_rain_column_count as f32) * fw;
+                    let y = -(((h >> 16) & 0xFFFF) as f32 / 65535.0) * fh;
+                    let speed_var = 0.6 + ((h >> 32) & 0xFFFF) as f32 / 65535.0 * 0.8;
+                    let length = 30.0 + ((h >> 48) & 0xFF) as f32 / 255.0 * 80.0;
+                    self.matrix_rain_columns.push(MatrixColumn {
+                        x, y,
+                        speed: self.matrix_rain_speed * speed_var,
+                        length,
+                    });
+                }
+
+                // Update positions
+                for col in &mut self.matrix_rain_columns {
+                    col.y += col.speed * dt;
+                    if col.y - col.length > fh {
+                        let h = now_ns.wrapping_mul(6364136223846793005).wrapping_add((col.x * 1000.0) as u64);
+                        col.y = -(((h >> 16) & 0xFFFF) as f32 / 65535.0) * 50.0;
+                        let speed_var = 0.6 + ((h >> 32) & 0xFFFF) as f32 / 65535.0 * 0.8;
+                        col.speed = self.matrix_rain_speed * speed_var;
+                        col.length = 30.0 + ((h >> 48) & 0xFF) as f32 / 255.0 * 80.0;
+                    }
+                }
+
+                // Render columns as vertical gradient strips
+                let (mr, mg, mb) = self.matrix_rain_color;
+                let mut matrix_verts: Vec<RectVertex> = Vec::new();
+                for col in &self.matrix_rain_columns {
+                    let segments = 10u32;
+                    let seg_h = col.length / segments as f32;
+                    for s in 0..segments {
+                        let y = col.y - col.length + s as f32 * seg_h;
+                        if y + seg_h < 0.0 || y > fh { continue; }
+                        let frac = s as f32 / segments as f32;
+                        let alpha = self.matrix_rain_opacity * frac; // brighter at bottom (head)
+                        if alpha < 0.001 { continue; }
+                        let c = Color::new(mr, mg, mb, alpha);
+                        self.add_rect(&mut matrix_verts, col.x, y, 2.0, seg_h, &c);
+                    }
+                }
+                if !matrix_verts.is_empty() {
+                    let matrix_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Matrix Rain Buffer"),
+                            contents: bytemuck::cast_slice(&matrix_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, matrix_buf.slice(..));
+                    render_pass.draw(0..matrix_verts.len() as u32, 0..1);
+                }
+                self.needs_continuous_redraw = true;
+            }
+
+            // Frost/ice border effect
+            if self.frost_border_enabled {
+                let (fr, fg, fb) = self.frost_border_color;
+                let bw = self.frost_border_width;
+                let base_alpha = self.frost_border_opacity;
+                let now_ns = std::time::Instant::now().elapsed().subsec_nanos();
+                let mut frost_verts: Vec<RectVertex> = Vec::new();
+                for info in &frame_glyphs.window_infos {
+                    let b = &info.bounds;
+                    // Create crystalline pattern along edges using pseudo-random strips
+                    let segments = 30u32;
+                    // Top edge
+                    for s in 0..segments {
+                        let frac = s as f32 / segments as f32;
+                        let x = b.x + frac * b.width;
+                        let h_seed = ((s as u64).wrapping_mul(2654435761).wrapping_add(info.window_id as u64)) & 0xFF;
+                        let h = bw * (0.3 + (h_seed as f32 / 255.0) * 0.7);
+                        let a = base_alpha * (0.4 + (h_seed as f32 / 255.0) * 0.6);
+                        let seg_w = b.width / segments as f32;
+                        let c = Color::new(fr, fg, fb, a);
+                        self.add_rect(&mut frost_verts, x, b.y, seg_w, h, &c);
+                    }
+                    // Bottom edge
+                    for s in 0..segments {
+                        let frac = s as f32 / segments as f32;
+                        let x = b.x + frac * b.width;
+                        let h_seed = ((s as u64).wrapping_mul(6364136223846793005).wrapping_add(info.window_id as u64)) & 0xFF;
+                        let h = bw * (0.3 + (h_seed as f32 / 255.0) * 0.7);
+                        let a = base_alpha * (0.4 + (h_seed as f32 / 255.0) * 0.6);
+                        let seg_w = b.width / segments as f32;
+                        let c = Color::new(fr, fg, fb, a);
+                        self.add_rect(&mut frost_verts, x, b.y + b.height - h, seg_w, h, &c);
+                    }
+                    // Left edge
+                    let v_segments = 20u32;
+                    for s in 0..v_segments {
+                        let frac = s as f32 / v_segments as f32;
+                        let y = b.y + frac * b.height;
+                        let w_seed = ((s as u64).wrapping_mul(1442695040888963407).wrapping_add(info.window_id as u64)) & 0xFF;
+                        let w = bw * (0.3 + (w_seed as f32 / 255.0) * 0.7);
+                        let a = base_alpha * (0.4 + (w_seed as f32 / 255.0) * 0.6);
+                        let seg_h = b.height / v_segments as f32;
+                        let c = Color::new(fr, fg, fb, a);
+                        self.add_rect(&mut frost_verts, b.x, y, w, seg_h, &c);
+                    }
+                    // Right edge
+                    for s in 0..v_segments {
+                        let frac = s as f32 / v_segments as f32;
+                        let y = b.y + frac * b.height;
+                        let w_seed = ((s as u64).wrapping_mul(3141592653589793238).wrapping_add(info.window_id as u64)) & 0xFF;
+                        let w = bw * (0.3 + (w_seed as f32 / 255.0) * 0.7);
+                        let a = base_alpha * (0.4 + (w_seed as f32 / 255.0) * 0.6);
+                        let seg_h = b.height / v_segments as f32;
+                        let c = Color::new(fr, fg, fb, a);
+                        self.add_rect(&mut frost_verts, b.x + b.width - w, y, w, seg_h, &c);
+                    }
+                }
+                if !frost_verts.is_empty() {
+                    let frost_buf = self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("Frost Border Buffer"),
+                            contents: bytemuck::cast_slice(&frost_verts),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        },
+                    );
+                    render_pass.set_pipeline(&self.rect_pipeline);
+                    render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    render_pass.set_vertex_buffer(0, frost_buf.slice(..));
+                    render_pass.draw(0..frost_verts.len() as u32, 0..1);
+                }
+            }
+
+            // Cursor ghost afterimage effect
+            if self.cursor_ghost_enabled {
+                let now = std::time::Instant::now();
+                let fade_dur = std::time::Duration::from_millis(self.cursor_ghost_fade_ms as u64);
+
+                // Detect cursor movement and spawn ghost
+                if let Some(ref anim) = animated_cursor {
+                    let should_spawn = self.cursor_ghost_entries.is_empty() ||
+                        self.cursor_ghost_entries.last().map_or(true, |last| {
+                            let dx = (anim.x - last.x).abs();
+                            let dy = (anim.y - last.y).abs();
+                            (dx > 2.0 || dy > 2.0) && now.duration_since(last.started).as_millis() > 30
+                        });
+                    if should_spawn {
+                        self.cursor_ghost_entries.push(CursorGhostEntry {
+                            x: anim.x, y: anim.y,
+                            width: anim.width, height: anim.height,
+                            started: now,
+                        });
+                        // Trim to max count
+                        while self.cursor_ghost_entries.len() > self.cursor_ghost_count as usize * 2 {
+                            self.cursor_ghost_entries.remove(0);
+                        }
+                    }
+                }
+
+                // Prune expired
+                self.cursor_ghost_entries.retain(|e| now.duration_since(e.started) < fade_dur);
+
+                if !self.cursor_ghost_entries.is_empty() {
+                    let (gr, gg, gb) = self.cursor_ghost_color;
+                    let drift = self.cursor_ghost_drift;
+                    let mut ghost_verts: Vec<RectVertex> = Vec::new();
+                    for entry in &self.cursor_ghost_entries {
+                        let elapsed = now.duration_since(entry.started).as_secs_f32();
+                        let t = (elapsed / fade_dur.as_secs_f32()).min(1.0);
+                        let alpha = self.cursor_ghost_opacity * (1.0 - t) * (1.0 - t);
+                        if alpha < 0.001 { continue; }
+                        // Drift upward and slightly expand
+                        let dy = -drift * t;
+                        let scale = 1.0 + t * 0.3;
+                        let gw = entry.width * scale;
+                        let gh = entry.height * scale;
+                        let gx = entry.x - (gw - entry.width) / 2.0;
+                        let gy = entry.y + dy - (gh - entry.height) / 2.0;
+                        let c = Color::new(gr, gg, gb, alpha);
+                        self.add_rect(&mut ghost_verts, gx, gy, gw, gh, &c);
+                    }
+                    if !ghost_verts.is_empty() {
+                        let ghost_buf = self.device.create_buffer_init(
+                            &wgpu::util::BufferInitDescriptor {
+                                label: Some("Cursor Ghost Buffer"),
+                                contents: bytemuck::cast_slice(&ghost_verts),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            },
+                        );
+                        render_pass.set_pipeline(&self.rect_pipeline);
+                        render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, ghost_buf.slice(..));
+                        render_pass.draw(0..ghost_verts.len() as u32, 0..1);
+                    }
                     self.needs_continuous_redraw = true;
                 }
             }
