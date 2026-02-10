@@ -1,6 +1,6 @@
 > I started Neomacs because I love Emacs, I respect Emacs, and I want to make it better. — *Eval Exec*
->
-> *"While other editors can save your files, only Emacs can save your soul."*
+
+> ✨ *"While other editors can save your files, only Emacs can save your soul."* ✨
 
 <p align="center">
    <img src="assets/banner1.png" alt="NEOMACS - The Future of Emacs"/>
