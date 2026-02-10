@@ -474,8 +474,6 @@ Contributions welcome! Areas where help is needed:
 - **Emacs hackers** — Lisp API design, integration testing
 - **Documentation** — tutorials, API docs, examples
 
-See [doc/display-engine/DESIGN.md](doc/display-engine/DESIGN.md) for architecture details.
-
 ---
 
 ## Acknowledgments
