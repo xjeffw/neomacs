@@ -14,6 +14,9 @@ pub mod itree;
 pub mod regex;
 pub mod gap_buffer;
 pub mod bidi;
+pub mod undo;
+pub mod char_utils;
+pub mod syntax_table;
 
 pub use types::*;
 pub use scene::*;
