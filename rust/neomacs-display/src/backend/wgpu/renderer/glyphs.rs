@@ -184,6 +184,48 @@ impl WgpuRenderer {
             .reduce(f32::min);
         log::trace!("Frame {}x{}, overlay_y={:?}", frame_glyphs.width, frame_glyphs.height, overlay_y);
 
+        // Debug: scan for any FrameGlyph entries near y≈27 (the gray line area)
+        {
+            let mut logged_count = 0;
+            for (i, glyph) in frame_glyphs.glyphs.iter().enumerate() {
+                if logged_count > 20 { break; }
+                match glyph {
+                    FrameGlyph::Char { x, y, width, height, ascent, fg, face_id, font_size, bg, char: ch, is_overlay, .. } => {
+                        // Log first row chars AND any char touching y=24-32
+                        if *y < 1.0 || (*y < 32.0 && *y + *height > 24.0) {
+                            let bg_str = bg.as_ref().map(|c| format!("({:.3},{:.3},{:.3})", c.r, c.g, c.b)).unwrap_or("None".to_string());
+                            log::debug!("frame_glyph[{}]: Char '{}' face={} pos=({:.1},{:.1}) size=({:.1},{:.1}) ascent={:.1} fg=({:.3},{:.3},{:.3}) bg={} font_sz={:.1} overlay={}",
+                                i, *ch as u8 as char, face_id, x, y, width, height, ascent,
+                                fg.r, fg.g, fg.b, bg_str, font_size, is_overlay);
+                            logged_count += 1;
+                        }
+                    }
+                    FrameGlyph::Stretch { x, y, width, height, bg, is_overlay, .. } => {
+                        if *y < 32.0 && *y + *height > 24.0 {
+                            log::debug!("frame_glyph[{}]: Stretch pos=({:.1},{:.1}) size=({:.1},{:.1}) bg=({:.3},{:.3},{:.3}) overlay={}",
+                                i, x, y, width, height, bg.r, bg.g, bg.b, is_overlay);
+                            logged_count += 1;
+                        }
+                    }
+                    FrameGlyph::Background { bounds, color } => {
+                        if bounds.y < 32.0 && bounds.y + bounds.height > 24.0 {
+                            log::debug!("frame_glyph[{}]: Background pos=({:.1},{:.1}) size=({:.1},{:.1}) color=({:.3},{:.3},{:.3})",
+                                i, bounds.x, bounds.y, bounds.width, bounds.height, color.r, color.g, color.b);
+                            logged_count += 1;
+                        }
+                    }
+                    FrameGlyph::Border { x, y, width, height, color, .. } => {
+                        if *y < 32.0 && *y + *height > 24.0 {
+                            log::debug!("frame_glyph[{}]: Border pos=({:.1},{:.1}) size=({:.1},{:.1}) color=({:.3},{:.3},{:.3})",
+                                i, x, y, width, height, color.r, color.g, color.b);
+                            logged_count += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         // --- Merge adjacent boxed glyphs into spans ---
         // All box faces get span-merged for proper border rendering.
         // Only faces with corner_radius > 0 get the SDF rounded rect treatment
@@ -6159,6 +6201,29 @@ impl WgpuRenderer {
                             } else {
                                 [effective_fg.r, effective_fg.g, effective_fg.b, effective_fg.a * fade_alpha]
                             };
+
+                            // Debug: log glyphs near y≈27 (where gray line appears in screenshot)
+                            // and first few header glyphs (y < 5) to see row start
+                            if !want_overlay && (glyph_y + glyph_h > 24.0 && glyph_y < 32.0) {
+                                log::debug!(
+                                    "glyph_near_y27: char='{}' face={} pos=({:.1},{:.1}) size=({:.1},{:.1}) ascent={:.1} bottom={:.1} fg=({:.3},{:.3},{:.3},{:.3}) is_color={} cell=({:.1},{:.1},{:.1})",
+                                    if let Some(ref text) = composed { text.to_string() } else { format!("{}", *char as u8 as char) },
+                                    face_id, glyph_x, glyph_y, glyph_w, glyph_h, *ascent,
+                                    glyph_y + glyph_h,
+                                    color[0], color[1], color[2], color[3],
+                                    cached.is_color,
+                                    *x, *y, *width,
+                                );
+                            }
+                            if !want_overlay && *y < 1.0 {
+                                log::debug!(
+                                    "first_row_glyph: char='{}' face={} cell=({:.1},{:.1},{:.1}) glyph_pos=({:.1},{:.1}) glyph_size=({:.1},{:.1}) ascent={:.1} fg=({:.3},{:.3},{:.3})",
+                                    if let Some(ref text) = composed { text.to_string() } else { format!("{}", *char as u8 as char) },
+                                    face_id, *x, *y, *width,
+                                    glyph_x, glyph_y, glyph_w, glyph_h, *ascent,
+                                    color[0], color[1], color[2],
+                                );
+                            }
 
                             let vertices = [
                                 GlyphVertex { position: [glyph_x, glyph_y], tex_coords: [0.0, 0.0], color },

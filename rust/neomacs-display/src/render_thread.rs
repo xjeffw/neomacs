@@ -3220,6 +3220,8 @@ impl RenderApp {
         }
 
         // Render custom title bar when decorations are disabled (not in fullscreen)
+        log::debug!("CSD state: decorations_enabled={} is_fullscreen={} titlebar_height={}",
+            self.chrome.decorations_enabled, self.chrome.is_fullscreen, self.chrome.titlebar_height);
         if !self.chrome.decorations_enabled && !self.chrome.is_fullscreen && self.chrome.titlebar_height > 0.0 {
             if let (Some(ref renderer), Some(ref mut glyph_atlas)) =
                 (&self.renderer, &mut self.glyph_atlas)
