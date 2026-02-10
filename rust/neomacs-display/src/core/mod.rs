@@ -10,6 +10,7 @@ pub mod cursor_animation;
 pub mod buffer_transition;
 pub mod animation_config;
 pub mod scroll_animation;
+pub mod itree;
 
 pub use types::*;
 pub use scene::*;

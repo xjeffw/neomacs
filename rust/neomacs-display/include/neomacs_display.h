@@ -187,6 +187,21 @@ typedef struct NeomacsInputEvent {
 } NeomacsInputEvent;
 
 /**
+ * Opaque tree handle for C.
+ */
+typedef void RustItreeTree;
+
+/**
+ * Node handle for C — encodes a NodeId as u64.
+ */
+typedef uint64_t RustItreeNodeHandle;
+
+/**
+ * Iterator handle for C.
+ */
+typedef void RustItreeIterator;
+
+/**
  * Opaque pointer to an Emacs buffer (struct buffer *)
  */
 typedef void *EmacsBuffer;
@@ -2921,6 +2936,181 @@ int neomacs_primary_selection_set_text(const char *text);
  * or NULL if the selection is empty or an error occurred.
  */
 char *neomacs_primary_selection_get_text(void);
+
+/**
+ * Create a new interval tree. Returns an opaque handle.
+ */
+RustItreeTree *rust_itree_create(void);
+
+/**
+ * Destroy an interval tree. The tree must be empty (all nodes removed).
+ *
+ * # Safety
+ * `tree` must be a valid pointer returned by `rust_itree_create`.
+ */
+void rust_itree_destroy(RustItreeTree *tree);
+
+/**
+ * Clear the tree (reset to empty state).
+ *
+ * # Safety
+ * `tree` must be a valid pointer.
+ */
+void rust_itree_clear(RustItreeTree *tree);
+
+/**
+ * Return the number of nodes in the tree.
+ *
+ * # Safety
+ * `tree` must be a valid pointer.
+ */
+int64_t rust_itree_size(RustItreeTree *tree);
+
+/**
+ * Return 1 if the tree is empty, 0 otherwise.
+ *
+ * # Safety
+ * `tree` must be a valid pointer or null.
+ */
+int rust_itree_empty_p(RustItreeTree *tree);
+
+/**
+ * Allocate and initialize a new node. Returns a node handle.
+ *
+ * # Safety
+ * `tree` must be a valid pointer.
+ */
+RustItreeNodeHandle rust_itree_node_create(RustItreeTree *tree,
+                                           int frontAdvance,
+                                           int rearAdvance,
+                                           uint64_t data);
+
+/**
+ * Free a node back to the arena.
+ *
+ * # Safety
+ * `tree` must be valid. `node` must be a valid handle for a node not in the tree.
+ */
+void rust_itree_node_destroy(RustItreeTree *tree, RustItreeNodeHandle node);
+
+/**
+ * Get a node's begin position (validates/computes lazy offsets).
+ *
+ * # Safety
+ * `tree` and `node` must be valid.
+ */
+int64_t rust_itree_node_begin(RustItreeTree *tree, RustItreeNodeHandle node);
+
+/**
+ * Get a node's end position (validates/computes lazy offsets).
+ *
+ * # Safety
+ * `tree` and `node` must be valid.
+ */
+int64_t rust_itree_node_end(RustItreeTree *tree, RustItreeNodeHandle node);
+
+/**
+ * Get a node's data field.
+ *
+ * # Safety
+ * `tree` and `node` must be valid.
+ */
+uint64_t rust_itree_node_data(RustItreeTree *tree, RustItreeNodeHandle node);
+
+/**
+ * Get a node's front_advance flag.
+ *
+ * # Safety
+ * `tree` and `node` must be valid.
+ */
+int rust_itree_node_front_advance(RustItreeTree *tree, RustItreeNodeHandle node);
+
+/**
+ * Get a node's rear_advance flag.
+ *
+ * # Safety
+ * `tree` and `node` must be valid.
+ */
+int rust_itree_node_rear_advance(RustItreeTree *tree, RustItreeNodeHandle node);
+
+/**
+ * Insert a node into the tree with the given range.
+ *
+ * # Safety
+ * `tree` must be valid. `node` must be a valid handle not currently in the tree.
+ */
+void rust_itree_insert(RustItreeTree *tree, RustItreeNodeHandle node, int64_t begin, int64_t end);
+
+/**
+ * Remove a node from the tree. Returns the node handle.
+ *
+ * # Safety
+ * `tree` must be valid. `node` must be in the tree.
+ */
+RustItreeNodeHandle rust_itree_remove(RustItreeTree *tree, RustItreeNodeHandle node);
+
+/**
+ * Set a node's region (begin, end). Handles rebalancing if begin changes.
+ *
+ * # Safety
+ * `tree` must be valid. `node` must be in the tree.
+ */
+void rust_itree_node_set_region(RustItreeTree *tree,
+                                RustItreeNodeHandle node,
+                                int64_t begin,
+                                int64_t end);
+
+/**
+ * Insert a gap at `pos` of `length`.
+ *
+ * # Safety
+ * `tree` must be valid or null.
+ */
+void rust_itree_insert_gap(RustItreeTree *tree, int64_t pos, int64_t length, int beforeMarkers);
+
+/**
+ * Delete a gap at `pos` of `length`.
+ *
+ * # Safety
+ * `tree` must be valid or null.
+ */
+void rust_itree_delete_gap(RustItreeTree *tree, int64_t pos, int64_t length);
+
+/**
+ * Start an iterator. Returns an opaque iterator handle.
+ * The iterator must be destroyed with `rust_itree_iterator_destroy`.
+ *
+ * # Safety
+ * `tree` must be valid and non-null.
+ */
+RustItreeIterator *rust_itree_iterator_start(RustItreeTree *tree,
+                                             int64_t begin,
+                                             int64_t end,
+                                             int order);
+
+/**
+ * Get the next node from the iterator. Returns INVALID_HANDLE when done.
+ *
+ * # Safety
+ * `tree` and `iter` must be valid.
+ */
+RustItreeNodeHandle rust_itree_iterator_next(RustItreeTree *tree, RustItreeIterator *iter);
+
+/**
+ * Narrow the iterator to a subset of its current range.
+ *
+ * # Safety
+ * `iter` must be valid.
+ */
+void rust_itree_iterator_narrow(RustItreeIterator *iter, int64_t begin, int64_t end);
+
+/**
+ * Destroy an iterator.
+ *
+ * # Safety
+ * `iter` must have been returned by `rust_itree_iterator_start`.
+ */
+void rust_itree_iterator_destroy(RustItreeIterator *iter);
 
 /**
  * Get a byte from buffer text at the given byte position.
