@@ -2523,6 +2523,19 @@ impl LayoutEngine {
             }
         }
 
+        // Fill rest of last line with :extend background if applicable
+        // (handles end-of-buffer without trailing newline)
+        if row < max_rows && x_offset > 0.0 {
+            let remaining = avail_width - x_offset;
+            if remaining > 0.0 {
+                let gx = content_x + x_offset;
+                let gy = row_y[row as usize];
+                let fill_bg = if self.face_data.extend != 0 { face_bg } else { default_bg };
+                let fill_face = if self.face_data.extend != 0 { self.face_data.face_id } else { 0 };
+                frame_glyphs.add_stretch(gx, gy, remaining, char_h, fill_bg, fill_face, false);
+            }
+        }
+
         // Close any remaining box face region at end of text
         if box_active {
             let box_end_x = content_x + x_offset;
