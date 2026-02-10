@@ -2970,6 +2970,15 @@ extern float neomacs_layout_char_width(EmacsWindow window, int charcode, int fac
 extern void neomacs_layout_fill_ascii_widths(EmacsWindow window, int faceId, float *widths);
 
 /**
+ * Adjust window_start so that point is visible (backward scrolling).
+ * Returns the new window_start charpos.
+ */
+extern int64_t neomacs_layout_adjust_window_start(EmacsWindow window,
+                                                  EmacsBuffer buffer,
+                                                  int64_t point,
+                                                  int linesAbove);
+
+/**
  * Set window_end_pos on an Emacs window (for window-end Lisp function).
  */
 extern void neomacs_layout_set_window_end(EmacsWindow window, int64_t endPos, int endVpos);

@@ -128,6 +128,15 @@ extern "C" {
     // Writing layout results back to Emacs
     // ========================================================================
 
+    /// Adjust window_start so that point is visible (backward scrolling).
+    /// Returns the new window_start charpos.
+    pub fn neomacs_layout_adjust_window_start(
+        window: EmacsWindow,
+        buffer: EmacsBuffer,
+        point: i64,
+        lines_above: c_int,
+    ) -> i64;
+
     /// Set window_end_pos on an Emacs window (for window-end Lisp function).
     pub fn neomacs_layout_set_window_end(
         window: EmacsWindow,

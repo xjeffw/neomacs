@@ -2094,6 +2094,53 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
   return 0;
 }
 
+/* Adjust window_start so that POINT is visible when it is before
+   the current window_start (backward scrolling).
+   LINES_ABOVE specifies how many lines of context above point to keep.
+   Returns the new window_start charpos.  Also updates w->start. */
+int64_t
+neomacs_layout_adjust_window_start (void *window_ptr, void *buffer_ptr,
+				    int64_t point, int lines_above)
+{
+  struct window *w = (struct window *) window_ptr;
+  struct buffer *buf = (struct buffer *) buffer_ptr;
+  if (!w || !buf)
+    return 1;
+
+  struct buffer *old = current_buffer;
+  set_buffer_internal_1 (buf);
+
+  ptrdiff_t pt = (ptrdiff_t) point;
+  if (pt < BUF_BEGV (buf))
+    pt = BUF_BEGV (buf);
+  if (pt > BUF_ZV (buf))
+    pt = BUF_ZV (buf);
+  ptrdiff_t pt_byte = buf_charpos_to_bytepos (buf, pt);
+
+  /* Scan backward from point to find a good starting position.
+     find_newline with negative count searches backward for newlines. */
+  ptrdiff_t counted;
+  ptrdiff_t new_start_byte;
+  ptrdiff_t new_start = find_newline (pt, pt_byte,
+				      BUF_BEGV (buf), BUF_BEGV_BYTE (buf),
+				      -(lines_above + 1), &counted,
+				      &new_start_byte, false);
+  /* find_newline returns the position after the found newline, which
+     is the beginning of the next line.  If it hit BEGV, that's fine. */
+
+  set_marker_restricted_both (w->start, w->contents,
+			      new_start, new_start_byte);
+  w->start_at_line_beg = true;
+  w->window_end_valid = false;
+
+  set_buffer_internal_1 (old);
+
+  nlog_debug ("adjust_window_start: point=%ld lines_above=%d new_start=%ld",
+	      (long) pt, lines_above, (long) new_start);
+
+  return (int64_t) new_start;
+}
+
 /* Set window_end_pos on an Emacs window. */
 void
 neomacs_layout_set_window_end (void *window_ptr, int64_t end_pos, int end_vpos)

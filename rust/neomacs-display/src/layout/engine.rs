@@ -412,11 +412,31 @@ impl LayoutEngine {
         // Effective text start X (shifted right for line numbers)
         let content_x = text_x + lnum_pixel_width;
 
+        // --- Scroll adjustment: if point is before window_start, scroll backward ---
+        let window_start = if params.point > 0
+            && params.point < params.window_start
+            && !params.is_minibuffer
+        {
+            // Scroll backward: put point a few lines from the top
+            let lines_above = (max_rows / 4).max(2).min(10);
+            let new_start = neomacs_layout_adjust_window_start(
+                wp.window_ptr,
+                wp.buffer_ptr,
+                params.point,
+                lines_above,
+            );
+            log::debug!("  scroll backward: point={} was before start={}, new start={}",
+                params.point, params.window_start, new_start);
+            new_start
+        } else {
+            params.window_start
+        };
+
         // Trigger fontification (jit-lock) for the visible region so that
         // face text properties are set before we read them.
-        let read_chars = (params.buffer_size - params.window_start + 1).min(cols as i64 * max_rows as i64 * 2);
-        let fontify_end = (params.window_start + read_chars).min(params.buffer_size);
-        neomacs_layout_ensure_fontified(buffer, params.window_start, fontify_end);
+        let read_chars = (params.buffer_size - window_start + 1).min(cols as i64 * max_rows as i64 * 2);
+        let fontify_end = (window_start + read_chars).min(params.buffer_size);
+        neomacs_layout_ensure_fontified(buffer, window_start, fontify_end);
 
         // Read buffer text from window_start
         let bytes_read = if read_chars <= 0 {
@@ -426,8 +446,8 @@ impl LayoutEngine {
             self.text_buf.resize(buf_size, 0);
             let n = neomacs_layout_buffer_text(
                 buffer,
-                params.window_start,
-                (params.window_start + read_chars).min(params.buffer_size),
+                window_start,
+                (window_start + read_chars).min(params.buffer_size),
                 self.text_buf.as_mut_ptr(),
                 buf_size as i64,
             );
@@ -464,10 +484,10 @@ impl LayoutEngine {
         let mut face_bg = default_bg;
 
         // Invisible text state: next charpos where we need to re-check
-        let mut next_invis_check: i64 = params.window_start;
+        let mut next_invis_check: i64 = window_start;
 
         // Display text property state
-        let mut next_display_check: i64 = params.window_start;
+        let mut next_display_check: i64 = window_start;
         let mut display_prop = DisplayPropFFI::default();
         let mut display_str_buf = [0u8; 1024];
 
@@ -483,7 +503,7 @@ impl LayoutEngine {
         // Line number state
         let mut current_line: i64 = if lnum_enabled {
             neomacs_layout_count_line_number(
-                buffer, params.window_start, lnum_config.widen,
+                buffer, window_start, lnum_config.widen,
             )
         } else {
             1
@@ -510,12 +530,12 @@ impl LayoutEngine {
         let mut col = 0i32;        // column counter (for tab stops, cursor feedback)
         let mut x_offset: f32 = 0.0;  // pixel offset from content_x
         let mut row = 0i32;
-        let mut charpos = params.window_start;
+        let mut charpos = window_start;
         let mut cursor_placed = false;
         let mut cursor_col = 0i32;
         let mut cursor_x: f32 = 0.0;  // pixel X of cursor
         let mut cursor_row = 0i32;
-        let mut window_end_charpos = params.window_start;
+        let mut window_end_charpos = window_start;
         let mut byte_idx = 0usize;
         // hscroll state: how many columns to skip on each line
         let mut hscroll_remaining = hscroll;
@@ -560,7 +580,7 @@ impl LayoutEngine {
         let mut wrap_break_col = 0i32;
         let mut wrap_break_x: f32 = 0.0;  // pixel position of wrap break
         let mut wrap_break_byte_idx = 0usize;
-        let mut wrap_break_charpos = params.window_start;
+        let mut wrap_break_charpos = window_start;
         let mut wrap_break_glyph_count = 0usize;
         let mut wrap_has_break = false;
 
@@ -1454,7 +1474,7 @@ impl LayoutEngine {
                         self.apply_face(&self.face_data, frame_glyphs);
 
                         // Debug: check all face properties
-                        if charpos < params.window_start + 5 {
+                        if charpos < window_start + 5 {
                             log::debug!("face: id={} fg=0x{:06X} bg=0x{:06X} underline_style={} underline_color=0x{:06X} strike_through={} strike_color=0x{:06X} overline={} overline_color=0x{:06X} box_type={} box_color=0x{:06X} box_lw={}",
                                 self.face_data.face_id, self.face_data.fg, self.face_data.bg,
                                 self.face_data.underline_style, self.face_data.underline_color,
@@ -2320,7 +2340,7 @@ impl LayoutEngine {
         // When point is at end-of-buffer and overlays have after-strings there
         // (e.g., fido-vertical-mode completions), the cursor must be placed
         // BEFORE the overlay content is rendered.
-        if !cursor_placed && params.point >= params.window_start
+        if !cursor_placed && params.point >= window_start
             && charpos >= params.point
         {
             cursor_col = col;
@@ -2516,7 +2536,7 @@ impl LayoutEngine {
         }
 
         // If cursor wasn't placed (point is past visible content), place at end
-        if !cursor_placed && params.point >= params.window_start {
+        if !cursor_placed && params.point >= window_start {
             cursor_col = col;
             cursor_row = row.min(max_rows - 1);
             cursor_x = x_offset;
