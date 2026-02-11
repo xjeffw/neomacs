@@ -69,6 +69,37 @@ pub(crate) fn apply_overlay_face_run(
     cr
 }
 
+/// A display property record extracted from a mode-line string.
+/// Each record is 16 bytes: u16 byte_offset, u16 covers_bytes,
+/// u32 gpu_id, u16 width, u16 height, u16 ascent, u16 pad.
+struct DisplayPropRecord {
+    byte_offset: u16,
+    covers_bytes: u16,
+    gpu_id: u32,
+    width: u16,
+    height: u16,
+    ascent: u16,
+}
+
+/// Parse display property records appended after face runs in a buffer.
+fn parse_display_props(buf: &[u8], start: usize, count: usize) -> Vec<DisplayPropRecord> {
+    let mut props = Vec::with_capacity(count);
+    for i in 0..count {
+        let off = start + i * 16;
+        if off + 16 <= buf.len() {
+            props.push(DisplayPropRecord {
+                byte_offset: u16::from_ne_bytes([buf[off], buf[off + 1]]),
+                covers_bytes: u16::from_ne_bytes([buf[off + 2], buf[off + 3]]),
+                gpu_id: u32::from_ne_bytes([buf[off + 4], buf[off + 5], buf[off + 6], buf[off + 7]]),
+                width: u16::from_ne_bytes([buf[off + 8], buf[off + 9]]),
+                height: u16::from_ne_bytes([buf[off + 10], buf[off + 11]]),
+                ascent: u16::from_ne_bytes([buf[off + 12], buf[off + 13]]),
+            });
+        }
+    }
+    props
+}
+
 impl LayoutEngine {
     /// Render a status line (mode-line, header-line, or tab-line).
     pub(crate) unsafe fn render_status_line(
@@ -85,7 +116,7 @@ impl LayoutEngine {
         kind: StatusLineKind,
     ) {
         let mut line_face = FaceDataFFI::default();
-        let buf_size = 1024usize;
+        let buf_size = 4096usize;
         let mut line_buf = vec![0u8; buf_size];
 
         let bytes = match kind {
@@ -124,9 +155,11 @@ impl LayoutEngine {
             return;
         }
 
-        // Extract text length and face run count from packed return value
+        // Extract text length, face run count, and display prop count from packed
+        // return value: bits 0-31 = text_len, 32-47 = nruns, 48-63 = ndisplay
         let text_len = (bytes & 0xFFFFFFFF) as usize;
-        let nruns = (bytes >> 32) as usize;
+        let nruns = ((bytes >> 32) & 0xFFFF) as usize;
+        let ndisplay = ((bytes >> 48) & 0xFFFF) as usize;
 
         let text = &line_buf[..text_len];
 
@@ -163,12 +196,56 @@ impl LayoutEngine {
             }
         }
 
-        // Render text with face runs
+        // Parse display property records (images) after face runs.
+        // Each record is 16 bytes, stored after the face run area.
+        let display_start = text_len + nruns * 10;
+        let display_props = parse_display_props(&line_buf, display_start, ndisplay);
+
+        // Use the mode-line face for character width queries
+        let face_id = line_face.face_id;
+        let window = wp.window_ptr;
+
+        // Render text with face runs and display properties
         let mut sl_x_offset: f32 = 0.0;
         let mut byte_idx = 0usize;
         let mut current_run = 0usize;
+        let mut dp_idx = 0usize; // current display prop index
 
         while byte_idx < text.len() && sl_x_offset < width {
+            // Check if a display property (image) covers this byte position.
+            // If so, render the image and skip the covered bytes.
+            if dp_idx < display_props.len() {
+                let dp = &display_props[dp_idx];
+                if byte_idx == dp.byte_offset as usize {
+                    if dp.gpu_id != 0 && dp.width > 0 && dp.height > 0 {
+                        let img_w = dp.width as f32;
+                        let img_h = dp.height as f32;
+                        let gx = x + sl_x_offset;
+
+                        // Vertical alignment: use ascent-based positioning
+                        let gy = if img_h <= height {
+                            let img_ascent_px = if dp.ascent == 0xFFFF {
+                                // Centered
+                                (img_h + ascent - (height - ascent) + 1.0) / 2.0
+                            } else {
+                                // Percentage
+                                img_h * (dp.ascent as f32 / 100.0)
+                            };
+                            y + ascent - img_ascent_px
+                        } else {
+                            y
+                        };
+
+                        frame_glyphs.add_image(dp.gpu_id, gx, gy, img_w, img_h);
+                        sl_x_offset += img_w;
+                    }
+                    // Skip covered bytes
+                    byte_idx = (dp.byte_offset + dp.covers_bytes) as usize;
+                    dp_idx += 1;
+                    continue;
+                }
+            }
+
             // Check if we need to switch face for this byte position
             if current_run < face_runs.len() {
                 if byte_idx >= face_runs[current_run].byte_offset as usize {
@@ -197,9 +274,41 @@ impl LayoutEngine {
                 continue;
             }
 
+            // Use actual glyph width from the font instead of fixed char_w.
+            // This handles variable-width characters (icons, CJK) correctly.
+            let advance = {
+                let cp = ch as u32;
+                if cp < 128 {
+                    // ASCII: use cached width via text_extents()
+                    let cache_key = (face_id, line_face.font_size);
+                    if !self.ascii_width_cache.contains_key(&cache_key) {
+                        let mut widths = [0.0f32; 128];
+                        neomacs_layout_fill_ascii_widths(
+                            window,
+                            face_id as std::os::raw::c_int,
+                            widths.as_mut_ptr(),
+                        );
+                        for w in widths.iter_mut() {
+                            if *w < 0.0 {
+                                *w = char_w;
+                            }
+                        }
+                        self.ascii_width_cache.insert(cache_key, widths);
+                    }
+                    self.ascii_width_cache[&cache_key][cp as usize]
+                } else {
+                    // Non-ASCII: query individually
+                    let w = neomacs_layout_char_width(
+                        window, cp as std::os::raw::c_int,
+                        face_id as std::os::raw::c_int,
+                    );
+                    if w > 0.0 { w } else { char_w }
+                }
+            };
+
             let gx = x + sl_x_offset;
-            frame_glyphs.add_char(ch, gx, y, char_w, height, ascent, true);
-            sl_x_offset += char_w;
+            frame_glyphs.add_char(ch, gx, y, advance, height, ascent, true);
+            sl_x_offset += advance;
         }
 
         // Restore default mode-line face

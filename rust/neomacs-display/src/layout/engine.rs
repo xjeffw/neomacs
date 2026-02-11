@@ -152,9 +152,9 @@ pub struct LayoutEngine {
     text_buf: Vec<u8>,
     /// Cached face data to avoid redundant FFI calls
     face_data: FaceDataFFI,
-    /// Per-face ASCII width cache for proportional fonts.
+    /// Per-face ASCII width cache: actual glyph widths via text_extents().
     /// Key: (face_id, font_size), Value: advance widths for chars 0-127.
-    ascii_width_cache: std::collections::HashMap<(u32, i32), [f32; 128]>,
+    pub(crate) ascii_width_cache: std::collections::HashMap<(u32, i32), [f32; 128]>,
     /// Hit-test data being built for current frame
     hit_data: Vec<WindowHitData>,
     /// Reusable ligature run buffer
@@ -684,8 +684,7 @@ impl LayoutEngine {
         let mut byte_idx = 0usize;
         // hscroll state: how many columns to skip on each line
         let mut hscroll_remaining = hscroll;
-        // Track current face's monospace status, space width, and line metrics
-        let mut face_is_mono = true;
+        // Track current face's space width and line metrics
         let mut face_space_w = char_w;
         let mut face_h: f32 = char_h;    // current face's line height
         let mut face_ascent: f32 = ascent; // current face's font ascent
@@ -1626,7 +1625,6 @@ impl LayoutEngine {
                         current_face_id = fid;
                         face_fg = Color::from_pixel(self.face_data.fg);
                         face_bg = Color::from_pixel(self.face_data.bg);
-                        face_is_mono = self.face_data.font_is_monospace != 0;
                         face_space_w = if self.face_data.font_space_width > 0.0 {
                             self.face_data.font_space_width
                         } else {
@@ -2279,7 +2277,7 @@ impl LayoutEngine {
                     let face_char_w = self.face_data.font_char_width;
                     let advance = char_advance(
                         &mut self.ascii_width_cache,
-                        ch, char_cols, char_w, face_is_mono,
+                        ch, char_cols, char_w,
                         face_id, font_size, face_char_w, window,
                     );
 
@@ -3142,16 +3140,23 @@ impl LayoutEngine {
 }
 
 /// Get the advance width for a character in a specific face.
-/// For monospace fonts, returns char_cols * char_w.
-/// For proportional fonts, queries the font via FFI (with ASCII cache).
+/// For regular monospace fonts, uses the face's `average_width` (fast path).
+/// For bold monospace fonts (weight >= 700) and all non-monospace fonts,
+/// queries real glyph metrics via text_extents() so that wider bold glyphs
+/// get correct advance widths instead of overlapping.
 ///
 /// Standalone function to avoid borrow conflicts with `LayoutEngine::text_buf`.
+/// Compute the advance width for a character in the current face's font.
+///
+/// Uses a Rust-side cache keyed by (face_id, font_size).  On cache miss,
+/// calls neomacs_layout_fill_ascii_widths() which reads from a pre-warmed
+/// C-side font metrics cache — no allocating text_extents() calls happen
+/// during Rust layout, avoiding the heap corruption in ftcrfont_glyph_extents.
 unsafe fn char_advance(
     ascii_width_cache: &mut std::collections::HashMap<(u32, i32), [f32; 128]>,
     ch: char,
     char_cols: i32,
     char_w: f32,
-    is_mono: bool,
     face_id: u32,
     font_size: i32,
     face_char_w: f32,
@@ -3161,13 +3166,9 @@ unsafe fn char_advance(
     // faces with :height attribute that use a differently-sized font).
     let face_w = if face_char_w > 0.0 { face_char_w } else { char_w };
 
-    if is_mono {
-        return char_cols as f32 * face_w;
-    }
-
     let cp = ch as u32;
     if cp < 128 {
-        // Check ASCII cache
+        // ASCII: use cached widths from pre-warmed font metrics
         let cache_key = (face_id, font_size);
         if !ascii_width_cache.contains_key(&cache_key) {
             let mut widths = [0.0f32; 128];
@@ -3186,7 +3187,7 @@ unsafe fn char_advance(
         return ascii_width_cache[&cache_key][cp as usize];
     }
 
-    // Non-ASCII: query individually
+    // Non-ASCII: query individually via text_extents()
     let w = neomacs_layout_char_width(window, cp as c_int, face_id as c_int);
     if w > 0.0 { w } else { char_cols as f32 * face_w }
 }

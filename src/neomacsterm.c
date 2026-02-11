@@ -2508,8 +2508,103 @@ neomacs_layout_get_stipple_bitmap (void *frame_ptr, int bitmap_id,
   return 0;
 }
 
+/* Pre-warmed font ASCII width cache.
+   ftcrfont_glyph_extents() calls xrealloc/xmalloc to grow its metrics
+   cache on first access.  When this happens during an FFI callback from
+   the Rust layout engine, it triggers heap corruption (the C allocator
+   operates on heap state that interleaves with Rust stack frames).
+   Fix: pre-compute ASCII widths for ALL face fonts BEFORE entering Rust
+   layout, so that text_extents() calls during layout are cache hits with
+   no allocations. */
+#define FONT_WIDTH_CACHE_MAX 128
+static struct {
+  struct font *font;
+  float widths[128];
+} font_width_cache[FONT_WIDTH_CACHE_MAX];
+static int font_width_cache_used = 0;
+
+/* Pre-compute ASCII glyph widths for a font object and store in cache. */
+static void
+prewarm_font_ascii_widths (struct font *font)
+{
+  /* Check if already cached. */
+  for (int i = 0; i < font_width_cache_used; i++)
+    if (font_width_cache[i].font == font)
+      return;
+
+  /* Evict oldest if full. */
+  int slot;
+  if (font_width_cache_used < FONT_WIDTH_CACHE_MAX)
+    slot = font_width_cache_used++;
+  else
+    {
+      /* Shift down and use last slot (simple FIFO eviction). */
+      memmove (&font_width_cache[0], &font_width_cache[1],
+               sizeof (font_width_cache[0]) * (FONT_WIDTH_CACHE_MAX - 1));
+      slot = FONT_WIDTH_CACHE_MAX - 1;
+    }
+
+  font_width_cache[slot].font = font;
+
+  /* Set control characters (0-31) to -1 (fallback width).
+     encode_char can return garbage glyph codes for NUL and other
+     control characters (e.g., glyph 3888217648 for char 0), which
+     causes ftcrfont_glyph_extents to allocate a 243MB metrics cache,
+     corrupting the heap.  Only measure printable ASCII (32-127). */
+  for (int i = 0; i < 32; i++)
+    font_width_cache[slot].widths[i] = -1.0f;
+
+  for (int i = 32; i < 128; i++)
+    {
+      unsigned code = font->driver->encode_char (font, i);
+      if (code == FONT_INVALID_CODE || code > 0xFFFF)
+        {
+          font_width_cache[slot].widths[i] = -1.0f;
+          continue;
+        }
+      struct font_metrics metrics;
+      font->driver->text_extents (font, &code, 1, &metrics);
+      font_width_cache[slot].widths[i] = (float) metrics.width;
+    }
+}
+
+/* Pre-warm ASCII widths for ALL fonts in the frame's face cache.
+   Must be called BEFORE entering Rust layout (neomacs_rust_layout_frame). */
+static void
+prewarm_all_face_fonts (struct frame *f)
+{
+  font_width_cache_used = 0;  /* Clear for new frame. */
+  struct face_cache *cache = FRAME_FACE_CACHE (f);
+  if (!cache)
+    return;
+  for (int i = 0; i < cache->used; i++)
+    {
+      struct face *face = cache->faces_by_id[i];
+      if (!face || !face->font)
+        continue;
+      struct font *font = face->font;
+      /* Validate: font must have a driver with encode_char and text_extents. */
+      if (!font->driver || !font->driver->encode_char
+          || !font->driver->text_extents)
+        continue;
+      prewarm_font_ascii_widths (font);
+    }
+}
+
+/* Look up pre-warmed ASCII widths for a font.
+   Returns pointer to float[128] array, or NULL if not cached. */
+static float *
+lookup_font_width_cache (struct font *font)
+{
+  for (int i = 0; i < font_width_cache_used; i++)
+    if (font_width_cache[i].font == font)
+      return font_width_cache[i].widths;
+  return NULL;
+}
+
 /* Get the advance width of a single character in a specific face's font.
-   Returns the pixel width, or -1.0 if not measurable. */
+   Returns the pixel width, or -1.0 if not measurable.
+   For ASCII chars, uses pre-warmed cache to avoid allocations. */
 float
 neomacs_layout_char_width (void *window_ptr, int charcode, int face_id)
 {
@@ -2523,8 +2618,17 @@ neomacs_layout_char_width (void *window_ptr, int charcode, int face_id)
     return -1.0f;
 
   struct font *font = face->font;
+
+  /* For ASCII, use pre-warmed cache if available. */
+  if (charcode >= 0 && charcode < 128)
+    {
+      float *cached = lookup_font_width_cache (font);
+      if (cached)
+        return cached[charcode];
+    }
+
   unsigned code = font->driver->encode_char (font, charcode);
-  if (code == FONT_INVALID_CODE)
+  if (code == FONT_INVALID_CODE || code > 0xFFFF)
     return -1.0f;
 
   struct font_metrics metrics;
@@ -2533,7 +2637,8 @@ neomacs_layout_char_width (void *window_ptr, int charcode, int face_id)
 }
 
 /* Fill advance widths for ASCII characters (0-127) in a face's font.
-   widths must point to an array of at least 128 floats. */
+   widths must point to an array of at least 128 floats.
+   Uses pre-warmed cache to avoid allocating text_extents() calls. */
 void
 neomacs_layout_fill_ascii_widths (void *window_ptr, int face_id, float *widths)
 {
@@ -2553,18 +2658,30 @@ neomacs_layout_fill_ascii_widths (void *window_ptr, int face_id, float *widths)
     }
 
   struct font *font = face->font;
-  for (int i = 0; i < 128; i++)
+
+  /* Try pre-warmed cache first (no allocations). */
+  float *cached = lookup_font_width_cache (font);
+  if (cached)
     {
-      unsigned code = font->driver->encode_char (font, i);
-      if (code == FONT_INVALID_CODE)
-        {
-          widths[i] = -1.0f;
-          continue;
-        }
-      struct font_metrics metrics;
-      font->driver->text_extents (font, &code, 1, &metrics);
-      widths[i] = (float) metrics.width;
+      memcpy (widths, cached, sizeof (float) * 128);
+      return;
     }
+
+  /* Cache miss: this font wasn't in the face cache when we pre-warmed.
+     Pre-warm it now.  This calls text_extents() which may allocate in
+     ftcrfont_glyph_extents, but this path should be rare (only for
+     faces resolved dynamically during layout that use a new font). */
+  prewarm_font_ascii_widths (font);
+  cached = lookup_font_width_cache (font);
+  if (cached)
+    {
+      memcpy (widths, cached, sizeof (float) * 128);
+      return;
+    }
+
+  /* Should never reach here, but fallback to average_width. */
+  float avg = (float) font->average_width;
+  for (int i = 0; i < 128; i++) widths[i] = avg;
 }
 
 /* Get the resolved face at a buffer position for a window.
@@ -2775,10 +2892,88 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
           charpos = next_pos;
         }
 
-      /* Store number of runs as a negative return value offset:
-         actual return = text_len | (nruns << 32) packed as int64_t */
-      if (nruns > 0)
-        return (int64_t) len | ((int64_t) nruns << 32);
+      /* Extract display properties (images) from the propertized string.
+         Walk character positions looking for 'display text properties
+         that contain image specs.  Display property records are stored
+         after face runs, each 16 bytes:
+           u16 byte_offset   - where in text this display prop starts
+           u16 covers_bytes  - how many text bytes this prop covers
+           u32 gpu_id        - GPU image ID (0 = failed to load)
+           u16 width         - image width in pixels
+           u16 height        - image height in pixels
+           u16 ascent        - image ascent (0-100 percent, 0xFFFF = centered)
+           u16 _pad          - padding for alignment  */
+      int ndisplay = 0;
+      int max_display = (int) ((out_buf_len - run_offset) / 16);
+      struct neomacs_display_info *dpyinfo
+        = FRAME_NEOMACS_DISPLAY_INFO (f);
+
+      if (dpyinfo && dpyinfo->display_handle && max_display > 0)
+        {
+          ptrdiff_t dcharpos = 0;
+          while (dcharpos < nchars && ndisplay < max_display)
+            {
+              Lisp_Object dprop
+                = Fget_text_property (make_fixnum (dcharpos),
+                                      Qdisplay, result);
+              Lisp_Object dnext
+                = Fnext_single_property_change (
+                    make_fixnum (dcharpos), Qdisplay,
+                    result, Qnil);
+              ptrdiff_t dnext_pos = NILP (dnext)
+                ? nchars : XFIXNUM (dnext);
+
+              if (!NILP (dprop) && CONSP (dprop)
+                  && EQ (XCAR (dprop), Qimage)
+                  && valid_image_p (dprop))
+                {
+                  ptrdiff_t img_id = lookup_image (f, dprop, face_id);
+                  if (img_id >= 0)
+                    {
+                      struct image *img = IMAGE_FROM_ID (f, img_id);
+                      if (img)
+                        {
+                          prepare_image_for_display (f, img);
+                          uint32_t gpu_id
+                            = neomacs_get_or_load_image (dpyinfo, img);
+
+                          ptrdiff_t boff
+                            = string_char_to_byte (result, dcharpos);
+                          ptrdiff_t bend
+                            = string_char_to_byte (result, dnext_pos);
+                          uint16_t byte_off
+                            = (uint16_t) (boff > 0xFFFF ? 0xFFFF : boff);
+                          uint16_t covers
+                            = (uint16_t) ((bend - boff) > 0xFFFF
+                                          ? 0xFFFF : (bend - boff));
+                          uint16_t iw = (uint16_t) (img->width > 0
+                                                     ? img->width : 0);
+                          uint16_t ih = (uint16_t) (img->height > 0
+                                                     ? img->height : 0);
+                          uint16_t ia = (uint16_t) img->ascent;
+                          uint16_t pad = 0;
+
+                          memcpy (out_buf + run_offset, &byte_off, 2);
+                          memcpy (out_buf + run_offset + 2, &covers, 2);
+                          memcpy (out_buf + run_offset + 4, &gpu_id, 4);
+                          memcpy (out_buf + run_offset + 8, &iw, 2);
+                          memcpy (out_buf + run_offset + 10, &ih, 2);
+                          memcpy (out_buf + run_offset + 12, &ia, 2);
+                          memcpy (out_buf + run_offset + 14, &pad, 2);
+                          run_offset += 16;
+                          ndisplay++;
+                        }
+                    }
+                }
+
+              dcharpos = dnext_pos;
+            }
+        }
+
+      /* Return packed: text_len | (nruns << 32) | (ndisplay << 48) */
+      return (int64_t) len
+        | ((int64_t) nruns << 32)
+        | ((int64_t) ndisplay << 48);
     }
 
   return (int64_t) len;
@@ -4641,6 +4836,11 @@ neomacs_update_end (struct frame *f)
               else
                 div_last_fg = div_fg;
             }
+
+          /* Pre-warm font metrics cache for all faces before entering
+             Rust layout.  This ensures ftcrfont_glyph_extents() won't
+             need to xrealloc/xmalloc during FFI callbacks. */
+          prewarm_all_face_fonts (f);
 
           neomacs_rust_layout_frame (
               dpyinfo->display_handle,
