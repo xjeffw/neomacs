@@ -198,7 +198,7 @@ impl ImageCache {
         loop {
             // Lock, receive, unlock immediately to allow other threads to grab work
             let request = {
-                let guard = rx.lock().unwrap();
+                let guard = rx.lock().unwrap_or_else(|e| e.into_inner());
                 guard.recv()
             };
 

@@ -475,8 +475,11 @@ impl WgpuGlyphAtlas {
         // Single glyph: return directly (common case for single chars and
         // composed emoji that the font renders as a single glyph)
         if sub_glyphs.len() == 1 {
-            let (bx, by, w, h, data, is_color) = sub_glyphs.into_iter().next().unwrap();
-            return Some((w, h, data, bx, by, is_color));
+            if let Some((bx, by, w, h, data, is_color)) = sub_glyphs.into_iter().next() {
+                return Some((w, h, data, bx, by, is_color));
+            } else {
+                return None;
+            }
         }
 
         // Multiple sub-glyphs: composite into a single RGBA texture.

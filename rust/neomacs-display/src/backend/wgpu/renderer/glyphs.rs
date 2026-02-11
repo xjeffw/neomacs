@@ -762,9 +762,11 @@ impl WgpuRenderer {
                             };
 
                             if use_corners {
-                                let anim = animated_cursor.as_ref().unwrap();
-                                let corners = anim.corners.as_ref().unwrap();
-                                self.add_quad(&mut behind_text_cursor_vertices, corners, effective_color);
+                                if let Some(ref anim) = animated_cursor {
+                                    if let Some(ref corners) = anim.corners {
+                                        self.add_quad(&mut behind_text_cursor_vertices, corners, effective_color);
+                                    }
+                                }
                             } else if let Some(ref anim) = animated_cursor {
                                 if *window_id == anim.window_id {
                                     self.add_rect(&mut behind_text_cursor_vertices,
@@ -781,10 +783,12 @@ impl WgpuRenderer {
                         };
 
                         if use_corners {
-                            let anim = animated_cursor.as_ref().unwrap();
-                            let corners = anim.corners.as_ref().unwrap();
-                            if cursor_visible {
-                                self.add_quad(&mut cursor_vertices, corners, effective_color);
+                            if let Some(ref anim) = animated_cursor {
+                                if let Some(ref corners) = anim.corners {
+                                    if cursor_visible {
+                                        self.add_quad(&mut cursor_vertices, corners, effective_color);
+                                    }
+                                }
                             }
                         } else {
                             let (cx, cy, cw, ch) = if let Some(ref anim) = animated_cursor {
@@ -1551,9 +1555,9 @@ impl WgpuRenderer {
                                 GlyphVertex { position: [glyph_x, glyph_y + glyph_h], tex_coords: [0.0, 1.0], color },
                             ];
 
-                            if composed.is_some() {
+                            if let Some(ref text) = composed {
                                 let ckey = ComposedGlyphKey {
-                                    text: composed.as_ref().unwrap().clone(),
+                                    text: text.clone(),
                                     face_id: *face_id,
                                     font_size_bits: font_size.to_bits(),
                                 };

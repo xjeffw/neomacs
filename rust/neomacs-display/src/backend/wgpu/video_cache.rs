@@ -622,14 +622,31 @@ impl VideoCache {
             match gst::parse::launch(&pipeline_str) {
                 Ok(pipeline) => {
                     log::debug!("Pipeline created successfully");
-                    let pipeline = pipeline.dynamic_cast::<gst::Pipeline>().unwrap();
+                    let pipeline = match pipeline.dynamic_cast::<gst::Pipeline>() {
+                        Ok(p) => p,
+                        Err(_) => {
+                            log::error!("Failed to cast pipeline element to gst::Pipeline for video {}", request.id);
+                            continue;
+                        }
+                    };
 
                     // Get appsink
-                    let appsink = pipeline
-                        .by_name("sink")
-                        .expect("Could not get appsink")
-                        .dynamic_cast::<gst_app::AppSink>()
-                        .expect("Could not cast to AppSink");
+                    let sink_element = match pipeline.by_name("sink") {
+                        Some(e) => e,
+                        None => {
+                            log::error!("Could not get appsink element by name 'sink' for video {}", request.id);
+                            let _ = pipeline.set_state(gst::State::Null);
+                            continue;
+                        }
+                    };
+                    let appsink = match sink_element.dynamic_cast::<gst_app::AppSink>() {
+                        Ok(s) => s,
+                        Err(_) => {
+                            log::error!("Could not cast sink element to AppSink for video {}", request.id);
+                            let _ = pipeline.set_state(gst::State::Null);
+                            continue;
+                        }
+                    };
 
                     // Configure appsink for pull mode (polling with try_pull_sample)
                     appsink.set_max_buffers(2);
@@ -736,7 +753,14 @@ impl VideoCache {
                     });
 
                     // Wait for EOS or error on bus
-                    let bus = pipeline.bus().unwrap();
+                    let bus = match pipeline.bus() {
+                        Some(b) => b,
+                        None => {
+                            log::error!("Could not get bus from pipeline for video {}", video_id);
+                            let _ = pipeline.set_state(gst::State::Null);
+                            continue;
+                        }
+                    };
                     for msg in bus.iter_timed(gst::ClockTime::NONE) {
                         match msg.view() {
                             gst::MessageView::Eos(..) => {

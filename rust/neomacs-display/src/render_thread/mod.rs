@@ -1325,7 +1325,7 @@ impl RenderApp {
                             .collect::<Vec<_>>()
                             .try_into()
                             .unwrap();
-                        dots.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                        dots.sort_by(|a, b| a.0.total_cmp(&b.0));
                         // dots[0] = most trailing (lowest dot), dots[3] = most leading (highest dot)
 
                         let base_dur = self.cursor.anim_duration; // seconds

@@ -800,4 +800,299 @@ mod tests {
             assert!((ease_linear(t) - t).abs() < 1e-6);
         }
     }
+
+    // ---------------------------------------------------------------
+    // Additional Color edge-case tests
+    // ---------------------------------------------------------------
+
+    #[test]
+    fn test_color_from_u8_all_zeros() {
+        let c = Color::from_u8(0, 0, 0, 0);
+        assert_eq!(c.r, 0.0);
+        assert_eq!(c.g, 0.0);
+        assert_eq!(c.b, 0.0);
+        assert_eq!(c.a, 0.0);
+    }
+
+    #[test]
+    fn test_color_from_u8_all_max() {
+        let c = Color::from_u8(255, 255, 255, 255);
+        assert!((c.r - 1.0).abs() < 1e-6);
+        assert!((c.g - 1.0).abs() < 1e-6);
+        assert!((c.b - 1.0).abs() < 1e-6);
+        assert!((c.a - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_color_from_u8_individual_channels() {
+        // Only red
+        let r = Color::from_u8(200, 0, 0, 255);
+        assert!(r.r > 0.0);
+        assert_eq!(r.g, 0.0);
+        assert_eq!(r.b, 0.0);
+
+        // Only green
+        let g = Color::from_u8(0, 200, 0, 255);
+        assert_eq!(g.r, 0.0);
+        assert!(g.g > 0.0);
+        assert_eq!(g.b, 0.0);
+
+        // Only blue
+        let b = Color::from_u8(0, 0, 200, 255);
+        assert_eq!(b.r, 0.0);
+        assert_eq!(b.g, 0.0);
+        assert!(b.b > 0.0);
+    }
+
+    #[test]
+    fn test_srgb_to_linear_at_threshold_boundary() {
+        // Exactly at the threshold (0.04045) should use the linear branch
+        let at_threshold = Color::srgb_component_to_linear(0.04045);
+        let expected = 0.04045 / 12.92;
+        assert!(
+            (at_threshold - expected).abs() < 1e-6,
+            "at threshold: got {}, expected {}",
+            at_threshold,
+            expected
+        );
+    }
+
+    #[test]
+    fn test_srgb_to_linear_just_above_threshold() {
+        // Just above 0.04045 should use the power-curve branch
+        let above = Color::srgb_component_to_linear(0.04046);
+        let expected = ((0.04046 + 0.055) / 1.055_f32).powf(2.4);
+        assert!(
+            (above - expected).abs() < 1e-6,
+            "just above threshold: got {}, expected {}",
+            above,
+            expected
+        );
+    }
+
+    #[test]
+    fn test_srgb_to_linear_known_reference_values() {
+        // Known reference: sRGB 0.2 -> linear ~0.0331
+        let val_02 = Color::srgb_component_to_linear(0.2);
+        assert!(
+            (val_02 - 0.0331).abs() < 0.001,
+            "sRGB 0.2 -> linear: got {}, expected ~0.0331",
+            val_02
+        );
+
+        // Known reference: sRGB 0.8 -> linear ~0.604
+        let val_08 = Color::srgb_component_to_linear(0.8);
+        assert!(
+            (val_08 - 0.604).abs() < 0.001,
+            "sRGB 0.8 -> linear: got {}, expected ~0.604",
+            val_08
+        );
+
+        // Known reference: sRGB 0.5 -> linear ~0.2140
+        let val_05 = Color::srgb_component_to_linear(0.5);
+        assert!(
+            (val_05 - 0.2140).abs() < 0.001,
+            "sRGB 0.5 -> linear: got {}, expected ~0.2140",
+            val_05
+        );
+    }
+
+    #[test]
+    fn test_srgb_to_linear_monotonic() {
+        // sRGB to linear should be monotonically increasing
+        let mut prev = Color::srgb_component_to_linear(0.0);
+        for i in 1..=1000 {
+            let srgb = i as f32 / 1000.0;
+            let lin = Color::srgb_component_to_linear(srgb);
+            assert!(
+                lin >= prev,
+                "sRGB to linear not monotonic at sRGB={}: prev={}, current={}",
+                srgb,
+                prev,
+                lin
+            );
+            prev = lin;
+        }
+    }
+
+    #[test]
+    fn test_srgb_to_linear_output_range() {
+        // All sRGB values [0,1] should map to [0,1] in linear
+        for i in 0..=1000 {
+            let srgb = i as f32 / 1000.0;
+            let lin = Color::srgb_component_to_linear(srgb);
+            assert!(
+                lin >= 0.0 && lin <= 1.0,
+                "sRGB {} mapped to linear {} which is outside [0,1]",
+                srgb,
+                lin
+            );
+        }
+    }
+
+    #[test]
+    fn test_from_pixel_channel_extraction() {
+        // Verify each channel is correctly extracted from the packed u32
+        // 0xAARRGGBB format
+
+        // Pure channels with explicit alpha
+        let red = Color::from_pixel(0xFFFF0000);
+        assert!((red.r - 1.0).abs() < 0.01, "red channel from 0xFFFF0000");
+        assert!(red.g.abs() < 0.01, "green should be 0 in 0xFFFF0000");
+        assert!(red.b.abs() < 0.01, "blue should be 0 in 0xFFFF0000");
+        assert!((red.a - 1.0).abs() < 0.01, "alpha should be 1.0 for 0xFF");
+
+        let green = Color::from_pixel(0xFF00FF00);
+        assert!(green.r.abs() < 0.01, "red should be 0 in 0xFF00FF00");
+        assert!((green.g - 1.0).abs() < 0.01, "green channel from 0xFF00FF00");
+        assert!(green.b.abs() < 0.01, "blue should be 0 in 0xFF00FF00");
+
+        let blue = Color::from_pixel(0xFF0000FF);
+        assert!(blue.r.abs() < 0.01, "red should be 0 in 0xFF0000FF");
+        assert!(blue.g.abs() < 0.01, "green should be 0 in 0xFF0000FF");
+        assert!((blue.b - 1.0).abs() < 0.01, "blue channel from 0xFF0000FF");
+    }
+
+    #[test]
+    fn test_from_pixel_alpha_zero_treated_as_opaque() {
+        // When alpha byte is 0x00, from_pixel treats it as fully opaque (255)
+        let c = Color::from_pixel(0x00804020);
+        assert!((c.a - 1.0).abs() < 0.01, "alpha 0x00 should become 1.0");
+    }
+
+    #[test]
+    fn test_from_pixel_alpha_nonzero_preserved() {
+        // When alpha is non-zero, it should be preserved as-is
+        let c = Color::from_pixel(0x40804020);
+        let expected_a = 0x40 as f32 / 255.0;
+        assert!(
+            (c.a - expected_a).abs() < 0.01,
+            "alpha 0x40: got {}, expected {}",
+            c.a,
+            expected_a
+        );
+    }
+
+    #[test]
+    fn test_from_pixel_full_alpha_ff() {
+        let c = Color::from_pixel(0xFF808080);
+        assert!((c.a - 1.0).abs() < 0.01, "alpha 0xFF should be 1.0");
+    }
+
+    #[test]
+    fn test_color_clone_and_copy() {
+        let original = Color::new(0.1, 0.2, 0.3, 0.4);
+        let cloned = original.clone();
+        let copied = original; // Copy trait
+        assert_eq!(original, cloned);
+        assert_eq!(original, copied);
+    }
+
+    #[test]
+    fn test_color_partial_eq() {
+        let a = Color::new(0.1, 0.2, 0.3, 0.4);
+        let b = Color::new(0.1, 0.2, 0.3, 0.4);
+        let c = Color::new(0.1, 0.2, 0.3, 0.5);
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn test_color_debug_format() {
+        let c = Color::new(1.0, 0.0, 0.5, 1.0);
+        let debug_str = format!("{:?}", c);
+        assert!(debug_str.contains("Color"));
+        assert!(debug_str.contains("1.0"));
+        assert!(debug_str.contains("0.5"));
+    }
+
+    #[test]
+    fn test_srgb_to_linear_idempotent_at_extremes() {
+        // 0.0 -> linear 0.0, and applying again still 0.0
+        let zero = Color::rgb(0.0, 0.0, 0.0).srgb_to_linear().srgb_to_linear();
+        assert!(zero.r.abs() < 1e-6);
+
+        // 1.0 -> linear 1.0, and applying again still 1.0
+        let one = Color::rgb(1.0, 1.0, 1.0).srgb_to_linear().srgb_to_linear();
+        assert!((one.r - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_srgb_to_linear_reduces_mid_values() {
+        // For sRGB values in (0, 1) exclusive, linear should always be less
+        // than or equal to sRGB (the sRGB curve is above the linear diagonal)
+        for i in 1..1000 {
+            let srgb = i as f32 / 1000.0;
+            let lin = Color::srgb_component_to_linear(srgb);
+            assert!(
+                lin <= srgb + 1e-6,
+                "linear {} should be <= sRGB {} for mid values",
+                lin,
+                srgb
+            );
+        }
+    }
+
+    #[test]
+    fn test_color_from_u8_precise_values() {
+        // Verify precise conversion for specific u8 values
+        let c = Color::from_u8(1, 127, 254, 128);
+        assert!((c.r - 1.0 / 255.0).abs() < 1e-6);
+        assert!((c.g - 127.0 / 255.0).abs() < 1e-6);
+        assert!((c.b - 254.0 / 255.0).abs() < 1e-6);
+        assert!((c.a - 128.0 / 255.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_color_rgb_vs_new_with_alpha_one() {
+        // rgb(r, g, b) should be identical to new(r, g, b, 1.0)
+        let rgb = Color::rgb(0.3, 0.6, 0.9);
+        let new = Color::new(0.3, 0.6, 0.9, 1.0);
+        assert_eq!(rgb, new);
+    }
+
+    #[test]
+    fn test_color_transparent_components() {
+        let t = Color::TRANSPARENT;
+        assert_eq!(t.r, 0.0);
+        assert_eq!(t.g, 0.0);
+        assert_eq!(t.b, 0.0);
+        assert_eq!(t.a, 0.0);
+    }
+
+    #[test]
+    fn test_from_pixel_emacs_typical_colors() {
+        // Emacs default foreground: #FFFFFF (white)
+        let white = Color::from_pixel(0x00FFFFFF);
+        assert!((white.r - 1.0).abs() < 0.01);
+        assert!((white.g - 1.0).abs() < 0.01);
+        assert!((white.b - 1.0).abs() < 0.01);
+
+        // Emacs default background: #000000 (black)
+        let black = Color::from_pixel(0x00000000);
+        assert!(black.r.abs() < 0.01);
+        assert!(black.g.abs() < 0.01);
+        assert!(black.b.abs() < 0.01);
+
+        // A typical Emacs comment color: #7F7F7F (gray)
+        let gray = Color::from_pixel(0x007F7F7F);
+        // sRGB 127/255 ~ 0.498, linear ~ 0.212
+        assert!((gray.r - 0.212).abs() < 0.02);
+        assert_eq!(gray.r, gray.g);
+        assert_eq!(gray.g, gray.b);
+    }
+
+    #[test]
+    fn test_srgb_component_to_linear_continuity_at_threshold() {
+        // The two branches should produce very close values at the threshold
+        // to ensure continuity of the conversion function
+        let below = Color::srgb_component_to_linear(0.04045);
+        let above = Color::srgb_component_to_linear(0.04046);
+        assert!(
+            (above - below).abs() < 0.001,
+            "discontinuity at threshold: below={}, above={}",
+            below,
+            above
+        );
+    }
 }
