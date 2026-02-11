@@ -321,6 +321,10 @@ typedef struct WindowParamsFFI {
    */
   int64_t windowStart;
   /**
+   * Last visible buffer position from previous frame (0 = unknown)
+   */
+  int64_t windowEnd;
+  /**
    * Point position
    */
   int64_t point;

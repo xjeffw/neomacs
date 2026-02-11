@@ -482,6 +482,8 @@ pub struct WindowParamsFFI {
 
     /// First visible buffer position
     pub window_start: i64,
+    /// Last visible buffer position from previous frame (0 = unknown)
+    pub window_end: i64,
     /// Point position
     pub point: i64,
     /// Buffer size (ZV)

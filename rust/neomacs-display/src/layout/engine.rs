@@ -230,6 +230,7 @@ impl LayoutEngine {
                 selected: wp.selected != 0,
                 is_minibuffer: wp.is_minibuffer != 0,
                 window_start: wp.window_start,
+                window_end: wp.window_end,
                 point: wp.point,
                 buffer_size: wp.buffer_zv,
                 buffer_begv: wp.buffer_begv,
@@ -557,12 +558,12 @@ impl LayoutEngine {
         // Effective text start X (shifted right for line numbers)
         let content_x = text_x + lnum_pixel_width;
 
-        // --- Scroll adjustment: if point is before window_start, scroll backward ---
+        // --- Scroll adjustment ---
         let window_start = if params.point > 0
             && params.point < params.window_start
             && !params.is_minibuffer
         {
-            // Scroll backward: put point a few lines from the top
+            // Backward scroll: put point near top (1/4 down)
             let lines_above = (max_rows / 4).clamp(2, 10);
             let new_start = neomacs_layout_adjust_window_start(
                 wp.window_ptr,
@@ -572,6 +573,22 @@ impl LayoutEngine {
             );
             log::debug!("  scroll backward: point={} was before start={}, new start={}",
                 params.point, params.window_start, new_start);
+            new_start
+        } else if params.point > 0
+            && params.window_end > 0
+            && params.point > params.window_end
+            && !params.is_minibuffer
+        {
+            // Forward scroll: put point near bottom (3/4 down)
+            let lines_above = (max_rows * 3 / 4).clamp(2, max_rows - 1);
+            let new_start = neomacs_layout_adjust_window_start(
+                wp.window_ptr,
+                wp.buffer_ptr,
+                params.point,
+                lines_above,
+            );
+            log::debug!("  scroll forward: point={} was past end={}, new start={}",
+                params.point, params.window_end, new_start);
             new_start
         } else {
             params.window_start
@@ -2652,56 +2669,62 @@ impl LayoutEngine {
         if !cursor_placed && params.point >= window_start
             && charpos >= params.point
         {
-            cursor_col = col;
-            cursor_x = x_offset;
-            cursor_row = row.min(max_rows - 1);
-            let cursor_px = content_x + x_offset;
-            let cursor_y = row_y[row.min(max_rows - 1) as usize];
+            let clamped_row = row.min(max_rows - 1);
+            let cursor_y = row_y[clamped_row as usize];
 
-            let cursor_style = if params.selected {
-                params.cursor_type
-            } else if params.cursor_in_non_selected {
-                3
-            } else {
-                255 // skip
-            };
+            // Safety: don't place cursor past text area
+            if cursor_y < text_y_limit {
+                cursor_col = col;
+                cursor_x = x_offset;
+                cursor_row = clamped_row;
+                let cursor_px = content_x + x_offset;
 
-            if cursor_style < 255 {
-                // Use face-specific dimensions so cursor matches variable-height faces
-                let cursor_face_w = if self.face_data.font_char_width > 0.0 {
-                    self.face_data.font_char_width
+                let cursor_style = if params.selected {
+                    params.cursor_type
+                } else if params.cursor_in_non_selected {
+                    3
                 } else {
-                    char_w
-                };
-                let (cursor_w, cursor_h) = match params.cursor_type {
-                    1 => (params.cursor_bar_width.max(1) as f32, face_h), // bar
-                    2 => (cursor_face_w, 2.0),                             // hbar
-                    _ => (cursor_face_w, face_h),                          // box/hollow
+                    255 // skip
                 };
 
-                frame_glyphs.add_cursor(
-                    params.window_id as i32,
-                    cursor_px,
-                    cursor_y,
-                    cursor_w,
-                    cursor_h,
-                    cursor_style,
-                    face_fg,
-                );
+                if cursor_style < 255 {
+                    // Use face-specific dimensions so cursor matches variable-height faces
+                    let cursor_face_w = if self.face_data.font_char_width > 0.0 {
+                        self.face_data.font_char_width
+                    } else {
+                        char_w
+                    };
+                    let (cursor_w, cursor_h) = match params.cursor_type {
+                        1 => (params.cursor_bar_width.max(1) as f32, face_h), // bar
+                        2 => (cursor_face_w, 2.0),                             // hbar
+                        _ => (cursor_face_w, face_h),                          // box/hollow
+                    };
 
-                if cursor_style == 0 {
-                    frame_glyphs.set_cursor_inverse(
+                    frame_glyphs.add_cursor(
+                        params.window_id as i32,
                         cursor_px,
                         cursor_y,
                         cursor_w,
                         cursor_h,
+                        cursor_style,
                         face_fg,
-                        face_bg,
                     );
-                }
-            }
 
-            cursor_placed = true;
+                    if cursor_style == 0 {
+                        frame_glyphs.set_cursor_inverse(
+                            cursor_px,
+                            cursor_y,
+                            cursor_w,
+                            cursor_h,
+                            face_fg,
+                            face_bg,
+                        );
+                    }
+                }
+
+                cursor_placed = true;
+            }
+            // If cursor_y >= text_y_limit, skip placement — forward scroll will fix next frame
         }
 
         // Check for overlay strings at end-of-buffer (e.g., fido-vertical-mode
@@ -2870,59 +2893,65 @@ impl LayoutEngine {
 
         // If cursor wasn't placed (point is past visible content), place at end
         if !cursor_placed && params.point >= window_start {
-            cursor_col = col;
-            cursor_row = row.min(max_rows - 1);
-            cursor_x = x_offset;
-            let cursor_px = content_x + x_offset;
-            let cursor_y = row_y[row.min(max_rows - 1) as usize];
+            let clamped_row = row.min(max_rows - 1);
+            let cursor_y = row_y[clamped_row as usize];
 
-            let cursor_style = if params.selected {
-                params.cursor_type
-            } else if params.cursor_in_non_selected {
-                3
-            } else {
-                255 // skip
-            };
+            // Safety: don't place cursor past text area
+            if cursor_y < text_y_limit {
+                cursor_col = col;
+                cursor_row = clamped_row;
+                cursor_x = x_offset;
+                let cursor_px = content_x + x_offset;
 
-            if cursor_style < 255 {
-                // Use face-specific dimensions so cursor matches variable-height faces
-                let cursor_face_w = if self.face_data.font_char_width > 0.0 {
-                    self.face_data.font_char_width
+                let cursor_style = if params.selected {
+                    params.cursor_type
+                } else if params.cursor_in_non_selected {
+                    3
                 } else {
-                    char_w
+                    255 // skip
                 };
-                let (cursor_w, cursor_h) = match params.cursor_type {
-                    1 => (params.cursor_bar_width.max(1) as f32, face_h), // bar
-                    2 => (cursor_face_w, 2.0),                             // hbar
-                    _ => (cursor_face_w, face_h),                          // box/hollow
-                };
-                frame_glyphs.add_cursor(
-                    params.window_id as i32,
-                    cursor_px,
-                    cursor_y,
-                    cursor_w,
-                    cursor_h,
-                    cursor_style,
-                    face_fg,
-                );
-            }
 
-            if cursor_style == 0 {
-                let cursor_face_w = if self.face_data.font_char_width > 0.0 {
-                    self.face_data.font_char_width
-                } else {
-                    char_w
-                };
-                let cursor_h = face_h;
-                frame_glyphs.set_cursor_inverse(
-                    cursor_px,
-                    cursor_y,
-                    cursor_face_w,
-                    cursor_h,
-                    face_fg,
-                    face_bg,
-                );
+                if cursor_style < 255 {
+                    // Use face-specific dimensions so cursor matches variable-height faces
+                    let cursor_face_w = if self.face_data.font_char_width > 0.0 {
+                        self.face_data.font_char_width
+                    } else {
+                        char_w
+                    };
+                    let (cursor_w, cursor_h) = match params.cursor_type {
+                        1 => (params.cursor_bar_width.max(1) as f32, face_h), // bar
+                        2 => (cursor_face_w, 2.0),                             // hbar
+                        _ => (cursor_face_w, face_h),                          // box/hollow
+                    };
+                    frame_glyphs.add_cursor(
+                        params.window_id as i32,
+                        cursor_px,
+                        cursor_y,
+                        cursor_w,
+                        cursor_h,
+                        cursor_style,
+                        face_fg,
+                    );
+                }
+
+                if cursor_style == 0 {
+                    let cursor_face_w = if self.face_data.font_char_width > 0.0 {
+                        self.face_data.font_char_width
+                    } else {
+                        char_w
+                    };
+                    let cursor_h = face_h;
+                    frame_glyphs.set_cursor_inverse(
+                        cursor_px,
+                        cursor_y,
+                        cursor_face_w,
+                        cursor_h,
+                        face_fg,
+                        face_bg,
+                    );
+                }
             }
+            // If cursor_y >= text_y_limit, skip — forward scroll will fix next frame
         }
 
         // Fill remaining rows with default background
@@ -3129,13 +3158,25 @@ impl LayoutEngine {
         );
 
         // Set cursor position for Emacs (needed for recenter, scroll, etc.)
-        neomacs_layout_set_cursor(
-            wp.window_ptr,
-            (content_x + cursor_x) as i32,
-            (row_y[cursor_row as usize]) as i32,
-            cursor_col,
-            cursor_row,
-        );
+        // Ensure cursor_row is valid and within text area
+        if cursor_row < max_rows && row_y[cursor_row as usize] < text_y_limit {
+            neomacs_layout_set_cursor(
+                wp.window_ptr,
+                (content_x + cursor_x) as i32,
+                (row_y[cursor_row as usize]) as i32,
+                cursor_col,
+                cursor_row,
+            );
+        } else {
+            // Set cursor at row 0 as fallback — scroll will fix next frame
+            neomacs_layout_set_cursor(
+                wp.window_ptr,
+                content_x as i32,
+                text_y as i32,
+                0,
+                0,
+            );
+        }
     }
 }
 

@@ -147,6 +147,8 @@ pub struct WindowParams {
 
     /// First visible buffer position (marker_position(w->start))
     pub window_start: i64,
+    /// Last visible buffer position from previous frame (0 = unknown)
+    pub window_end: i64,
     /// Point position in this window's buffer
     pub point: i64,
     /// Buffer size (ZV - narrowing end)
@@ -610,6 +612,7 @@ mod tests {
             selected: true,
             is_minibuffer: false,
             window_start: 1,
+            window_end: 0,
             point: 42,
             buffer_size: 10000,
             buffer_begv: 1,
@@ -670,6 +673,7 @@ mod tests {
             selected: true,
             is_minibuffer: true,
             window_start: 1,
+            window_end: 0,
             point: 1,
             buffer_size: 0,
             buffer_begv: 1,
@@ -722,6 +726,7 @@ mod tests {
             selected: false,
             is_minibuffer: false,
             window_start: 1,
+            window_end: 0,
             point: 1,
             buffer_size: 100,
             buffer_begv: 1,

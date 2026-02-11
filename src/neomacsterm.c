@@ -1692,6 +1692,7 @@ struct neomacs_window_params_ffi {
   int selected;
   int is_minibuffer;
   int64_t window_start;
+  int64_t window_end;
   int64_t point;
   int64_t buffer_zv;
   int64_t buffer_begv;
@@ -1877,6 +1878,13 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
     params->window_start = marker_position (w->start);
   else
     params->window_start = 1;
+
+  /* Previous frame's window_end (last visible charpos).
+     Used by Rust layout engine for forward scroll detection. */
+  if (w->window_end_valid && BUFFERP (w->contents))
+    params->window_end = BUF_Z (XBUFFER (w->contents)) - w->window_end_pos;
+  else
+    params->window_end = 0;  /* 0 = unknown/invalid */
 
   params->hscroll = w->hscroll;
 
