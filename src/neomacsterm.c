@@ -2837,41 +2837,32 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
           ptrdiff_t next_pos = NILP (next_change)
             ? nchars : XFIXNUM (next_change);
 
-          /* Resolve face to colors */
+          /* Resolve face to colors using face_at_string_position, which
+             properly handles all face property formats (symbols, lists,
+             plists) and merges with the base mode-line face.  */
           uint32_t fg = 0, bg = 0;
-          if (!NILP (face_prop))
-            {
-              int rid = lookup_named_face (w, f,
-                                           SYMBOLP (face_prop)
-                                           ? face_prop : Qdefault,
-                                           false);
-              if (rid >= 0)
-                {
-                  struct face *rf = FACE_FROM_ID_OR_NULL (f, rid);
-                  if (rf)
-                    {
-                      unsigned long c = rf->foreground;
-                      fg = ((RED_FROM_ULONG (c) << 16)
-                            | (GREEN_FROM_ULONG (c) << 8)
-                            | BLUE_FROM_ULONG (c));
-                      /* If sub-face has defaulted background (inherits from
-                         frame default rather than mode-line), substitute the
-                         base mode-line face's background so it matches the
-                         mode-line area instead of being white. */
-                      c = rf->background;
-                      if (rf->background_defaulted_p)
-                        {
-                          struct face *base_ml
-                            = FACE_FROM_ID_OR_NULL (f, face_id);
-                          if (base_ml)
-                            c = base_ml->background;
-                        }
-                      bg = ((RED_FROM_ULONG (c) << 16)
-                            | (GREEN_FROM_ULONG (c) << 8)
-                            | BLUE_FROM_ULONG (c));
-                    }
-                }
-            }
+          {
+            ptrdiff_t endpos;
+            int rid = face_at_string_position (w, result, charpos, 0,
+                                               &endpos, face_id,
+                                               false, 0);
+            /* Use endpos as next change position for efficiency */
+            if (endpos > charpos && endpos <= nchars)
+              next_pos = endpos;
+
+            struct face *rf = FACE_FROM_ID_OR_NULL (f, rid);
+            if (rf)
+              {
+                unsigned long c = rf->foreground;
+                fg = ((RED_FROM_ULONG (c) << 16)
+                      | (GREEN_FROM_ULONG (c) << 8)
+                      | BLUE_FROM_ULONG (c));
+                c = rf->background;
+                bg = ((RED_FROM_ULONG (c) << 16)
+                      | (GREEN_FROM_ULONG (c) << 8)
+                      | BLUE_FROM_ULONG (c));
+              }
+          }
 
           /* Only emit a run if colors changed */
           if (fg != prev_fg || bg != prev_bg)
