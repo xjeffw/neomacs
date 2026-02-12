@@ -170,6 +170,7 @@ impl Evaluator {
                 "setq" => return self.eval_setq(tail),
                 "catch" => return self.eval_catch(tail),
                 "throw" => return self.eval_throw(tail),
+                "unwind-protect" => return self.eval_unwind_protect(tail),
                 "condition-case" => return self.eval_condition_case(tail),
                 "if" => return self.eval_if(tail),
                 "progn" => return self.eval_progn(tail),
@@ -321,6 +322,19 @@ impl Evaluator {
         let tag = self.eval(&tail[0])?;
         let value = self.eval(&tail[1])?;
         Err(Flow::Throw { tag, value })
+    }
+
+    fn eval_unwind_protect(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.is_empty() {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+
+        let primary = self.eval(&tail[0]);
+        let cleanup = self.eval_progn(&tail[1..]);
+        match cleanup {
+            Ok(_) => primary,
+            Err(flow) => Err(flow),
+        }
     }
 
     fn eval_condition_case(&mut self, tail: &[Expr]) -> EvalResult {
@@ -1141,5 +1155,27 @@ mod tests {
         let mut evaluator = Evaluator::new();
         let result = evaluator.eval_expr(&forms[0]);
         assert_eq!(format_eval_result(&result), "OK (1 9 10)");
+    }
+
+    #[test]
+    fn unwind_protect_runs_cleanup_on_signal() {
+        let forms = parse_forms(
+            "(let ((x 0)) (condition-case e (unwind-protect (/ 1 0) (setq x 7)) (arith-error x)))",
+        )
+        .expect("parse should succeed");
+        let mut evaluator = Evaluator::new();
+        let result = evaluator.eval_expr(&forms[0]);
+        assert_eq!(format_eval_result(&result), "OK 7");
+    }
+
+    #[test]
+    fn unwind_protect_cleanup_error_overrides_body_result() {
+        let forms = parse_forms(
+            "(condition-case e (unwind-protect 1 (/ 1 0)) (arith-error 'cleanup-failed))",
+        )
+        .expect("parse should succeed");
+        let mut evaluator = Evaluator::new();
+        let result = evaluator.eval_expr(&forms[0]);
+        assert_eq!(format_eval_result(&result), "OK cleanup-failed");
     }
 }

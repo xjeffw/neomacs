@@ -25,3 +25,7 @@
 (let* ((x 1) (y (+ x 2))) (if (equal (list x y) '(1 3)) y 0))
 (let ((x '(1 2 3))) (setcdr x '(9 10)) x)
 (funcall 'equal '(1 (2 3)) '(1 (2 3)))
+
+; Non-local exits with cleanup guarantees
+(let ((x 0)) (condition-case e (unwind-protect (/ 1 0) (setq x 7)) (arith-error x)))
+(condition-case e (unwind-protect 1 (/ 1 0)) (arith-error 'cleanup-failed))

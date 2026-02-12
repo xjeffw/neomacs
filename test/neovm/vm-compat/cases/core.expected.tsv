@@ -11,3 +11,5 @@
 11	(let* ((x 1) (y (+ x 2))) (if (equal (list x y) '(1 3)) y 0))	OK 3
 12	(let ((x '(1 2 3))) (setcdr x '(9 10)) x)	OK (1 9 10)
 13	(funcall 'equal '(1 (2 3)) '(1 (2 3)))	OK t
+14	(let ((x 0)) (condition-case e (unwind-protect (/ 1 0) (setq x 7)) (arith-error x)))	OK 7
+15	(condition-case e (unwind-protect 1 (/ 1 0)) (arith-error 'cleanup-failed))	OK cleanup-failed
