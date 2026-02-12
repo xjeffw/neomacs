@@ -905,7 +905,9 @@ neomacs_send_face (void *handle, struct frame *f, struct face *face)
   int font_weight = 400;
   if (face->font)
     {
-      int w = FONT_WEIGHT_NUMERIC (face->font);
+      Lisp_Object font_obj;
+      XSETFONT (font_obj, face->font);
+      int w = FONT_WEIGHT_NUMERIC (font_obj);
       if (w >= 0) font_weight = emacs_weight_to_css (w);
     }
   else
@@ -922,7 +924,9 @@ neomacs_send_face (void *handle, struct frame *f, struct face *face)
   int is_italic = 0;
   if (face->font)
     {
-      int s = FONT_SLANT_NUMERIC (face->font);
+      Lisp_Object font_obj;
+      XSETFONT (font_obj, face->font);
+      int s = FONT_SLANT_NUMERIC (font_obj);
       if (s > 100) is_italic = 1;
     }
   else
@@ -2433,7 +2437,9 @@ fill_face_data (struct frame *f, struct face *face, struct FaceDataFFI *out)
   out->font_weight = 400;
   if (face->font)
     {
-      int w = FONT_WEIGHT_NUMERIC (face->font);
+      Lisp_Object font_obj;
+      XSETFONT (font_obj, face->font);
+      int w = FONT_WEIGHT_NUMERIC (font_obj);
       if (w >= 0) out->font_weight = emacs_weight_to_css (w);
     }
   else
@@ -2456,7 +2462,9 @@ fill_face_data (struct frame *f, struct face *face, struct FaceDataFFI *out)
   out->italic = 0;
   if (face->font)
     {
-      int s = FONT_SLANT_NUMERIC (face->font);
+      Lisp_Object font_obj;
+      XSETFONT (font_obj, face->font);
+      int s = FONT_SLANT_NUMERIC (font_obj);
       if (s > 100) out->italic = 1;
     }
   else
