@@ -1,4 +1,5 @@
 pub mod elisp;
+pub mod gc;
 
 use neovm_host_abi::{
     HostAbi, HostError, IsolateId, LispValue, PatchRequest, PatchResult, PrimitiveDescriptor,
