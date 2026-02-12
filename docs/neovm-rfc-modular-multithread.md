@@ -334,6 +334,12 @@ Default mode must match GNU Emacs observable semantics:
 
 Optional experimental modes must be explicitly opt-in and off by default.
 
+Verification path:
+
+- GNU Emacs batch oracle corpus under `test/neovm/vm-compat/`
+- NeoVM must run the same forms and match `OK/ERR` class and value printout semantics
+- CI should fail on compatibility drift for enabled suites
+
 ## 13. Testing and Validation
 
 ### 13.1 Differential Harness

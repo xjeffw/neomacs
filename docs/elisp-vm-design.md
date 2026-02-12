@@ -18,6 +18,28 @@ Neo-Elisp VM must preserve observable GNU Emacs behavior:
 
 Performance features are allowed only when semantics remain identical.
 
+## Compatibility Verification Harness
+
+NeoVM compatibility should be verified continuously against GNU Emacs oracle results.
+
+Initial scaffold:
+
+- Form corpus: `test/neovm/vm-compat/cases/core.forms`
+- Oracle evaluator: `test/neovm/vm-compat/oracle_eval.el`
+- Runner: `test/neovm/vm-compat/run-oracle.sh`
+
+Current command:
+
+```bash
+test/neovm/vm-compat/run-oracle.sh test/neovm/vm-compat/cases/core.forms
+```
+
+Next phase:
+
+- Add NeoVM evaluator runner for the same corpus
+- Diff `OK/ERR` class and printed values against oracle output
+- Gate CI on no behavioral drift for enabled compatibility suites
+
 ## Design Principles
 
 1. Compatibility first, then speed.

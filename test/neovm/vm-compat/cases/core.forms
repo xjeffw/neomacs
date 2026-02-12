@@ -1,0 +1,14 @@
+; Basic arithmetic and list mutation behavior
+(+ 1 2)
+(let ((x 1)) (setq x (+ x 2)) x)
+(let ((lst '(1 2))) (setcar lst 9) lst)
+
+; Control flow and error behavior
+(catch 'tag (throw 'tag 42))
+(condition-case e (/ 1 0) (arith-error 'div-zero))
+
+; Dynamic-binding-sensitive shape (lexical-binding=nil in this oracle)
+(let ((x 1))
+  (let ((f (lambda () x)))
+    (let ((x 2))
+      (funcall f))))
