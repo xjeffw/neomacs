@@ -92,15 +92,7 @@ effect_config!(
     }
 );
 
-effect_config!(
-    /// Configuration for Gaussian blur post-processing effect.
-    /// Uses a separable two-pass approach (horizontal + vertical) for efficiency.
-    BlurConfig {
-        enabled: bool = false,
-        radius: f32 = 1.0,
-        passes: u32 = 2,
-    }
-);
+
 
 effect_config!(
     /// Configuration for the border transition effect.
@@ -3878,7 +3870,6 @@ pub struct EffectsConfig {
     pub basket_weave: BasketWeaveConfig,
     pub bg_gradient: BgGradientConfig,
     pub bg_pattern: BgPatternConfig,
-    pub blur: BlurConfig,
     pub border_transition: BorderTransitionConfig,
     pub breadcrumb: BreadcrumbConfig,
     pub breathing_border: BreathingBorderConfig,
