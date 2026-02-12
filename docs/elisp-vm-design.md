@@ -91,6 +91,7 @@ Implemented now:
   - bounded priority task queues (`Interactive`, `Default`, `Background`)
   - cancellation-aware task lifecycle (`Queued/Running/Completed/Cancelled`)
   - worker-pool execution loop
+  - pluggable task executor closure and result/error propagation through `task_await`
   - bounded channels and timeout-aware `select`
   - condition-variable wakeups for `task_await` and channel readiness (no default busy-spin waits)
   - runtime metrics for queue pressure and completion/cancellation counters

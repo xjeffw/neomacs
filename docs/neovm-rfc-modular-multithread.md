@@ -62,6 +62,7 @@ The initial scaffolding is now implemented in Rust:
 - `rust/neovm-worker`: multi-thread worker runtime scaffold with:
   - bounded priority queues
   - cancellation state and task status tracking
+  - pluggable task executor and awaitable result/error propagation
   - bounded channels and timeout-aware `select`
   - condvar-based wait/wakeup for task completion and channel readiness
   - runtime counters for enqueue/dequeue/rejection/cancel/complete

@@ -9,6 +9,9 @@ use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
+type ExecuteFn =
+    dyn Fn(&LispValue, &TaskOptions, &TaskContext) -> Result<LispValue, TaskError> + Send + Sync;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WorkerConfig {
     pub threads: usize,
@@ -88,6 +91,7 @@ struct TaskEntry {
     opts: TaskOptions,
     context: TaskContext,
     status: Mutex<TaskStatus>,
+    result: Mutex<Option<Result<LispValue, TaskError>>>,
     done: Condvar,
 }
 
@@ -100,6 +104,7 @@ impl TaskEntry {
                 cancelled: Arc::new(AtomicBool::new(false)),
             },
             status: Mutex::new(TaskStatus::Queued),
+            result: Mutex::new(None),
             done: Condvar::new(),
         }
     }
@@ -124,20 +129,47 @@ impl TaskEntry {
             TaskStatus::Completed | TaskStatus::Cancelled => false,
             TaskStatus::Queued | TaskStatus::Running => {
                 *status = TaskStatus::Cancelled;
+                let mut result = self.result.lock().expect("task result mutex poisoned");
+                *result = Some(Err(TaskError::Cancelled));
+                drop(result);
                 self.done.notify_all();
                 true
             }
         }
     }
 
-    fn mark_completed(&self) -> bool {
+    fn mark_completed_with(&self, result: Result<LispValue, TaskError>) -> bool {
         let mut status = self.status.lock().expect("task status mutex poisoned");
         match *status {
             TaskStatus::Cancelled | TaskStatus::Completed => false,
             TaskStatus::Queued | TaskStatus::Running => {
-                *status = TaskStatus::Completed;
+                *status = if matches!(result, Err(TaskError::Cancelled)) {
+                    TaskStatus::Cancelled
+                } else {
+                    TaskStatus::Completed
+                };
+                let mut slot = self.result.lock().expect("task result mutex poisoned");
+                *slot = Some(result);
+                drop(slot);
                 self.done.notify_all();
                 true
+            }
+        }
+    }
+
+    fn finished_result(&self) -> Option<Result<LispValue, TaskError>> {
+        let status = self.status();
+        match status {
+            TaskStatus::Queued | TaskStatus::Running => None,
+            TaskStatus::Cancelled | TaskStatus::Completed => {
+                let stored = self.result.lock().expect("task result mutex poisoned");
+                stored.clone().or_else(|| {
+                    if status == TaskStatus::Cancelled {
+                        Some(Err(TaskError::Cancelled))
+                    } else {
+                        Some(Ok(LispValue::default()))
+                    }
+                })
             }
         }
     }
@@ -395,10 +427,21 @@ pub struct WorkerRuntime {
     channels: Arc<RwLock<HashMap<u64, Arc<Channel>>>>,
     channel_events: Arc<ChannelEvents>,
     metrics: Arc<RuntimeMetrics>,
+    executor: Arc<ExecuteFn>,
 }
 
 impl WorkerRuntime {
     pub fn new(config: WorkerConfig) -> Self {
+        Self::with_executor(config, |form, _opts, _ctx| Ok(form.clone()))
+    }
+
+    pub fn with_executor<F>(config: WorkerConfig, executor: F) -> Self
+    where
+        F: Fn(&LispValue, &TaskOptions, &TaskContext) -> Result<LispValue, TaskError>
+            + Send
+            + Sync
+            + 'static,
+    {
         Self {
             config,
             next_task: AtomicU64::new(1),
@@ -409,6 +452,7 @@ impl WorkerRuntime {
             channels: Arc::new(RwLock::new(HashMap::new())),
             channel_events: Arc::new(ChannelEvents::default()),
             metrics: Arc::new(RuntimeMetrics::default()),
+            executor: Arc::new(executor),
         }
     }
 
@@ -549,6 +593,7 @@ impl WorkerRuntime {
             let queue = Arc::clone(&self.queue);
             let tasks = Arc::clone(&self.tasks);
             let metrics = Arc::clone(&self.metrics);
+            let executor = Arc::clone(&self.executor);
             joins.push(thread::spawn(move || loop {
                 let handle = {
                     let mut state = queue.state.lock().expect("worker queue mutex poisoned");
@@ -591,17 +636,19 @@ impl WorkerRuntime {
                     continue;
                 }
 
-                // Placeholder execution path: a real runtime would evaluate task.form
-                // inside an isolate and write the result to a completion channel.
-                let _ = task.form.bytes.len();
-                let _ = task.opts.name.as_deref();
+                let execution = executor(&task.form, &task.opts, &task.context);
+                let was_cancelled = matches!(execution, Err(TaskError::Cancelled));
 
                 if task.context.is_cancelled() {
                     if task.mark_cancelled() {
                         metrics.cancelled.fetch_add(1, Ordering::Relaxed);
                     }
-                } else if task.mark_completed() {
-                    metrics.completed.fetch_add(1, Ordering::Relaxed);
+                } else if task.mark_completed_with(execution) {
+                    if was_cancelled {
+                        metrics.cancelled.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        metrics.completed.fetch_add(1, Ordering::Relaxed);
+                    }
                 }
             }));
         }
@@ -622,12 +669,18 @@ impl WorkerRuntime {
             return Err(TaskError::TimedOut);
         };
 
+        if let Some(result) = task.finished_result() {
+            return result;
+        }
+
         let mut status = task.status.lock().expect("task status mutex poisoned");
         match timeout {
             None => loop {
                 match *status {
-                    TaskStatus::Completed => return Ok(LispValue::default()),
-                    TaskStatus::Cancelled => return Err(TaskError::Cancelled),
+                    TaskStatus::Completed | TaskStatus::Cancelled => {
+                        drop(status);
+                        return task.finished_result().unwrap_or(Err(TaskError::TimedOut));
+                    }
                     TaskStatus::Queued | TaskStatus::Running => {
                         status = task
                             .done
@@ -641,8 +694,10 @@ impl WorkerRuntime {
                 let mut remaining = timeout;
                 loop {
                     match *status {
-                        TaskStatus::Completed => return Ok(LispValue::default()),
-                        TaskStatus::Cancelled => return Err(TaskError::Cancelled),
+                        TaskStatus::Completed | TaskStatus::Cancelled => {
+                            drop(status);
+                            return task.finished_result().unwrap_or(Err(TaskError::TimedOut));
+                        }
                         TaskStatus::Queued | TaskStatus::Running => {}
                     }
 
@@ -653,8 +708,10 @@ impl WorkerRuntime {
                     status = next_status;
                     if wait_result.timed_out() {
                         match *status {
-                            TaskStatus::Completed => return Ok(LispValue::default()),
-                            TaskStatus::Cancelled => return Err(TaskError::Cancelled),
+                            TaskStatus::Completed | TaskStatus::Cancelled => {
+                                drop(status);
+                                return task.finished_result().unwrap_or(Err(TaskError::TimedOut));
+                            }
                             TaskStatus::Queued | TaskStatus::Running => {
                                 return Err(TaskError::TimedOut)
                             }
@@ -664,8 +721,10 @@ impl WorkerRuntime {
                     let elapsed = start.elapsed();
                     if elapsed >= timeout {
                         match *status {
-                            TaskStatus::Completed => return Ok(LispValue::default()),
-                            TaskStatus::Cancelled => return Err(TaskError::Cancelled),
+                            TaskStatus::Completed | TaskStatus::Cancelled => {
+                                drop(status);
+                                return task.finished_result().unwrap_or(Err(TaskError::TimedOut));
+                            }
                             TaskStatus::Queued | TaskStatus::Running => {
                                 return Err(TaskError::TimedOut)
                             }
@@ -932,17 +991,57 @@ mod tests {
             queue_capacity: 16,
         });
         let workers = rt.start_dummy_workers();
+        let expected = LispValue {
+            bytes: vec![10, 20, 30],
+        };
         let task = rt
-            .spawn(LispValue::default(), TaskOptions::default())
+            .spawn(expected.clone(), TaskOptions::default())
             .expect("task should enqueue");
 
-        let result = TaskScheduler::task_await(&rt, task, Some(Duration::from_millis(50)));
+        let result = TaskScheduler::task_await(&rt, task, Some(Duration::from_millis(50)))
+            .expect("task should complete");
         rt.close();
         for worker in workers {
             worker.join().expect("worker thread should join");
         }
 
-        assert!(result.is_ok(), "task await should observe completion");
+        assert_eq!(result.bytes, expected.bytes);
+    }
+
+    #[test]
+    fn custom_executor_failure_propagates_to_await() {
+        let rt = WorkerRuntime::with_executor(
+            WorkerConfig {
+                threads: 1,
+                queue_capacity: 16,
+            },
+            |_form, _opts, _ctx| {
+                Err(TaskError::Failed(Signal {
+                    symbol: "executor-failed".to_string(),
+                    data: Some("boom".to_string()),
+                }))
+            },
+        );
+        let workers = rt.start_dummy_workers();
+        let task = rt
+            .spawn(LispValue::default(), TaskOptions::default())
+            .expect("task should enqueue");
+
+        let result = TaskScheduler::task_await(&rt, task, Some(Duration::from_millis(50)))
+            .expect_err("task should surface execution failure");
+
+        rt.close();
+        for worker in workers {
+            worker.join().expect("worker thread should join");
+        }
+
+        match result {
+            TaskError::Failed(signal) => {
+                assert_eq!(signal.symbol, "executor-failed");
+                assert_eq!(signal.data.as_deref(), Some("boom"));
+            }
+            _ => panic!("expected task execution failure"),
+        }
     }
 
     #[test]
