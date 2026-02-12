@@ -15,6 +15,6 @@ fi
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 cargo run \
-  --manifest-path "$repo_root/rust/neovm-core/Cargo.toml" \
-  --example compat_runner \
+  --manifest-path "$repo_root/rust/neovm-worker/Cargo.toml" \
+  --example elisp_compat_runner \
   -- "$forms_file"

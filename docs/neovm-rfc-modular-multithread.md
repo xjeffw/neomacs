@@ -61,6 +61,7 @@ The initial scaffolding is now implemented in Rust:
 - `rust/neovm-core`: VM shell with scheduler trait boundary (`TaskScheduler`) and default noop scheduler.
 - `rust/neovm-core/src/elisp.rs`: initial interpreter slice and parser for a starter compatibility corpus.
 - `rust/neovm-core/examples/compat_runner.rs`: emits oracle-style TSV for differential checks.
+- `rust/neovm-worker/examples/elisp_compat_runner.rs`: runs the same corpus through the worker runtime execution path.
 - `rust/neovm-worker`: multi-thread worker runtime scaffold with:
   - bounded priority queues
   - cancellation state and task status tracking

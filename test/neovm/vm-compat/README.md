@@ -11,7 +11,7 @@ results against that baseline once evaluator execution is wired in.
 
 - `oracle_eval.el`: batch-mode evaluator used as the GNU Emacs oracle
 - `run-oracle.sh`: runs all forms from a corpus file and prints TSV output
-- `run-neovm.sh`: runs NeoVM core compatibility runner and prints TSV output
+- `run-neovm.sh`: runs NeoVM worker-runtime compatibility runner and prints TSV output
 - `compare-results.sh`: diffs oracle TSV vs NeoVM TSV
 - `cases/core.forms`: starter corpus for expression and error behavior
 

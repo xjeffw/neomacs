@@ -104,6 +104,7 @@ Implemented now:
   - runtime metrics for queue pressure and completion/cancellation counters
 - `rust/neovm-worker/examples/scheduler_bench.rs`: quick throughput benchmark for task scheduling and channel round-trips
 - `rust/neovm-core/examples/compat_runner.rs`: NeoVM compatibility runner producing oracle-style TSV
+- `rust/neovm-worker/examples/elisp_compat_runner.rs`: compatibility runner through threaded worker runtime path
 
 Not implemented yet:
 
