@@ -5,18 +5,17 @@ use std::collections::HashMap;
 use super::builtins;
 use super::error::*;
 use super::expr::Expr;
+use super::symbol::Obarray;
 use super::value::*;
 
 /// The Elisp evaluator.
 pub struct Evaluator {
-    /// Global variable bindings.
-    pub(crate) globals: HashMap<String, Value>,
-    /// Function namespace (separate from variables, like Lisp-2).
-    pub(crate) functions: HashMap<String, Value>,
+    /// The obarray — unified symbol table with value cells, function cells, plists.
+    pub(crate) obarray: Obarray,
     /// Dynamic binding stack (each frame is one `let`/function call scope).
     pub(crate) dynamic: Vec<HashMap<String, Value>>,
-    /// Macro namespace.
-    pub(crate) macros: HashMap<String, Value>,
+    /// Features list (for require/provide).
+    pub(crate) features: Vec<String>,
     /// Recursion depth counter.
     depth: usize,
     /// Maximum recursion depth.
@@ -31,18 +30,47 @@ impl Default for Evaluator {
 
 impl Evaluator {
     pub fn new() -> Self {
-        let mut globals = HashMap::new();
-        globals.insert("t".to_string(), Value::True);
-        globals.insert("nil".to_string(), Value::Nil);
+        let mut obarray = Obarray::new();
+
+        // Set up standard global variables
+        obarray.set_symbol_value("most-positive-fixnum", Value::Int(i64::MAX));
+        obarray.set_symbol_value("most-negative-fixnum", Value::Int(i64::MIN));
+        obarray.set_symbol_value("emacs-version", Value::string("29.1"));
+        obarray.set_symbol_value("system-type", Value::symbol("gnu/linux"));
+        obarray.set_symbol_value("load-path", Value::Nil);
+        obarray.set_symbol_value("features", Value::Nil);
+        obarray.set_symbol_value("debug-on-error", Value::Nil);
+        obarray.set_symbol_value("lexical-binding", Value::Nil);
+        obarray.set_symbol_value("load-file-name", Value::Nil);
+        obarray.set_symbol_value("noninteractive", Value::True);
+        obarray.set_symbol_value("inhibit-quit", Value::Nil);
+        obarray.set_symbol_value("print-length", Value::Nil);
+        obarray.set_symbol_value("print-level", Value::Nil);
+
+        // Mark standard variables as special (dynamically bound)
+        for name in &["debug-on-error", "lexical-binding", "load-path", "features",
+                      "load-file-name", "noninteractive", "inhibit-quit",
+                      "print-length", "print-level"] {
+            obarray.make_special(name);
+        }
 
         Self {
-            globals,
-            functions: HashMap::new(),
+            obarray,
             dynamic: Vec::new(),
-            macros: HashMap::new(),
+            features: Vec::new(),
             depth: 0,
             max_depth: 200,
         }
+    }
+
+    /// Access the obarray (for builtins that need it).
+    pub fn obarray(&self) -> &Obarray {
+        &self.obarray
+    }
+
+    /// Access the obarray mutably.
+    pub fn obarray_mut(&mut self) -> &mut Obarray {
+        &mut self.obarray
     }
 
     // -----------------------------------------------------------------------
@@ -59,12 +87,12 @@ impl Evaluator {
 
     /// Set a global variable.
     pub fn set_variable(&mut self, name: &str, value: Value) {
-        self.globals.insert(name.to_string(), value);
+        self.obarray.set_symbol_value(name, value);
     }
 
     /// Set a function binding.
     pub fn set_function(&mut self, name: &str, value: Value) {
-        self.functions.insert(name.to_string(), value);
+        self.obarray.set_symbol_function(name, value);
     }
 
     // -----------------------------------------------------------------------
@@ -129,7 +157,8 @@ impl Evaluator {
             }
         }
 
-        if let Some(value) = self.globals.get(symbol) {
+        // Obarray value cell
+        if let Some(value) = self.obarray.symbol_value(symbol) {
             return Ok(value.clone());
         }
 
@@ -142,10 +171,12 @@ impl Evaluator {
         };
 
         if let Expr::Symbol(name) = head {
-            // Check for macro expansion first
-            if let Some(macro_val) = self.macros.get(name).cloned() {
-                let expanded = self.expand_macro(macro_val, tail)?;
-                return self.eval(&expanded);
+            // Check for macro expansion first (from obarray function cell)
+            if let Some(func) = self.obarray.symbol_function(name).cloned() {
+                if let Value::Macro(_) = &func {
+                    let expanded = self.expand_macro(func, tail)?;
+                    return self.eval(&expanded);
+                }
             }
 
             // Special forms
@@ -164,8 +195,13 @@ impl Evaluator {
                 return result;
             }
 
-            // Try function namespace
-            if let Some(func) = self.functions.get(name).cloned() {
+            // Try obarray function cell (including defalias chains)
+            if let Some(func) = self.obarray.symbol_function(name).cloned() {
+                return self.apply(func, args);
+            }
+
+            // Try indirect function resolution (defalias)
+            if let Some(func) = self.obarray.indirect_function(name) {
                 return self.apply(func, args);
             }
 
@@ -221,6 +257,15 @@ impl Evaluator {
             "declare" => Ok(Value::Nil),     // Stub: ignored for now
             "when" => self.sf_when(tail),
             "unless" => self.sf_unless(tail),
+            "defalias" => self.sf_defalias(tail),
+            "provide" => self.sf_provide(tail),
+            "require" => self.sf_require(tail),
+            "save-excursion" => self.sf_progn(tail), // Stub
+            "save-restriction" => self.sf_progn(tail), // Stub
+            "with-current-buffer" => self.sf_with_current_buffer(tail),
+            "ignore-errors" => self.sf_ignore_errors(tail),
+            "dotimes" => self.sf_dotimes(tail),
+            "dolist" => self.sf_dolist(tail),
             _ => return None,
         })
     }
@@ -238,13 +283,11 @@ impl Evaluator {
         }
         match &tail[0] {
             Expr::Symbol(name) => {
-                // #'symbol — look up in function namespace
-                if let Some(func) = self.functions.get(name).cloned() {
+                // #'symbol — look up in function namespace (obarray function cell)
+                if let Some(func) = self.obarray.symbol_function(name).cloned() {
                     Ok(func)
-                } else if builtins::dispatch_builtin(self, name, vec![]).is_some() {
-                    // It's a known builtin — return as Subr
-                    Ok(Value::Subr(name.clone()))
                 } else {
+                    // Assume it's a builtin (Subr)
                     Ok(Value::Subr(name.clone()))
                 }
             }
@@ -488,7 +531,7 @@ impl Evaluator {
             return Err(signal("wrong-type-argument", vec![]));
         };
         let lambda = self.eval_lambda(&tail[1..])?;
-        self.functions.insert(name.clone(), lambda);
+        self.obarray.set_symbol_function(name, lambda);
         Ok(Value::symbol(name.clone()))
     }
 
@@ -499,15 +542,16 @@ impl Evaluator {
         let Expr::Symbol(name) = &tail[0] else {
             return Err(signal("wrong-type-argument", vec![]));
         };
-        // Only set if not already bound
-        if !self.globals.contains_key(name) {
+        // Only set if not already bound. defvar always marks as special.
+        if !self.obarray.boundp(name) {
             let value = if tail.len() > 1 {
                 self.eval(&tail[1])?
             } else {
                 Value::Nil
             };
-            self.globals.insert(name.clone(), value);
+            self.obarray.set_symbol_value(name, value);
         }
+        self.obarray.make_special(name);
         Ok(Value::symbol(name.clone()))
     }
 
@@ -519,7 +563,10 @@ impl Evaluator {
             return Err(signal("wrong-type-argument", vec![]));
         };
         let value = self.eval(&tail[1])?;
-        self.globals.insert(name.clone(), value);
+        self.obarray.set_symbol_value(name, value);
+        let sym = self.obarray.get_or_intern(name);
+        sym.constant = true;
+        sym.special = true;
         Ok(Value::symbol(name.clone()))
     }
 
@@ -538,7 +585,7 @@ impl Evaluator {
             env: None,
             docstring: None,
         }));
-        self.macros.insert(name.clone(), macro_val);
+        self.obarray.set_symbol_function(name, macro_val);
         Ok(Value::symbol(name.clone()))
     }
 
@@ -630,6 +677,142 @@ impl Evaluator {
         }
     }
 
+    fn sf_defalias(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.len() < 2 {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let sym = self.eval(&tail[0])?;
+        let def = self.eval(&tail[1])?;
+        let name = match &sym {
+            Value::Symbol(s) => s.clone(),
+            _ => return Err(signal("wrong-type-argument", vec![Value::symbol("symbolp"), sym])),
+        };
+        self.obarray.set_symbol_function(&name, def);
+        Ok(sym)
+    }
+
+    fn sf_provide(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.is_empty() {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let feature = self.eval(&tail[0])?;
+        let name = match &feature {
+            Value::Symbol(s) => s.clone(),
+            _ => return Err(signal("wrong-type-argument", vec![Value::symbol("symbolp"), feature])),
+        };
+        if !self.features.contains(&name) {
+            self.features.push(name);
+        }
+        Ok(feature)
+    }
+
+    fn sf_require(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.is_empty() {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let feature = self.eval(&tail[0])?;
+        let name = match &feature {
+            Value::Symbol(s) => s.clone(),
+            _ => return Err(signal("wrong-type-argument", vec![Value::symbol("symbolp"), feature])),
+        };
+        if self.features.contains(&name) {
+            return Ok(feature);
+        }
+        // Feature not loaded — signal error (file loading will be added later)
+        Err(signal("file-missing", vec![Value::string(format!("Cannot open load file: {}", name))]))
+    }
+
+    fn sf_with_current_buffer(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.is_empty() {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        // Stub: just evaluate args, ignoring buffer switch
+        let _buf = self.eval(&tail[0])?;
+        self.sf_progn(&tail[1..])
+    }
+
+    fn sf_ignore_errors(&mut self, tail: &[Expr]) -> EvalResult {
+        match self.sf_progn(tail) {
+            Ok(val) => Ok(val),
+            Err(Flow::Signal(_)) => Ok(Value::Nil),
+            Err(flow) => Err(flow),
+        }
+    }
+
+    fn sf_dotimes(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.is_empty() {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let Expr::List(spec) = &tail[0] else {
+            return Err(signal("wrong-type-argument", vec![]));
+        };
+        if spec.len() < 2 {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let Expr::Symbol(var) = &spec[0] else {
+            return Err(signal("wrong-type-argument", vec![]));
+        };
+        let count = self.eval(&spec[1])?;
+        let count = match &count {
+            Value::Int(n) => *n,
+            _ => return Err(signal("wrong-type-argument", vec![Value::symbol("integerp"), count])),
+        };
+
+        self.dynamic.push(HashMap::new());
+        for i in 0..count {
+            if let Some(frame) = self.dynamic.last_mut() {
+                frame.insert(var.clone(), Value::Int(i));
+            }
+            self.sf_progn(&tail[1..])?;
+        }
+        // Result value (third element of spec, or nil)
+        let result = if spec.len() > 2 {
+            if let Some(frame) = self.dynamic.last_mut() {
+                frame.insert(var.clone(), Value::Int(count));
+            }
+            self.eval(&spec[2])?
+        } else {
+            Value::Nil
+        };
+        self.dynamic.pop();
+        Ok(result)
+    }
+
+    fn sf_dolist(&mut self, tail: &[Expr]) -> EvalResult {
+        if tail.is_empty() {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let Expr::List(spec) = &tail[0] else {
+            return Err(signal("wrong-type-argument", vec![]));
+        };
+        if spec.len() < 2 {
+            return Err(signal("wrong-number-of-arguments", vec![]));
+        }
+        let Expr::Symbol(var) = &spec[0] else {
+            return Err(signal("wrong-type-argument", vec![]));
+        };
+        let list_val = self.eval(&spec[1])?;
+        let items = list_to_vec(&list_val).unwrap_or_default();
+
+        self.dynamic.push(HashMap::new());
+        for item in items {
+            if let Some(frame) = self.dynamic.last_mut() {
+                frame.insert(var.clone(), item);
+            }
+            self.sf_progn(&tail[1..])?;
+        }
+        let result = if spec.len() > 2 {
+            if let Some(frame) = self.dynamic.last_mut() {
+                frame.insert(var.clone(), Value::Nil);
+            }
+            self.eval(&spec[2])?
+        } else {
+            Value::Nil
+        };
+        self.dynamic.pop();
+        Ok(result)
+    }
+
     // -----------------------------------------------------------------------
     // Lambda / Function application
     // -----------------------------------------------------------------------
@@ -695,8 +878,8 @@ impl Evaluator {
                 self.apply_lambda(&lambda, args)
             }
             Value::Subr(name) => {
-                // Try function namespace first to avoid consuming args
-                if let Some(func) = self.functions.get(&name).cloned() {
+                // Try obarray function cell first
+                if let Some(func) = self.obarray.symbol_function(&name).cloned() {
                     return self.apply(func, args);
                 }
                 if let Some(result) = builtins::dispatch_builtin(self, &name, args) {
@@ -706,8 +889,8 @@ impl Evaluator {
                 }
             }
             Value::Symbol(name) => {
-                // Symbol used as function — look up in function namespace
-                if let Some(func) = self.functions.get(&name).cloned() {
+                // Symbol used as function — look up in obarray function cell
+                if let Some(func) = self.obarray.symbol_function(&name).cloned() {
                     self.apply(func, args)
                 } else if let Some(result) = builtins::dispatch_builtin(self, &name, args) {
                     result
@@ -794,7 +977,8 @@ impl Evaluator {
                 return;
             }
         }
-        self.globals.insert(name.to_string(), value);
+        // Fall through to obarray value cell
+        self.obarray.set_symbol_value(name, value);
     }
 }
 

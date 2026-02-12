@@ -1293,12 +1293,6 @@ pub(crate) fn builtin_symbol_name(args: Vec<Value>) -> EvalResult {
     }
 }
 
-pub(crate) fn builtin_intern(args: Vec<Value>) -> EvalResult {
-    expect_args("intern", &args, 1)?;
-    let name = expect_string(&args[0])?;
-    Ok(Value::symbol(name))
-}
-
 pub(crate) fn builtin_make_symbol(args: Vec<Value>) -> EvalResult {
     expect_args("make-symbol", &args, 1)?;
     let name = expect_string(&args[0])?;
@@ -1421,6 +1415,623 @@ fn expect_string(value: &Value) -> Result<String, Flow> {
 }
 
 // ===========================================================================
+// Symbol operations (need evaluator for obarray access)
+// ===========================================================================
+
+pub(crate) fn builtin_boundp(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("boundp", &args, 1)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    Ok(Value::bool(eval.obarray().boundp(name)))
+}
+
+pub(crate) fn builtin_fboundp(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("fboundp", &args, 1)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    Ok(Value::bool(eval.obarray().fboundp(name)))
+}
+
+pub(crate) fn builtin_symbol_value(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("symbol-value", &args, 1)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    // Check dynamic bindings first
+    for frame in eval.dynamic.iter().rev() {
+        if let Some(value) = frame.get(name) {
+            return Ok(value.clone());
+        }
+    }
+    eval.obarray().symbol_value(name).cloned()
+        .ok_or_else(|| signal("void-variable", vec![Value::symbol(name)]))
+}
+
+pub(crate) fn builtin_symbol_function(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("symbol-function", &args, 1)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    eval.obarray().symbol_function(name).cloned()
+        .ok_or_else(|| signal("void-function", vec![Value::symbol(name)]))
+}
+
+pub(crate) fn builtin_set(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("set", &args, 2)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    let value = args[1].clone();
+    eval.assign(name, value.clone());
+    Ok(value)
+}
+
+pub(crate) fn builtin_fset(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("fset", &args, 2)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    let def = args[1].clone();
+    eval.obarray_mut().set_symbol_function(name, def.clone());
+    Ok(def)
+}
+
+pub(crate) fn builtin_makunbound(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("makunbound", &args, 1)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    eval.obarray_mut().makunbound(name);
+    Ok(args[0].clone())
+}
+
+pub(crate) fn builtin_fmakunbound(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("fmakunbound", &args, 1)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    eval.obarray_mut().fmakunbound(name);
+    Ok(args[0].clone())
+}
+
+pub(crate) fn builtin_get(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("get", &args, 2)?;
+    let sym = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    let prop = args[1].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[1].clone()]))?;
+    Ok(eval.obarray().get_property(sym, prop).cloned().unwrap_or(Value::Nil))
+}
+
+pub(crate) fn builtin_put(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("put", &args, 3)?;
+    let sym = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    let prop = args[1].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[1].clone()]))?;
+    let value = args[2].clone();
+    eval.obarray_mut().put_property(sym, prop, value.clone());
+    Ok(value)
+}
+
+pub(crate) fn builtin_symbol_plist_fn(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("symbol-plist", &args, 1)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    Ok(eval.obarray().symbol_plist(name))
+}
+
+pub(crate) fn builtin_indirect_function(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_min_args("indirect-function", &args, 1)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    Ok(eval.obarray().indirect_function(name).unwrap_or(Value::Nil))
+}
+
+pub(crate) fn builtin_intern_fn(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("intern", &args, 1)?;
+    let name = expect_string(&args[0])?;
+    eval.obarray_mut().intern(&name);
+    Ok(Value::symbol(name))
+}
+
+pub(crate) fn builtin_intern_soft(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("intern-soft", &args, 1)?;
+    let name = expect_string(&args[0])?;
+    if eval.obarray().intern_soft(&name).is_some() {
+        Ok(Value::symbol(name))
+    } else {
+        Ok(Value::Nil)
+    }
+}
+
+// ===========================================================================
+// Hook system (need evaluator)
+// ===========================================================================
+
+pub(crate) fn builtin_add_hook(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_min_args("add-hook", &args, 2)?;
+    let hook_name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?
+        .to_string();
+    let function = args[1].clone();
+    let append = args.get(2).is_some_and(|v| v.is_truthy());
+
+    // Get current hook value
+    let current = eval.obarray().symbol_value(&hook_name).cloned().unwrap_or(Value::Nil);
+    let mut items = list_to_vec(&current).unwrap_or_default();
+
+    // Don't add duplicates
+    if !items.iter().any(|v| eq_value(v, &function)) {
+        if append {
+            items.push(function);
+        } else {
+            items.insert(0, function);
+        }
+    }
+
+    eval.obarray_mut().set_symbol_value(&hook_name, Value::list(items));
+    Ok(Value::Nil)
+}
+
+pub(crate) fn builtin_remove_hook(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("remove-hook", &args, 2)?;
+    let hook_name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?
+        .to_string();
+    let function = args[1].clone();
+
+    let current = eval.obarray().symbol_value(&hook_name).cloned().unwrap_or(Value::Nil);
+    let items = list_to_vec(&current).unwrap_or_default();
+    let filtered: Vec<Value> = items.into_iter().filter(|v| !eq_value(v, &function)).collect();
+    eval.obarray_mut().set_symbol_value(&hook_name, Value::list(filtered));
+    Ok(Value::Nil)
+}
+
+pub(crate) fn builtin_run_hooks(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    for hook_sym in &args {
+        let hook_name = hook_sym.as_symbol_name()
+            .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), hook_sym.clone()]))?;
+        let hook_val = eval.obarray().symbol_value(hook_name).cloned().unwrap_or(Value::Nil);
+        let fns = list_to_vec(&hook_val).unwrap_or_default();
+        for func in fns {
+            eval.apply(func, vec![])?;
+        }
+    }
+    Ok(Value::Nil)
+}
+
+pub(crate) fn builtin_run_hook_with_args(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_min_args("run-hook-with-args", &args, 1)?;
+    let hook_name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    let hook_args: Vec<Value> = args[1..].to_vec();
+    let hook_val = eval.obarray().symbol_value(hook_name).cloned().unwrap_or(Value::Nil);
+    let fns = list_to_vec(&hook_val).unwrap_or_default();
+    for func in fns {
+        eval.apply(func, hook_args.clone())?;
+    }
+    Ok(Value::Nil)
+}
+
+pub(crate) fn builtin_featurep(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("featurep", &args, 1)?;
+    let name = args[0].as_symbol_name()
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("symbolp"), args[0].clone()]))?;
+    Ok(Value::bool(eval.features.contains(&name.to_string())))
+}
+
+// ===========================================================================
+// Math functions (pure)
+// ===========================================================================
+
+pub(crate) fn builtin_sqrt(args: Vec<Value>) -> EvalResult {
+    expect_args("sqrt", &args, 1)?;
+    Ok(Value::Float(expect_number(&args[0])?.sqrt()))
+}
+
+pub(crate) fn builtin_sin(args: Vec<Value>) -> EvalResult {
+    expect_args("sin", &args, 1)?;
+    Ok(Value::Float(expect_number(&args[0])?.sin()))
+}
+
+pub(crate) fn builtin_cos(args: Vec<Value>) -> EvalResult {
+    expect_args("cos", &args, 1)?;
+    Ok(Value::Float(expect_number(&args[0])?.cos()))
+}
+
+pub(crate) fn builtin_tan(args: Vec<Value>) -> EvalResult {
+    expect_args("tan", &args, 1)?;
+    Ok(Value::Float(expect_number(&args[0])?.tan()))
+}
+
+pub(crate) fn builtin_asin(args: Vec<Value>) -> EvalResult {
+    expect_args("asin", &args, 1)?;
+    Ok(Value::Float(expect_number(&args[0])?.asin()))
+}
+
+pub(crate) fn builtin_acos(args: Vec<Value>) -> EvalResult {
+    expect_args("acos", &args, 1)?;
+    Ok(Value::Float(expect_number(&args[0])?.acos()))
+}
+
+pub(crate) fn builtin_atan(args: Vec<Value>) -> EvalResult {
+    expect_min_args("atan", &args, 1)?;
+    if args.len() == 2 {
+        let y = expect_number(&args[0])?;
+        let x = expect_number(&args[1])?;
+        Ok(Value::Float(y.atan2(x)))
+    } else {
+        Ok(Value::Float(expect_number(&args[0])?.atan()))
+    }
+}
+
+pub(crate) fn builtin_exp(args: Vec<Value>) -> EvalResult {
+    expect_args("exp", &args, 1)?;
+    Ok(Value::Float(expect_number(&args[0])?.exp()))
+}
+
+pub(crate) fn builtin_log(args: Vec<Value>) -> EvalResult {
+    expect_min_args("log", &args, 1)?;
+    let val = expect_number(&args[0])?;
+    if args.len() == 2 {
+        let base = expect_number(&args[1])?;
+        Ok(Value::Float(val.ln() / base.ln()))
+    } else {
+        Ok(Value::Float(val.ln()))
+    }
+}
+
+pub(crate) fn builtin_expt(args: Vec<Value>) -> EvalResult {
+    expect_args("expt", &args, 2)?;
+    if has_float(&args) {
+        let base = expect_number(&args[0])?;
+        let exp = expect_number(&args[1])?;
+        Ok(Value::Float(base.powf(exp)))
+    } else {
+        let base = expect_int(&args[0])?;
+        let exp = expect_int(&args[1])?;
+        if exp < 0 {
+            Ok(Value::Float((base as f64).powf(exp as f64)))
+        } else {
+            Ok(Value::Int(base.wrapping_pow(exp as u32)))
+        }
+    }
+}
+
+pub(crate) fn builtin_random(args: Vec<Value>) -> EvalResult {
+    if args.is_empty() {
+        // Random integer
+        Ok(Value::Int(rand_simple()))
+    } else {
+        let limit = expect_int(&args[0])?;
+        if limit <= 0 {
+            return Err(signal("args-out-of-range", vec![args[0].clone()]));
+        }
+        Ok(Value::Int(rand_simple().unsigned_abs() as i64 % limit))
+    }
+}
+
+/// Simple PRNG (xorshift64) — not cryptographically secure.
+fn rand_simple() -> i64 {
+    use std::cell::Cell;
+    thread_local! {
+        static STATE: Cell<u64> = Cell::new(0x12345678_9abcdef0);
+    }
+    STATE.with(|s| {
+        let mut x = s.get();
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        s.set(x);
+        x as i64
+    })
+}
+
+pub(crate) fn builtin_isnan(args: Vec<Value>) -> EvalResult {
+    expect_args("isnan", &args, 1)?;
+    match &args[0] {
+        Value::Float(f) => Ok(Value::bool(f.is_nan())),
+        _ => Ok(Value::Nil),
+    }
+}
+
+// ===========================================================================
+// Extended string operations
+// ===========================================================================
+
+pub(crate) fn builtin_string_prefix_p(args: Vec<Value>) -> EvalResult {
+    expect_args("string-prefix-p", &args, 2)?;
+    let prefix = expect_string(&args[0])?;
+    let s = expect_string(&args[1])?;
+    Ok(Value::bool(s.starts_with(&prefix)))
+}
+
+pub(crate) fn builtin_string_suffix_p(args: Vec<Value>) -> EvalResult {
+    expect_args("string-suffix-p", &args, 2)?;
+    let suffix = expect_string(&args[0])?;
+    let s = expect_string(&args[1])?;
+    Ok(Value::bool(s.ends_with(&suffix)))
+}
+
+pub(crate) fn builtin_string_join(args: Vec<Value>) -> EvalResult {
+    expect_args("string-join", &args, 2)?;
+    let strs = list_to_vec(&args[0])
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("listp"), args[0].clone()]))?;
+    let sep = expect_string(&args[1])?;
+    let parts: Result<Vec<String>, _> = strs.iter().map(expect_string).collect();
+    Ok(Value::string(parts?.join(&sep)))
+}
+
+pub(crate) fn builtin_split_string(args: Vec<Value>) -> EvalResult {
+    expect_min_args("split-string", &args, 1)?;
+    let s = expect_string(&args[0])?;
+    let sep = if args.len() > 1 {
+        expect_string(&args[1])?
+    } else {
+        "[ \t\n\r]+".to_string()
+    };
+    // Simple string split (not regex for now)
+    let parts: Vec<Value> = s.split(&sep)
+        .filter(|p| !p.is_empty())
+        .map(|p| Value::string(p.to_string()))
+        .collect();
+    Ok(Value::list(parts))
+}
+
+pub(crate) fn builtin_string_trim(args: Vec<Value>) -> EvalResult {
+    expect_args("string-trim", &args, 1)?;
+    let s = expect_string(&args[0])?;
+    Ok(Value::string(s.trim().to_string()))
+}
+
+pub(crate) fn builtin_string_trim_left(args: Vec<Value>) -> EvalResult {
+    expect_args("string-trim-left", &args, 1)?;
+    let s = expect_string(&args[0])?;
+    Ok(Value::string(s.trim_start().to_string()))
+}
+
+pub(crate) fn builtin_string_trim_right(args: Vec<Value>) -> EvalResult {
+    expect_args("string-trim-right", &args, 1)?;
+    let s = expect_string(&args[0])?;
+    Ok(Value::string(s.trim_end().to_string()))
+}
+
+pub(crate) fn builtin_make_string(args: Vec<Value>) -> EvalResult {
+    expect_args("make-string", &args, 2)?;
+    let n = expect_int(&args[0])? as usize;
+    let ch = match &args[1] {
+        Value::Int(c) => char::from_u32(*c as u32).unwrap_or(' '),
+        Value::Char(c) => *c,
+        other => return Err(signal("wrong-type-argument", vec![Value::symbol("characterp"), other.clone()])),
+    };
+    Ok(Value::string(std::iter::repeat(ch).take(n).collect::<String>()))
+}
+
+pub(crate) fn builtin_string_to_list(args: Vec<Value>) -> EvalResult {
+    expect_args("string-to-list", &args, 1)?;
+    let s = expect_string(&args[0])?;
+    let chars: Vec<Value> = s.chars().map(Value::Char).collect();
+    Ok(Value::list(chars))
+}
+
+pub(crate) fn builtin_string_width(args: Vec<Value>) -> EvalResult {
+    expect_args("string-width", &args, 1)?;
+    let s = expect_string(&args[0])?;
+    // Simple: count chars (proper Unicode width would need unicode-width crate)
+    Ok(Value::Int(s.chars().count() as i64))
+}
+
+// ===========================================================================
+// Extended list operations
+// ===========================================================================
+
+pub(crate) fn builtin_last(args: Vec<Value>) -> EvalResult {
+    expect_min_args("last", &args, 1)?;
+    let n = if args.len() > 1 { expect_int(&args[1])? as usize } else { 1 };
+    let items = list_to_vec(&args[0])
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("listp"), args[0].clone()]))?;
+    if n >= items.len() {
+        Ok(args[0].clone())
+    } else {
+        Ok(Value::list(items[items.len() - n..].to_vec()))
+    }
+}
+
+pub(crate) fn builtin_butlast(args: Vec<Value>) -> EvalResult {
+    expect_min_args("butlast", &args, 1)?;
+    let n = if args.len() > 1 { expect_int(&args[1])? as usize } else { 1 };
+    let items = list_to_vec(&args[0])
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("listp"), args[0].clone()]))?;
+    if n >= items.len() {
+        Ok(Value::Nil)
+    } else {
+        Ok(Value::list(items[..items.len() - n].to_vec()))
+    }
+}
+
+pub(crate) fn builtin_delete(args: Vec<Value>) -> EvalResult {
+    expect_args("delete", &args, 2)?;
+    let elt = &args[0];
+    let items = list_to_vec(&args[1])
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("listp"), args[1].clone()]))?;
+    let filtered: Vec<Value> = items.into_iter()
+        .filter(|v| !equal_value(elt, v, 0))
+        .collect();
+    Ok(Value::list(filtered))
+}
+
+pub(crate) fn builtin_delq(args: Vec<Value>) -> EvalResult {
+    expect_args("delq", &args, 2)?;
+    let elt = &args[0];
+    let items = list_to_vec(&args[1])
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("listp"), args[1].clone()]))?;
+    let filtered: Vec<Value> = items.into_iter()
+        .filter(|v| !eq_value(elt, v))
+        .collect();
+    Ok(Value::list(filtered))
+}
+
+pub(crate) fn builtin_elt(args: Vec<Value>) -> EvalResult {
+    expect_args("elt", &args, 2)?;
+    let idx = expect_int(&args[1])? as usize;
+    match &args[0] {
+        Value::Cons(_) | Value::Nil => {
+            let items = list_to_vec(&args[0]).unwrap_or_default();
+            Ok(items.get(idx).cloned().unwrap_or(Value::Nil))
+        }
+        Value::Vector(v) => {
+            let v = v.lock().expect("poisoned");
+            Ok(v.get(idx).cloned().unwrap_or(Value::Nil))
+        }
+        Value::Str(s) => {
+            Ok(s.chars().nth(idx).map(Value::Char).unwrap_or(Value::Nil))
+        }
+        other => Err(signal("wrong-type-argument", vec![Value::symbol("sequencep"), other.clone()])),
+    }
+}
+
+pub(crate) fn builtin_nconc(args: Vec<Value>) -> EvalResult {
+    if args.is_empty() {
+        return Ok(Value::Nil);
+    }
+    let mut all_items: Vec<Value> = Vec::new();
+    for arg in &args {
+        match arg {
+            Value::Nil => {}
+            _ => {
+                let items = list_to_vec(arg)
+                    .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("listp"), arg.clone()]))?;
+                all_items.extend(items);
+            }
+        }
+    }
+    Ok(Value::list(all_items))
+}
+
+pub(crate) fn builtin_alist_get(args: Vec<Value>) -> EvalResult {
+    expect_min_args("alist-get", &args, 2)?;
+    let key = &args[0];
+    let alist = list_to_vec(&args[1])
+        .ok_or_else(|| signal("wrong-type-argument", vec![Value::symbol("listp"), args[1].clone()]))?;
+    let default = args.get(2).cloned().unwrap_or(Value::Nil);
+    let _remove = args.get(3); // not used
+    let use_equal = args.get(4).is_some_and(|v| v.is_truthy());
+
+    for entry in &alist {
+        if let Value::Cons(cell) = entry {
+            let pair = cell.lock().expect("poisoned");
+            let matches = if use_equal {
+                equal_value(key, &pair.car, 0)
+            } else {
+                eq_value(key, &pair.car)
+            };
+            if matches {
+                return Ok(pair.cdr.clone());
+            }
+        }
+    }
+    Ok(default)
+}
+
+pub(crate) fn builtin_number_sequence(args: Vec<Value>) -> EvalResult {
+    expect_min_args("number-sequence", &args, 1)?;
+    let from = expect_int(&args[0])?;
+    let to = if args.len() > 1 {
+        match &args[1] {
+            Value::Nil => return Ok(Value::list(vec![Value::Int(from)])),
+            v => expect_int(v)?,
+        }
+    } else {
+        return Ok(Value::list(vec![Value::Int(from)]));
+    };
+    let step = if args.len() > 2 { expect_int(&args[2])? } else if from <= to { 1 } else { -1 };
+
+    if step == 0 {
+        return Err(signal("args-out-of-range", vec![Value::Int(0)]));
+    }
+
+    let mut result = Vec::new();
+    let mut i = from;
+    if step > 0 {
+        while i <= to {
+            result.push(Value::Int(i));
+            i += step;
+        }
+    } else {
+        while i >= to {
+            result.push(Value::Int(i));
+            i += step;
+        }
+    }
+    Ok(Value::list(result))
+}
+
+// ===========================================================================
+// Misc builtins
+// ===========================================================================
+
+pub(crate) fn builtin_princ(args: Vec<Value>) -> EvalResult {
+    expect_min_args("princ", &args, 1)?;
+    // In real Emacs this prints to standard output; here just return the value
+    Ok(args[0].clone())
+}
+
+pub(crate) fn builtin_prin1(args: Vec<Value>) -> EvalResult {
+    expect_min_args("prin1", &args, 1)?;
+    Ok(args[0].clone())
+}
+
+pub(crate) fn builtin_prin1_to_string(args: Vec<Value>) -> EvalResult {
+    expect_min_args("prin1-to-string", &args, 1)?;
+    Ok(Value::string(super::print::print_value(&args[0])))
+}
+
+pub(crate) fn builtin_print(args: Vec<Value>) -> EvalResult {
+    expect_min_args("print", &args, 1)?;
+    Ok(args[0].clone())
+}
+
+pub(crate) fn builtin_propertize(args: Vec<Value>) -> EvalResult {
+    expect_min_args("propertize", &args, 1)?;
+    // Stub: ignore properties, return the string
+    Ok(args[0].clone())
+}
+
+pub(crate) fn builtin_gensym(args: Vec<Value>) -> EvalResult {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let prefix = if !args.is_empty() {
+        expect_string(&args[0])?
+    } else {
+        "g".to_string()
+    };
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    Ok(Value::Symbol(format!("{}{}", prefix, n)))
+}
+
+pub(crate) fn builtin_string_to_syntax(args: Vec<Value>) -> EvalResult {
+    expect_args("string-to-syntax", &args, 1)?;
+    // Stub: return a cons cell representing the syntax descriptor
+    let _s = expect_string(&args[0])?;
+    Ok(Value::cons(Value::Int(0), Value::Nil))
+}
+
+pub(crate) fn builtin_current_time(args: Vec<Value>) -> EvalResult {
+    let _ = args;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let dur = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let secs = dur.as_secs() as i64;
+    let usecs = dur.subsec_micros() as i64;
+    Ok(Value::list(vec![
+        Value::Int(secs >> 16),
+        Value::Int(secs & 0xFFFF),
+        Value::Int(usecs),
+    ]))
+}
+
+pub(crate) fn builtin_float_time(args: Vec<Value>) -> EvalResult {
+    let _ = args;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let dur = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    Ok(Value::Float(dur.as_secs_f64()))
+}
+
+// ===========================================================================
 // Dispatch table
 // ===========================================================================
 
@@ -1430,12 +2041,33 @@ pub(crate) fn dispatch_builtin(
     name: &str,
     args: Vec<Value>,
 ) -> Option<EvalResult> {
-    // Functions that need the evaluator (higher-order)
+    // Functions that need the evaluator (higher-order / obarray access)
     match name {
         "apply" => return Some(builtin_apply(eval, args)),
         "mapcar" => return Some(builtin_mapcar(eval, args)),
         "mapc" => return Some(builtin_mapc(eval, args)),
         "sort" => return Some(builtin_sort(eval, args)),
+        // Symbol/obarray
+        "boundp" => return Some(builtin_boundp(eval, args)),
+        "fboundp" => return Some(builtin_fboundp(eval, args)),
+        "symbol-value" => return Some(builtin_symbol_value(eval, args)),
+        "symbol-function" => return Some(builtin_symbol_function(eval, args)),
+        "set" => return Some(builtin_set(eval, args)),
+        "fset" => return Some(builtin_fset(eval, args)),
+        "makunbound" => return Some(builtin_makunbound(eval, args)),
+        "fmakunbound" => return Some(builtin_fmakunbound(eval, args)),
+        "get" => return Some(builtin_get(eval, args)),
+        "put" => return Some(builtin_put(eval, args)),
+        "symbol-plist" => return Some(builtin_symbol_plist_fn(eval, args)),
+        "indirect-function" => return Some(builtin_indirect_function(eval, args)),
+        "intern" => return Some(builtin_intern_fn(eval, args)),
+        "intern-soft" => return Some(builtin_intern_soft(eval, args)),
+        // Hooks
+        "add-hook" => return Some(builtin_add_hook(eval, args)),
+        "remove-hook" => return Some(builtin_remove_hook(eval, args)),
+        "run-hooks" => return Some(builtin_run_hooks(eval, args)),
+        "run-hook-with-args" => return Some(builtin_run_hook_with_args(eval, args)),
+        "featurep" => return Some(builtin_featurep(eval, args)),
         _ => {}
     }
 
@@ -1555,15 +2187,59 @@ pub(crate) fn dispatch_builtin(
         "plist-get" => builtin_plist_get(args),
         "plist-put" => builtin_plist_put(args),
 
-        // Symbol
+        // Symbol (pure)
         "symbol-name" => builtin_symbol_name(args),
-        "intern" => builtin_intern(args),
         "make-symbol" => builtin_make_symbol(args),
 
-        // Misc
+        // Math
+        "sqrt" => builtin_sqrt(args),
+        "sin" => builtin_sin(args),
+        "cos" => builtin_cos(args),
+        "tan" => builtin_tan(args),
+        "asin" => builtin_asin(args),
+        "acos" => builtin_acos(args),
+        "atan" => builtin_atan(args),
+        "exp" => builtin_exp(args),
+        "log" => builtin_log(args),
+        "expt" => builtin_expt(args),
+        "random" => builtin_random(args),
+        "isnan" => builtin_isnan(args),
+
+        // Extended string
+        "string-prefix-p" => builtin_string_prefix_p(args),
+        "string-suffix-p" => builtin_string_suffix_p(args),
+        "string-join" => builtin_string_join(args),
+        "split-string" => builtin_split_string(args),
+        "string-trim" => builtin_string_trim(args),
+        "string-trim-left" => builtin_string_trim_left(args),
+        "string-trim-right" => builtin_string_trim_right(args),
+        "make-string" => builtin_make_string(args),
+        "string-to-list" => builtin_string_to_list(args),
+        "string-width" => builtin_string_width(args),
+
+        // Extended list
+        "last" => builtin_last(args),
+        "butlast" => builtin_butlast(args),
+        "delete" => builtin_delete(args),
+        "delq" => builtin_delq(args),
+        "elt" => builtin_elt(args),
+        "nconc" => builtin_nconc(args),
+        "alist-get" => builtin_alist_get(args),
+        "number-sequence" => builtin_number_sequence(args),
+
+        // Output / misc
         "identity" => builtin_identity(args),
         "message" => builtin_message(args),
         "error" => builtin_error(args),
+        "princ" => builtin_princ(args),
+        "prin1" => builtin_prin1(args),
+        "prin1-to-string" => builtin_prin1_to_string(args),
+        "print" => builtin_print(args),
+        "propertize" => builtin_propertize(args),
+        "gensym" => builtin_gensym(args),
+        "string-to-syntax" => builtin_string_to_syntax(args),
+        "current-time" => builtin_current_time(args),
+        "float-time" => builtin_float_time(args),
 
         _ => return None,
     })

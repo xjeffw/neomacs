@@ -16,6 +16,7 @@ pub mod error;
 pub mod eval;
 pub mod print;
 pub mod builtins;
+pub mod symbol;
 
 // Re-export the main public API
 pub use value::{Value, ConsCell, LambdaData, LambdaParams};
@@ -24,6 +25,7 @@ pub use parser::parse_forms;
 pub use error::{EvalError, format_eval_result};
 pub use eval::Evaluator;
 pub use print::print_value;
+pub use symbol::Obarray;
 
 /// Convenience: parse and evaluate source code.
 pub fn eval_source(input: &str) -> Result<Vec<Result<Value, EvalError>>, ParseError> {
