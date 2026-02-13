@@ -492,6 +492,16 @@ fn is_lambda_form_list(value: &Value) -> bool {
     }
 }
 
+fn is_macro_marker_list(value: &Value) -> bool {
+    match value {
+        Value::Cons(cell) => {
+            let pair = cell.lock().expect("poisoned");
+            pair.car.as_symbol_name() == Some("macro")
+        }
+        _ => false,
+    }
+}
+
 fn is_runtime_function_object(value: &Value) -> bool {
     match value {
         Value::Lambda(_) | Value::ByteCode(_) => true,
@@ -530,7 +540,7 @@ pub(crate) fn builtin_functionp_eval(
                     || name.parse::<PureBuiltinId>().is_ok()
             }
         }
-        Value::Cons(_) => is_lambda_form_list(&args[0]),
+        Value::Cons(_) => !is_macro_marker_list(&args[0]) && is_lambda_form_list(&args[0]),
         _ => false,
     };
     Ok(Value::bool(is_function))
@@ -6466,6 +6476,16 @@ mod tests {
         let macro_symbol = builtin_functionp_eval(&mut eval, vec![Value::symbol("when")])
             .expect("functionp should reject macro symbols");
         assert!(macro_symbol.is_nil());
+        let macro_marker_cons =
+            builtin_functionp_eval(&mut eval, vec![Value::cons(Value::symbol("macro"), Value::True)])
+                .expect("functionp should reject dotted macro marker cons");
+        assert!(macro_marker_cons.is_nil());
+        let macro_marker_list = builtin_functionp_eval(
+            &mut eval,
+            vec![Value::list(vec![Value::symbol("macro"), Value::True])],
+        )
+        .expect("functionp should reject macro marker lists");
+        assert!(macro_marker_list.is_nil());
 
         let special_subr = builtin_functionp_eval(&mut eval, vec![Value::Subr("if".to_string())])
             .expect("functionp should reject special-form subr objects");
