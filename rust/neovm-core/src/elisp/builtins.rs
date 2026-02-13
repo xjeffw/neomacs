@@ -3337,6 +3337,15 @@ pub(crate) fn dispatch_builtin(
         // Subr introspection (evaluator-dependent)
         "indirect-function" => return Some(super::subr_info::builtin_indirect_function(eval, args)),
 
+        // Case/char (evaluator-dependent)
+        "upcase-region" => return Some(super::casefiddle::builtin_upcase_region(eval, args)),
+        "downcase-region" => return Some(super::casefiddle::builtin_downcase_region(eval, args)),
+        "capitalize-region" => return Some(super::casefiddle::builtin_capitalize_region(eval, args)),
+        "upcase-initials-region" => return Some(super::casefiddle::builtin_upcase_initials_region(eval, args)),
+        "upcase-word" => return Some(super::casefiddle::builtin_upcase_word(eval, args)),
+        "downcase-word" => return Some(super::casefiddle::builtin_downcase_word(eval, args)),
+        "capitalize-word" => return Some(super::casefiddle::builtin_capitalize_word(eval, args)),
+
         _ => {}
     }
 
@@ -3671,6 +3680,112 @@ pub(crate) fn dispatch_builtin(
         "autoloadp" => super::autoload::builtin_autoloadp(args),
         "symbol-file" => super::autoload::builtin_symbol_file(args),
 
+        // Time/date (pure)
+        "current-time" => super::timefns::builtin_current_time(args),
+        "float-time" => super::timefns::builtin_float_time(args),
+        "time-add" => super::timefns::builtin_time_add(args),
+        "time-subtract" => super::timefns::builtin_time_subtract(args),
+        "time-less-p" => super::timefns::builtin_time_less_p(args),
+        "time-equal-p" => super::timefns::builtin_time_equal_p(args),
+        "current-time-string" => super::timefns::builtin_current_time_string(args),
+        "current-time-zone" => super::timefns::builtin_current_time_zone(args),
+        "encode-time" => super::timefns::builtin_encode_time(args),
+        "decode-time" => super::timefns::builtin_decode_time(args),
+        "time-convert" => super::timefns::builtin_time_convert(args),
+        "set-time-zone-rule" => super::timefns::builtin_set_time_zone_rule(args),
+        "safe-date-to-time" => super::timefns::builtin_safe_date_to_time(args),
+
+        // Float/math (pure)
+        "acos" => super::floatfns::builtin_acos(args),
+        "asin" => super::floatfns::builtin_asin(args),
+        "atan" => super::floatfns::builtin_atan(args),
+        "cos" => super::floatfns::builtin_cos(args),
+        "sin" => super::floatfns::builtin_sin(args),
+        "tan" => super::floatfns::builtin_tan(args),
+        "isnan" => super::floatfns::builtin_isnan(args),
+        "copysign" => super::floatfns::builtin_copysign(args),
+        "frexp" => super::floatfns::builtin_frexp(args),
+        "ldexp" => super::floatfns::builtin_ldexp(args),
+        "exp" => super::floatfns::builtin_exp(args),
+        "expt" => super::floatfns::builtin_expt(args),
+        "log" => super::floatfns::builtin_log(args),
+        "sqrt" => super::floatfns::builtin_sqrt(args),
+        "float" => super::floatfns::builtin_float(args),
+        "logb" => super::floatfns::builtin_logb(args),
+        "ceiling" => super::floatfns::builtin_ceiling(args),
+        "floor" => super::floatfns::builtin_floor(args),
+        "round" => super::floatfns::builtin_round(args),
+        "truncate" => super::floatfns::builtin_truncate(args),
+        "fceiling" => super::floatfns::builtin_fceiling(args),
+        "ffloor" => super::floatfns::builtin_ffloor(args),
+        "fround" => super::floatfns::builtin_fround(args),
+        "ftruncate" => super::floatfns::builtin_ftruncate(args),
+
+        // Case/char (pure)
+        "upcase" => super::casefiddle::builtin_upcase(args),
+        "downcase" => super::casefiddle::builtin_downcase(args),
+        "capitalize" => super::casefiddle::builtin_capitalize(args),
+        "upcase-initials" => super::casefiddle::builtin_upcase_initials(args),
+        "characterp" => super::casefiddle::builtin_characterp(args),
+        "string-width" => super::casefiddle::builtin_string_width(args),
+        "char-resolve-modifiers" => super::casefiddle::builtin_char_resolve_modifiers(args),
+        "get-byte" => super::casefiddle::builtin_get_byte(args),
+
+        // Font/face (pure)
+        "fontp" => super::font::builtin_fontp(args),
+        "font-spec" => super::font::builtin_font_spec(args),
+        "font-get" => super::font::builtin_font_get(args),
+        "font-put" => super::font::builtin_font_put(args),
+        "list-fonts" => super::font::builtin_list_fonts(args),
+        "find-font" => super::font::builtin_find_font(args),
+        "clear-font-cache" => super::font::builtin_clear_font_cache(args),
+        "font-family-list" => super::font::builtin_font_family_list(args),
+        "font-xlfd-name" => super::font::builtin_font_xlfd_name(args),
+        "internal-lisp-face-p" => super::font::builtin_internal_lisp_face_p(args),
+        "internal-copy-lisp-face" => super::font::builtin_internal_copy_lisp_face(args),
+        "internal-set-lisp-face-attribute" => super::font::builtin_internal_set_lisp_face_attribute(args),
+        "internal-get-lisp-face-attribute" => super::font::builtin_internal_get_lisp_face_attribute(args),
+        "internal-merge-in-global-face" => super::font::builtin_internal_merge_in_global_face(args),
+        "face-attribute-relative-p" => super::font::builtin_face_attribute_relative_p(args),
+        "merge-face-attribute" => super::font::builtin_merge_face_attribute(args),
+        "face-list" => super::font::builtin_face_list(args),
+        "color-defined-p" => super::font::builtin_color_defined_p(args),
+        "color-values" => super::font::builtin_color_values(args),
+        "defined-colors" => super::font::builtin_defined_colors(args),
+        "face-id" => super::font::builtin_face_id(args),
+        "face-font" => super::font::builtin_face_font(args),
+        "internal-face-x-get-resource" => super::font::builtin_internal_face_x_get_resource(args),
+        "internal-set-font-selection-order" => super::font::builtin_internal_set_font_selection_order(args),
+        "internal-set-alternative-font-family-alist" => super::font::builtin_internal_set_alternative_font_family_alist(args),
+        "internal-set-alternative-font-registry-alist" => super::font::builtin_internal_set_alternative_font_registry_alist(args),
+
+        // Directory/file attributes (pure)
+        "directory-files" => super::dired::builtin_directory_files(args),
+        "directory-files-and-attributes" => super::dired::builtin_directory_files_and_attributes(args),
+        "file-name-completion" => super::dired::builtin_file_name_completion(args),
+        "file-name-all-completions" => super::dired::builtin_file_name_all_completions(args),
+        "file-attributes" => super::dired::builtin_file_attributes(args),
+        "file-attributes-lessp" => super::dired::builtin_file_attributes_lessp(args),
+        "system-users" => super::dired::builtin_system_users(args),
+        "system-groups" => super::dired::builtin_system_groups(args),
+
+        // Charset (pure)
+        "charsetp" => super::charset::builtin_charsetp(args),
+        "charset-list" => super::charset::builtin_charset_list(args),
+        "charset-priority-list" => super::charset::builtin_charset_priority_list(args),
+        "set-charset-priority" => super::charset::builtin_set_charset_priority(args),
+        "char-charset" => super::charset::builtin_char_charset(args),
+        "charset-plist" => super::charset::builtin_charset_plist(args),
+        "charset-id-internal" => super::charset::builtin_charset_id_internal(args),
+        "define-charset-internal" => super::charset::builtin_define_charset_internal(args),
+        "find-charset-region" => super::charset::builtin_find_charset_region(args),
+        "find-charset-string" => super::charset::builtin_find_charset_string(args),
+        "decode-char" => super::charset::builtin_decode_char(args),
+        "encode-char" => super::charset::builtin_encode_char(args),
+        "clear-charset-maps" => super::charset::builtin_clear_charset_maps(args),
+        "charset-after" => super::charset::builtin_charset_after(args),
+        "unibyte-charset" => super::charset::builtin_unibyte_charset(args),
+
         // Custom system (pure)
         "custom-set-faces" => super::custom::builtin_custom_set_faces(args),
 
@@ -3737,15 +3852,6 @@ pub(crate) fn dispatch_builtin(
 
         // Error hierarchy (pure)
         "signal" => super::errors::builtin_signal(args),
-
-        // Marker (pure)
-        "markerp" => super::marker::builtin_markerp(args),
-        "marker-position" => super::marker::builtin_marker_position(args),
-        "marker-buffer" => super::marker::builtin_marker_buffer(args),
-        "marker-insertion-type" => super::marker::builtin_marker_insertion_type(args),
-        "set-marker-insertion-type" => super::marker::builtin_set_marker_insertion_type(args),
-        "copy-marker" => super::marker::builtin_copy_marker(args),
-        "make-marker" => super::marker::builtin_make_marker(args),
 
         // Hash-table extended (pure)
         "hash-table-keys" => super::hashtab::builtin_hash_table_keys(args),

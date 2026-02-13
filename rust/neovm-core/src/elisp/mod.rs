@@ -71,6 +71,7 @@ pub mod composite;
 pub mod floatfns;
 pub mod timefns;
 pub mod font;
+pub mod dired;
 
 // Re-export the main public API
 pub use value::{Value, ConsCell, LambdaData, LambdaParams};
