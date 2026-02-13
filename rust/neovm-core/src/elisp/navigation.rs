@@ -663,18 +663,6 @@ pub(crate) fn builtin_mark_nav(
     }
 }
 
-/// (mark-marker) -> integer (we use integer as marker proxy)
-pub(crate) fn builtin_mark_marker(
-    eval: &mut super::eval::Evaluator,
-    _args: Vec<Value>,
-) -> EvalResult {
-    let buf = eval.buffers.current_buffer().ok_or_else(no_buffer)?;
-    match buf.mark() {
-        Some(byte_pos) => Ok(Value::Int(byte_to_char_pos(buf, byte_pos))),
-        None => Ok(Value::Nil),
-    }
-}
-
 /// (region-beginning) -> integer
 pub(crate) fn builtin_region_beginning(
     eval: &mut super::eval::Evaluator,
