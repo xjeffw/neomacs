@@ -5335,7 +5335,18 @@ pub(crate) fn builtin_match_beginning(
     };
 
     match md.groups.get(group) {
-        Some(Some((start, _end))) => Ok(Value::Int(*start as i64)),
+        Some(Some((start, _end))) => {
+            if md.searched_string.is_some() {
+                // `string-match` positions are 0-based.
+                Ok(Value::Int(*start as i64))
+            } else if let Some(buf) = eval.buffers.current_buffer() {
+                // Buffer positions are 1-based character positions.
+                let pos = buf.text.byte_to_char(*start) as i64 + 1;
+                Ok(Value::Int(pos))
+            } else {
+                Ok(Value::Int(*start as i64))
+            }
+        }
         Some(None) => Ok(Value::Nil),
         None => Ok(Value::Nil),
     }
@@ -5351,7 +5362,16 @@ pub(crate) fn builtin_match_end(eval: &mut super::eval::Evaluator, args: Vec<Val
     };
 
     match md.groups.get(group) {
-        Some(Some((_start, end))) => Ok(Value::Int(*end as i64)),
+        Some(Some((_start, end))) => {
+            if md.searched_string.is_some() {
+                Ok(Value::Int(*end as i64))
+            } else if let Some(buf) = eval.buffers.current_buffer() {
+                let pos = buf.text.byte_to_char(*end) as i64 + 1;
+                Ok(Value::Int(pos))
+            } else {
+                Ok(Value::Int(*end as i64))
+            }
+        }
         Some(None) => Ok(Value::Nil),
         None => Ok(Value::Nil),
     }
