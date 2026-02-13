@@ -869,7 +869,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
 ];
 
 pub(crate) fn is_dispatch_builtin_name(name: &str) -> bool {
-    DISPATCH_BUILTIN_NAMES.binary_search(&name).is_ok()
+    DISPATCH_BUILTIN_NAMES.contains(&name)
 }
 
 #[cfg(test)]
@@ -882,6 +882,8 @@ mod tests {
         assert!(is_dispatch_builtin_name("load"));
         assert!(is_dispatch_builtin_name("symbol-value"));
         assert!(is_dispatch_builtin_name("+"));
+        assert!(is_dispatch_builtin_name("read-key"));
+        assert!(is_dispatch_builtin_name("read-char-exclusive"));
     }
 
     #[test]
