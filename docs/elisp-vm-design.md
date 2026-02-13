@@ -52,9 +52,9 @@ cd test/neovm/vm-compat && make check-neovm
 
 Next phase:
 
-- Expand corpus coverage (binding rules, non-local exits, mutation, numeric edges)
-- Wire compatibility target(s) into CI
-- Run differential checks against larger GNU Emacs test subsets
+- Expand oracle corpus coverage for currently stubbed domains (undo, search, minibuffer, hashing, input)
+- Add a regular full-suite gate (`check-all-neovm`) in CI in addition to focused PR gates
+- Start an upstream ERT allowlist differential runner for compatibility drift detection
 
 Focused introspection gate:
 
