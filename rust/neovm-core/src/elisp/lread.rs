@@ -250,13 +250,46 @@ pub(crate) fn builtin_eval_region(
     Ok(Value::Nil)
 }
 
+fn pop_unread_command_event(eval: &mut super::eval::Evaluator) -> Option<Value> {
+    let current = eval
+        .obarray
+        .symbol_value("unread-command-events")
+        .cloned()
+        .unwrap_or(Value::Nil);
+    match current {
+        Value::Cons(cell) => {
+            let pair = cell.lock().expect("poisoned");
+            let head = pair.car.clone();
+            let tail = pair.cdr.clone();
+            drop(pair);
+            eval.obarray.set_symbol_value("unread-command-events", tail);
+            Some(head)
+        }
+        _ => None,
+    }
+}
+
+fn event_to_int(event: &Value) -> Option<i64> {
+    match event {
+        Value::Int(n) => Some(*n),
+        Value::Char(c) => Some(*c as i64),
+        _ => None,
+    }
+}
+
 /// `(read-char &optional PROMPT INHERIT-INPUT-METHOD SECONDS)`
 ///
 /// Batch stub: returns nil (no terminal input available).
 pub(crate) fn builtin_read_char(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     _args: Vec<Value>,
 ) -> EvalResult {
+    if let Some(event) = pop_unread_command_event(eval) {
+        if let Some(n) = event_to_int(&event) {
+            return Ok(Value::Int(n));
+        }
+        return Ok(event);
+    }
     Ok(Value::Nil)
 }
 
@@ -264,9 +297,15 @@ pub(crate) fn builtin_read_char(
 ///
 /// Stub: returns nil (no event input available in batch mode).
 pub(crate) fn builtin_read_event(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     _args: Vec<Value>,
 ) -> EvalResult {
+    if let Some(event) = pop_unread_command_event(eval) {
+        if let Some(n) = event_to_int(&event) {
+            return Ok(Value::Int(n));
+        }
+        return Ok(event);
+    }
     Ok(Value::Nil)
 }
 
@@ -274,9 +313,15 @@ pub(crate) fn builtin_read_event(
 ///
 /// Batch stub: returns nil (no terminal input available).
 pub(crate) fn builtin_read_char_exclusive(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     _args: Vec<Value>,
 ) -> EvalResult {
+    if let Some(event) = pop_unread_command_event(eval) {
+        if let Some(n) = event_to_int(&event) {
+            return Ok(Value::Int(n));
+        }
+        return Ok(event);
+    }
     Ok(Value::Nil)
 }
 
@@ -936,6 +981,15 @@ mod tests {
     }
 
     #[test]
+    fn read_char_consumes_unread_command_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_read_char(&mut ev, vec![]).unwrap();
+        assert_eq!(result.as_int(), Some(97));
+    }
+
+    #[test]
     fn read_event_returns_nil() {
         let mut ev = Evaluator::new();
         let result = builtin_read_event(&mut ev, vec![]).unwrap();
@@ -943,10 +997,28 @@ mod tests {
     }
 
     #[test]
+    fn read_event_consumes_unread_command_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_read_event(&mut ev, vec![]).unwrap();
+        assert_eq!(result.as_int(), Some(97));
+    }
+
+    #[test]
     fn read_char_exclusive_returns_nil() {
         let mut ev = Evaluator::new();
         let result = builtin_read_char_exclusive(&mut ev, vec![]).unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn read_char_exclusive_consumes_unread_command_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_read_char_exclusive(&mut ev, vec![]).unwrap();
+        assert_eq!(result.as_int(), Some(97));
     }
 
     #[test]
