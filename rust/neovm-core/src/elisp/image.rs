@@ -88,8 +88,10 @@ fn plist_get(plist: &Value, key: &Value) -> Value {
 
 /// Check whether a symbol name represents a supported image type.
 fn is_supported_image_type(name: &str) -> bool {
-    matches!(name, "png" | "jpeg" | "jpg" | "gif" | "svg" | "webp"
-        | "xpm" | "xbm" | "pbm" | "tiff" | "bmp")
+    matches!(
+        name,
+        "png" | "jpeg" | "jpg" | "gif" | "svg" | "webp" | "xpm" | "xbm" | "pbm" | "tiff" | "bmp"
+    )
 }
 
 /// Validate that a value looks like an image spec.
@@ -492,10 +494,7 @@ mod tests {
 
     #[test]
     fn create_image_file() {
-        let result = builtin_create_image(vec![
-            Value::string("test.png"),
-            Value::symbol("png"),
-        ]);
+        let result = builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]);
         assert!(result.is_ok());
         let spec = result.unwrap();
         assert!(is_image_spec(&spec));
@@ -581,11 +580,8 @@ mod tests {
 
     #[test]
     fn image_size_pixels() {
-        let spec = builtin_create_image(vec![
-            Value::string("test.png"),
-            Value::symbol("png"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_image_size(vec![spec, Value::True]);
         assert!(result.is_ok());
@@ -603,11 +599,8 @@ mod tests {
 
     #[test]
     fn image_size_chars() {
-        let spec = builtin_create_image(vec![
-            Value::string("test.png"),
-            Value::symbol("png"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_image_size(vec![spec]);
         assert!(result.is_ok());
@@ -641,11 +634,8 @@ mod tests {
 
     #[test]
     fn image_mask_p_returns_nil() {
-        let spec = builtin_create_image(vec![
-            Value::string("test.png"),
-            Value::symbol("png"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_image_mask_p(vec![spec]);
         assert!(result.is_ok());
@@ -664,11 +654,8 @@ mod tests {
 
     #[test]
     fn put_image_stub() {
-        let spec = builtin_create_image(vec![
-            Value::string("test.png"),
-            Value::symbol("png"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_put_image(vec![spec, Value::Int(1)]);
         assert!(result.is_ok());
@@ -677,11 +664,8 @@ mod tests {
 
     #[test]
     fn put_image_bad_point() {
-        let spec = builtin_create_image(vec![
-            Value::string("test.png"),
-            Value::symbol("png"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_put_image(vec![spec, Value::string("not a point")]);
         assert!(result.is_err());
@@ -699,11 +683,8 @@ mod tests {
 
     #[test]
     fn insert_image_stub() {
-        let spec = builtin_create_image(vec![
-            Value::string("test.png"),
-            Value::symbol("png"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_insert_image(vec![spec]);
         assert!(result.is_ok());
@@ -751,11 +732,8 @@ mod tests {
 
     #[test]
     fn image_flush_stub() {
-        let spec = builtin_create_image(vec![
-            Value::string("test.png"),
-            Value::symbol("png"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_image_flush(vec![spec]);
         assert!(result.is_ok());
@@ -798,11 +776,8 @@ mod tests {
 
     #[test]
     fn image_type_png() {
-        let spec = builtin_create_image(vec![
-            Value::string("test.png"),
-            Value::symbol("png"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_image_type(vec![spec]);
         assert!(result.is_ok());
@@ -811,11 +786,8 @@ mod tests {
 
     #[test]
     fn image_type_svg() {
-        let spec = builtin_create_image(vec![
-            Value::string("icon.svg"),
-            Value::symbol("svg"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("icon.svg"), Value::symbol("svg")]).unwrap();
 
         let result = builtin_image_type(vec![spec]);
         assert!(result.is_ok());
@@ -903,10 +875,7 @@ mod tests {
 
     #[test]
     fn plist_get_missing() {
-        let plist = Value::list(vec![
-            Value::Keyword("type".into()),
-            Value::symbol("png"),
-        ]);
+        let plist = Value::list(vec![Value::Keyword("type".into()), Value::symbol("png")]);
         let val = plist_get(&plist, &Value::Keyword("missing".into()));
         assert!(val.is_nil());
     }
@@ -925,10 +894,7 @@ mod tests {
 
     #[test]
     fn is_image_spec_bare_plist() {
-        let spec = Value::list(vec![
-            Value::Keyword("type".into()),
-            Value::symbol("png"),
-        ]);
+        let spec = Value::list(vec![Value::Keyword("type".into()), Value::symbol("png")]);
         assert!(is_image_spec(&spec));
     }
 
@@ -959,10 +925,7 @@ mod tests {
 
     #[test]
     fn image_spec_plist_bare() {
-        let spec = Value::list(vec![
-            Value::Keyword("type".into()),
-            Value::symbol("jpeg"),
-        ]);
+        let spec = Value::list(vec![Value::Keyword("type".into()), Value::symbol("jpeg")]);
         let plist = image_spec_plist(&spec);
         let val = plist_get(&plist, &Value::Keyword("type".into()));
         assert_eq!(val.as_symbol_name(), Some("jpeg"));
@@ -971,11 +934,8 @@ mod tests {
     #[test]
     fn round_trip_create_then_type() {
         // create-image -> image-type should return the same type.
-        let spec = builtin_create_image(vec![
-            Value::string("photo.jpg"),
-            Value::symbol("jpeg"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("photo.jpg"), Value::symbol("jpeg")]).unwrap();
 
         let img_type = builtin_image_type(vec![spec]).unwrap();
         assert_eq!(img_type.as_symbol_name(), Some("jpeg"));
@@ -984,11 +944,8 @@ mod tests {
     #[test]
     fn round_trip_create_then_size() {
         // create-image -> image-size should work.
-        let spec = builtin_create_image(vec![
-            Value::string("photo.jpg"),
-            Value::symbol("jpeg"),
-        ])
-        .unwrap();
+        let spec =
+            builtin_create_image(vec![Value::string("photo.jpg"), Value::symbol("jpeg")]).unwrap();
 
         let size = builtin_image_size(vec![spec, Value::True]).unwrap();
         match size {

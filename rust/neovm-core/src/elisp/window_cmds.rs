@@ -100,12 +100,12 @@ fn resolve_frame_id(frames: &FrameManager, arg: Option<&Value>) -> Result<FrameI
 
 /// Helper: get a reference to a leaf window by id.
 fn get_leaf<'a>(frames: &'a FrameManager, fid: FrameId, wid: WindowId) -> Result<&'a Window, Flow> {
-    let frame = frames.get(fid).ok_or_else(|| {
-        signal("error", vec![Value::string("Frame not found")])
-    })?;
-    frame.find_window(wid).ok_or_else(|| {
-        signal("error", vec![Value::string("Window not found")])
-    })
+    let frame = frames
+        .get(fid)
+        .ok_or_else(|| signal("error", vec![Value::string("Frame not found")]))?;
+    frame
+        .find_window(wid)
+        .ok_or_else(|| signal("error", vec![Value::string("Window not found")]))
 }
 
 /// Compute the height of a window in lines.
@@ -138,9 +138,10 @@ pub(crate) fn builtin_selected_window(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("selected-window", &args, 0)?;
-    let frame = eval.frames.selected_frame().ok_or_else(|| {
-        signal("error", vec![Value::string("No selected frame")])
-    })?;
+    let frame = eval
+        .frames
+        .selected_frame()
+        .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
     Ok(Value::Int(frame.selected_window.0 as i64))
 }
 
@@ -181,7 +182,11 @@ pub(crate) fn builtin_window_end(
     let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     match w {
-        Window::Leaf { window_start, bounds, .. } => {
+        Window::Leaf {
+            window_start,
+            bounds,
+            ..
+        } => {
             // Rough estimate: window_start + lines * columns.
             let frame = eval.frames.get(fid).unwrap();
             let lines = (bounds.height / frame.char_height) as usize;
@@ -214,11 +219,16 @@ pub(crate) fn builtin_set_window_start(
     let wid_val = expect_int(&args[0])? as u64;
     let pos = expect_int(&args[1])? as usize;
 
-    let frame = eval.frames.selected_frame_mut().ok_or_else(|| {
-        signal("error", vec![Value::string("No selected frame")])
-    })?;
+    let frame = eval
+        .frames
+        .selected_frame_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
     let fid = frame.id;
-    if let Some(w) = eval.frames.get_mut(fid).and_then(|f| f.find_window_mut(WindowId(wid_val))) {
+    if let Some(w) = eval
+        .frames
+        .get_mut(fid)
+        .and_then(|f| f.find_window_mut(WindowId(wid_val)))
+    {
         if let Window::Leaf { window_start, .. } = w {
             *window_start = pos;
         }
@@ -240,7 +250,11 @@ pub(crate) fn builtin_set_window_point(
         .selected_frame()
         .map(|f| f.id)
         .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
-    if let Some(w) = eval.frames.get_mut(fid).and_then(|f| f.find_window_mut(WindowId(wid_val))) {
+    if let Some(w) = eval
+        .frames
+        .get_mut(fid)
+        .and_then(|f| f.find_window_mut(WindowId(wid_val)))
+    {
         if let Window::Leaf { point, .. } = w {
             *point = pos;
         }
@@ -308,9 +322,10 @@ pub(crate) fn builtin_window_list(
     args: Vec<Value>,
 ) -> EvalResult {
     let fid = resolve_frame_id(&eval.frames, args.first())?;
-    let frame = eval.frames.get(fid).ok_or_else(|| {
-        signal("error", vec![Value::string("Frame not found")])
-    })?;
+    let frame = eval
+        .frames
+        .get(fid)
+        .ok_or_else(|| signal("error", vec![Value::string("Frame not found")]))?;
     let ids: Vec<Value> = frame
         .window_list()
         .into_iter()
@@ -346,7 +361,11 @@ pub(crate) fn builtin_set_window_dedicated_p(
         .selected_frame()
         .map(|f| f.id)
         .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
-    if let Some(w) = eval.frames.get_mut(fid).and_then(|f| f.find_window_mut(WindowId(wid_val))) {
+    if let Some(w) = eval
+        .frames
+        .get_mut(fid)
+        .and_then(|f| f.find_window_mut(WindowId(wid_val)))
+    {
         if let Window::Leaf { dedicated, .. } = w {
             *dedicated = flag;
         }
@@ -355,10 +374,7 @@ pub(crate) fn builtin_set_window_dedicated_p(
 }
 
 /// `(windowp OBJ)` -> t if OBJ is a window id (integer) that exists.
-pub(crate) fn builtin_windowp(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_windowp(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("windowp", &args, 1)?;
     let id = match args[0].as_int() {
         Some(n) => n as u64,
@@ -445,9 +461,10 @@ pub(crate) fn builtin_delete_other_windows(
     args: Vec<Value>,
 ) -> EvalResult {
     let (fid, keep_wid) = resolve_window_id(&eval.frames, args.first())?;
-    let frame = eval.frames.get(fid).ok_or_else(|| {
-        signal("error", vec![Value::string("Frame not found")])
-    })?;
+    let frame = eval
+        .frames
+        .get(fid)
+        .ok_or_else(|| signal("error", vec![Value::string("Frame not found")]))?;
 
     let all_ids: Vec<WindowId> = frame.window_list();
     let to_delete: Vec<WindowId> = all_ids.into_iter().filter(|&w| w != keep_wid).collect();
@@ -527,9 +544,10 @@ pub(crate) fn builtin_next_window(
     args: Vec<Value>,
 ) -> EvalResult {
     let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
-    let frame = eval.frames.get(fid).ok_or_else(|| {
-        signal("error", vec![Value::string("Frame not found")])
-    })?;
+    let frame = eval
+        .frames
+        .get(fid)
+        .ok_or_else(|| signal("error", vec![Value::string("Frame not found")]))?;
     let list = frame.window_list();
     if list.is_empty() {
         return Ok(Value::Nil);
@@ -545,9 +563,10 @@ pub(crate) fn builtin_previous_window(
     args: Vec<Value>,
 ) -> EvalResult {
     let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
-    let frame = eval.frames.get(fid).ok_or_else(|| {
-        signal("error", vec![Value::string("Frame not found")])
-    })?;
+    let frame = eval
+        .frames
+        .get(fid)
+        .ok_or_else(|| signal("error", vec![Value::string("Frame not found")]))?;
     let list = frame.window_list();
     if list.is_empty() {
         return Ok(Value::Nil);
@@ -571,7 +590,11 @@ pub(crate) fn builtin_set_window_buffer(
         .selected_frame()
         .map(|f| f.id)
         .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
-    if let Some(w) = eval.frames.get_mut(fid).and_then(|f| f.find_window_mut(WindowId(wid_val))) {
+    if let Some(w) = eval
+        .frames
+        .get_mut(fid)
+        .and_then(|f| f.find_window_mut(WindowId(wid_val)))
+    {
         w.set_buffer(buf_id);
     }
     Ok(Value::Nil)
@@ -596,7 +619,11 @@ pub(crate) fn builtin_switch_to_buffer(
         .get(fid)
         .map(|f| f.selected_window)
         .ok_or_else(|| signal("error", vec![Value::string("No selected window")]))?;
-    if let Some(w) = eval.frames.get_mut(fid).and_then(|f| f.find_window_mut(sel_wid)) {
+    if let Some(w) = eval
+        .frames
+        .get_mut(fid)
+        .and_then(|f| f.find_window_mut(sel_wid))
+    {
         w.set_buffer(buf_id);
     }
     // Also switch the buffer manager's current buffer.
@@ -624,7 +651,11 @@ pub(crate) fn builtin_display_buffer(
         .get(fid)
         .map(|f| f.selected_window)
         .ok_or_else(|| signal("error", vec![Value::string("No selected window")]))?;
-    if let Some(w) = eval.frames.get_mut(fid).and_then(|f| f.find_window_mut(sel_wid)) {
+    if let Some(w) = eval
+        .frames
+        .get_mut(fid)
+        .and_then(|f| f.find_window_mut(sel_wid))
+    {
         w.set_buffer(buf_id);
     }
     Ok(Value::Int(sel_wid.0 as i64))
@@ -650,7 +681,11 @@ pub(crate) fn builtin_pop_to_buffer(
         .get(fid)
         .map(|f| f.selected_window)
         .ok_or_else(|| signal("error", vec![Value::string("No selected window")]))?;
-    if let Some(w) = eval.frames.get_mut(fid).and_then(|f| f.find_window_mut(sel_wid)) {
+    if let Some(w) = eval
+        .frames
+        .get_mut(fid)
+        .and_then(|f| f.find_window_mut(sel_wid))
+    {
         w.set_buffer(buf_id);
     }
     eval.buffers.set_current(buf_id);
@@ -750,10 +785,7 @@ pub(crate) fn builtin_delete_frame(
 ) -> EvalResult {
     let fid = resolve_frame_id(&eval.frames, args.first())?;
     if !eval.frames.delete_frame(fid) {
-        return Err(signal(
-            "error",
-            vec![Value::string("Cannot delete frame")],
-        ));
+        return Err(signal("error", vec![Value::string("Cannot delete frame")]));
     }
     Ok(Value::Nil)
 }
@@ -769,9 +801,10 @@ pub(crate) fn builtin_frame_parameter(
         Value::Symbol(s) => s.clone(),
         _ => return Ok(Value::Nil),
     };
-    let frame = eval.frames.get(fid).ok_or_else(|| {
-        signal("error", vec![Value::string("Frame not found")])
-    })?;
+    let frame = eval
+        .frames
+        .get(fid)
+        .ok_or_else(|| signal("error", vec![Value::string("Frame not found")]))?;
 
     // Check built-in properties first.
     match param_name.as_str() {
@@ -802,9 +835,10 @@ pub(crate) fn builtin_frame_parameters(
     args: Vec<Value>,
 ) -> EvalResult {
     let fid = resolve_frame_id(&eval.frames, args.first())?;
-    let frame = eval.frames.get(fid).ok_or_else(|| {
-        signal("error", vec![Value::string("Frame not found")])
-    })?;
+    let frame = eval
+        .frames
+        .get(fid)
+        .ok_or_else(|| signal("error", vec![Value::string("Frame not found")]))?;
     let mut pairs: Vec<Value> = Vec::new();
     // Built-in parameters.
     pairs.push(Value::cons(
@@ -843,9 +877,10 @@ pub(crate) fn builtin_modify_frame_parameters(
     let fid = resolve_frame_id(&eval.frames, Some(&args[0]))?;
     let items = super::value::list_to_vec(&args[1]).unwrap_or_default();
 
-    let frame = eval.frames.get_mut(fid).ok_or_else(|| {
-        signal("error", vec![Value::string("Frame not found")])
-    })?;
+    let frame = eval
+        .frames
+        .get_mut(fid)
+        .ok_or_else(|| signal("error", vec![Value::string("Frame not found")]))?;
 
     for item in items {
         if let Value::Cons(cell) = &item {
@@ -876,9 +911,7 @@ pub(crate) fn builtin_modify_frame_parameters(
                         frame.visible = pair.cdr.is_truthy();
                     }
                     _ => {
-                        frame
-                            .parameters
-                            .insert(key.clone(), pair.cdr.clone());
+                        frame.parameters.insert(key.clone(), pair.cdr.clone());
                     }
                 }
             }
@@ -893,17 +926,15 @@ pub(crate) fn builtin_frame_visible_p(
     args: Vec<Value>,
 ) -> EvalResult {
     let fid = resolve_frame_id(&eval.frames, args.first())?;
-    let frame = eval.frames.get(fid).ok_or_else(|| {
-        signal("error", vec![Value::string("Frame not found")])
-    })?;
+    let frame = eval
+        .frames
+        .get(fid)
+        .ok_or_else(|| signal("error", vec![Value::string("Frame not found")]))?;
     Ok(Value::bool(frame.visible))
 }
 
 /// `(framep OBJ)` -> t if OBJ is a frame id that exists.
-pub(crate) fn builtin_framep(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_framep(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("framep", &args, 1)?;
     let id = match args[0].as_int() {
         Some(n) => n as u64,
@@ -929,21 +960,15 @@ pub(crate) fn builtin_frame_live_p(
 // Internal helper — resolve buffer from int id, Buffer value, or string name
 // ===========================================================================
 
-fn resolve_buffer_id(
-    eval: &super::eval::Evaluator,
-    val: &Value,
-) -> Result<BufferId, Flow> {
+fn resolve_buffer_id(eval: &super::eval::Evaluator, val: &Value) -> Result<BufferId, Flow> {
     match val {
         Value::Buffer(id) => Ok(*id),
-        Value::Str(name) => eval
-            .buffers
-            .find_buffer_by_name(name)
-            .ok_or_else(|| {
-                signal(
-                    "error",
-                    vec![Value::string(format!("No buffer named {name}"))],
-                )
-            }),
+        Value::Str(name) => eval.buffers.find_buffer_by_name(name).ok_or_else(|| {
+            signal(
+                "error",
+                vec![Value::string(format!("No buffer named {name}"))],
+            )
+        }),
         Value::Int(n) => Ok(BufferId(*n as u64)),
         _ => Err(signal(
             "wrong-type-argument",
@@ -958,7 +983,7 @@ fn resolve_buffer_id(
 
 #[cfg(test)]
 mod tests {
-    use crate::elisp::{parse_forms, format_eval_result, Evaluator};
+    use crate::elisp::{format_eval_result, parse_forms, Evaluator};
 
     /// Evaluate all forms with a fresh evaluator that has a frame+window set up.
     fn eval_with_frame(src: &str) -> Vec<String> {

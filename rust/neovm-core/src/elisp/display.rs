@@ -49,10 +49,7 @@ fn expect_range_args(name: &str, args: &[Value], min: usize, max: usize) -> Resu
 // ---------------------------------------------------------------------------
 
 fn make_alist(pairs: Vec<(Value, Value)>) -> Value {
-    let entries: Vec<Value> = pairs
-        .into_iter()
-        .map(|(k, v)| Value::cons(k, v))
-        .collect();
+    let entries: Vec<Value> = pairs.into_iter().map(|(k, v)| Value::cons(k, v)).collect();
     Value::list(entries)
 }
 

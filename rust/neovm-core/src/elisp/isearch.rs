@@ -184,12 +184,7 @@ impl IsearchManager {
     // -- Start/end ----------------------------------------------------------
 
     /// Begin a new incremental search session.
-    pub fn begin_search(
-        &mut self,
-        direction: SearchDirection,
-        regexp: bool,
-        origin: usize,
-    ) {
+    pub fn begin_search(&mut self, direction: SearchDirection, regexp: bool, origin: usize) {
         self.state = Some(IsearchState {
             active: true,
             direction,
@@ -211,8 +206,7 @@ impl IsearchManager {
     pub fn end_search(&mut self, save_to_history: bool) {
         if let Some(state) = self.state.take() {
             if save_to_history && !state.search_string.is_empty() {
-                self.history
-                    .push(state.search_string.clone(), state.regexp);
+                self.history.push(state.search_string.clone(), state.regexp);
             }
             if !state.search_string.is_empty() {
                 self.last_search_regexp = state.regexp;
@@ -224,11 +218,7 @@ impl IsearchManager {
     /// Abort the search session.  Returns the original point position so that
     /// the caller can restore it.
     pub fn abort_search(&mut self) -> usize {
-        let origin = self
-            .state
-            .as_ref()
-            .map(|s| s.origin)
-            .unwrap_or(0);
+        let origin = self.state.as_ref().map(|s| s.origin).unwrap_or(0);
         self.state = None;
         origin
     }
@@ -313,9 +303,14 @@ impl IsearchManager {
 
         let forward = state.direction == SearchDirection::Forward;
 
-        if let Some((start, end)) =
-            find_match(text, &state.search_string, from, forward, state.regexp, case_fold)
-        {
+        if let Some((start, end)) = find_match(
+            text,
+            &state.search_string,
+            from,
+            forward,
+            state.regexp,
+            case_fold,
+        ) {
             state.success = true;
             state.match_start = Some(start);
             state.match_end = Some(end);
@@ -326,9 +321,14 @@ impl IsearchManager {
         if !state.wrapped {
             state.wrapped = true;
             let wrap_from = if forward { 0 } else { text.len() };
-            if let Some((start, end)) =
-                find_match(text, &state.search_string, wrap_from, forward, state.regexp, case_fold)
-            {
+            if let Some((start, end)) = find_match(
+                text,
+                &state.search_string,
+                wrap_from,
+                forward,
+                state.regexp,
+                case_fold,
+            ) {
                 state.success = true;
                 state.match_start = Some(start);
                 state.match_end = Some(end);
@@ -359,9 +359,14 @@ impl IsearchManager {
         let forward = state.direction == SearchDirection::Forward;
 
         // Search from origin first.
-        if let Some((start, end)) =
-            find_match(text, &state.search_string, state.origin, forward, state.regexp, case_fold)
-        {
+        if let Some((start, end)) = find_match(
+            text,
+            &state.search_string,
+            state.origin,
+            forward,
+            state.regexp,
+            case_fold,
+        ) {
             state.success = true;
             state.wrapped = false;
             state.match_start = Some(start);
@@ -371,9 +376,14 @@ impl IsearchManager {
 
         // Wrap around.
         let wrap_from = if forward { 0 } else { text.len() };
-        if let Some((start, end)) =
-            find_match(text, &state.search_string, wrap_from, forward, state.regexp, case_fold)
-        {
+        if let Some((start, end)) = find_match(
+            text,
+            &state.search_string,
+            wrap_from,
+            forward,
+            state.regexp,
+            case_fold,
+        ) {
             state.success = true;
             state.wrapped = true;
             state.match_start = Some(start);
@@ -390,12 +400,7 @@ impl IsearchManager {
 
     /// Compute all matches within the visible region for lazy-highlight
     /// overlays.
-    pub fn compute_lazy_matches(
-        &mut self,
-        text: &str,
-        visible_start: usize,
-        visible_end: usize,
-    ) {
+    pub fn compute_lazy_matches(&mut self, text: &str, visible_start: usize, visible_end: usize) {
         let state = match self.state.as_mut() {
             Some(s) => s,
             None => return,
@@ -740,11 +745,7 @@ impl QueryReplaceManager {
     /// `text` is the full buffer contents.  Returns `(start, end)` of the
     /// match, also storing it in `current_match`.  Returns `None` when there
     /// are no more matches.
-    pub fn find_next(
-        &mut self,
-        text: &str,
-        from_pos: usize,
-    ) -> Option<(usize, usize)> {
+    pub fn find_next(&mut self, text: &str, from_pos: usize) -> Option<(usize, usize)> {
         let state = self.state.as_mut()?;
 
         let limit = state.region_end.unwrap_or(text.len()).min(text.len());
@@ -756,8 +757,14 @@ impl QueryReplaceManager {
         }
 
         let case_fold = resolve_case_fold(state.case_fold, &state.from_string);
-        let result =
-            find_match(text, &state.from_string, start, true, state.regexp, case_fold);
+        let result = find_match(
+            text,
+            &state.from_string,
+            start,
+            true,
+            state.regexp,
+            case_fold,
+        );
 
         if let Some((ms, me)) = result {
             if me <= limit {
@@ -838,9 +845,7 @@ impl QueryReplaceManager {
                 self.state = None;
                 QueryReplaceAction::Done(summary)
             }
-            QueryReplaceResponse::Edit => {
-                QueryReplaceAction::NeedInput
-            }
+            QueryReplaceResponse::Edit => QueryReplaceAction::NeedInput,
             QueryReplaceResponse::Delete => {
                 if let Some((start, end)) = state.current_match {
                     state.replaced_count += 1;
@@ -1080,7 +1085,9 @@ fn preserve_case(replacement: &str, matched: &str) -> String {
         return replacement.to_string();
     }
 
-    let all_upper = matched.chars().all(|c| !c.is_alphabetic() || c.is_uppercase());
+    let all_upper = matched
+        .chars()
+        .all(|c| !c.is_alphabetic() || c.is_uppercase());
     let has_alpha = matched.chars().any(|c| c.is_alphabetic());
 
     if all_upper && has_alpha {
@@ -1150,7 +1157,10 @@ pub fn builtin_replace_string(args: Vec<Value>) -> EvalResult {
     let from = expect_string(&args[0])?;
     let to = expect_string(&args[1])?;
     if from.is_empty() {
-        return Err(signal("error", vec![Value::string("replace-string: empty search string")]));
+        return Err(signal(
+            "error",
+            vec![Value::string("replace-string: empty search string")],
+        ));
     }
     // In a full implementation this would modify the current buffer.
     // For now, return the number of replacements that *would* be made (as int 0).
@@ -2087,10 +2097,7 @@ mod tests {
 
     #[test]
     fn builtin_query_replace_with_args() {
-        let result = builtin_query_replace(vec![
-            Value::string("foo"),
-            Value::string("bar"),
-        ]);
+        let result = builtin_query_replace(vec![Value::string("foo"), Value::string("bar")]);
         assert!(matches!(result, Ok(Value::Nil)));
     }
 
@@ -2102,19 +2109,13 @@ mod tests {
 
     #[test]
     fn builtin_replace_string_empty_from() {
-        let result = builtin_replace_string(vec![
-            Value::string(""),
-            Value::string("bar"),
-        ]);
+        let result = builtin_replace_string(vec![Value::string(""), Value::string("bar")]);
         assert!(result.is_err());
     }
 
     #[test]
     fn builtin_replace_string_ok() {
-        let result = builtin_replace_string(vec![
-            Value::string("foo"),
-            Value::string("bar"),
-        ]);
+        let result = builtin_replace_string(vec![Value::string("foo"), Value::string("bar")]);
         assert!(matches!(result, Ok(Value::Int(0))));
     }
 
@@ -2144,10 +2145,7 @@ mod tests {
 
     #[test]
     fn builtin_replace_regexp_ok() {
-        let result = builtin_replace_regexp(vec![
-            Value::string("[0-9]+"),
-            Value::string("NUM"),
-        ]);
+        let result = builtin_replace_regexp(vec![Value::string("[0-9]+"), Value::string("NUM")]);
         assert!(matches!(result, Ok(Value::Int(0))));
     }
 
@@ -2159,10 +2157,8 @@ mod tests {
 
     #[test]
     fn builtin_query_replace_regexp_ok() {
-        let result = builtin_query_replace_regexp(vec![
-            Value::string("[0-9]+"),
-            Value::string("NUM"),
-        ]);
+        let result =
+            builtin_query_replace_regexp(vec![Value::string("[0-9]+"), Value::string("NUM")]);
         assert!(matches!(result, Ok(Value::Nil)));
     }
 }

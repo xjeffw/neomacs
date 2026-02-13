@@ -196,10 +196,9 @@ mod tests {
         let result = builtin_format_mode_line(vec![]).unwrap();
         assert_eq!(result, Value::string(""));
 
-        let result = builtin_format_mode_line(vec![
-            Value::string("test"),
-            Value::symbol("default"),
-        ]).unwrap();
+        let result =
+            builtin_format_mode_line(vec![Value::string("test"), Value::symbol("default")])
+                .unwrap();
         assert_eq!(result, Value::string(""));
     }
 
@@ -235,10 +234,9 @@ mod tests {
         let result = builtin_pos_visible_in_window_p(vec![]).unwrap();
         assert!(result.is_truthy());
 
-        let result = builtin_pos_visible_in_window_p(vec![
-            Value::Int(100),
-            Value::symbol("window"),
-        ]).unwrap();
+        let result =
+            builtin_pos_visible_in_window_p(vec![Value::Int(100), Value::symbol("window")])
+                .unwrap();
         assert!(result.is_truthy());
     }
 
@@ -253,11 +251,9 @@ mod tests {
 
     #[test]
     fn test_lookup_image_map() {
-        let result = builtin_lookup_image_map(vec![
-            Value::symbol("map"),
-            Value::Int(10),
-            Value::Int(20),
-        ]).unwrap();
+        let result =
+            builtin_lookup_image_map(vec![Value::symbol("map"), Value::Int(10), Value::Int(20)])
+                .unwrap();
         assert!(result.is_nil());
     }
 
@@ -266,9 +262,8 @@ mod tests {
         let result = builtin_current_bidi_paragraph_direction(vec![]).unwrap();
         assert_eq!(result, Value::symbol("left-to-right"));
 
-        let result = builtin_current_bidi_paragraph_direction(vec![
-            Value::symbol("buffer"),
-        ]).unwrap();
+        let result =
+            builtin_current_bidi_paragraph_direction(vec![Value::symbol("buffer")]).unwrap();
         assert_eq!(result, Value::symbol("left-to-right"));
     }
 
@@ -341,7 +336,8 @@ mod tests {
             Value::symbol("face"),
             Value::symbol("window"),
             Value::symbol("buffer"),
-        ]).is_ok());
+        ])
+        .is_ok());
 
         // window-text-pixel-size allows 0-6 args
         assert!(builtin_window_text_pixel_size(vec![]).is_ok());
@@ -352,6 +348,7 @@ mod tests {
             Value::Int(500),
             Value::Int(300),
             Value::symbol("mode"),
-        ]).is_ok());
+        ])
+        .is_ok());
     }
 }

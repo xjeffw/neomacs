@@ -464,13 +464,24 @@ fn u16_from_hex_digit(byte: u8) -> u16 {
 pub(crate) fn builtin_defined_colors(args: Vec<Value>) -> EvalResult {
     expect_max_args("defined-colors", &args, 1)?;
     let colors = vec![
-        "black", "white", "red", "green", "blue", "yellow", "cyan", "magenta",
-        "gray", "grey", "dark gray", "light gray", "orange", "pink", "brown",
+        "black",
+        "white",
+        "red",
+        "green",
+        "blue",
+        "yellow",
+        "cyan",
+        "magenta",
+        "gray",
+        "grey",
+        "dark gray",
+        "light gray",
+        "orange",
+        "pink",
+        "brown",
         "purple",
     ];
-    Ok(Value::list(
-        colors.into_iter().map(Value::string).collect(),
-    ))
+    Ok(Value::list(colors.into_iter().map(Value::string).collect()))
 }
 
 /// `(face-id FACE)` -- stub, return 0.
@@ -524,12 +535,11 @@ mod tests {
 
     #[test]
     fn fontp_on_non_font() {
+        assert_eq!(builtin_fontp(vec![Value::Int(42)]).unwrap().is_nil(), true);
         assert_eq!(
-            builtin_fontp(vec![Value::Int(42)]).unwrap().is_nil(),
-            true
-        );
-        assert_eq!(
-            builtin_fontp(vec![Value::string("hello")]).unwrap().is_nil(),
+            builtin_fontp(vec![Value::string("hello")])
+                .unwrap()
+                .is_nil(),
             true
         );
     }
@@ -562,13 +572,13 @@ mod tests {
         .unwrap();
 
         // Get existing property.
-        let family = builtin_font_get(vec![spec.clone(), Value::Keyword("family".to_string())])
-            .unwrap();
+        let family =
+            builtin_font_get(vec![spec.clone(), Value::Keyword("family".to_string())]).unwrap();
         assert_eq!(family.as_str(), Some("Monospace"));
 
         // Get missing property.
-        let missing = builtin_font_get(vec![spec.clone(), Value::Keyword("size".to_string())])
-            .unwrap();
+        let missing =
+            builtin_font_get(vec![spec.clone(), Value::Keyword("size".to_string())]).unwrap();
         assert!(missing.is_nil());
 
         // Put new property.
@@ -578,8 +588,8 @@ mod tests {
             Value::Int(14),
         ])
         .unwrap();
-        let size = builtin_font_get(vec![spec2.clone(), Value::Keyword("size".to_string())])
-            .unwrap();
+        let size =
+            builtin_font_get(vec![spec2.clone(), Value::Keyword("size".to_string())]).unwrap();
         assert_eq!(size.as_int(), Some(14));
 
         // Put overwriting existing property.
@@ -589,8 +599,7 @@ mod tests {
             Value::string("Serif"),
         ])
         .unwrap();
-        let family2 = builtin_font_get(vec![spec3, Value::Keyword("family".to_string())])
-            .unwrap();
+        let family2 = builtin_font_get(vec![spec3, Value::Keyword("family".to_string())]).unwrap();
         assert_eq!(family2.as_str(), Some("Serif"));
     }
 
@@ -616,18 +625,18 @@ mod tests {
 
     #[test]
     fn list_fonts_stub() {
-        let result = builtin_list_fonts(vec![Value::vector(vec![
-            Value::Keyword(FONT_SPEC_TAG.to_string()),
-        ])]);
+        let result = builtin_list_fonts(vec![Value::vector(vec![Value::Keyword(
+            FONT_SPEC_TAG.to_string(),
+        )])]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
 
     #[test]
     fn find_font_stub() {
-        let result = builtin_find_font(vec![Value::vector(vec![
-            Value::Keyword(FONT_SPEC_TAG.to_string()),
-        ])]);
+        let result = builtin_find_font(vec![Value::vector(vec![Value::Keyword(
+            FONT_SPEC_TAG.to_string(),
+        )])]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
@@ -646,9 +655,9 @@ mod tests {
 
     #[test]
     fn font_xlfd_name_stub() {
-        let result = builtin_font_xlfd_name(vec![Value::vector(vec![
-            Value::Keyword(FONT_SPEC_TAG.to_string()),
-        ])])
+        let result = builtin_font_xlfd_name(vec![Value::vector(vec![Value::Keyword(
+            FONT_SPEC_TAG.to_string(),
+        )])])
         .unwrap();
         assert_eq!(result.as_str(), Some("*"));
     }
@@ -711,11 +720,9 @@ mod tests {
 
     #[test]
     fn internal_merge_in_global_face_stub() {
-        let result = builtin_internal_merge_in_global_face(vec![
-            Value::symbol("default"),
-            Value::Nil,
-        ])
-        .unwrap();
+        let result =
+            builtin_internal_merge_in_global_face(vec![Value::symbol("default"), Value::Nil])
+                .unwrap();
         assert!(result.is_nil());
     }
 
@@ -877,8 +884,7 @@ mod tests {
 
     #[test]
     fn internal_set_alternative_font_family_alist_stub() {
-        let result =
-            builtin_internal_set_alternative_font_family_alist(vec![Value::Nil]).unwrap();
+        let result = builtin_internal_set_alternative_font_family_alist(vec![Value::Nil]).unwrap();
         assert!(result.is_nil());
     }
 
