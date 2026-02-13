@@ -1355,14 +1355,20 @@ mod tests {
             Value::Nil,
             Value::string("/tmp/test.txt"),
         ]);
-        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"
+        ));
     }
 
     #[test]
     fn builtin_read_buffer_signals_end_of_file() {
         let result =
             builtin_read_buffer(vec![Value::string("Buffer: "), Value::string("*scratch*")]);
-        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"
+        ));
     }
 
     // -- value_to_string_list -------------------------------------------------
