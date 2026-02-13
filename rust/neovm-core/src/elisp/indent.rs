@@ -1,0 +1,355 @@
+//! Indentation builtins for the Elisp interpreter.
+//!
+//! Implements stub versions of Emacs indentation primitives:
+//! - `current-indentation`, `indent-to`, `current-column`, `move-to-column`
+//! - `indent-region`, `indent-line-to`, `indent-rigidly`, `newline-and-indent`,
+//!   `reindent-then-newline-and-indent`, `indent-for-tab-command`,
+//!   `indent-according-to-mode`, `tab-to-tab-stop`, `back-to-indentation`,
+//!   `delete-indentation`
+//!
+//! Variables: `tab-width`, `indent-tabs-mode`, `standard-indent`, `tab-stop-list`
+
+use super::error::{signal, EvalResult, Flow};
+use super::value::*;
+
+// ---------------------------------------------------------------------------
+// Argument helpers (local to this module)
+// ---------------------------------------------------------------------------
+
+fn expect_args(name: &str, args: &[Value], n: usize) -> Result<(), Flow> {
+    if args.len() != n {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
+    if args.len() < min {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn expect_int(val: &Value) -> Result<i64, Flow> {
+    match val {
+        Value::Int(n) => Ok(*n),
+        Value::Char(c) => Ok(*c as i64),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integerp"), other.clone()],
+        )),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pure builtins
+// ---------------------------------------------------------------------------
+
+/// (current-indentation) -> integer
+///
+/// Return the indentation of the current line (number of whitespace columns
+/// at the beginning of the line).  Stub: always returns 0.
+pub(crate) fn builtin_current_indentation(args: Vec<Value>) -> EvalResult {
+    expect_args("current-indentation", &args, 0)?;
+    Ok(Value::Int(0))
+}
+
+/// (indent-to COLUMN &optional MINIMUM) -> COLUMN
+///
+/// Indent from point with tabs and spaces until COLUMN is reached.
+/// Optional second argument MINIMUM says always do at least MINIMUM spaces
+/// even if that moves past COLUMN; default is zero.
+/// Stub: returns COLUMN unchanged.
+pub(crate) fn builtin_indent_to(args: Vec<Value>) -> EvalResult {
+    expect_min_args("indent-to", &args, 1)?;
+    expect_max_args("indent-to", &args, 2)?;
+    let column = expect_int(&args[0])?;
+    // Optional MINIMUM argument is accepted but ignored in this stub.
+    Ok(Value::Int(column))
+}
+
+/// (current-column) -> integer
+///
+/// Return the horizontal position of point.  Beginning of line is column 0.
+/// Stub: always returns 0.
+pub(crate) fn builtin_current_column(args: Vec<Value>) -> EvalResult {
+    expect_args("current-column", &args, 0)?;
+    Ok(Value::Int(0))
+}
+
+/// (move-to-column COLUMN &optional FORCE) -> COLUMN
+///
+/// Move point to column COLUMN in the current line.
+/// Stub: returns COLUMN unchanged.
+pub(crate) fn builtin_move_to_column(args: Vec<Value>) -> EvalResult {
+    expect_min_args("move-to-column", &args, 1)?;
+    expect_max_args("move-to-column", &args, 2)?;
+    let column = expect_int(&args[0])?;
+    // Optional FORCE argument is accepted but ignored in this stub.
+    Ok(Value::Int(column))
+}
+
+// ---------------------------------------------------------------------------
+// Eval-dependent builtins
+// ---------------------------------------------------------------------------
+
+/// (indent-region START END &optional COLUMN) -> nil
+///
+/// Indent each nonblank line in the region.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_indent_region(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("indent-region", &args, 2)?;
+    expect_max_args("indent-region", &args, 3)?;
+    let _start = expect_int(&args[0])?;
+    let _end = expect_int(&args[1])?;
+    // Optional COLUMN argument is accepted but ignored.
+    Ok(Value::Nil)
+}
+
+/// (indent-line-to COLUMN) -> nil
+///
+/// Indent current line to COLUMN.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_indent_line_to(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("indent-line-to", &args, 1)?;
+    let _column = expect_int(&args[0])?;
+    Ok(Value::Nil)
+}
+
+/// (indent-rigidly START END ARG &optional INTERACTIVE) -> nil
+///
+/// Indent all lines starting in the region by ARG columns.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_indent_rigidly(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("indent-rigidly", &args, 3)?;
+    expect_max_args("indent-rigidly", &args, 4)?;
+    let _start = expect_int(&args[0])?;
+    let _end = expect_int(&args[1])?;
+    let _arg = expect_int(&args[2])?;
+    // Optional INTERACTIVE argument is accepted but ignored.
+    Ok(Value::Nil)
+}
+
+/// (newline-and-indent) -> nil
+///
+/// Insert a newline, then indent according to major mode.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_newline_and_indent(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("newline-and-indent", &args, 0)?;
+    Ok(Value::Nil)
+}
+
+/// (reindent-then-newline-and-indent) -> nil
+///
+/// Reindent current line, insert newline, then indent the new line.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_reindent_then_newline_and_indent(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("reindent-then-newline-and-indent", &args, 0)?;
+    Ok(Value::Nil)
+}
+
+/// (indent-for-tab-command &optional ARG) -> nil
+///
+/// Indent the current line or region, or insert a tab, as appropriate.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_indent_for_tab_command(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("indent-for-tab-command", &args, 1)?;
+    Ok(Value::Nil)
+}
+
+/// (indent-according-to-mode) -> nil
+///
+/// Indent line in proper way for current major mode.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_indent_according_to_mode(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("indent-according-to-mode", &args, 0)?;
+    Ok(Value::Nil)
+}
+
+/// (tab-to-tab-stop) -> nil
+///
+/// Insert spaces or tabs to next defined tab-stop column.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_tab_to_tab_stop(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("tab-to-tab-stop", &args, 0)?;
+    Ok(Value::Nil)
+}
+
+/// (back-to-indentation) -> nil
+///
+/// Move point to the first non-whitespace character on this line.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_back_to_indentation(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("back-to-indentation", &args, 0)?;
+    Ok(Value::Nil)
+}
+
+/// (delete-indentation &optional ARG REGION) -> nil
+///
+/// Join this line to previous and fix up whitespace at join.
+/// Stub: does nothing, returns nil.
+pub(crate) fn builtin_delete_indentation(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("delete-indentation", &args, 2)?;
+    Ok(Value::Nil)
+}
+
+// ---------------------------------------------------------------------------
+// Variable initialisation
+// ---------------------------------------------------------------------------
+
+/// Pre-populate the obarray with standard indentation variables.
+///
+/// Must be called during evaluator initialisation (after the obarray is created
+/// but before any user code runs).
+pub fn init_indent_vars(obarray: &mut super::symbol::Obarray) {
+    // tab-width: default 8 (buffer-local in real Emacs, global default here)
+    let sym = obarray.get_or_intern("tab-width");
+    sym.value = Some(Value::Int(8));
+    sym.special = true;
+
+    // indent-tabs-mode: default t
+    let sym = obarray.get_or_intern("indent-tabs-mode");
+    sym.value = Some(Value::True);
+    sym.special = true;
+
+    // standard-indent: default 4
+    let sym = obarray.get_or_intern("standard-indent");
+    sym.value = Some(Value::Int(4));
+    sym.special = true;
+
+    // tab-stop-list: default nil
+    let sym = obarray.get_or_intern("tab-stop-list");
+    sym.value = Some(Value::Nil);
+    sym.special = true;
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn current_indentation_returns_zero() {
+        let result = builtin_current_indentation(vec![]).unwrap();
+        assert_eq!(result.as_int(), Some(0));
+    }
+
+    #[test]
+    fn indent_to_returns_column() {
+        let result = builtin_indent_to(vec![Value::Int(42)]).unwrap();
+        assert_eq!(result.as_int(), Some(42));
+    }
+
+    #[test]
+    fn indent_to_with_minimum() {
+        let result = builtin_indent_to(vec![Value::Int(10), Value::Int(4)]).unwrap();
+        assert_eq!(result.as_int(), Some(10));
+    }
+
+    #[test]
+    fn current_column_returns_zero() {
+        let result = builtin_current_column(vec![]).unwrap();
+        assert_eq!(result.as_int(), Some(0));
+    }
+
+    #[test]
+    fn move_to_column_returns_column() {
+        let result = builtin_move_to_column(vec![Value::Int(15)]).unwrap();
+        assert_eq!(result.as_int(), Some(15));
+    }
+
+    #[test]
+    fn move_to_column_with_force() {
+        let result = builtin_move_to_column(vec![Value::Int(8), Value::True]).unwrap();
+        assert_eq!(result.as_int(), Some(8));
+    }
+
+    #[test]
+    fn wrong_arg_count_errors() {
+        // current-indentation takes no args
+        assert!(builtin_current_indentation(vec![Value::Int(1)]).is_err());
+        // indent-to requires at least 1 arg
+        assert!(builtin_indent_to(vec![]).is_err());
+        // indent-to accepts at most 2 args
+        assert!(builtin_indent_to(vec![Value::Int(1), Value::Int(2), Value::Int(3)]).is_err());
+        // current-column takes no args
+        assert!(builtin_current_column(vec![Value::Int(1)]).is_err());
+    }
+
+    #[test]
+    fn indent_to_rejects_non_integer() {
+        assert!(builtin_indent_to(vec![Value::string("foo")]).is_err());
+    }
+
+    #[test]
+    fn init_indent_vars_sets_defaults() {
+        let mut obarray = super::super::symbol::Obarray::new();
+        init_indent_vars(&mut obarray);
+
+        assert_eq!(obarray.symbol_value("tab-width").unwrap().as_int(), Some(8));
+        assert!(obarray.symbol_value("indent-tabs-mode").unwrap().is_truthy());
+        assert_eq!(
+            obarray.symbol_value("standard-indent").unwrap().as_int(),
+            Some(4)
+        );
+        assert!(obarray.symbol_value("tab-stop-list").unwrap().is_nil());
+
+        // All should be special (dynamically bound)
+        assert!(obarray.is_special("tab-width"));
+        assert!(obarray.is_special("indent-tabs-mode"));
+        assert!(obarray.is_special("standard-indent"));
+        assert!(obarray.is_special("tab-stop-list"));
+    }
+}
