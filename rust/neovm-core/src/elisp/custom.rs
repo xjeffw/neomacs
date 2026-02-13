@@ -134,7 +134,7 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
 }
 
 /// `(custom-variable-p SYMBOL)` -- returns t if SYMBOL is a custom variable.
-pub fn builtin_custom_variable_p(
+pub(crate) fn builtin_custom_variable_p(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
@@ -149,7 +149,7 @@ pub fn builtin_custom_variable_p(
 }
 
 /// `(custom-group-p SYMBOL)` -- returns t if SYMBOL is a custom group.
-pub fn builtin_custom_group_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_custom_group_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("custom-group-p", &args, 1)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.as_str(),
@@ -168,7 +168,7 @@ pub fn builtin_custom_group_p(eval: &mut super::eval::Evaluator, args: Vec<Value
 ///
 /// Each ARG is (SYMBOL EXP [NOW [REQUEST [COMMENT]]]).
 /// For now we just evaluate EXP and set the variable value.
-pub fn builtin_custom_set_variables(
+pub(crate) fn builtin_custom_set_variables(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
@@ -200,13 +200,13 @@ pub fn builtin_custom_set_variables(
 }
 
 /// `(custom-set-faces &rest ARGS)` -- stub, returns nil.
-pub fn builtin_custom_set_faces(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_custom_set_faces(args: Vec<Value>) -> EvalResult {
     let _ = args;
     Ok(Value::Nil)
 }
 
 /// `(make-variable-buffer-local VARIABLE)` -- mark variable as automatically buffer-local.
-pub fn builtin_make_variable_buffer_local(
+pub(crate) fn builtin_make_variable_buffer_local(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
@@ -227,7 +227,7 @@ pub fn builtin_make_variable_buffer_local(
 }
 
 /// `(make-local-variable VARIABLE)` -- make variable local in current buffer.
-pub fn builtin_make_local_variable(
+pub(crate) fn builtin_make_local_variable(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
@@ -257,7 +257,7 @@ pub fn builtin_make_local_variable(
 }
 
 /// `(local-variable-p VARIABLE &optional BUFFER)` -- test if variable is local.
-pub fn builtin_local_variable_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_local_variable_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("local-variable-p", &args, 1)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.clone(),
@@ -282,7 +282,7 @@ pub fn builtin_local_variable_p(eval: &mut super::eval::Evaluator, args: Vec<Val
 }
 
 /// `(buffer-local-variables &optional BUFFER)` -- list all local variables.
-pub fn builtin_buffer_local_variables(
+pub(crate) fn builtin_buffer_local_variables(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
@@ -308,7 +308,7 @@ pub fn builtin_buffer_local_variables(
 }
 
 /// `(kill-local-variable VARIABLE)` -- remove local binding in current buffer.
-pub fn builtin_kill_local_variable(
+pub(crate) fn builtin_kill_local_variable(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
@@ -331,7 +331,7 @@ pub fn builtin_kill_local_variable(
 }
 
 /// `(default-value SYMBOL)` -- get the default (global) value of a variable.
-pub fn builtin_default_value(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_default_value(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("default-value", &args, 1)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.clone(),
@@ -351,7 +351,7 @@ pub fn builtin_default_value(eval: &mut super::eval::Evaluator, args: Vec<Value>
 }
 
 /// `(set-default SYMBOL VALUE)` -- set the default (global) value.
-pub fn builtin_set_default(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_set_default(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("set-default", &args, 2)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.clone(),
