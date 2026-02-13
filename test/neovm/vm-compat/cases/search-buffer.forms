@@ -9,3 +9,6 @@
 (with-temp-buffer (insert "hello world") (goto-char (point-min)) (looking-at "world"))
 (with-temp-buffer (insert "foo bar") (goto-char (point-min)) (re-search-forward "\\(foo\\)") (replace-match "baz") (buffer-string))
 (with-temp-buffer (insert "abc") (goto-char (point-min)) (condition-case err (re-search-forward "zzz") (error (car err))))
+(with-temp-buffer (insert "abc") (goto-char (point-min)) (search-forward "zzz"))
+(with-temp-buffer (insert "abc") (goto-char (point-min)) (re-search-forward "zzz"))
+(with-temp-buffer (insert "abc") (goto-char (point-min)) (re-search-forward "("))
