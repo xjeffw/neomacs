@@ -2852,6 +2852,18 @@ enum PureBuiltinId {
     Add1,
     #[strum(serialize = "1-")]
     Sub1,
+    #[strum(serialize = "=")]
+    NumEq,
+    #[strum(serialize = "<")]
+    NumLt,
+    #[strum(serialize = "<=")]
+    NumLe,
+    #[strum(serialize = ">")]
+    NumGt,
+    #[strum(serialize = ">=")]
+    NumGe,
+    #[strum(serialize = "/=")]
+    NumNe,
 }
 
 fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
@@ -2863,6 +2875,12 @@ fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
         PureBuiltinId::Mod => builtin_mod(args),
         PureBuiltinId::Add1 => builtin_add1(args),
         PureBuiltinId::Sub1 => builtin_sub1(args),
+        PureBuiltinId::NumEq => builtin_num_eq(args),
+        PureBuiltinId::NumLt => builtin_num_lt(args),
+        PureBuiltinId::NumLe => builtin_num_le(args),
+        PureBuiltinId::NumGt => builtin_num_gt(args),
+        PureBuiltinId::NumGe => builtin_num_ge(args),
+        PureBuiltinId::NumNe => builtin_num_ne(args),
     }
 }
 
@@ -4023,12 +4041,6 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "logxor" => builtin_logxor(args),
         "lognot" => builtin_lognot(args),
         "ash" => builtin_ash(args),
-        "=" => builtin_num_eq(args),
-        "<" => builtin_num_lt(args),
-        "<=" => builtin_num_le(args),
-        ">" => builtin_num_gt(args),
-        ">=" => builtin_num_ge(args),
-        "/=" => builtin_num_ne(args),
         // Type predicates
         "null" => builtin_null(args),
         "not" => builtin_not(args),
