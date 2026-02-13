@@ -6589,6 +6589,19 @@ mod tests {
             .expect("fboundp should succeed for random");
         assert!(random.is_truthy());
 
+        let read_key = builtin_fboundp(&mut eval, vec![Value::symbol("read-key")])
+            .expect("fboundp should succeed for read-key");
+        assert!(read_key.is_truthy());
+
+        let read_event = builtin_fboundp(&mut eval, vec![Value::symbol("read-event")])
+            .expect("fboundp should succeed for read-event");
+        assert!(read_event.is_truthy());
+
+        let read_char_exclusive =
+            builtin_fboundp(&mut eval, vec![Value::symbol("read-char-exclusive")])
+                .expect("fboundp should succeed for read-char-exclusive");
+        assert!(read_char_exclusive.is_truthy());
+
         let when_macro = builtin_fboundp(&mut eval, vec![Value::symbol("when")])
             .expect("fboundp should succeed for when");
         assert!(when_macro.is_truthy());
