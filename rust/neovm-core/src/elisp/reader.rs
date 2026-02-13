@@ -308,6 +308,43 @@ fn skip_one_sexp(input: &str, mut pos: usize) -> usize {
                     // #(vector)
                     skip_one_sexp(input, pos)
                 }
+                b'[' => {
+                    // #[vector] compiled-function literal
+                    skip_one_sexp(input, pos)
+                }
+                b'@' => {
+                    // #@N<bytes> ... next-object
+                    pos += 1;
+                    let digits_start = pos;
+                    while pos < bytes.len() && bytes[pos].is_ascii_digit() {
+                        pos += 1;
+                    }
+                    if pos == digits_start {
+                        return pos;
+                    }
+                    let len = std::str::from_utf8(&bytes[digits_start..pos])
+                        .ok()
+                        .and_then(|s| s.parse::<usize>().ok());
+                    let Some(len) = len else {
+                        return pos;
+                    };
+                    let Some(after_data) = pos.checked_add(len) else {
+                        return bytes.len();
+                    };
+                    if after_data > bytes.len() {
+                        return bytes.len();
+                    }
+                    pos = skip_ws_comments(input, after_data);
+                    if pos >= bytes.len() {
+                        pos
+                    } else {
+                        skip_one_sexp(input, pos)
+                    }
+                }
+                b'$' => {
+                    // #$ pseudo object
+                    pos + 1
+                }
                 b's' => {
                     // #s(hash-table ...)
                     pos += 1;
@@ -1392,6 +1429,37 @@ mod tests {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
                 assert!(matches!(&pair.car, Value::Int(255)));
+            }
+            _ => panic!("Expected cons"),
+        }
+    }
+
+    #[test]
+    fn read_from_string_hash_skip_bytes() {
+        let mut ev = Evaluator::new();
+        let input = "#@4data42 rest";
+        let expected_end = input.find(" rest").unwrap() as i64;
+        let result = builtin_read_from_string(&mut ev, vec![Value::string(input)]).unwrap();
+        match &result {
+            Value::Cons(cell) => {
+                let pair = cell.lock().unwrap();
+                assert!(matches!(&pair.car, Value::Int(42)));
+                assert_eq!(pair.cdr, Value::Int(expected_end));
+            }
+            _ => panic!("Expected cons"),
+        }
+    }
+
+    #[test]
+    fn read_from_string_hash_bracket_end_position() {
+        let mut ev = Evaluator::new();
+        let input = "#[(x) \"\\bT\\207\" [x] 1 (#$ . 83)] tail";
+        let expected_end = input.find(" tail").unwrap() as i64;
+        let result = builtin_read_from_string(&mut ev, vec![Value::string(input)]).unwrap();
+        match &result {
+            Value::Cons(cell) => {
+                let pair = cell.lock().unwrap();
+                assert_eq!(pair.cdr, Value::Int(expected_end));
             }
             _ => panic!("Expected cons"),
         }
