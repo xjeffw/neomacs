@@ -3291,13 +3291,7 @@ pub(crate) fn dispatch_builtin(
         "back-to-indentation" => return Some(super::indent::builtin_back_to_indentation(eval, args)),
 
         // Case/char (evaluator-dependent)
-        "upcase-region" => return Some(super::casefiddle::builtin_upcase_region(eval, args)),
-        "downcase-region" => return Some(super::casefiddle::builtin_downcase_region(eval, args)),
-        "capitalize-region" => return Some(super::casefiddle::builtin_capitalize_region(eval, args)),
         "upcase-initials-region" => return Some(super::casefiddle::builtin_upcase_initials_region(eval, args)),
-        "upcase-word" => return Some(super::casefiddle::builtin_upcase_word(eval, args)),
-        "downcase-word" => return Some(super::casefiddle::builtin_downcase_word(eval, args)),
-        "capitalize-word" => return Some(super::casefiddle::builtin_capitalize_word(eval, args)),
 
         // Undo (evaluator-dependent)
         "undo" => return Some(super::undo::builtin_undo(eval, args)),
