@@ -282,11 +282,66 @@ fn parse_source_with_cache(
     Ok(forms)
 }
 
+fn lexical_binding_enabled_for_source(source: &str) -> bool {
+    source
+        .lines()
+        .next()
+        .is_some_and(|line| line.contains("lexical-binding: t"))
+}
+
 fn is_unsupported_compiled_path(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
         return false;
     };
     name.ends_with(".elc") || name.ends_with(".elc.gz")
+}
+
+/// Parse and precompile a source `.el` file into a `.neoc` sidecar cache.
+///
+/// The emitted cache is an internal NeoVM artifact and not a compatibility
+/// boundary. Failures to persist cache are reported to callers.
+pub fn precompile_source_file(source_path: &Path) -> Result<PathBuf, EvalError> {
+    if is_unsupported_compiled_path(source_path) {
+        return Err(EvalError::Signal {
+            symbol: "file-error".to_string(),
+            data: vec![Value::string(format!(
+                "Precompile input must be source (.el), not compiled artifacts (.elc/.elc.gz): {}",
+                source_path.display()
+            ))],
+        });
+    }
+
+    let content = fs::read_to_string(source_path).map_err(|e| EvalError::Signal {
+        symbol: "file-error".to_string(),
+        data: vec![Value::string(format!(
+            "Cannot read source file for precompile: {}: {}",
+            source_path.display(),
+            e
+        ))],
+    })?;
+
+    let lexical_binding = lexical_binding_enabled_for_source(&content);
+    let forms = super::parser::parse_forms(&content).map_err(|e| EvalError::Signal {
+        symbol: "invalid-read-syntax".to_string(),
+        data: vec![Value::string(format!(
+            "Parse error in {}: {:?}",
+            source_path.display(),
+            e
+        ))],
+    })?;
+
+    write_forms_cache(source_path, &content, lexical_binding, &forms).map_err(|e| {
+        EvalError::Signal {
+            symbol: "file-error".to_string(),
+            data: vec![Value::string(format!(
+                "Failed to persist precompile cache {}: {}",
+                cache_sidecar_path(source_path).display(),
+                e
+            ))],
+        }
+    })?;
+
+    Ok(cache_sidecar_path(source_path))
 }
 
 /// Load and evaluate a file. Returns the last result.
@@ -315,8 +370,7 @@ pub fn load_file(eval: &mut super::eval::Evaluator, path: &Path) -> Result<Value
     let old_load_file = eval.obarray().symbol_value("load-file-name").cloned();
 
     // Check for lexical-binding file variable in file-local line.
-    let first_line: &str = content.lines().next().unwrap_or("");
-    if first_line.contains("lexical-binding: t") {
+    if lexical_binding_enabled_for_source(&content) {
         eval.set_lexical_binding(true);
     }
 
@@ -773,6 +827,57 @@ mod tests {
 
         let mut eval = super::super::eval::Evaluator::new();
         let err = load_file(&mut eval, &compiled).expect_err("load should reject .elc.gz");
+        match err {
+            EvalError::Signal { symbol, .. } => assert_eq!(symbol, "file-error"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn precompile_source_file_writes_deterministic_cache() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock before epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("neovm-precompile-deterministic-{unique}"));
+        fs::create_dir_all(&dir).expect("create temp fixture dir");
+        let source = dir.join("probe.el");
+        fs::write(
+            &source,
+            ";;; -*- lexical-binding: t; -*-\n(setq vm-precompile-probe '(1 2 3))\n",
+        )
+        .expect("write source fixture");
+
+        let cache_path_1 = precompile_source_file(&source).expect("first precompile should succeed");
+        let cache_v1 = fs::read_to_string(&cache_path_1).expect("read cache v1");
+        let cache_path_2 =
+            precompile_source_file(&source).expect("second precompile should succeed");
+        let cache_v2 = fs::read_to_string(&cache_path_2).expect("read cache v2");
+
+        assert_eq!(cache_path_1, cache_path_2, "cache path should be stable");
+        assert_eq!(cache_v1, cache_v2, "precompile output should be deterministic");
+        assert!(
+            cache_v1.contains("lexical=1"),
+            "lexical-binding should be reflected in cache key",
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn precompile_source_file_rejects_compiled_inputs() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock before epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("neovm-precompile-reject-elc-{unique}"));
+        fs::create_dir_all(&dir).expect("create temp fixture dir");
+        let compiled = dir.join("probe.elc");
+        fs::write(&compiled, "compiled").expect("write compiled fixture");
+
+        let err = precompile_source_file(&compiled).expect_err("elc input should be rejected");
         match err {
             EvalError::Signal { symbol, .. } => assert_eq!(symbol, "file-error"),
             other => panic!("unexpected error: {other:?}"),
