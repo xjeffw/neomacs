@@ -135,6 +135,10 @@ Implemented now:
   - recursive `require` cycles are detected and signaled as `error` (no deep nesting blowup)
   - `featurep` / `require` now synchronize against Lisp-visible `features` variable state
   - compatibility corpus includes oracle-checked `cases/require-recursive` and `cases/features-sync`
+- loader context compatibility:
+  - `default-directory` is initialized to the process current directory with directory-path form
+  - nested `load` restores parent `load-file-name` correctly across child loads
+  - compatibility corpus includes oracle-checked `cases/default-directory` and `cases/load-file-name`
 - Source parse cache (`.neoc` sidecar):
   - cache file: `<module>.neoc` beside `<module>.el`
   - key includes schema version, VM version, and lexical-binding mode
