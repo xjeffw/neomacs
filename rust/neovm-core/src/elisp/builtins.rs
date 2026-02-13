@@ -535,6 +535,8 @@ pub(crate) fn builtin_functionp_eval(
                 }
             } else if super::subr_info::is_evaluator_macro_name(name) {
                 false
+            } else if super::subr_info::is_evaluator_callable_name(name) {
+                true
             } else {
                 super::builtin_registry::is_dispatch_builtin_name(name)
                     || name.parse::<PureBuiltinId>().is_ok()
@@ -1722,6 +1724,7 @@ pub(crate) fn builtin_fboundp(eval: &mut super::eval::Evaluator, args: Vec<Value
         eval.obarray().fboundp(name)
             || super::subr_info::is_special_form(name)
             || super::subr_info::is_evaluator_macro_name(name)
+            || super::subr_info::is_evaluator_callable_name(name)
             || super::builtin_registry::is_dispatch_builtin_name(name)
             || name.parse::<PureBuiltinId>().is_ok(),
     ))
@@ -1776,6 +1779,7 @@ pub(crate) fn builtin_symbol_function(
     }
 
     if super::subr_info::is_special_form(name)
+        || super::subr_info::is_evaluator_callable_name(name)
         || super::builtin_registry::is_dispatch_builtin_name(name)
         || name.parse::<PureBuiltinId>().is_ok()
     {
@@ -6435,6 +6439,18 @@ mod tests {
         let with_temp_buffer = builtin_fboundp(&mut eval, vec![Value::symbol("with-temp-buffer")])
             .expect("fboundp should succeed for with-temp-buffer");
         assert!(with_temp_buffer.is_truthy());
+
+        let declare = builtin_fboundp(&mut eval, vec![Value::symbol("declare")])
+            .expect("fboundp should succeed for declare");
+        assert!(declare.is_truthy());
+
+        let inline = builtin_fboundp(&mut eval, vec![Value::symbol("inline")])
+            .expect("fboundp should succeed for inline");
+        assert!(inline.is_truthy());
+
+        let throw_fn = builtin_fboundp(&mut eval, vec![Value::symbol("throw")])
+            .expect("fboundp should succeed for throw");
+        assert!(throw_fn.is_truthy());
     }
 
     #[test]
@@ -6476,6 +6492,15 @@ mod tests {
         let macro_symbol = builtin_functionp_eval(&mut eval, vec![Value::symbol("when")])
             .expect("functionp should reject macro symbols");
         assert!(macro_symbol.is_nil());
+        let declare_symbol = builtin_functionp_eval(&mut eval, vec![Value::symbol("declare")])
+            .expect("functionp should reject declare symbol");
+        assert!(declare_symbol.is_nil());
+        let inline_symbol = builtin_functionp_eval(&mut eval, vec![Value::symbol("inline")])
+            .expect("functionp should reject inline symbol");
+        assert!(inline_symbol.is_nil());
+        let throw_symbol = builtin_functionp_eval(&mut eval, vec![Value::symbol("throw")])
+            .expect("functionp should accept throw symbol");
+        assert!(throw_symbol.is_truthy());
         let macro_marker_cons =
             builtin_functionp_eval(&mut eval, vec![Value::cons(Value::symbol("macro"), Value::True)])
                 .expect("functionp should reject dotted macro marker cons");
@@ -6546,6 +6571,10 @@ mod tests {
         let typed = builtin_symbol_function(&mut eval, vec![Value::symbol("car")])
             .expect("symbol-function should resolve car");
         assert_eq!(typed, Value::Subr("car".to_string()));
+
+        let throw_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("throw")])
+            .expect("symbol-function should resolve throw as callable subr");
+        assert_eq!(throw_fn, Value::Subr("throw".to_string()));
 
         let when_macro = builtin_symbol_function(&mut eval, vec![Value::symbol("when")])
             .expect("symbol-function should resolve when as a macro");

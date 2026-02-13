@@ -176,6 +176,7 @@ fn is_public_special_form_name(name: &str) -> bool {
             | "unwind-protect"
             | "condition-case"
             | "interactive"
+            | "inline"
             | "save-excursion"
             | "save-restriction"
             | "save-current-buffer"
@@ -204,10 +205,17 @@ pub(crate) fn is_evaluator_macro_name(name: &str) -> bool {
             | "with-syntax-table"
             | "eval-when-compile"
             | "eval-and-compile"
+            | "declare"
             | "with-eval-after-load"
     );
     debug_assert!(!is_macro || is_evaluator_special_form_name(name));
     is_macro
+}
+
+pub(crate) fn is_evaluator_callable_name(name: &str) -> bool {
+    // These are evaluator-dispatched entries that still behave as normal
+    // callable symbols in introspection (`fboundp`/`functionp`/`symbol-function`).
+    matches!(name, "throw")
 }
 
 fn fallback_macro_arity(name: &str) -> Option<(usize, Option<usize>)> {
@@ -757,6 +765,12 @@ mod tests {
     }
 
     #[test]
+    fn special_form_p_true_for_inline() {
+        let result = builtin_special_form_p(vec![Value::symbol("inline")]).unwrap();
+        assert!(result.is_truthy());
+    }
+
+    #[test]
     fn special_form_p_false_for_car() {
         let result = builtin_special_form_p(vec![Value::symbol("car")]).unwrap();
         assert!(result.is_nil());
@@ -765,6 +779,12 @@ mod tests {
     #[test]
     fn special_form_p_false_for_when() {
         let result = builtin_special_form_p(vec![Value::symbol("when")]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn special_form_p_false_for_throw() {
+        let result = builtin_special_form_p(vec![Value::symbol("throw")]).unwrap();
         assert!(result.is_nil());
     }
 
