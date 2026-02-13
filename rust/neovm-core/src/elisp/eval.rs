@@ -7,6 +7,7 @@ use super::advice::{AdviceManager, VariableWatcherList};
 use super::autoload::AutoloadManager;
 use super::bookmark::BookmarkManager;
 use super::category::CategoryManager;
+use super::coding::CodingSystemManager;
 use super::builtins;
 use super::custom::CustomManager;
 use super::error::*;
@@ -79,6 +80,8 @@ pub struct Evaluator {
     pub(crate) category_manager: CategoryManager,
     /// Keyboard macro manager — recording, playback, macro ring.
     pub(crate) kmacro: KmacroManager,
+    /// Coding system manager — encoding/decoding registry.
+    pub(crate) coding_systems: CodingSystemManager,
     /// Recursion depth counter.
     depth: usize,
     /// Maximum recursion depth.
@@ -146,6 +149,7 @@ impl Evaluator {
             threads: ThreadManager::new(),
             category_manager: CategoryManager::new(),
             kmacro: KmacroManager::new(),
+            coding_systems: CodingSystemManager::new(),
             depth: 0,
             max_depth: 200,
         }

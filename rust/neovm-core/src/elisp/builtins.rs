@@ -3236,8 +3236,31 @@ pub(crate) fn dispatch_builtin(
         "mapatoms" => return Some(super::hashtab::builtin_mapatoms(eval, args)),
         "unintern" => return Some(super::hashtab::builtin_unintern(eval, args)),
 
+        // Category (evaluator-dependent)
+        "modify-category-entry" => return Some(super::category::builtin_modify_category_entry(eval, args)),
+        "char-category-set" => return Some(super::category::builtin_char_category_set(eval, args)),
+
         // Char-table (evaluator-dependent — applies function)
         "map-char-table" => return Some(super::chartable::builtin_map_char_table(eval, args)),
+
+        // Coding system (evaluator-dependent — uses coding_systems manager)
+        "coding-system-list" => return Some(super::coding::builtin_coding_system_list(&eval.coding_systems, args)),
+        "coding-system-aliases" => return Some(super::coding::builtin_coding_system_aliases(&eval.coding_systems, args)),
+        "coding-system-get" => return Some(super::coding::builtin_coding_system_get(&eval.coding_systems, args)),
+        "coding-system-put" => return Some(super::coding::builtin_coding_system_put(&mut eval.coding_systems, args)),
+        "coding-system-base" => return Some(super::coding::builtin_coding_system_base(&eval.coding_systems, args)),
+        "coding-system-eol-type" => return Some(super::coding::builtin_coding_system_eol_type(&eval.coding_systems, args)),
+        "coding-system-type" => return Some(super::coding::builtin_coding_system_type(&eval.coding_systems, args)),
+        "coding-system-change-eol-conversion" => return Some(super::coding::builtin_coding_system_change_eol_conversion(&eval.coding_systems, args)),
+        "coding-system-change-text-conversion" => return Some(super::coding::builtin_coding_system_change_text_conversion(&eval.coding_systems, args)),
+        "find-coding-system" => return Some(super::coding::builtin_find_coding_system(&eval.coding_systems, args)),
+        "detect-coding-string" => return Some(super::coding::builtin_detect_coding_string(&eval.coding_systems, args)),
+        "detect-coding-region" => return Some(super::coding::builtin_detect_coding_region(&eval.coding_systems, args)),
+        "keyboard-coding-system" => return Some(super::coding::builtin_keyboard_coding_system(&eval.coding_systems, args)),
+        "terminal-coding-system" => return Some(super::coding::builtin_terminal_coding_system(&eval.coding_systems, args)),
+        "set-keyboard-coding-system" => return Some(super::coding::builtin_set_keyboard_coding_system(&mut eval.coding_systems, args)),
+        "set-terminal-coding-system" => return Some(super::coding::builtin_set_terminal_coding_system(&mut eval.coding_systems, args)),
+        "coding-system-priority-list" => return Some(super::coding::builtin_coding_system_priority_list(&eval.coding_systems, args)),
 
         // CL-lib higher-order (evaluator-dependent — applies functions)
         "cl-map" => return Some(super::cl_lib::builtin_cl_map(eval, args)),
@@ -3473,6 +3496,26 @@ pub(crate) fn dispatch_builtin(
         // Keyboard macro (pure — no evaluator needed)
         "executing-kbd-macro-p" => super::kmacro::builtin_executing_kbd_macro_p(args),
         "kmacro-p" => super::kmacro::builtin_kmacro_p(args),
+
+        // Case table (pure)
+        "case-table-p" => super::casetab::builtin_case_table_p(args),
+        "current-case-table" => super::casetab::builtin_current_case_table(args),
+        "standard-case-table" => super::casetab::builtin_standard_case_table(args),
+        "set-case-table" => super::casetab::builtin_set_case_table(args),
+        "set-standard-case-table" => super::casetab::builtin_set_standard_case_table(args),
+        "upcase-char" => super::casetab::builtin_upcase_char(args),
+        "downcase-char" => super::casetab::builtin_downcase_char(args),
+
+        // Category (pure)
+        "define-category" => super::category::builtin_define_category(args),
+        "category-docstring" => super::category::builtin_category_docstring(args),
+        "get-unused-category" => super::category::builtin_get_unused_category(args),
+        "category-table-p" => super::category::builtin_category_table_p(args),
+        "category-table" => super::category::builtin_category_table(args),
+        "standard-category-table" => super::category::builtin_standard_category_table(args),
+        "make-category-table" => super::category::builtin_make_category_table(args),
+        "set-category-table" => super::category::builtin_set_category_table(args),
+        "make-category-set" => super::category::builtin_make_category_set(args),
 
         // Character encoding
         "char-width" => crate::encoding::builtin_char_width(args),
