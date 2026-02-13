@@ -172,8 +172,15 @@ pub fn load_file(eval: &mut super::eval::Evaluator, path: &Path) -> Result<Value
             }
         };
 
-        for form in &forms {
-            let _ = eval.eval_expr(form)?;
+        for (i, form) in forms.iter().enumerate() {
+            if let Err(err) = eval.eval_expr(form) {
+                if i == 0 {
+                    if let Some(source_path) = source_sibling_for_elc(path) {
+                        return load_file(eval, &source_path);
+                    }
+                }
+                return Err(err);
+            }
         }
 
         record_load_history(eval, path);
@@ -421,6 +428,35 @@ mod tests {
             EvalError::Signal { symbol, .. } => assert_eq!(symbol, "invalid-read-syntax"),
             other => panic!("unexpected error: {other:?}"),
         }
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_elc_falls_back_when_first_eval_form_errors() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock before epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("neovm-load-elc-eval-fallback-{unique}"));
+        fs::create_dir_all(&dir).expect("create temp fixture dir");
+        let source = dir.join("probe.el");
+        let compiled = dir.join("probe.elc");
+        fs::write(&source, "(setq vm-load-elc-eval-fallback 'source)\n")
+            .expect("write source fixture");
+        // Reader can parse this, but evaluation fails because `byte-code`
+        // isn't implemented yet in NeoVM.
+        fs::write(&compiled, "(byte-code \"\\301\\207\" [x] 1)\n").expect("write compiled fixture");
+
+        let mut eval = super::super::eval::Evaluator::new();
+        let loaded = load_file(&mut eval, &compiled).expect("load file with eval fallback");
+        assert_eq!(loaded, Value::True);
+        assert_eq!(
+            eval.obarray()
+                .symbol_value("vm-load-elc-eval-fallback")
+                .cloned(),
+            Some(Value::symbol("source"))
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
