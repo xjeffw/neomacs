@@ -892,6 +892,25 @@ pub(crate) fn builtin_read_key_sequence(
     Ok(Value::string(""))
 }
 
+/// `(read-key-sequence-vector PROMPT)`
+///
+/// Batch stub: returns next `unread-command-events` event as a single-element
+/// vector when present, otherwise an empty vector.
+pub(crate) fn builtin_read_key_sequence_vector(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("read-key-sequence-vector", &args, 1)?;
+    let _prompt = expect_string(&args[0])?;
+    if let Some(event) = pop_unread_command_event(eval) {
+        if let Some(n) = event_to_int(&event) {
+            return Ok(Value::vector(vec![Value::Int(n)]));
+        }
+        return Ok(Value::vector(vec![event]));
+    }
+    Ok(Value::vector(vec![]))
+}
+
 // ---------------------------------------------------------------------------
 // 13. with-temp-buffer (special form)
 // ---------------------------------------------------------------------------
@@ -1470,6 +1489,34 @@ mod tests {
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
         let result = builtin_read_key_sequence(&mut ev, vec![Value::string("key: ")]).unwrap();
         assert!(matches!(result, Value::Str(s) if s.as_str() == "a"));
+    }
+
+    #[test]
+    fn read_key_sequence_vector_returns_empty_vector() {
+        let mut ev = Evaluator::new();
+        let result =
+            builtin_read_key_sequence_vector(&mut ev, vec![Value::string("key: ")]).unwrap();
+        match result {
+            Value::Vector(v) => assert!(v.lock().expect("poisoned").is_empty()),
+            other => panic!("expected vector, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn read_key_sequence_vector_consumes_unread_command_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result =
+            builtin_read_key_sequence_vector(&mut ev, vec![Value::string("key: ")]).unwrap();
+        match result {
+            Value::Vector(v) => {
+                let items = v.lock().expect("poisoned");
+                assert_eq!(items.len(), 1);
+                assert_eq!(items[0].as_int(), Some(97));
+            }
+            other => panic!("expected vector, got {other:?}"),
+        }
     }
 
     // ===================================================================

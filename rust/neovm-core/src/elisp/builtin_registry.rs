@@ -625,6 +625,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "read-from-string",
     "read-key",
     "read-key-sequence",
+    "read-key-sequence-vector",
     "read-non-nil-coding-system",
     "read-number",
     "read-string",

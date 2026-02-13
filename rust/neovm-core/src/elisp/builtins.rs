@@ -4608,6 +4608,9 @@ pub(crate) fn dispatch_builtin(
         "read-char" => return Some(super::reader::builtin_read_char(eval, args)),
         "read-key" => return Some(super::reader::builtin_read_key(eval, args)),
         "read-key-sequence" => return Some(super::reader::builtin_read_key_sequence(eval, args)),
+        "read-key-sequence-vector" => {
+            return Some(super::reader::builtin_read_key_sequence_vector(eval, args))
+        }
         "minibufferp" => return Some(super::minibuffer::builtin_minibufferp(args)),
         "minibuffer-depth" => return Some(super::minibuffer::builtin_minibuffer_depth(args)),
         "princ" => return Some(builtin_princ_eval(eval, args)),
