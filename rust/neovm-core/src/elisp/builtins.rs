@@ -6596,6 +6596,11 @@ mod tests {
             .expect("fboundp should succeed for read-key");
         assert!(read_key.is_truthy());
 
+        let read_key_sequence_vector =
+            builtin_fboundp(&mut eval, vec![Value::symbol("read-key-sequence-vector")])
+                .expect("fboundp should succeed for read-key-sequence-vector");
+        assert!(read_key_sequence_vector.is_truthy());
+
         let read_event = builtin_fboundp(&mut eval, vec![Value::symbol("read-event")])
             .expect("fboundp should succeed for read-event");
         assert!(read_event.is_truthy());
@@ -6745,6 +6750,14 @@ mod tests {
             .expect("symbol-function should resolve car");
         assert_eq!(typed, Value::Subr("car".to_string()));
 
+        let read_key_sequence_vector =
+            builtin_symbol_function(&mut eval, vec![Value::symbol("read-key-sequence-vector")])
+                .expect("symbol-function should resolve read-key-sequence-vector");
+        assert_eq!(
+            read_key_sequence_vector,
+            Value::Subr("read-key-sequence-vector".to_string())
+        );
+
         let throw_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("throw")])
             .expect("symbol-function should resolve throw as callable subr");
         assert_eq!(throw_fn, Value::Subr("throw".to_string()));
@@ -6842,6 +6855,16 @@ mod tests {
         let typed = builtin_indirect_function(&mut eval, vec![Value::symbol("car")])
             .expect("indirect-function should resolve car");
         assert_eq!(typed, Value::Subr("car".to_string()));
+
+        let read_key_sequence_vector = builtin_indirect_function(
+            &mut eval,
+            vec![Value::symbol("read-key-sequence-vector")],
+        )
+        .expect("indirect-function should resolve read-key-sequence-vector");
+        assert_eq!(
+            read_key_sequence_vector,
+            Value::Subr("read-key-sequence-vector".to_string())
+        );
 
         let when_macro = builtin_indirect_function(&mut eval, vec![Value::symbol("when")])
             .expect("indirect-function should resolve when as a macro");
