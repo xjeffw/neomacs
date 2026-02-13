@@ -3285,15 +3285,10 @@ pub(crate) fn dispatch_builtin(
 
         // Indentation (evaluator-dependent)
         "indent-region" => return Some(super::indent::builtin_indent_region(eval, args)),
-        "indent-line-to" => return Some(super::indent::builtin_indent_line_to(eval, args)),
-        "indent-rigidly" => return Some(super::indent::builtin_indent_rigidly(eval, args)),
-        "newline-and-indent" => return Some(super::indent::builtin_newline_and_indent(eval, args)),
         "reindent-then-newline-and-indent" => return Some(super::indent::builtin_reindent_then_newline_and_indent(eval, args)),
         "indent-for-tab-command" => return Some(super::indent::builtin_indent_for_tab_command(eval, args)),
         "indent-according-to-mode" => return Some(super::indent::builtin_indent_according_to_mode(eval, args)),
-        "tab-to-tab-stop" => return Some(super::indent::builtin_tab_to_tab_stop(eval, args)),
         "back-to-indentation" => return Some(super::indent::builtin_back_to_indentation(eval, args)),
-        "delete-indentation" => return Some(super::indent::builtin_delete_indentation(eval, args)),
 
         // Rectangle operations (evaluator-dependent)
         "extract-rectangle-line" => return Some(super::rect::builtin_extract_rectangle_line(eval, args)),
