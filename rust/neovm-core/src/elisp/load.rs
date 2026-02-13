@@ -608,6 +608,55 @@ mod tests {
     }
 
     #[test]
+    fn nested_load_restores_parent_load_file_name() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock before epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("neovm-load-file-name-nested-{unique}"));
+        fs::create_dir_all(&dir).expect("create temp fixture dir");
+        let parent = dir.join("parent.el");
+        let child = dir.join("child.el");
+
+        fs::write(
+            &parent,
+            "(setq vm-parent-seen load-file-name)\n\
+             (load (expand-file-name \"child\" (file-name-directory load-file-name)) nil 'nomessage)\n\
+             (setq vm-parent-after-child load-file-name)\n",
+        )
+        .expect("write parent fixture");
+        fs::write(&child, "(setq vm-child-seen load-file-name)\n").expect("write child fixture");
+
+        let mut eval = super::super::eval::Evaluator::new();
+        let loaded = load_file(&mut eval, &parent).expect("load parent fixture");
+        assert_eq!(loaded, Value::True);
+
+        let parent_str = parent.to_string_lossy().to_string();
+        let child_str = child.to_string_lossy().to_string();
+        assert_eq!(
+            eval.obarray().symbol_value("vm-parent-seen").and_then(Value::as_str),
+            Some(parent_str.as_str())
+        );
+        assert_eq!(
+            eval.obarray().symbol_value("vm-child-seen").and_then(Value::as_str),
+            Some(child_str.as_str())
+        );
+        assert_eq!(
+            eval.obarray()
+                .symbol_value("vm-parent-after-child")
+                .and_then(Value::as_str),
+            Some(parent_str.as_str())
+        );
+        assert_eq!(
+            eval.obarray().symbol_value("load-file-name").cloned(),
+            Some(Value::Nil),
+            "load-file-name should be restored after top-level load",
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn load_file_writes_and_invalidates_neoc_cache() {
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
