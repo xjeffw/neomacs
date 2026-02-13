@@ -59,6 +59,38 @@ fn expect_int(val: &Value) -> Result<i64, Flow> {
     }
 }
 
+fn collect_sequence_strict(val: &Value) -> Result<Vec<Value>, Flow> {
+    match val {
+        Value::Nil => Ok(Vec::new()),
+        Value::Cons(_) => {
+            let mut result = Vec::new();
+            let mut cursor = val.clone();
+            loop {
+                match cursor {
+                    Value::Nil => return Ok(result),
+                    Value::Cons(cell) => {
+                        let pair = cell.lock().expect("poisoned");
+                        result.push(pair.car.clone());
+                        cursor = pair.cdr.clone();
+                    }
+                    tail => {
+                        return Err(signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("listp"), tail],
+                        ));
+                    }
+                }
+            }
+        }
+        Value::Vector(v) => Ok(v.lock().expect("poisoned").clone()),
+        Value::Str(s) => Ok(s.chars().map(|ch| Value::Int(ch as i64)).collect()),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("sequencep"), other.clone()],
+        )),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Advanced list operations
 // ---------------------------------------------------------------------------
@@ -206,54 +238,59 @@ pub fn builtin_seq_contains_p(args: Vec<Value>) -> EvalResult {
 /// `(seq-count PRED SEQ)` — stub: count non-nil elements.
 pub fn builtin_seq_length(args: Vec<Value>) -> EvalResult {
     expect_args("seq-length", &args, 1)?;
-    match &args[0] {
-        Value::Nil => Ok(Value::Int(0)),
-        Value::Str(s) => Ok(Value::Int(s.len() as i64)),
-        Value::Vector(v) => Ok(Value::Int(v.lock().expect("poisoned").len() as i64)),
-        list if list.is_list() => {
-            let len = super::value::list_length(list).unwrap_or(0);
-            Ok(Value::Int(len as i64))
-        }
-        _ => Ok(Value::Int(0)),
-    }
+    let elements = collect_sequence_strict(&args[0])?;
+    Ok(Value::Int(elements.len() as i64))
 }
 
 /// `(seq-into SEQ TYPE)` — convert sequence to another type.
 pub fn builtin_seq_into(args: Vec<Value>) -> EvalResult {
     expect_args("seq-into", &args, 2)?;
-    let seq = &args[0];
     let target_type = match &args[1] {
         Value::Symbol(s) => s.as_str(),
-        _ => "list",
+        other => {
+            return Err(signal(
+                "error",
+                vec![Value::string(format!(
+                    "Not a sequence type name: {}",
+                    super::print::print_value(other)
+                ))],
+            ));
+        }
     };
-
-    // Collect elements.
-    let elements = collect_sequence(seq);
+    let elements = collect_sequence_strict(&args[0])?;
 
     match target_type {
+        "list" => Ok(Value::list(elements)),
         "vector" => Ok(Value::vector(elements)),
         "string" => {
-            let s: String = elements
-                .iter()
-                .filter_map(|v| match v {
-                    Value::Char(c) => Some(*c),
-                    Value::Int(n) => char::from_u32(*n as u32),
-                    _ => None,
-                })
-                .collect();
+            let mut s = String::new();
+            for value in &elements {
+                let ch = match value {
+                    Value::Char(c) => *c,
+                    Value::Int(n) => char::from_u32(*n as u32).ok_or_else(|| {
+                        signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("characterp"), value.clone()],
+                        )
+                    })?,
+                    other => {
+                        return Err(signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("characterp"), other.clone()],
+                        ));
+                    }
+                };
+                s.push(ch);
+            }
             Ok(Value::string(s))
         }
-        _ => Ok(Value::list(elements)),
-    }
-}
-
-fn collect_sequence(val: &Value) -> Vec<Value> {
-    match val {
-        Value::Nil => Vec::new(),
-        Value::Cons(_) => super::value::list_to_vec(val).unwrap_or_default(),
-        Value::Vector(v) => v.lock().expect("poisoned").clone(),
-        Value::Str(s) => s.chars().map(Value::Char).collect(),
-        _ => vec![val.clone()],
+        _ => Err(signal(
+            "error",
+            vec![Value::string(format!(
+                "Not a sequence type name: {}",
+                target_type
+            ))],
+        )),
     }
 }
 

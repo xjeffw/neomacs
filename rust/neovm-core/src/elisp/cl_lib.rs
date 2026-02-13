@@ -866,6 +866,37 @@ pub fn builtin_seq_position(eval: &mut super::eval::Evaluator, args: Vec<Value>)
     Ok(Value::Nil)
 }
 
+/// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
+pub fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    if !(2..=3).contains(&args.len()) {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("seq-contains-p"), Value::Int(args.len() as i64)],
+        ));
+    }
+    let seq = &args[0];
+    let target = args[1].clone();
+    let test_fn = if args.len() == 3 && !args[2].is_nil() {
+        Some(args[2].clone())
+    } else {
+        None
+    };
+    let elements = seq_position_elements(seq)?;
+
+    for element in elements {
+        let matches = if let Some(test) = &test_fn {
+            eval.apply(test.clone(), vec![element.clone(), target.clone()])?
+                .is_truthy()
+        } else {
+            seq_default_match(&element, &target)
+        };
+        if matches {
+            return Ok(Value::True);
+        }
+    }
+    Ok(Value::Nil)
+}
+
 /// `(seq-mapn FN &rest SEQS)` — map over multiple sequences.
 pub fn builtin_seq_mapn(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("seq-mapn", &args, 2)?;
