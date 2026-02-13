@@ -3293,9 +3293,6 @@ pub(crate) fn dispatch_builtin(
         // Case/char (evaluator-dependent)
         "upcase-initials-region" => return Some(super::casefiddle::builtin_upcase_initials_region(eval, args)),
 
-        // Undo (evaluator-dependent)
-        "undo" => return Some(super::undo::builtin_undo(eval, args)),
-
         // Search (evaluator-dependent)
         "search-forward" => return Some(super::search::builtin_search_forward(eval, args)),
         "search-backward" => return Some(super::search::builtin_search_backward(eval, args)),
