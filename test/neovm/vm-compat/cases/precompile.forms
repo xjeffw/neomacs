@@ -1,0 +1,24 @@
+; NeoVM extension behavior: source precompile to .neoc sidecar.
+(setq vm-precompile-dir "/tmp/neovm-precompile-vm-compat/")
+(make-directory vm-precompile-dir t)
+
+(setq vm-precompile-source (concat vm-precompile-dir "probe.el"))
+(setq vm-precompile-cache (concat vm-precompile-dir "probe.neoc"))
+(setq vm-precompile-elc (concat vm-precompile-dir "probe.elc"))
+
+(erase-buffer)
+(insert ";;; -*- lexical-binding: t; -*-\n(setq vm-precompile-probe 'cached)\n")
+(write-region nil nil vm-precompile-source nil nil)
+(file-exists-p vm-precompile-source)
+
+(string-suffix-p ".neoc" (neovm-precompile-file vm-precompile-source))
+(file-exists-p vm-precompile-cache)
+
+(erase-buffer)
+(insert "compiled-artifact")
+(write-region nil nil vm-precompile-elc nil nil)
+(condition-case err (neovm-precompile-file vm-precompile-elc) (error (car err)))
+
+(delete-file vm-precompile-source)
+(delete-file vm-precompile-cache)
+(delete-file vm-precompile-elc)
