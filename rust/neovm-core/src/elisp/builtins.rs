@@ -3198,6 +3198,15 @@ pub(crate) fn dispatch_builtin(
         "timerp" => super::timer::builtin_timerp(args),
         "sit-for" => super::timer::builtin_sit_for(args),
 
+        // Character encoding
+        "char-width" => crate::encoding::builtin_char_width(args),
+        "multibyte-string-p" => crate::encoding::builtin_multibyte_string_p(args),
+        "unibyte-string-p" => crate::encoding::builtin_unibyte_string_p(args),
+        "encode-coding-string" => crate::encoding::builtin_encode_coding_string(args),
+        "decode-coding-string" => crate::encoding::builtin_decode_coding_string(args),
+        "char-or-string-p" => crate::encoding::builtin_char_or_string_p(args),
+        "max-char" => crate::encoding::builtin_max_char(args),
+
         _ => return None,
     })
 }
@@ -3384,6 +3393,14 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         // Timer (pure)
         "timerp" => super::timer::builtin_timerp(args),
         "sit-for" => super::timer::builtin_sit_for(args),
+        // Character encoding (pure)
+        "char-width" => crate::encoding::builtin_char_width(args),
+        "multibyte-string-p" => crate::encoding::builtin_multibyte_string_p(args),
+        "unibyte-string-p" => crate::encoding::builtin_unibyte_string_p(args),
+        "encode-coding-string" => crate::encoding::builtin_encode_coding_string(args),
+        "decode-coding-string" => crate::encoding::builtin_decode_coding_string(args),
+        "char-or-string-p" => crate::encoding::builtin_char_or_string_p(args),
+        "max-char" => crate::encoding::builtin_max_char(args),
         _ => return None,
     })
 }

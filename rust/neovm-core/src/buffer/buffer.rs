@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use super::gap_buffer::GapBuffer;
 use super::overlay::OverlayList;
 use super::text_props::TextPropertyTable;
+use super::undo::UndoList;
 use crate::elisp::syntax::SyntaxTable;
 use crate::elisp::value::Value;
 
@@ -84,6 +85,8 @@ pub struct Buffer {
     pub overlays: OverlayList,
     /// Syntax table for character classification.
     pub syntax_table: SyntaxTable,
+    /// Undo history.
+    pub undo_list: UndoList,
 }
 
 impl Buffer {
@@ -108,6 +111,7 @@ impl Buffer {
             text_props: TextPropertyTable::new(),
             overlays: OverlayList::new(),
             syntax_table: SyntaxTable::new_standard(),
+            undo_list: UndoList::new(),
         }
     }
 
@@ -152,6 +156,10 @@ impl Buffer {
             return;
         }
 
+        // Record undo before modifying.
+        self.undo_list.record_cursor(insert_pos);
+        self.undo_list.record_insert(insert_pos, len);
+
         self.text.insert_str(insert_pos, text);
 
         // Advance point past inserted text.
@@ -195,6 +203,11 @@ impl Buffer {
             return;
         }
         let len = end - start;
+
+        // Record undo: save the deleted text for restoration.
+        let deleted_text = self.text.text_range(start, end);
+        self.undo_list.record_cursor(self.pt);
+        self.undo_list.record_delete(start, &deleted_text);
 
         self.text.delete_range(start, end);
 

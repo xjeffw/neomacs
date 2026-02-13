@@ -1,6 +1,10 @@
 pub mod buffer;
 pub mod elisp;
+pub mod encoding;
+pub mod face;
 pub mod gc;
+pub mod hooks;
+pub mod window;
 
 use neovm_host_abi::{
     HostAbi, HostError, IsolateId, LispValue, PatchRequest, PatchResult, PrimitiveDescriptor,
