@@ -105,11 +105,20 @@ pub fn file_name_nondirectory(filename: &str) -> String {
     }
 }
 
-/// Return the extension of FILENAME, or None if it has none.
-/// Does not include the leading dot.
-pub fn file_name_extension(filename: &str) -> Option<String> {
+/// Return the extension of FILENAME.
+/// When PERIOD is nil, returns extension without the leading dot, or nil if missing.
+/// When PERIOD is non-nil, returns extension with the leading dot, or an empty string if missing.
+pub fn file_name_extension(filename: &str, period: bool) -> Option<String> {
     let path = Path::new(filename);
-    path.extension().map(|e| e.to_string_lossy().into_owned())
+    let extension = path.extension().map(|e| e.to_string_lossy().into_owned());
+    if period {
+        Some(match extension {
+            Some(ext) => format!(".{ext}"),
+            None => String::new(),
+        })
+    } else {
+        extension
+    }
 }
 
 /// Return FILENAME without its extension.
@@ -573,11 +582,21 @@ pub(crate) fn builtin_file_name_nondirectory(args: Vec<Value>) -> EvalResult {
     Ok(Value::string(file_name_nondirectory(&filename)))
 }
 
-/// (file-name-extension FILENAME) -> string or nil
+/// (file-name-extension FILENAME &optional PERIOD) -> string or nil
 pub(crate) fn builtin_file_name_extension(args: Vec<Value>) -> EvalResult {
-    expect_args("file-name-extension", &args, 1)?;
+    expect_min_args("file-name-extension", &args, 1)?;
+    if args.len() > 2 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![
+                Value::symbol("file-name-extension"),
+                Value::Int(args.len() as i64),
+            ],
+        ));
+    }
     let filename = expect_string_strict(&args[0])?;
-    match file_name_extension(&filename) {
+    let period = args.get(1).is_some_and(|v| v.is_truthy());
+    match file_name_extension(&filename, period) {
         Some(ext) => Ok(Value::string(ext)),
         None => Ok(Value::Nil),
     }
@@ -1003,15 +1022,31 @@ mod tests {
 
     #[test]
     fn test_file_name_extension() {
-        assert_eq!(file_name_extension("test.txt"), Some("txt".to_string()));
+        assert_eq!(file_name_extension("test.txt", false), Some("txt".to_string()));
+        assert_eq!(file_name_extension("test.txt", true), Some(".txt".to_string()));
         assert_eq!(
-            file_name_extension("/home/user/file.el"),
+            file_name_extension("/home/user/file.el", false),
             Some("el".to_string())
         );
-        assert_eq!(file_name_extension("no_ext"), None);
         assert_eq!(
-            file_name_extension("archive.tar.gz"),
+            file_name_extension("/home/user/file.el", true),
+            Some(".el".to_string())
+        );
+        assert_eq!(file_name_extension("no_ext", false), None);
+        assert_eq!(file_name_extension("no_ext", true), Some("".to_string()));
+        assert_eq!(file_name_extension(".bashrc", false), None);
+        assert_eq!(file_name_extension(".bashrc", true), Some("".to_string()));
+        assert_eq!(file_name_extension("..x", false), Some("x".to_string()));
+        assert_eq!(file_name_extension("..x", true), Some(".x".to_string()));
+        assert_eq!(file_name_extension("a.", false), Some("".to_string()));
+        assert_eq!(file_name_extension("a.", true), Some(".".to_string()));
+        assert_eq!(
+            file_name_extension("archive.tar.gz", false),
             Some("gz".to_string())
+        );
+        assert_eq!(
+            file_name_extension("archive.tar.gz", true),
+            Some(".gz".to_string())
         );
     }
 
@@ -1340,6 +1375,12 @@ mod tests {
         let result = builtin_file_name_extension(vec![Value::string("/home/user/test.el")]);
         assert_eq!(result.unwrap().as_str(), Some("el"));
 
+        let result = builtin_file_name_extension(vec![Value::string("/home/user/test.el"), Value::True]);
+        assert_eq!(result.unwrap().as_str(), Some(".el"));
+
+        let result = builtin_file_name_extension(vec![Value::string("no_ext"), Value::True]);
+        assert_eq!(result.unwrap().as_str(), Some(""));
+
         let result = builtin_file_name_sans_extension(vec![Value::string("/home/user/test.el")]);
         assert_eq!(result.unwrap().as_str(), Some("/home/user/test"));
 
@@ -1363,6 +1404,12 @@ mod tests {
         assert!(builtin_file_name_directory(vec![Value::symbol("x")]).is_err());
         assert!(builtin_file_name_nondirectory(vec![Value::symbol("x")]).is_err());
         assert!(builtin_file_name_extension(vec![Value::symbol("x")]).is_err());
+        assert!(builtin_file_name_extension(vec![
+            Value::string("x"),
+            Value::Nil,
+            Value::Nil
+        ])
+        .is_err());
         assert!(builtin_file_name_sans_extension(vec![Value::symbol("x")]).is_err());
         assert!(builtin_file_name_as_directory(vec![Value::symbol("x")]).is_err());
         assert!(builtin_directory_file_name(vec![Value::symbol("x")]).is_err());
