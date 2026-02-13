@@ -11,7 +11,6 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::Value;
-use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
 // Argument helpers
