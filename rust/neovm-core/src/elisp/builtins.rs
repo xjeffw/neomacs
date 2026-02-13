@@ -3290,19 +3290,6 @@ pub(crate) fn dispatch_builtin(
         "indent-according-to-mode" => return Some(super::indent::builtin_indent_according_to_mode(eval, args)),
         "back-to-indentation" => return Some(super::indent::builtin_back_to_indentation(eval, args)),
 
-        // Rectangle operations (evaluator-dependent)
-        "extract-rectangle-line" => return Some(super::rect::builtin_extract_rectangle_line(eval, args)),
-        "extract-rectangle" => return Some(super::rect::builtin_extract_rectangle(eval, args)),
-        "delete-rectangle" => return Some(super::rect::builtin_delete_rectangle(eval, args)),
-        "kill-rectangle" => return Some(super::rect::builtin_kill_rectangle(eval, args)),
-        "yank-rectangle" => return Some(super::rect::builtin_yank_rectangle(eval, args)),
-        "insert-rectangle" => return Some(super::rect::builtin_insert_rectangle(eval, args)),
-        "open-rectangle" => return Some(super::rect::builtin_open_rectangle(eval, args)),
-        "clear-rectangle" => return Some(super::rect::builtin_clear_rectangle(eval, args)),
-        "string-rectangle" => return Some(super::rect::builtin_string_rectangle(eval, args)),
-        "delete-extract-rectangle" => return Some(super::rect::builtin_delete_extract_rectangle(eval, args)),
-        "replace-rectangle" => return Some(super::rect::builtin_replace_rectangle(eval, args)),
-
         // Subr introspection (evaluator-dependent)
         "indirect-function" => return Some(super::subr_info::builtin_indirect_function(eval, args)),
 
