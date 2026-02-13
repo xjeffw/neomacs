@@ -54,6 +54,18 @@ fn expect_string(val: &Value) -> Result<String, Flow> {
     }
 }
 
+fn expect_number_or_marker(val: &Value) -> Result<f64, Flow> {
+    match val {
+        Value::Int(n) => Ok(*n as f64),
+        Value::Float(f) => Ok(*f),
+        Value::Char(c) => Ok(*c as i64 as f64),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("number-or-marker-p"), other.clone()],
+        )),
+    }
+}
+
 /// Collect elements from any sequence type into a Vec.
 fn collect_sequence(val: &Value) -> Vec<Value> {
     match val {
@@ -884,31 +896,35 @@ pub(crate) fn builtin_seq_concatenate(args: Vec<Value>) -> EvalResult {
 /// `(seq-empty-p SEQ)` — is sequence empty?
 pub(crate) fn builtin_seq_empty_p(args: Vec<Value>) -> EvalResult {
     expect_args("seq-empty-p", &args, 1)?;
-    let empty = match &args[0] {
-        Value::Nil => true,
-        Value::Str(s) => s.is_empty(),
-        Value::Vector(v) => v.lock().expect("poisoned").is_empty(),
-        Value::Cons(_) => false,
-        _ => true,
-    };
-    Ok(Value::bool(empty))
+    match &args[0] {
+        Value::Nil => Ok(Value::True),
+        Value::Cons(_) => Ok(Value::Nil),
+        Value::Str(s) => Ok(Value::bool(s.is_empty())),
+        Value::Vector(v) => Ok(Value::bool(v.lock().expect("poisoned").is_empty())),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("sequencep"), other.clone()],
+        )),
+    }
 }
 
 /// `(seq-min SEQ)` — minimum element (numeric).
 pub(crate) fn builtin_seq_min(args: Vec<Value>) -> EvalResult {
     expect_args("seq-min", &args, 1)?;
-    let elems = collect_sequence(&args[0]);
+    let elems = seq_position_elements(&args[0])?;
     if elems.is_empty() {
-        return Ok(Value::Nil);
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::Subr("min".to_string()), Value::Int(0)],
+        ));
     }
     let mut min_val = &elems[0];
+    let mut min_num = expect_number_or_marker(min_val)?;
     for e in &elems[1..] {
-        let a = min_val.as_number_f64();
-        let b = e.as_number_f64();
-        if let (Some(a_f), Some(b_f)) = (a, b) {
-            if b_f < a_f {
-                min_val = e;
-            }
+        let b = expect_number_or_marker(e)?;
+        if b < min_num {
+            min_num = b;
+            min_val = e;
         }
     }
     Ok(min_val.clone())
@@ -917,18 +933,20 @@ pub(crate) fn builtin_seq_min(args: Vec<Value>) -> EvalResult {
 /// `(seq-max SEQ)` — maximum element (numeric).
 pub(crate) fn builtin_seq_max(args: Vec<Value>) -> EvalResult {
     expect_args("seq-max", &args, 1)?;
-    let elems = collect_sequence(&args[0]);
+    let elems = seq_position_elements(&args[0])?;
     if elems.is_empty() {
-        return Ok(Value::Nil);
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::Subr("max".to_string()), Value::Int(0)],
+        ));
     }
     let mut max_val = &elems[0];
+    let mut max_num = expect_number_or_marker(max_val)?;
     for e in &elems[1..] {
-        let a = max_val.as_number_f64();
-        let b = e.as_number_f64();
-        if let (Some(a_f), Some(b_f)) = (a, b) {
-            if b_f > a_f {
-                max_val = e;
-            }
+        let b = expect_number_or_marker(e)?;
+        if b > max_num {
+            max_num = b;
+            max_val = e;
         }
     }
     Ok(max_val.clone())
