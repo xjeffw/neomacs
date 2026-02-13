@@ -53,8 +53,7 @@ cd test/neovm/vm-compat && make check-neovm
 Next phase:
 
 - Expand oracle corpus coverage for currently stubbed domains (undo, search, minibuffer, hashing, input)
-- Add a regular full-suite gate (`check-all-neovm`) in CI in addition to focused PR gates
-- Start an upstream ERT allowlist differential runner for compatibility drift detection
+- Expand upstream ERT allowlist coverage and add NeoVM-vs-oracle differential comparison over that allowlist
 
 Focused introspection gate:
 
