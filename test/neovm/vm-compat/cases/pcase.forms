@@ -1,0 +1,9 @@
+; Basic pcase dispatch and predicate matching
+(pcase '(1 2) ((pred listp) 'yes) (_ 'no))
+(pcase '(a . b) ('(a . b) 'ok) (_ 'bad))
+(pcase 3 ((pred numberp) 'num) (_ 'other))
+
+; pcase-let / pcase-let* bindings
+(pcase-let (((pred numberp) 42)) (+ 1 2))
+(pcase-let (((and x (pred numberp)) 9)) x)
+(pcase-let* (((pred numberp) 5) ((pred numberp) 6)) (+ 7 8))

@@ -1,0 +1,6 @@
+1	(pcase '(1 2) ((pred listp) 'yes) (_ 'no))	OK yes
+2	(pcase '(a . b) ('(a . b) 'ok) (_ 'bad))	OK ok
+3	(pcase 3 ((pred numberp) 'num) (_ 'other))	OK num
+4	(pcase-let (((pred numberp) 42)) (+ 1 2))	OK 3
+5	(pcase-let (((and x (pred numberp)) 9)) x)	OK 9
+6	(pcase-let* (((pred numberp) 5) ((pred numberp) 6)) (+ 7 8))	OK 15
