@@ -243,7 +243,8 @@ pub(crate) fn builtin_call_last_kbd_macro(
                 _ => {
                     // For character events, attempt self-insert-command
                     // by looking it up; if unavailable, just ignore.
-                    if let Some(func) = eval.obarray.symbol_function("self-insert-command").cloned() {
+                    if let Some(func) = eval.obarray.symbol_function("self-insert-command").cloned()
+                    {
                         eval.apply(func, vec![Value::Int(1)])?;
                     }
                 }
@@ -280,7 +281,8 @@ pub(crate) fn builtin_execute_kbd_macro(
                     eval.apply(func, vec![])?;
                 }
                 _ => {
-                    if let Some(func) = eval.obarray.symbol_function("self-insert-command").cloned() {
+                    if let Some(func) = eval.obarray.symbol_function("self-insert-command").cloned()
+                    {
                         eval.apply(func, vec![Value::Int(1)])?;
                     }
                 }
@@ -361,10 +363,7 @@ pub(crate) fn builtin_insert_kbd_macro(
                 None => {
                     return Err(signal(
                         "error",
-                        vec![Value::string(format!(
-                            "{} is not a keyboard macro",
-                            name
-                        ))],
+                        vec![Value::string(format!("{} is not a keyboard macro", name))],
                     ));
                 }
             }
@@ -397,11 +396,7 @@ pub(crate) fn builtin_insert_kbd_macro(
             other => parts.push(format!("{:?}", other)),
         }
     }
-    let definition = format!(
-        "(fset '{}  (vector {}))\n",
-        name,
-        parts.join(" ")
-    );
+    let definition = format!("(fset '{}  (vector {}))\n", name, parts.join(" "));
     Ok(Value::string(definition))
 }
 
@@ -564,10 +559,7 @@ fn resolve_macro_events(value: &Value) -> Result<Vec<Value>, Flow> {
                 Some(v) => Ok(v),
                 None => Err(signal(
                     "wrong-type-argument",
-                    vec![
-                        Value::symbol("arrayp"),
-                        value.clone(),
-                    ],
+                    vec![Value::symbol("arrayp"), value.clone()],
                 )),
             }
         }
@@ -853,10 +845,7 @@ mod tests {
 
         assert_eq!(eval.kmacro.counter_format, "%d");
 
-        let result = builtin_kmacro_set_format(
-            &mut eval,
-            vec![Value::string("%03d")],
-        );
+        let result = builtin_kmacro_set_format(&mut eval, vec![Value::string("%03d")]);
         assert!(result.is_ok());
         assert_eq!(eval.kmacro.counter_format, "%03d");
     }
@@ -936,7 +925,8 @@ mod tests {
 
         // Record a macro
         eval.kmacro.start_recording(false);
-        eval.kmacro.store_event(Value::Symbol("forward-char".to_string()));
+        eval.kmacro
+            .store_event(Value::Symbol("forward-char".to_string()));
         eval.kmacro.stop_recording();
 
         // Name it

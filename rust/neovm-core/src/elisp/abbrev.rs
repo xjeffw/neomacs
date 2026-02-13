@@ -152,10 +152,7 @@ impl AbbrevManager {
         }
 
         // Fall back to parent table
-        let parent = self
-            .tables
-            .get(table)
-            .and_then(|t| t.parent.clone());
+        let parent = self.tables.get(table).and_then(|t| t.parent.clone());
         if let Some(parent_name) = parent {
             return self.expand_abbrev(&parent_name, word);
         }
@@ -713,10 +710,7 @@ mod tests {
         // expand-abbrev
         let result = builtin_expand_abbrev(
             &mut eval,
-            vec![
-                Value::string("global-abbrev-table"),
-                Value::string("btw"),
-            ],
+            vec![Value::string("global-abbrev-table"), Value::string("btw")],
         );
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("by the way"));
@@ -724,10 +718,7 @@ mod tests {
         // expand nonexistent
         let result = builtin_expand_abbrev(
             &mut eval,
-            vec![
-                Value::string("global-abbrev-table"),
-                Value::string("xyz"),
-            ],
+            vec![Value::string("global-abbrev-table"), Value::string("xyz")],
         );
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
@@ -772,10 +763,8 @@ mod tests {
         let mut eval = Evaluator::new();
 
         // Create a table without parent
-        let result = builtin_define_abbrev_table(
-            &mut eval,
-            vec![Value::string("my-mode-abbrev-table")],
-        );
+        let result =
+            builtin_define_abbrev_table(&mut eval, vec![Value::string("my-mode-abbrev-table")]);
         assert!(result.is_ok());
         assert!(eval.abbrevs.get_table("my-mode-abbrev-table").is_some());
 
@@ -810,10 +799,8 @@ mod tests {
         .unwrap();
 
         // Clear
-        let result = builtin_clear_abbrev_table(
-            &mut eval,
-            vec![Value::string("global-abbrev-table")],
-        );
+        let result =
+            builtin_clear_abbrev_table(&mut eval, vec![Value::string("global-abbrev-table")]);
         assert!(result.is_ok());
 
         // Verify empty
@@ -831,10 +818,7 @@ mod tests {
             .define_abbrev("global-abbrev-table", "teh", "the");
 
         // Look up expansion without expanding (count should not change)
-        let result = builtin_abbrev_expansion(
-            &mut eval,
-            vec![Value::string("teh")],
-        );
+        let result = builtin_abbrev_expansion(&mut eval, vec![Value::string("teh")]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("the"));
 
@@ -845,19 +829,13 @@ mod tests {
         // Look up in specific table
         let result = builtin_abbrev_expansion(
             &mut eval,
-            vec![
-                Value::string("teh"),
-                Value::string("global-abbrev-table"),
-            ],
+            vec![Value::string("teh"), Value::string("global-abbrev-table")],
         );
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("the"));
 
         // Nonexistent
-        let result = builtin_abbrev_expansion(
-            &mut eval,
-            vec![Value::string("xyz")],
-        );
+        let result = builtin_abbrev_expansion(&mut eval, vec![Value::string("xyz")]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
@@ -868,17 +846,11 @@ mod tests {
 
         let mut eval = Evaluator::new();
 
-        let result = builtin_abbrev_table_p(
-            &mut eval,
-            vec![Value::string("global-abbrev-table")],
-        );
+        let result = builtin_abbrev_table_p(&mut eval, vec![Value::string("global-abbrev-table")]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_truthy());
 
-        let result = builtin_abbrev_table_p(
-            &mut eval,
-            vec![Value::string("no-such-table")],
-        );
+        let result = builtin_abbrev_table_p(&mut eval, vec![Value::string("no-such-table")]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
@@ -942,10 +914,7 @@ mod tests {
         let mut eval = Evaluator::new();
 
         // define-abbrev needs at least 3 args
-        let result = builtin_define_abbrev(
-            &mut eval,
-            vec![Value::string("t"), Value::string("a")],
-        );
+        let result = builtin_define_abbrev(&mut eval, vec![Value::string("t"), Value::string("a")]);
         assert!(result.is_err());
 
         // expand-abbrev needs exactly 2 args

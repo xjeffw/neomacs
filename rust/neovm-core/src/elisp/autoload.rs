@@ -141,8 +141,10 @@ impl AutoloadManager {
 
     /// Mark a function as obsolete.
     pub fn make_obsolete(&mut self, old_name: &str, new_name: &str, when: &str) {
-        self.obsolete_functions
-            .insert(old_name.to_string(), (new_name.to_string(), when.to_string()));
+        self.obsolete_functions.insert(
+            old_name.to_string(),
+            (new_name.to_string(), when.to_string()),
+        );
     }
 
     /// Check if a function is marked obsolete.
@@ -157,8 +159,10 @@ impl AutoloadManager {
 
     /// Mark a variable as obsolete.
     pub fn make_variable_obsolete(&mut self, old_name: &str, new_name: &str, when: &str) {
-        self.obsolete_variables
-            .insert(old_name.to_string(), (new_name.to_string(), when.to_string()));
+        self.obsolete_variables.insert(
+            old_name.to_string(),
+            (new_name.to_string(), when.to_string()),
+        );
     }
 
     /// Check if a variable is marked obsolete.
@@ -212,7 +216,10 @@ pub(crate) fn builtin_autoload_do_load(
     if args.is_empty() || args.len() > 3 {
         return Err(signal(
             "wrong-number-of-arguments",
-            vec![Value::symbol("autoload-do-load"), Value::Int(args.len() as i64)],
+            vec![
+                Value::symbol("autoload-do-load"),
+                Value::Int(args.len() as i64),
+            ],
         ));
     }
 
@@ -669,7 +676,7 @@ pub(crate) fn sf_with_eval_after_load(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elisp::{parse_forms, format_eval_result, Evaluator};
+    use crate::elisp::{format_eval_result, parse_forms, Evaluator};
 
     fn eval_one(src: &str) -> String {
         let forms = parse_forms(src).expect("parse");
@@ -759,7 +766,10 @@ mod tests {
 
     #[test]
     fn autoload_type_from_value() {
-        assert_eq!(AutoloadType::from_value(&Value::Nil), AutoloadType::Function);
+        assert_eq!(
+            AutoloadType::from_value(&Value::Nil),
+            AutoloadType::Function
+        );
         assert_eq!(
             AutoloadType::from_value(&Value::symbol("macro")),
             AutoloadType::Macro
@@ -846,10 +856,7 @@ mod tests {
 
     #[test]
     fn is_autoload_value_positive() {
-        let val = Value::list(vec![
-            Value::symbol("autoload"),
-            Value::string("my-file"),
-        ]);
+        let val = Value::list(vec![Value::symbol("autoload"), Value::string("my-file")]);
         assert!(is_autoload_value(&val));
     }
 
@@ -1010,9 +1017,7 @@ mod tests {
 
     #[test]
     fn with_eval_after_load_returns_nil() {
-        let result = eval_one(
-            r#"(with-eval-after-load "some-file" (+ 1 2))"#,
-        );
+        let result = eval_one(r#"(with-eval-after-load "some-file" (+ 1 2))"#);
         // with-eval-after-load always returns nil
         assert_eq!(result, "OK nil");
     }

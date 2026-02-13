@@ -149,10 +149,7 @@ pub fn builtin_custom_variable_p(
 }
 
 /// `(custom-group-p SYMBOL)` -- returns t if SYMBOL is a custom group.
-pub fn builtin_custom_group_p(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub fn builtin_custom_group_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("custom-group-p", &args, 1)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.as_str(),
@@ -187,7 +184,9 @@ pub fn builtin_custom_set_variables(
                 let value = items[1].clone();
 
                 // If the custom variable has a :set function, call it.
-                let set_fn = eval.custom.get_variable(&name)
+                let set_fn = eval
+                    .custom
+                    .get_variable(&name)
                     .and_then(|cv| cv.set_function.clone());
                 if let Some(func) = set_fn {
                     eval.apply(func, vec![Value::symbol(name.clone()), value.clone()])?;
@@ -216,10 +215,12 @@ pub fn builtin_make_variable_buffer_local(
         Value::Symbol(s) => s.clone(),
         Value::Nil => "nil".to_string(),
         Value::True => "t".to_string(),
-        other => return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("symbolp"), other.clone()],
-        )),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), other.clone()],
+            ))
+        }
     };
     eval.custom.make_variable_buffer_local(&name);
     Ok(args[0].clone())
@@ -235,14 +236,18 @@ pub fn builtin_make_local_variable(
         Value::Symbol(s) => s.clone(),
         Value::Nil => "nil".to_string(),
         Value::True => "t".to_string(),
-        other => return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("symbolp"), other.clone()],
-        )),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), other.clone()],
+            ))
+        }
     };
     // Set the current value as buffer-local if a buffer is current.
     // Clone the value first to avoid borrow conflicts.
-    let value = eval.obarray.symbol_value(&name)
+    let value = eval
+        .obarray
+        .symbol_value(&name)
         .cloned()
         .unwrap_or(Value::Nil);
     if let Some(buf) = eval.buffers.current_buffer_mut() {
@@ -252,10 +257,7 @@ pub fn builtin_make_local_variable(
 }
 
 /// `(local-variable-p VARIABLE &optional BUFFER)` -- test if variable is local.
-pub fn builtin_local_variable_p(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub fn builtin_local_variable_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("local-variable-p", &args, 1)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.clone(),
@@ -315,10 +317,12 @@ pub fn builtin_kill_local_variable(
         Value::Symbol(s) => s.clone(),
         Value::Nil => "nil".to_string(),
         Value::True => "t".to_string(),
-        other => return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("symbolp"), other.clone()],
-        )),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), other.clone()],
+            ))
+        }
     };
     if let Some(buf) = eval.buffers.current_buffer_mut() {
         buf.properties.remove(&name);
@@ -327,19 +331,18 @@ pub fn builtin_kill_local_variable(
 }
 
 /// `(default-value SYMBOL)` -- get the default (global) value of a variable.
-pub fn builtin_default_value(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub fn builtin_default_value(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("default-value", &args, 1)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.clone(),
         Value::Nil => "nil".to_string(),
         Value::True => "t".to_string(),
-        other => return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("symbolp"), other.clone()],
-        )),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), other.clone()],
+            ))
+        }
     };
     match eval.obarray.symbol_value(&name) {
         Some(v) => Ok(v.clone()),
@@ -348,19 +351,18 @@ pub fn builtin_default_value(
 }
 
 /// `(set-default SYMBOL VALUE)` -- set the default (global) value.
-pub fn builtin_set_default(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub fn builtin_set_default(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("set-default", &args, 2)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.clone(),
         Value::Nil => "nil".to_string(),
         Value::True => "t".to_string(),
-        other => return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("symbolp"), other.clone()],
-        )),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), other.clone()],
+            ))
+        }
     };
     eval.obarray.set_symbol_value(&name, args[1].clone());
     Ok(args[1].clone())
@@ -600,10 +602,7 @@ pub(crate) fn sf_setq_default(
     if tail.len() % 2 != 0 {
         return Err(signal(
             "wrong-number-of-arguments",
-            vec![
-                Value::symbol("setq-default"),
-                Value::Int(tail.len() as i64),
-            ],
+            vec![Value::symbol("setq-default"), Value::Int(tail.len() as i64)],
         ));
     }
 
@@ -644,10 +643,7 @@ pub(crate) fn sf_defvar_local(
     if tail.is_empty() {
         return Err(signal(
             "wrong-number-of-arguments",
-            vec![
-                Value::symbol("defvar-local"),
-                Value::Int(tail.len() as i64),
-            ],
+            vec![Value::symbol("defvar-local"), Value::Int(tail.len() as i64)],
         ));
     }
 
@@ -674,8 +670,7 @@ pub(crate) fn sf_defvar_local(
 
     // 4. Like defvar: only set if not already bound.
     if !eval.obarray().boundp(&name) {
-        eval.obarray_mut()
-            .set_symbol_value(&name, default_value);
+        eval.obarray_mut().set_symbol_value(&name, default_value);
     }
 
     // 5. Mark as special (dynamically scoped).
@@ -694,12 +689,15 @@ pub(crate) fn sf_defvar_local(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elisp::{parse_forms, format_eval_result, Evaluator};
+    use crate::elisp::{format_eval_result, parse_forms, Evaluator};
 
     fn eval_all(src: &str) -> Vec<String> {
         let forms = parse_forms(src).expect("parse");
         let mut ev = Evaluator::new();
-        ev.eval_forms(&forms).iter().map(format_eval_result).collect()
+        ev.eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect()
     }
 
     // -- CustomManager unit tests ------------------------------------------
@@ -755,50 +753,38 @@ mod tests {
 
     #[test]
     fn defcustom_basic() {
-        let results = eval_all(
-            r#"(defcustom my-var 42 "My variable.")"#,
-        );
+        let results = eval_all(r#"(defcustom my-var 42 "My variable.")"#);
         assert_eq!(results[0], "OK my-var");
     }
 
     #[test]
     fn defcustom_sets_value() {
-        let results = eval_all(
-            r#"(defcustom my-var 42 "My variable.") my-var"#,
-        );
+        let results = eval_all(r#"(defcustom my-var 42 "My variable.") my-var"#);
         assert_eq!(results[1], "OK 42");
     }
 
     #[test]
     fn defcustom_with_type() {
-        let results = eval_all(
-            r#"(defcustom my-var 42 "Docs." :type 'integer) my-var"#,
-        );
+        let results = eval_all(r#"(defcustom my-var 42 "Docs." :type 'integer) my-var"#);
         assert_eq!(results[1], "OK 42");
     }
 
     #[test]
     fn defcustom_with_group() {
-        let results = eval_all(
-            r#"(defcustom my-var 10 "Docs." :group 'my-group) my-var"#,
-        );
+        let results = eval_all(r#"(defcustom my-var 10 "Docs." :group 'my-group) my-var"#);
         assert_eq!(results[1], "OK 10");
     }
 
     #[test]
     fn defcustom_does_not_override_existing() {
-        let results = eval_all(
-            r#"(setq my-var 99) (defcustom my-var 42 "Docs.") my-var"#,
-        );
+        let results = eval_all(r#"(setq my-var 99) (defcustom my-var 42 "Docs.") my-var"#);
         // defcustom should not override an existing value, like defvar
         assert_eq!(results[2], "OK 99");
     }
 
     #[test]
     fn defcustom_marks_special() {
-        let forms = parse_forms(
-            r#"(defcustom my-var 42 "Docs.")"#,
-        ).expect("parse");
+        let forms = parse_forms(r#"(defcustom my-var 42 "Docs.")"#).expect("parse");
         let mut ev = Evaluator::new();
         let _result = ev.eval_expr(&forms[0]);
         assert!(ev.obarray().is_special("my-var"));
@@ -817,9 +803,7 @@ mod tests {
 
     #[test]
     fn defgroup_basic() {
-        let results = eval_all(
-            r#"(defgroup my-group nil "My group.")"#,
-        );
+        let results = eval_all(r#"(defgroup my-group nil "My group.")"#);
         assert_eq!(results[0], "OK my-group");
     }
 
@@ -844,18 +828,14 @@ mod tests {
 
     #[test]
     fn defvar_local_basic() {
-        let results = eval_all(
-            r#"(defvar-local my-local 42) my-local"#,
-        );
+        let results = eval_all(r#"(defvar-local my-local 42) my-local"#);
         assert_eq!(results[0], "OK my-local");
         assert_eq!(results[1], "OK 42");
     }
 
     #[test]
     fn defvar_local_marks_special() {
-        let forms = parse_forms(
-            r#"(defvar-local my-local 42)"#,
-        ).expect("parse");
+        let forms = parse_forms(r#"(defvar-local my-local 42)"#).expect("parse");
         let mut ev = Evaluator::new();
         let _result = ev.eval_expr(&forms[0]);
         assert!(ev.obarray().is_special("my-local"));
@@ -863,9 +843,7 @@ mod tests {
 
     #[test]
     fn defvar_local_marks_buffer_local() {
-        let forms = parse_forms(
-            r#"(defvar-local my-local 42)"#,
-        ).expect("parse");
+        let forms = parse_forms(r#"(defvar-local my-local 42)"#).expect("parse");
         let mut ev = Evaluator::new();
         let _result = ev.eval_expr(&forms[0]);
         assert!(ev.custom.is_auto_buffer_local("my-local"));
@@ -873,17 +851,13 @@ mod tests {
 
     #[test]
     fn defvar_local_does_not_override() {
-        let results = eval_all(
-            r#"(setq my-local 99) (defvar-local my-local 42) my-local"#,
-        );
+        let results = eval_all(r#"(setq my-local 99) (defvar-local my-local 42) my-local"#);
         assert_eq!(results[2], "OK 99");
     }
 
     #[test]
     fn defvar_local_with_docstring() {
-        let results = eval_all(
-            r#"(defvar-local my-local 42 "Documentation.") my-local"#,
-        );
+        let results = eval_all(r#"(defvar-local my-local 42 "Documentation.") my-local"#);
         assert_eq!(results[1], "OK 42");
     }
 
@@ -891,25 +865,19 @@ mod tests {
 
     #[test]
     fn setq_default_basic() {
-        let results = eval_all(
-            r#"(defvar x 10) (setq-default x 42) x"#,
-        );
+        let results = eval_all(r#"(defvar x 10) (setq-default x 42) x"#);
         assert_eq!(results[2], "OK 42");
     }
 
     #[test]
     fn setq_default_multiple_pairs() {
-        let results = eval_all(
-            r#"(defvar a 1) (defvar b 2) (setq-default a 10 b 20) a"#,
-        );
+        let results = eval_all(r#"(defvar a 1) (defvar b 2) (setq-default a 10 b 20) a"#);
         assert_eq!(results[3], "OK 10");
     }
 
     #[test]
     fn setq_default_returns_last_value() {
-        let results = eval_all(
-            r#"(setq-default x 42)"#,
-        );
+        let results = eval_all(r#"(setq-default x 42)"#);
         assert_eq!(results[0], "OK 42");
     }
 
@@ -917,25 +885,19 @@ mod tests {
 
     #[test]
     fn default_value_returns_global() {
-        let results = eval_all(
-            r#"(defvar my-var 42) (default-value 'my-var)"#,
-        );
+        let results = eval_all(r#"(defvar my-var 42) (default-value 'my-var)"#);
         assert_eq!(results[1], "OK 42");
     }
 
     #[test]
     fn default_value_void_signals_error() {
-        let results = eval_all(
-            r#"(default-value 'nonexistent-var)"#,
-        );
+        let results = eval_all(r#"(default-value 'nonexistent-var)"#);
         assert!(results[0].starts_with("ERR"));
     }
 
     #[test]
     fn set_default_sets_global() {
-        let results = eval_all(
-            r#"(set-default 'my-var 99) (default-value 'my-var)"#,
-        );
+        let results = eval_all(r#"(set-default 'my-var 99) (default-value 'my-var)"#);
         assert_eq!(results[1], "OK 99");
     }
 
@@ -943,9 +905,7 @@ mod tests {
 
     #[test]
     fn make_variable_buffer_local_works() {
-        let results = eval_all(
-            r#"(make-variable-buffer-local 'my-var)"#,
-        );
+        let results = eval_all(r#"(make-variable-buffer-local 'my-var)"#);
         assert_eq!(results[0], "OK my-var");
     }
 
@@ -1021,9 +981,7 @@ mod tests {
 
     #[test]
     fn custom_set_faces_returns_nil() {
-        let results = eval_all(
-            r#"(custom-set-faces '(default ((t (:height 120)))))"#,
-        );
+        let results = eval_all(r#"(custom-set-faces '(default ((t (:height 120)))))"#);
         assert_eq!(results[0], "OK nil");
     }
 
@@ -1044,7 +1002,8 @@ mod tests {
         let forms = parse_forms(
             r#"(defvar-local my-local-var 99)
                (make-variable-buffer-local 'other-var)"#,
-        ).expect("parse");
+        )
+        .expect("parse");
         let mut ev = Evaluator::new();
         let _results: Vec<_> = ev.eval_forms(&forms);
         assert!(ev.custom.is_auto_buffer_local("my-local-var"));
@@ -1065,7 +1024,8 @@ mod tests {
         let forms = parse_forms(
             r#"(defgroup g1 nil "Group 1.")
                (defgroup g2 nil "Group 2.")"#,
-        ).expect("parse");
+        )
+        .expect("parse");
         let mut ev = Evaluator::new();
         let _results: Vec<_> = ev.eval_forms(&forms);
         assert!(ev.custom.is_custom_group("g1"));
@@ -1074,9 +1034,7 @@ mod tests {
 
     #[test]
     fn setq_default_works_on_new_variable() {
-        let results = eval_all(
-            r#"(setq-default new-var 100) new-var"#,
-        );
+        let results = eval_all(r#"(setq-default new-var 100) new-var"#);
         assert_eq!(results[1], "OK 100");
     }
 }

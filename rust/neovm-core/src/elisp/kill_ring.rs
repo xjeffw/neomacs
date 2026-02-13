@@ -12,7 +12,7 @@
 //!   newline-and-indent, delete-indentation, tab-to-tab-stop, indent-rigidly
 
 use super::error::{signal, EvalResult, Flow};
-use super::syntax::{forward_word, backward_word};
+use super::syntax::{backward_word, forward_word};
 use super::value::Value;
 use crate::buffer::Buffer;
 
@@ -169,7 +169,11 @@ impl KillRing {
 
     /// Convert the kill ring contents to a Lisp list of strings.
     pub fn to_lisp_list(&self) -> Value {
-        let values: Vec<Value> = self.entries.iter().map(|s| Value::string(s.clone())).collect();
+        let values: Vec<Value> = self
+            .entries
+            .iter()
+            .map(|s| Value::string(s.clone()))
+            .collect();
         Value::list(values)
     }
 }
@@ -200,10 +204,7 @@ fn resolve_region(buf: &Buffer, beg: i64, end: i64) -> (usize, usize) {
 
 /// `(kill-new STRING &optional REPLACE)` — add STRING to the kill ring.
 /// If REPLACE is non-nil, replace the most recent entry instead.
-pub(crate) fn builtin_kill_new(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_kill_new(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("kill-new", &args, 1)?;
     let text = expect_string(&args[0])?;
     let replace = args.get(1).map_or(false, |v| v.is_truthy());
@@ -261,11 +262,16 @@ pub(crate) fn builtin_kill_region(
     let beg_val = expect_int(&args[0])?;
     let end_val = expect_int(&args[1])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let (beg, end) = resolve_region(buf, beg_val, end_val);
@@ -274,7 +280,9 @@ pub(crate) fn builtin_kill_region(
     eval.kill_ring.push(text);
     eval.kill_ring.last_was_yank = false;
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(beg, end);
 
@@ -290,7 +298,9 @@ pub(crate) fn builtin_kill_ring_save(
     let beg_val = expect_int(&args[0])?;
     let end_val = expect_int(&args[1])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     let (beg, end) = resolve_region(buf, beg_val, end_val);
@@ -311,15 +321,17 @@ pub(crate) fn builtin_copy_region_as_kill(
 }
 
 /// `(kill-line &optional ARG)` — kill to end of line (or ARG lines forward).
-pub(crate) fn builtin_kill_line(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    let buf = eval.buffers.current_buffer()
+pub(crate) fn builtin_kill_line(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let pt = buf.point();
@@ -407,14 +419,18 @@ pub(crate) fn builtin_kill_line(
         return Ok(Value::Nil);
     }
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let killed_text = buf.buffer_substring(kill_beg, kill_end);
 
     eval.kill_ring.push(killed_text);
     eval.kill_ring.last_was_yank = false;
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(kill_beg, kill_end);
 
@@ -426,11 +442,16 @@ pub(crate) fn builtin_kill_whole_line(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let n = if args.is_empty() || args[0].is_nil() {
@@ -502,7 +523,9 @@ pub(crate) fn builtin_kill_whole_line(
         eval.kill_ring.push(killed_text);
         eval.kill_ring.last_was_yank = false;
 
-        let buf = eval.buffers.current_buffer_mut()
+        let buf = eval
+            .buffers
+            .current_buffer_mut()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         buf.delete_region(kill_start, kill_end);
         return Ok(Value::Nil);
@@ -514,7 +537,9 @@ pub(crate) fn builtin_kill_whole_line(
     eval.kill_ring.push(killed_text);
     eval.kill_ring.last_was_yank = false;
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(line_start, kill_end);
 
@@ -522,31 +547,39 @@ pub(crate) fn builtin_kill_whole_line(
 }
 
 /// `(kill-word ARG)` — kill characters forward until encountering the end of a word.
-pub(crate) fn builtin_kill_word(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_kill_word(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("kill-word", &args, 1)?;
     let n = expect_int(&args[0])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let table = buf.syntax_table.clone();
     let pt = buf.point();
     let target = forward_word(buf, &table, n);
 
-    let (beg, end) = if target >= pt { (pt, target) } else { (target, pt) };
+    let (beg, end) = if target >= pt {
+        (pt, target)
+    } else {
+        (target, pt)
+    };
     let killed_text = buf.buffer_substring(beg, end);
 
     eval.kill_ring.push(killed_text);
     eval.kill_ring.last_was_yank = false;
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(beg, end);
 
@@ -561,24 +594,35 @@ pub(crate) fn builtin_backward_kill_word(
     expect_args("backward-kill-word", &args, 1)?;
     let n = expect_int(&args[0])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let table = buf.syntax_table.clone();
     let pt = buf.point();
     let target = backward_word(buf, &table, n);
 
-    let (beg, end) = if target <= pt { (target, pt) } else { (pt, target) };
+    let (beg, end) = if target <= pt {
+        (target, pt)
+    } else {
+        (pt, target)
+    };
     let killed_text = buf.buffer_substring(beg, end);
 
     eval.kill_ring.push(killed_text);
     eval.kill_ring.last_was_yank = false;
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(beg, end);
 
@@ -586,10 +630,7 @@ pub(crate) fn builtin_backward_kill_word(
 }
 
 /// `(yank &optional ARG)` — reinsert the last stretch of killed text.
-pub(crate) fn builtin_yank(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_yank(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     // If ARG is given, rotate kill ring first.
     if !args.is_empty() && args[0].is_truthy() {
         let n = expect_int(&args[0])?;
@@ -598,15 +639,22 @@ pub(crate) fn builtin_yank(
         }
     }
 
-    let text = eval.kill_ring.current()
+    let text = eval
+        .kill_ring
+        .current()
         .ok_or_else(|| signal("error", vec![Value::string("Kill ring is empty")]))?
         .to_string();
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let start = buf.point();
@@ -623,12 +671,12 @@ pub(crate) fn builtin_yank(
 }
 
 /// `(yank-pop &optional ARG)` — replace yanked text with an older kill.
-pub(crate) fn builtin_yank_pop(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_yank_pop(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !eval.kill_ring.last_was_yank {
-        return Err(signal("error", vec![Value::string("Previous command was not a yank")]));
+        return Err(signal(
+            "error",
+            vec![Value::string("Previous command was not a yank")],
+        ));
     }
 
     let n = if args.is_empty() || args[0].is_nil() {
@@ -637,19 +685,28 @@ pub(crate) fn builtin_yank_pop(
         expect_int(&args[0])?
     };
 
-    let (old_start, old_end) = eval.kill_ring.last_yank_region
+    let (old_start, old_end) = eval
+        .kill_ring
+        .last_yank_region
         .ok_or_else(|| signal("error", vec![Value::string("No previous yank")]))?;
 
     // Rotate to get new text.
-    let new_text = eval.kill_ring.rotate(n)
+    let new_text = eval
+        .kill_ring
+        .rotate(n)
         .ok_or_else(|| signal("error", vec![Value::string("Kill ring is empty")]))?
         .to_string();
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     // Delete the previously yanked text.
@@ -680,11 +737,16 @@ pub(crate) fn builtin_downcase_region(
     let beg_val = expect_int(&args[0])?;
     let end_val = expect_int(&args[1])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let (beg, end) = resolve_region(buf, beg_val, end_val);
@@ -695,7 +757,9 @@ pub(crate) fn builtin_downcase_region(
         return Ok(Value::Nil);
     }
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let saved_pt = buf.point();
     buf.delete_region(beg, end);
@@ -715,11 +779,16 @@ pub(crate) fn builtin_upcase_region(
     let beg_val = expect_int(&args[0])?;
     let end_val = expect_int(&args[1])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let (beg, end) = resolve_region(buf, beg_val, end_val);
@@ -730,7 +799,9 @@ pub(crate) fn builtin_upcase_region(
         return Ok(Value::Nil);
     }
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let saved_pt = buf.point();
     buf.delete_region(beg, end);
@@ -750,11 +821,16 @@ pub(crate) fn builtin_capitalize_region(
     let beg_val = expect_int(&args[0])?;
     let end_val = expect_int(&args[1])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let (beg, end) = resolve_region(buf, beg_val, end_val);
@@ -786,7 +862,9 @@ pub(crate) fn builtin_capitalize_region(
         return Ok(Value::Nil);
     }
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let saved_pt = buf.point();
     buf.delete_region(beg, end);
@@ -805,22 +883,33 @@ pub(crate) fn builtin_downcase_word(
     expect_args("downcase-word", &args, 1)?;
     let n = expect_int(&args[0])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let table = buf.syntax_table.clone();
     let pt = buf.point();
     let target = forward_word(buf, &table, n);
 
-    let (beg, end) = if target >= pt { (pt, target) } else { (target, pt) };
+    let (beg, end) = if target >= pt {
+        (pt, target)
+    } else {
+        (target, pt)
+    };
     let text = buf.buffer_substring(beg, end);
     let lower = text.to_lowercase();
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(beg, end);
     buf.goto_char(beg);
@@ -838,22 +927,33 @@ pub(crate) fn builtin_upcase_word(
     expect_args("upcase-word", &args, 1)?;
     let n = expect_int(&args[0])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let table = buf.syntax_table.clone();
     let pt = buf.point();
     let target = forward_word(buf, &table, n);
 
-    let (beg, end) = if target >= pt { (pt, target) } else { (target, pt) };
+    let (beg, end) = if target >= pt {
+        (pt, target)
+    } else {
+        (target, pt)
+    };
     let text = buf.buffer_substring(beg, end);
     let upper = text.to_uppercase();
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(beg, end);
     buf.goto_char(beg);
@@ -870,18 +970,27 @@ pub(crate) fn builtin_capitalize_word(
     expect_args("capitalize-word", &args, 1)?;
     let n = expect_int(&args[0])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let table = buf.syntax_table.clone();
     let pt = buf.point();
     let target = forward_word(buf, &table, n);
 
-    let (beg, end) = if target >= pt { (pt, target) } else { (target, pt) };
+    let (beg, end) = if target >= pt {
+        (pt, target)
+    } else {
+        (target, pt)
+    };
     let text = buf.buffer_substring(beg, end);
 
     // Capitalize: first alpha upper, rest lower.
@@ -902,7 +1011,9 @@ pub(crate) fn builtin_capitalize_word(
         }
     }
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(beg, end);
     buf.goto_char(beg);
@@ -923,11 +1034,16 @@ pub(crate) fn builtin_transpose_chars(
     expect_args("transpose-chars", &args, 1)?;
     let _n = expect_int(&args[0])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let pt = buf.point();
@@ -936,24 +1052,30 @@ pub(crate) fn builtin_transpose_chars(
 
     // Need at least 2 characters.
     if pmax - pmin < 2 {
-        return Err(signal("error", vec![Value::string("Buffer too small to transpose")]));
+        return Err(signal(
+            "error",
+            vec![Value::string("Buffer too small to transpose")],
+        ));
     }
 
     // If at end of buffer, transpose the two characters before point.
     // Otherwise, transpose the character before and after point.
     let (pos_a, pos_b) = if pt >= pmax {
         // At end: swap the two chars before point.
-        let ch_b = buf.char_before(pt)
+        let ch_b = buf
+            .char_before(pt)
             .ok_or_else(|| signal("error", vec![Value::string("Beginning of buffer")]))?;
         let before_b = pt - ch_b.len_utf8();
-        let ch_a = buf.char_before(before_b)
+        let ch_a = buf
+            .char_before(before_b)
             .ok_or_else(|| signal("error", vec![Value::string("Beginning of buffer")]))?;
         let before_a = before_b - ch_a.len_utf8();
         (before_a, before_b)
     } else if pt <= pmin {
         return Err(signal("error", vec![Value::string("Beginning of buffer")]));
     } else {
-        let ch_before = buf.char_before(pt)
+        let ch_before = buf
+            .char_before(pt)
             .ok_or_else(|| signal("error", vec![Value::string("Beginning of buffer")]))?;
         (pt - ch_before.len_utf8(), pt)
     };
@@ -968,7 +1090,9 @@ pub(crate) fn builtin_transpose_chars(
     };
     let text_b = buf.buffer_substring(pos_b, text_b_end);
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     // Replace the range [pos_a, text_b_end) with text_b + text_a.
@@ -988,11 +1112,16 @@ pub(crate) fn builtin_transpose_words(
     expect_args("transpose-words", &args, 1)?;
     let _n = expect_int(&args[0])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let table = buf.syntax_table.clone();
@@ -1006,25 +1135,35 @@ pub(crate) fn builtin_transpose_words(
     let saved_pt = pt;
 
     // Move point to word2_start to find the previous word.
-    let buf_mut = eval.buffers.current_buffer_mut()
+    let buf_mut = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf_mut.goto_char(word2_start);
 
-    let buf_immut = eval.buffers.current_buffer()
+    let buf_immut = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let word1_start = backward_word(buf_immut, &table, 1);
     let word1_end = {
-        let buf_temp = eval.buffers.current_buffer_mut()
+        let buf_temp = eval
+            .buffers
+            .current_buffer_mut()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         buf_temp.goto_char(word1_start);
-        let buf_r = eval.buffers.current_buffer()
+        let buf_r = eval
+            .buffers
+            .current_buffer()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         forward_word(buf_r, &table, 1)
     };
 
     if word1_start == word2_start {
         // Same word — nothing to transpose.
-        let buf_m = eval.buffers.current_buffer_mut()
+        let buf_m = eval
+            .buffers
+            .current_buffer_mut()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         buf_m.goto_char(saved_pt);
         return Ok(Value::Nil);
@@ -1037,14 +1176,18 @@ pub(crate) fn builtin_transpose_words(
         (word2_start, word2_end, word1_start, word1_end)
     };
 
-    let buf_r = eval.buffers.current_buffer()
+    let buf_r = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     let w1_text = buf_r.buffer_substring(w1s, w1e);
     let between = buf_r.buffer_substring(w1e, w2s);
     let w2_text = buf_r.buffer_substring(w2s, w2e);
 
-    let buf_m = eval.buffers.current_buffer_mut()
+    let buf_m = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     // Replace the whole range [w1s, w2e) with w2 + between + w1.
@@ -1065,11 +1208,16 @@ pub(crate) fn builtin_transpose_lines(
     expect_args("transpose-lines", &args, 1)?;
     let _n = expect_int(&args[0])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let pt = buf.point();
@@ -1086,18 +1234,23 @@ pub(crate) fn builtin_transpose_lines(
 
     let text_from_pt = buf.buffer_substring(pt, pmax);
     let cur_line_end = if let Some(nl_pos) = text_from_pt.find('\n') {
-        pt + nl_pos + 1  // Include the newline.
+        pt + nl_pos + 1 // Include the newline.
     } else {
         pmax
     };
 
     // Find previous line boundaries.
     if cur_line_start == pmin {
-        return Err(signal("error", vec![Value::string("No previous line to transpose")]));
+        return Err(signal(
+            "error",
+            vec![Value::string("No previous line to transpose")],
+        ));
     }
 
     let text_before_cur = buf.buffer_substring(pmin, cur_line_start);
-    let prev_line_start = if let Some(nl_pos) = text_before_cur[..text_before_cur.len().saturating_sub(1)].rfind('\n') {
+    let prev_line_start = if let Some(nl_pos) =
+        text_before_cur[..text_before_cur.len().saturating_sub(1)].rfind('\n')
+    {
         pmin + nl_pos + 1
     } else {
         pmin
@@ -1106,7 +1259,9 @@ pub(crate) fn builtin_transpose_lines(
     let prev_line_text = buf.buffer_substring(prev_line_start, cur_line_start);
     let cur_line_text = buf.buffer_substring(cur_line_start, cur_line_end);
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     // Replace [prev_line_start, cur_line_end) with cur_line + prev_line.
@@ -1130,11 +1285,16 @@ pub(crate) fn builtin_indent_line_to(
     expect_args("indent-line-to", &args, 1)?;
     let column = expect_int(&args[0])?.max(0) as usize;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let pt = buf.point();
@@ -1160,7 +1320,9 @@ pub(crate) fn builtin_indent_line_to(
 
     let new_indent: String = " ".repeat(column);
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(line_start, indent_end);
     buf.goto_char(line_start);
@@ -1171,10 +1333,7 @@ pub(crate) fn builtin_indent_line_to(
 
 /// `(indent-to COLUMN &optional MINIMUM)` — indent from point to COLUMN.
 /// Insert at least MINIMUM spaces (default 0).
-pub(crate) fn builtin_indent_to(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_indent_to(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("indent-to", &args, 1)?;
     let column = expect_int(&args[0])?.max(0) as usize;
     let minimum = if args.len() > 1 && args[1].is_truthy() {
@@ -1183,11 +1342,16 @@ pub(crate) fn builtin_indent_to(
         0
     };
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let pt = buf.point();
@@ -1209,7 +1373,9 @@ pub(crate) fn builtin_indent_to(
 
     if spaces_needed > 0 {
         let spaces: String = " ".repeat(spaces_needed);
-        let buf = eval.buffers.current_buffer_mut()
+        let buf = eval
+            .buffers
+            .current_buffer_mut()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         buf.insert(&spaces);
     }
@@ -1218,21 +1384,23 @@ pub(crate) fn builtin_indent_to(
 }
 
 /// `(newline &optional ARG INTERACTIVE)` — insert one or more newlines.
-pub(crate) fn builtin_newline(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_newline(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     let n = if args.is_empty() || args[0].is_nil() {
         1usize
     } else {
         expect_int(&args[0])?.max(0) as usize
     };
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let newlines: String = "\n".repeat(n);
@@ -1250,7 +1418,9 @@ pub(crate) fn builtin_newline_and_indent(
     builtin_newline(eval, args)?;
 
     // Simple indentation: copy the indentation of the previous line.
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     let pt = buf.point();
@@ -1272,10 +1442,15 @@ pub(crate) fn builtin_newline_and_indent(
     let prev_line = &text_before[prev_line_start..text_before.len().saturating_sub(1)];
 
     // Extract leading whitespace.
-    let indent: String = prev_line.chars().take_while(|&c| c == ' ' || c == '\t').collect();
+    let indent: String = prev_line
+        .chars()
+        .take_while(|&c| c == ' ' || c == '\t')
+        .collect();
 
     if !indent.is_empty() {
-        let buf = eval.buffers.current_buffer_mut()
+        let buf = eval
+            .buffers
+            .current_buffer_mut()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         buf.insert(&indent);
     }
@@ -1291,11 +1466,16 @@ pub(crate) fn builtin_delete_indentation(
 ) -> EvalResult {
     let join_following = !args.is_empty() && args[0].is_truthy();
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let pt = buf.point();
@@ -1319,7 +1499,9 @@ pub(crate) fn builtin_delete_indentation(
                     .map(|c| c.len_utf8())
                     .sum();
 
-                let buf = eval.buffers.current_buffer_mut()
+                let buf = eval
+                    .buffers
+                    .current_buffer_mut()
                     .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
                 buf.delete_region(nl_byte, next_line_start + indent_len);
                 // Insert a single space (unless at beginning of line).
@@ -1349,7 +1531,9 @@ pub(crate) fn builtin_delete_indentation(
             .map(|c| c.len_utf8())
             .sum();
 
-        let buf = eval.buffers.current_buffer_mut()
+        let buf = eval
+            .buffers
+            .current_buffer_mut()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         buf.delete_region(nl_byte, cur_line_start + indent_len);
         // Insert a single space.
@@ -1368,11 +1552,16 @@ pub(crate) fn builtin_tab_to_tab_stop(
 ) -> EvalResult {
     let _ = args; // No arguments.
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let pt = buf.point();
@@ -1391,7 +1580,9 @@ pub(crate) fn builtin_tab_to_tab_stop(
     let spaces_needed = next_stop - cur_col;
 
     let spaces: String = " ".repeat(spaces_needed);
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.insert(&spaces);
 
@@ -1409,11 +1600,16 @@ pub(crate) fn builtin_indent_rigidly(
     let end_val = expect_int(&args[1])?;
     let indent_arg = expect_int(&args[2])?;
 
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
     if buf.read_only {
-        return Err(signal("buffer-read-only", vec![Value::string(buf.name.clone())]));
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
     }
 
     let (start, end) = resolve_region(buf, start_val, end_val);
@@ -1445,7 +1641,9 @@ pub(crate) fn builtin_indent_rigidly(
         }
     }
 
-    let buf = eval.buffers.current_buffer_mut()
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     buf.delete_region(start, end);
     buf.goto_char(start);
@@ -1460,7 +1658,7 @@ pub(crate) fn builtin_indent_rigidly(
 
 #[cfg(test)]
 mod tests {
-    use crate::elisp::{Evaluator, parse_forms, format_eval_result};
+    use crate::elisp::{format_eval_result, parse_forms, Evaluator};
 
     fn eval_one(src: &str) -> String {
         let forms = parse_forms(src).expect("parse");
@@ -1472,7 +1670,10 @@ mod tests {
     fn eval_all(src: &str) -> Vec<String> {
         let forms = parse_forms(src).expect("parse");
         let mut ev = Evaluator::new();
-        ev.eval_forms(&forms).iter().map(format_eval_result).collect()
+        ev.eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect()
     }
 
     // -- KillRing data structure tests --
@@ -1603,7 +1804,7 @@ mod tests {
             r#"(kill-new "a") (kill-new "b") (kill-new "c")
                (current-kill 0)
                (current-kill 1)
-               (current-kill 1)"#
+               (current-kill 1)"#,
         );
         assert_eq!(results[3], r#"OK "c""#);
         assert_eq!(results[4], r#"OK "b""#);
@@ -1623,7 +1824,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "hello world")
                (kill-region 0 5)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK " world""#);
     }
@@ -1633,7 +1834,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "hello world")
                (kill-region 0 5)
-               (current-kill 0)"#
+               (current-kill 0)"#,
         );
         assert_eq!(results[2], r#"OK "hello""#);
     }
@@ -1646,7 +1847,7 @@ mod tests {
             r#"(insert "hello world")
                (kill-ring-save 0 5)
                (buffer-string)
-               (current-kill 0)"#
+               (current-kill 0)"#,
         );
         // Buffer content should be unchanged.
         assert_eq!(results[2], r#"OK "hello world""#);
@@ -1662,7 +1863,7 @@ mod tests {
             r#"(insert "hello\nworld")
                (goto-char 0)
                (kill-line)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "\nworld""#);
     }
@@ -1673,7 +1874,7 @@ mod tests {
             r#"(insert "hello\nworld")
                (goto-char 6)
                (kill-line)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         // When at the newline, kill-line should kill the newline.
         assert_eq!(results[3], r#"OK "helloworld""#);
@@ -1685,7 +1886,7 @@ mod tests {
             r#"(insert "line1\nline2\nline3")
                (goto-char 0)
                (kill-line 2)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "line3""#);
     }
@@ -1698,7 +1899,7 @@ mod tests {
             r#"(insert "line1\nline2\nline3")
                (goto-char 8)
                (kill-whole-line)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         // Point is at "line2", should kill "line2\n".
         assert_eq!(results[3], r#"OK "line1\nline3""#);
@@ -1712,7 +1913,7 @@ mod tests {
             r#"(insert "hello world")
                (goto-char 0)
                (kill-word 1)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK " world""#);
     }
@@ -1723,7 +1924,7 @@ mod tests {
             r#"(insert "hello world")
                (goto-char 0)
                (kill-word 1)
-               (current-kill 0)"#
+               (current-kill 0)"#,
         );
         assert_eq!(results[3], r#"OK "hello""#);
     }
@@ -1735,7 +1936,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "hello world")
                (backward-kill-word 1)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "hello ""#);
     }
@@ -1747,7 +1948,7 @@ mod tests {
         let results = eval_all(
             r#"(kill-new "inserted")
                (yank)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "inserted""#);
     }
@@ -1758,7 +1959,7 @@ mod tests {
             r#"(kill-new "first")
                (kill-new "second")
                (yank 2)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         // yank with arg 2 should insert the second-most-recent kill (i.e. "first").
         assert_eq!(results[3], r#"OK "first""#);
@@ -1779,7 +1980,7 @@ mod tests {
                (kill-new "second")
                (yank)
                (yank-pop)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         // After yank-pop, "second" should be replaced by "first".
         assert_eq!(results[4], r#"OK "first""#);
@@ -1798,7 +1999,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "HELLO WORLD")
                (downcase-region 0 11)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "hello world""#);
     }
@@ -1810,7 +2011,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "hello world")
                (upcase-region 0 11)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "HELLO WORLD""#);
     }
@@ -1822,7 +2023,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "hello world")
                (capitalize-region 0 11)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "Hello World""#);
     }
@@ -1835,7 +2036,7 @@ mod tests {
             r#"(insert "HELLO WORLD")
                (goto-char 0)
                (downcase-word 1)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "hello WORLD""#);
     }
@@ -1848,7 +2049,7 @@ mod tests {
             r#"(insert "hello world")
                (goto-char 0)
                (upcase-word 1)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "HELLO world""#);
     }
@@ -1861,7 +2062,7 @@ mod tests {
             r#"(insert "hello world")
                (goto-char 0)
                (capitalize-word 1)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "Hello world""#);
     }
@@ -1872,7 +2073,7 @@ mod tests {
             r#"(insert "hELLO world")
                (goto-char 0)
                (capitalize-word 1)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "Hello world""#);
     }
@@ -1885,7 +2086,7 @@ mod tests {
             r#"(insert "abc")
                (goto-char 2)
                (transpose-chars 1)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "bac""#);
     }
@@ -1895,7 +2096,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "abc")
                (transpose-chars 1)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         // Point is at end (3), should swap 'b' and 'c'.
         assert_eq!(results[2], r#"OK "acb""#);
@@ -1909,7 +2110,7 @@ mod tests {
             r#"(insert "line1\nline2\nline3")
                (goto-char 8)
                (transpose-lines 1)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "line2\nline1\nline3""#);
     }
@@ -1921,7 +2122,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "hello")
                (indent-line-to 4)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "    hello""#);
     }
@@ -1931,7 +2132,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "  hello")
                (indent-line-to 4)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "    hello""#);
     }
@@ -1943,7 +2144,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "hi")
                (indent-to 8)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         // "hi" is at col 0-1, we want to indent to col 8, so 6 spaces after "hi".
         assert_eq!(results[2], r#"OK "hi      ""#);
@@ -1957,16 +2158,14 @@ mod tests {
             r#"(insert "ab")
                (goto-char 2)
                (newline)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "a\nb""#);
     }
 
     #[test]
     fn newline_multiple() {
-        let results = eval_all(
-            r#"(newline 3) (buffer-string)"#
-        );
+        let results = eval_all(r#"(newline 3) (buffer-string)"#);
         assert_eq!(results[1], r#"OK "\n\n\n""#);
     }
 
@@ -1977,7 +2176,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "    hello")
                (newline-and-indent)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         // Should add newline + 4 spaces of indentation (copying prev line).
         assert_eq!(results[2], r#"OK "    hello\n    ""#);
@@ -1991,7 +2190,7 @@ mod tests {
             r#"(insert "hello\n    world")
                (goto-char 14)
                (delete-indentation)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[3], r#"OK "hello world""#);
     }
@@ -2003,7 +2202,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "hi")
                (tab-to-tab-stop)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         // "hi" is 2 chars, next tab stop at 8, so 6 spaces.
         assert_eq!(results[2], r#"OK "hi      ""#);
@@ -2016,7 +2215,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "a\nb\nc")
                (indent-rigidly 0 5 2)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "  a\n  b\n  c""#);
     }
@@ -2026,7 +2225,7 @@ mod tests {
         let results = eval_all(
             r#"(insert "  a\n  b\n  c")
                (indent-rigidly 0 11 -2)
-               (buffer-string)"#
+               (buffer-string)"#,
         );
         assert_eq!(results[2], r#"OK "a\nb\nc""#);
     }
@@ -2039,7 +2238,7 @@ mod tests {
             r#"(insert "hello world")
                (copy-region-as-kill 0 5)
                (buffer-string)
-               (current-kill 0)"#
+               (current-kill 0)"#,
         );
         assert_eq!(results[2], r#"OK "hello world""#);
         assert_eq!(results[3], r#"OK "hello""#);

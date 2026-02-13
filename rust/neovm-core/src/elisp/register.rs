@@ -370,38 +370,32 @@ pub(crate) fn builtin_view_register(
             };
             Ok(Value::string(desc))
         }
-        Some(RegisterContent::Number(n)) => {
-            Ok(Value::string(format!("Register {} contains the number {}", reg, n)))
-        }
-        Some(RegisterContent::Position { buffer, point }) => {
-            Ok(Value::string(format!(
-                "Register {} contains a position: buffer={} point={}",
-                reg, buffer, point
-            )))
-        }
-        Some(RegisterContent::Rectangle(lines)) => {
-            Ok(Value::string(format!(
-                "Register {} contains a rectangle ({} lines)",
-                reg,
-                lines.len()
-            )))
-        }
-        Some(RegisterContent::FrameConfig(_)) => {
-            Ok(Value::string(format!(
-                "Register {} contains a frame configuration",
-                reg
-            )))
-        }
-        Some(RegisterContent::File(f)) => {
-            Ok(Value::string(format!("Register {} contains file: {}", reg, f)))
-        }
-        Some(RegisterContent::KbdMacro(keys)) => {
-            Ok(Value::string(format!(
-                "Register {} contains a keyboard macro ({} keys)",
-                reg,
-                keys.len()
-            )))
-        }
+        Some(RegisterContent::Number(n)) => Ok(Value::string(format!(
+            "Register {} contains the number {}",
+            reg, n
+        ))),
+        Some(RegisterContent::Position { buffer, point }) => Ok(Value::string(format!(
+            "Register {} contains a position: buffer={} point={}",
+            reg, buffer, point
+        ))),
+        Some(RegisterContent::Rectangle(lines)) => Ok(Value::string(format!(
+            "Register {} contains a rectangle ({} lines)",
+            reg,
+            lines.len()
+        ))),
+        Some(RegisterContent::FrameConfig(_)) => Ok(Value::string(format!(
+            "Register {} contains a frame configuration",
+            reg
+        ))),
+        Some(RegisterContent::File(f)) => Ok(Value::string(format!(
+            "Register {} contains file: {}",
+            reg, f
+        ))),
+        Some(RegisterContent::KbdMacro(keys)) => Ok(Value::string(format!(
+            "Register {} contains a keyboard macro ({} keys)",
+            reg,
+            keys.len()
+        ))),
         None => Ok(Value::string(format!("Register {} is empty", reg))),
     }
 }
@@ -419,12 +413,10 @@ pub(crate) fn builtin_get_register(
     match eval.registers.get(reg) {
         Some(RegisterContent::Text(s)) => Ok(Value::string(s.clone())),
         Some(RegisterContent::Number(n)) => Ok(Value::Int(*n)),
-        Some(RegisterContent::Position { buffer, point }) => {
-            Ok(Value::cons(
-                Value::string(buffer.clone()),
-                Value::Int(*point as i64),
-            ))
-        }
+        Some(RegisterContent::Position { buffer, point }) => Ok(Value::cons(
+            Value::string(buffer.clone()),
+            Value::Int(*point as i64),
+        )),
         Some(RegisterContent::Rectangle(lines)) => {
             let vals: Vec<Value> = lines.iter().map(|l| Value::string(l.clone())).collect();
             Ok(Value::list(vals))
@@ -586,7 +578,11 @@ mod tests {
     fn rectangle_and_kbd_macro() {
         let mut mgr = RegisterManager::new();
 
-        let rect = vec!["line1".to_string(), "line2".to_string(), "line3".to_string()];
+        let rect = vec![
+            "line1".to_string(),
+            "line2".to_string(),
+            "line3".to_string(),
+        ];
         mgr.set('r', RegisterContent::Rectangle(rect));
         match mgr.get('r') {
             Some(RegisterContent::Rectangle(lines)) => assert_eq!(lines.len(), 3),
@@ -654,10 +650,7 @@ mod tests {
         let mut eval = Evaluator::new();
 
         // number-to-register
-        let result = builtin_number_to_register(
-            &mut eval,
-            vec![Value::Int(10), Value::Char('n')],
-        );
+        let result = builtin_number_to_register(&mut eval, vec![Value::Int(10), Value::Char('n')]);
         assert!(result.is_ok());
 
         // get-register -> returns 10
@@ -666,10 +659,7 @@ mod tests {
         assert!(matches!(result.unwrap(), Value::Int(10)));
 
         // increment-register by 5
-        let result = builtin_increment_register(
-            &mut eval,
-            vec![Value::Int(5), Value::Char('n')],
-        );
+        let result = builtin_increment_register(&mut eval, vec![Value::Int(5), Value::Char('n')]);
         assert!(result.is_ok());
 
         // Now should be 15
@@ -685,10 +675,7 @@ mod tests {
         let mut eval = Evaluator::new();
 
         // Incrementing empty register starts from 0
-        let result = builtin_increment_register(
-            &mut eval,
-            vec![Value::Int(7), Value::Char('e')],
-        );
+        let result = builtin_increment_register(&mut eval, vec![Value::Int(7), Value::Char('e')]);
         assert!(result.is_ok());
 
         let result = builtin_get_register(&mut eval, vec![Value::Char('e')]);
@@ -714,10 +701,7 @@ mod tests {
         assert_eq!(result.unwrap().as_str(), Some("saved text"));
 
         // Set nil clears
-        let result = builtin_set_register(
-            &mut eval,
-            vec![Value::Char('s'), Value::Nil],
-        );
+        let result = builtin_set_register(&mut eval, vec![Value::Char('s'), Value::Nil]);
         assert!(result.is_ok());
 
         let result = builtin_get_register(&mut eval, vec![Value::Char('s')]);

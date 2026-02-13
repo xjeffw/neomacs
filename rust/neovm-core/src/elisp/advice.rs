@@ -101,7 +101,10 @@ impl AdviceManager {
 
         // If advice with the same name already exists, replace it
         if let Some(ref n) = name {
-            if let Some(existing) = entry.iter_mut().find(|a| a.name.as_deref() == Some(n.as_str())) {
+            if let Some(existing) = entry
+                .iter_mut()
+                .find(|a| a.name.as_deref() == Some(n.as_str()))
+            {
                 existing.advice_type = advice_type;
                 existing.function = advice_fn;
                 return;
@@ -197,11 +200,9 @@ impl VariableWatcherList {
     pub fn add_watcher(&mut self, var_name: &str, callback: Value) {
         let entry = self.watchers.entry(var_name.to_string()).or_default();
         // Don't add duplicate watchers (check by symbol name)
-        let already_exists = entry.iter().any(|w| {
-            match (&w.callback, &callback) {
-                (Value::Symbol(a), Value::Symbol(b)) => a == b,
-                _ => false,
-            }
+        let already_exists = entry.iter().any(|w| match (&w.callback, &callback) {
+            (Value::Symbol(a), Value::Symbol(b)) => a == b,
+            _ => false,
         });
         if !already_exists {
             entry.push(VariableWatcher { callback });
@@ -211,9 +212,7 @@ impl VariableWatcherList {
     /// Remove a watcher callback for a variable, identified by function name.
     pub fn remove_watcher(&mut self, var_name: &str, callback_name: &str) {
         if let Some(list) = self.watchers.get_mut(var_name) {
-            list.retain(|w| {
-                !matches!(&w.callback, Value::Symbol(s) if s == callback_name)
-            });
+            list.retain(|w| !matches!(&w.callback, Value::Symbol(s) if s == callback_name));
             if list.is_empty() {
                 self.watchers.remove(var_name);
             }
@@ -355,7 +354,8 @@ pub(crate) fn builtin_advice_add(
         }
     };
 
-    eval.advice.add_advice(&target, advice_type, advice_fn, name);
+    eval.advice
+        .add_advice(&target, advice_type, advice_fn, name);
     Ok(Value::Nil)
 }
 
@@ -452,12 +452,27 @@ mod tests {
 
     #[test]
     fn advice_type_from_keyword() {
-        assert_eq!(AdviceType::from_keyword(":before"), Some(AdviceType::Before));
+        assert_eq!(
+            AdviceType::from_keyword(":before"),
+            Some(AdviceType::Before)
+        );
         assert_eq!(AdviceType::from_keyword(":after"), Some(AdviceType::After));
-        assert_eq!(AdviceType::from_keyword(":around"), Some(AdviceType::Around));
-        assert_eq!(AdviceType::from_keyword(":override"), Some(AdviceType::Override));
-        assert_eq!(AdviceType::from_keyword(":filter-args"), Some(AdviceType::FilterArgs));
-        assert_eq!(AdviceType::from_keyword(":filter-return"), Some(AdviceType::FilterReturn));
+        assert_eq!(
+            AdviceType::from_keyword(":around"),
+            Some(AdviceType::Around)
+        );
+        assert_eq!(
+            AdviceType::from_keyword(":override"),
+            Some(AdviceType::Override)
+        );
+        assert_eq!(
+            AdviceType::from_keyword(":filter-args"),
+            Some(AdviceType::FilterArgs)
+        );
+        assert_eq!(
+            AdviceType::from_keyword(":filter-return"),
+            Some(AdviceType::FilterReturn)
+        );
         assert_eq!(AdviceType::from_keyword(":bogus"), None);
     }
 
@@ -490,7 +505,12 @@ mod tests {
 
         mgr.add_advice("fn", AdviceType::After, Value::symbol("after-fn"), None);
         mgr.add_advice("fn", AdviceType::Before, Value::symbol("before-fn"), None);
-        mgr.add_advice("fn", AdviceType::FilterArgs, Value::symbol("filter-fn"), None);
+        mgr.add_advice(
+            "fn",
+            AdviceType::FilterArgs,
+            Value::symbol("filter-fn"),
+            None,
+        );
         mgr.add_advice("fn", AdviceType::Around, Value::symbol("around-fn"), None);
 
         let advice_list = mgr.get_advice("fn");
@@ -594,12 +614,7 @@ mod tests {
         wl.add_watcher("my-var", Value::symbol("my-watcher"));
         assert!(wl.has_watchers("my-var"));
 
-        let calls = wl.notify_watchers(
-            "my-var",
-            &Value::Int(42),
-            &Value::Int(0),
-            "set",
-        );
+        let calls = wl.notify_watchers("my-var", &Value::Int(42), &Value::Int(0), "set");
         assert_eq!(calls.len(), 1);
 
         let (callback, args) = &calls[0];

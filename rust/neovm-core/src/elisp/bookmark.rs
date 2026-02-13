@@ -870,12 +870,15 @@ mod tests {
 
         builtin_bookmark_set(
             &mut eval,
-            vec![Value::string("annotated"), Value::Nil, Value::string("my note")],
+            vec![
+                Value::string("annotated"),
+                Value::Nil,
+                Value::string("my note"),
+            ],
         )
         .unwrap();
 
-        let result =
-            builtin_bookmark_get_annotation(&mut eval, vec![Value::string("annotated")]);
+        let result = builtin_bookmark_get_annotation(&mut eval, vec![Value::string("annotated")]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("my note"));
 
@@ -886,8 +889,7 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        let result =
-            builtin_bookmark_get_annotation(&mut eval, vec![Value::string("annotated")]);
+        let result = builtin_bookmark_get_annotation(&mut eval, vec![Value::string("annotated")]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("updated note"));
 
@@ -898,8 +900,7 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        let result =
-            builtin_bookmark_get_annotation(&mut eval, vec![Value::string("annotated")]);
+        let result = builtin_bookmark_get_annotation(&mut eval, vec![Value::string("annotated")]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
@@ -929,8 +930,7 @@ mod tests {
 
         // Clear and load
         eval.bookmarks = BookmarkManager::new();
-        let result =
-            builtin_bookmark_load(&mut eval, vec![saved_data]);
+        let result = builtin_bookmark_load(&mut eval, vec![saved_data]);
         assert!(result.is_ok());
 
         // Verify restored
