@@ -625,29 +625,8 @@ pub(crate) fn sf_gv_define_setter(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elisp::{format_eval_result, parse_forms};
+    use crate::elisp::parse_forms;
     use super::super::eval::Evaluator;
-
-    fn eval_one(src: &str) -> String {
-        let forms = parse_forms(src).expect("parse");
-        let mut ev = Evaluator::new();
-        let result = ev.eval_expr(&forms[0]);
-        format_eval_result(&result)
-    }
-
-    fn eval_all(src: &str) -> Vec<String> {
-        let forms = parse_forms(src).expect("parse");
-        let mut ev = Evaluator::new();
-        ev.eval_forms(&forms)
-            .iter()
-            .map(format_eval_result)
-            .collect()
-    }
-
-    fn eval_last(src: &str) -> String {
-        let results = eval_all(src);
-        results.last().unwrap().clone()
-    }
 
     // -- helper to register setf/push/pop/cl-incf/cl-decf as special forms --
     // Since we are not wired into eval.rs yet, we test through a mini evaluator
