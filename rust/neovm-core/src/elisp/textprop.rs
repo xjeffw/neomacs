@@ -61,10 +61,7 @@ fn expect_symbol_name(value: &Value) -> Result<String, Flow> {
 
 /// Convert a 1-based Elisp char position to a 0-based byte position,
 /// clamping within the buffer.
-fn elisp_pos_to_byte(
-    buf: &crate::buffer::buffer::Buffer,
-    pos: i64,
-) -> usize {
+fn elisp_pos_to_byte(buf: &crate::buffer::buffer::Buffer, pos: i64) -> usize {
     let char_pos = if pos > 0 { pos as usize - 1 } else { 0 };
     let clamped = char_pos.min(buf.text.char_count());
     buf.text.char_to_byte(clamped)
@@ -82,12 +79,11 @@ fn resolve_buffer_id(
     object: Option<&Value>,
 ) -> Result<BufferId, Flow> {
     match object {
-        None | Some(Value::Nil) => {
-            eval.buffers
-                .current_buffer()
-                .map(|b| b.id)
-                .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))
-        }
+        None | Some(Value::Nil) => eval
+            .buffers
+            .current_buffer()
+            .map(|b| b.id)
+            .ok_or_else(|| signal("error", vec![Value::string("No current buffer")])),
         Some(Value::Buffer(id)) => Ok(*id),
         Some(other) => Err(signal(
             "wrong-type-argument",
@@ -145,9 +141,10 @@ pub(crate) fn builtin_put_text_property(
     let val = args[3].clone();
     let buf_id = resolve_buffer_id(eval, args.get(4))?;
 
-    let buf = eval.buffers.get_mut(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get_mut(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_beg = elisp_pos_to_byte(buf, beg);
     let byte_end = elisp_pos_to_byte(buf, end);
@@ -165,9 +162,10 @@ pub(crate) fn builtin_get_text_property(
     let prop = expect_symbol_name(&args[1])?;
     let buf_id = resolve_buffer_id(eval, args.get(2))?;
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_pos = elisp_pos_to_byte(buf, pos);
     match buf.text_props.get_property(byte_pos, &prop) {
@@ -200,9 +198,10 @@ pub(crate) fn builtin_add_text_properties(
     let pairs = plist_pairs(&args[2])?;
     let buf_id = resolve_buffer_id(eval, args.get(3))?;
 
-    let buf = eval.buffers.get_mut(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get_mut(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_beg = elisp_pos_to_byte(buf, beg);
     let byte_end = elisp_pos_to_byte(buf, end);
@@ -224,9 +223,10 @@ pub(crate) fn builtin_remove_text_properties(
     let pairs = plist_pairs(&args[2])?;
     let buf_id = resolve_buffer_id(eval, args.get(3))?;
 
-    let buf = eval.buffers.get_mut(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get_mut(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_beg = elisp_pos_to_byte(buf, beg);
     let byte_end = elisp_pos_to_byte(buf, end);
@@ -245,9 +245,10 @@ pub(crate) fn builtin_text_properties_at(
     let pos = expect_int(&args[0])?;
     let buf_id = resolve_buffer_id(eval, args.get(1))?;
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_pos = elisp_pos_to_byte(buf, pos);
     let props = buf.text_props.get_properties(byte_pos);
@@ -265,9 +266,10 @@ pub(crate) fn builtin_next_single_property_change(
     let buf_id = resolve_buffer_id(eval, args.get(2))?;
     let limit = args.get(3);
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_pos = elisp_pos_to_byte(buf, pos);
     let byte_limit = match limit {
@@ -325,9 +327,10 @@ pub(crate) fn builtin_previous_single_property_change(
     let buf_id = resolve_buffer_id(eval, args.get(2))?;
     let limit = args.get(3);
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_pos = elisp_pos_to_byte(buf, pos);
     let byte_limit = match limit {
@@ -383,9 +386,10 @@ pub(crate) fn builtin_next_property_change(
     let buf_id = resolve_buffer_id(eval, args.get(1))?;
     let limit = args.get(2);
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_pos = elisp_pos_to_byte(buf, pos);
     let byte_limit = match limit {
@@ -432,7 +436,9 @@ pub(crate) fn builtin_propertize(
     if rest.len() % 2 != 0 {
         return Err(signal(
             "error",
-            vec![Value::string("Odd number of property arguments to propertize")],
+            vec![Value::string(
+                "Odd number of property arguments to propertize",
+            )],
         ));
     }
     // Validate that property names are symbols.
@@ -455,9 +461,10 @@ pub(crate) fn builtin_text_property_any(
     let val = &args[3];
     let buf_id = resolve_buffer_id(eval, args.get(4))?;
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_beg = elisp_pos_to_byte(buf, beg);
     let byte_end = elisp_pos_to_byte(buf, end);
@@ -497,9 +504,10 @@ pub(crate) fn builtin_make_overlay(
     let front_advance = args.get(3).map_or(false, |v| v.is_truthy());
     let rear_advance = args.get(4).map_or(false, |v| v.is_truthy());
 
-    let buf = eval.buffers.get_mut(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get_mut(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_beg = elisp_pos_to_byte(buf, beg);
     let byte_end = elisp_pos_to_byte(buf, end);
@@ -512,10 +520,7 @@ pub(crate) fn builtin_make_overlay(
     }
 
     // Return a cons (overlay-id . buffer-id) to identify the overlay.
-    Ok(Value::cons(
-        Value::Int(ov_id as i64),
-        Value::Buffer(buf_id),
-    ))
+    Ok(Value::cons(Value::Int(ov_id as i64), Value::Buffer(buf_id)))
 }
 
 /// Extract overlay id and buffer id from an overlay value (cons of int . buffer).
@@ -584,10 +589,7 @@ pub(crate) fn builtin_overlay_get(
 }
 
 /// (overlayp OBJ)
-pub(crate) fn builtin_overlayp(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_overlayp(_eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("overlayp", &args, 1)?;
     if let Value::Cons(cell) = &args[0] {
         let pair = cell.lock().expect("poisoned");
@@ -612,9 +614,10 @@ pub(crate) fn builtin_overlays_at(
         .map(|b| b.id)
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_pos = elisp_pos_to_byte(buf, pos);
     let ids = buf.overlays.overlays_at(byte_pos);
@@ -640,9 +643,10 @@ pub(crate) fn builtin_overlays_in(
         .map(|b| b.id)
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_beg = elisp_pos_to_byte(buf, beg);
     let byte_end = elisp_pos_to_byte(buf, end);
@@ -667,9 +671,10 @@ pub(crate) fn builtin_move_overlay(
     // For simplicity, we move within the same buffer.
     let _new_buf = args.get(3);
 
-    let buf = eval.buffers.get_mut(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get_mut(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_beg = elisp_pos_to_byte(buf, beg);
     let byte_end = elisp_pos_to_byte(buf, end);
@@ -685,9 +690,10 @@ pub(crate) fn builtin_overlay_start(
     expect_args("overlay-start", &args, 1)?;
     let (ov_id, buf_id) = expect_overlay(&args[0])?;
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     match buf.overlays.overlay_start(ov_id) {
         Some(byte_pos) => Ok(Value::Int(byte_to_elisp_pos(buf, byte_pos))),
@@ -703,9 +709,10 @@ pub(crate) fn builtin_overlay_end(
     expect_args("overlay-end", &args, 1)?;
     let (ov_id, buf_id) = expect_overlay(&args[0])?;
 
-    let buf = eval.buffers.get(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     match buf.overlays.overlay_end(ov_id) {
         Some(byte_pos) => Ok(Value::Int(byte_to_elisp_pos(buf, byte_pos))),
@@ -757,9 +764,10 @@ pub(crate) fn builtin_remove_overlays(
         .map(|b| b.id)
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    let buf = eval.buffers.get_mut(buf_id).ok_or_else(|| {
-        signal("error", vec![Value::string("Buffer does not exist")])
-    })?;
+    let buf = eval
+        .buffers
+        .get_mut(buf_id)
+        .ok_or_else(|| signal("error", vec![Value::string("Buffer does not exist")]))?;
 
     let byte_beg = if args.is_empty() || args[0].is_nil() {
         buf.point_min()
@@ -791,11 +799,10 @@ pub(crate) fn builtin_remove_overlays(
     // Filter and delete.
     for ov_id in ids {
         let should_delete = match (&filter_name, &filter_val) {
-            (Some(name), Some(val)) => {
-                buf.overlays
-                    .overlay_get(ov_id, name)
-                    .map_or(false, |v| equal_value(v, val, 0))
-            }
+            (Some(name), Some(val)) => buf
+                .overlays
+                .overlay_get(ov_id, name)
+                .map_or(false, |v| equal_value(v, val, 0)),
             (Some(name), None) => buf.overlays.overlay_get(ov_id, name).is_some(),
             _ => true,
         };
@@ -845,10 +852,8 @@ mod tests {
         assert!(result.is_ok());
 
         // Get at position 3 (1-based, 'l')
-        let result = builtin_get_text_property(
-            &mut eval,
-            vec![Value::Int(3), Value::symbol("face")],
-        );
+        let result =
+            builtin_get_text_property(&mut eval, vec![Value::Int(3), Value::symbol("face")]);
         match result {
             Ok(Value::Symbol(s)) => assert_eq!(s, "bold"),
             other => panic!("Expected Symbol(bold), got {:?}", other),
@@ -858,10 +863,8 @@ mod tests {
     #[test]
     fn get_text_property_returns_nil_when_absent() {
         let mut eval = eval_with_text("hello");
-        let result = builtin_get_text_property(
-            &mut eval,
-            vec![Value::Int(1), Value::symbol("face")],
-        );
+        let result =
+            builtin_get_text_property(&mut eval, vec![Value::Int(1), Value::symbol("face")]);
         assert!(matches!(result, Ok(Value::Nil)));
     }
 
@@ -880,10 +883,8 @@ mod tests {
         .unwrap();
 
         // Position 4 is outside the propertized range.
-        let result = builtin_get_text_property(
-            &mut eval,
-            vec![Value::Int(4), Value::symbol("face")],
-        );
+        let result =
+            builtin_get_text_property(&mut eval, vec![Value::Int(4), Value::symbol("face")]);
         assert!(matches!(result, Ok(Value::Nil)));
     }
 
@@ -905,10 +906,8 @@ mod tests {
         )
         .unwrap();
 
-        let result = builtin_get_char_property(
-            &mut eval,
-            vec![Value::Int(3), Value::symbol("help-echo")],
-        );
+        let result =
+            builtin_get_char_property(&mut eval, vec![Value::Int(3), Value::symbol("help-echo")]);
         assert!(matches!(result, Ok(Value::Str(_))));
     }
 
@@ -925,24 +924,17 @@ mod tests {
             Value::symbol("mouse-face"),
             Value::symbol("highlight"),
         ]);
-        let result = builtin_add_text_properties(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(6), props],
-        );
+        let result =
+            builtin_add_text_properties(&mut eval, vec![Value::Int(1), Value::Int(6), props]);
         assert!(result.is_ok());
 
-        let face = builtin_get_text_property(
-            &mut eval,
-            vec![Value::Int(2), Value::symbol("face")],
-        )
-        .unwrap();
+        let face = builtin_get_text_property(&mut eval, vec![Value::Int(2), Value::symbol("face")])
+            .unwrap();
         assert!(matches!(face, Value::Symbol(s) if s == "bold"));
 
-        let mouse = builtin_get_text_property(
-            &mut eval,
-            vec![Value::Int(2), Value::symbol("mouse-face")],
-        )
-        .unwrap();
+        let mouse =
+            builtin_get_text_property(&mut eval, vec![Value::Int(2), Value::symbol("mouse-face")])
+                .unwrap();
         assert!(matches!(mouse, Value::Symbol(s) if s == "highlight"));
     }
 
@@ -950,10 +942,8 @@ mod tests {
     fn add_text_properties_odd_plist_signals_error() {
         let mut eval = eval_with_text("hello");
         let props = Value::list(vec![Value::symbol("face")]);
-        let result = builtin_add_text_properties(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(3), props],
-        );
+        let result =
+            builtin_add_text_properties(&mut eval, vec![Value::Int(1), Value::Int(3), props]);
         assert!(result.is_err());
     }
 
@@ -976,16 +966,11 @@ mod tests {
         .unwrap();
 
         let props = Value::list(vec![Value::symbol("face"), Value::Nil]);
-        builtin_remove_text_properties(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(6), props],
-        )
-        .unwrap();
+        builtin_remove_text_properties(&mut eval, vec![Value::Int(1), Value::Int(6), props])
+            .unwrap();
 
-        let result = builtin_get_text_property(
-            &mut eval,
-            vec![Value::Int(3), Value::symbol("face")],
-        );
+        let result =
+            builtin_get_text_property(&mut eval, vec![Value::Int(3), Value::symbol("face")]);
         assert!(matches!(result, Ok(Value::Nil)));
     }
 
@@ -1059,11 +1044,9 @@ mod tests {
         .unwrap();
 
         // Limit at 4 — the actual change is at 6, so should return 4.
-        let result = builtin_next_property_change(
-            &mut eval,
-            vec![Value::Int(1), Value::Nil, Value::Int(4)],
-        )
-        .unwrap();
+        let result =
+            builtin_next_property_change(&mut eval, vec![Value::Int(1), Value::Nil, Value::Int(4)])
+                .unwrap();
         assert!(matches!(result, Value::Int(4)));
     }
 
@@ -1229,11 +1212,7 @@ mod tests {
     #[test]
     fn make_and_delete_overlay() {
         let mut eval = eval_with_text("hello world");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(6)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(6)]).unwrap();
 
         // Should be a cons.
         assert!(matches!(ov, Value::Cons(_)));
@@ -1250,11 +1229,7 @@ mod tests {
     #[test]
     fn overlay_put_and_get() {
         let mut eval = eval_with_text("hello");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(6)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(6)]).unwrap();
 
         builtin_overlay_put(
             &mut eval,
@@ -1270,14 +1245,9 @@ mod tests {
     #[test]
     fn overlay_get_absent_property() {
         let mut eval = eval_with_text("hello");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(6)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(6)]).unwrap();
 
-        let result =
-            builtin_overlay_get(&mut eval, vec![ov, Value::symbol("missing")]).unwrap();
+        let result = builtin_overlay_get(&mut eval, vec![ov, Value::symbol("missing")]).unwrap();
         assert!(matches!(result, Value::Nil));
     }
 
@@ -1288,11 +1258,7 @@ mod tests {
     #[test]
     fn overlayp_true() {
         let mut eval = eval_with_text("hello");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(6)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(6)]).unwrap();
 
         let result = builtin_overlayp(&mut eval, vec![ov]).unwrap();
         assert!(matches!(result, Value::True));
@@ -1312,11 +1278,7 @@ mod tests {
     #[test]
     fn overlays_at_finds_overlay() {
         let mut eval = eval_with_text("hello world");
-        let _ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(6)],
-        )
-        .unwrap();
+        let _ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(6)]).unwrap();
 
         let result = builtin_overlays_at(&mut eval, vec![Value::Int(3)]).unwrap();
         let items = list_to_vec(&result).unwrap();
@@ -1326,11 +1288,7 @@ mod tests {
     #[test]
     fn overlays_at_outside() {
         let mut eval = eval_with_text("hello world");
-        let _ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(3)],
-        )
-        .unwrap();
+        let _ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(3)]).unwrap();
 
         let result = builtin_overlays_at(&mut eval, vec![Value::Int(5)]).unwrap();
         let items = list_to_vec(&result).unwrap();
@@ -1343,8 +1301,7 @@ mod tests {
         builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(6)]).unwrap();
         builtin_make_overlay(&mut eval, vec![Value::Int(4), Value::Int(10)]).unwrap();
 
-        let result =
-            builtin_overlays_in(&mut eval, vec![Value::Int(1), Value::Int(12)]).unwrap();
+        let result = builtin_overlays_in(&mut eval, vec![Value::Int(1), Value::Int(12)]).unwrap();
         let items = list_to_vec(&result).unwrap();
         assert_eq!(items.len(), 2);
     }
@@ -1356,17 +1313,9 @@ mod tests {
     #[test]
     fn move_overlay_changes_range() {
         let mut eval = eval_with_text("hello world");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(6)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(6)]).unwrap();
 
-        builtin_move_overlay(
-            &mut eval,
-            vec![ov.clone(), Value::Int(3), Value::Int(8)],
-        )
-        .unwrap();
+        builtin_move_overlay(&mut eval, vec![ov.clone(), Value::Int(3), Value::Int(8)]).unwrap();
 
         let start = builtin_overlay_start(&mut eval, vec![ov.clone()]).unwrap();
         let end = builtin_overlay_end(&mut eval, vec![ov]).unwrap();
@@ -1381,11 +1330,7 @@ mod tests {
     #[test]
     fn overlay_start_and_end() {
         let mut eval = eval_with_text("hello world");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(2), Value::Int(8)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(2), Value::Int(8)]).unwrap();
 
         let start = builtin_overlay_start(&mut eval, vec![ov.clone()]).unwrap();
         let end = builtin_overlay_end(&mut eval, vec![ov]).unwrap();
@@ -1400,11 +1345,7 @@ mod tests {
     #[test]
     fn overlay_buffer_returns_buffer() {
         let mut eval = eval_with_text("hello");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(3)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(3)]).unwrap();
 
         let result = builtin_overlay_buffer(&mut eval, vec![ov]).unwrap();
         assert!(matches!(result, Value::Buffer(_)));
@@ -1417,11 +1358,7 @@ mod tests {
     #[test]
     fn overlay_properties_returns_plist() {
         let mut eval = eval_with_text("hello");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(6)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(6)]).unwrap();
 
         builtin_overlay_put(
             &mut eval,
@@ -1442,11 +1379,7 @@ mod tests {
     #[test]
     fn overlay_properties_empty() {
         let mut eval = eval_with_text("hello");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(3)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(3)]).unwrap();
 
         let result = builtin_overlay_properties(&mut eval, vec![ov]).unwrap();
         // Empty plist is nil.
@@ -1465,11 +1398,7 @@ mod tests {
 
         builtin_remove_overlays(&mut eval, vec![]).unwrap();
 
-        let result = builtin_overlays_in(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(12)],
-        )
-        .unwrap();
+        let result = builtin_overlays_in(&mut eval, vec![Value::Int(1), Value::Int(12)]).unwrap();
         let items = list_to_vec(&result).unwrap();
         assert_eq!(items.len(), 0);
     }
@@ -1503,11 +1432,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = builtin_overlays_in(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(12)],
-        )
-        .unwrap();
+        let result = builtin_overlays_in(&mut eval, vec![Value::Int(1), Value::Int(12)]).unwrap();
         let items = list_to_vec(&result).unwrap();
         assert_eq!(items.len(), 1); // only the italic one remains
     }
@@ -1519,10 +1444,7 @@ mod tests {
     #[test]
     fn put_text_property_wrong_args() {
         let mut eval = eval_with_text("hello");
-        let result = builtin_put_text_property(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(3)],
-        );
+        let result = builtin_put_text_property(&mut eval, vec![Value::Int(1), Value::Int(3)]);
         assert!(result.is_err());
     }
 
@@ -1536,10 +1458,7 @@ mod tests {
     #[test]
     fn overlay_put_wrong_args() {
         let mut eval = eval_with_text("hello");
-        let result = builtin_overlay_put(
-            &mut eval,
-            vec![Value::Int(42), Value::symbol("face")],
-        );
+        let result = builtin_overlay_put(&mut eval, vec![Value::Int(42), Value::symbol("face")]);
         assert!(result.is_err());
     }
 
@@ -1563,9 +1482,9 @@ mod tests {
             vec![
                 Value::Int(3),
                 Value::Int(8),
-                Value::Nil,       // buffer
-                Value::True,      // front-advance
-                Value::Nil,       // rear-advance
+                Value::Nil,  // buffer
+                Value::True, // front-advance
+                Value::Nil,  // rear-advance
             ],
         )
         .unwrap();
@@ -1585,7 +1504,7 @@ mod tests {
                 Value::Int(8),
                 Value::Nil,
                 Value::Nil,
-                Value::True,      // rear-advance
+                Value::True, // rear-advance
             ],
         )
         .unwrap();
@@ -1602,10 +1521,8 @@ mod tests {
     fn text_property_on_empty_buffer() {
         let mut eval = Evaluator::new();
         // Scratch buffer is empty.
-        let result = builtin_get_text_property(
-            &mut eval,
-            vec![Value::Int(1), Value::symbol("face")],
-        );
+        let result =
+            builtin_get_text_property(&mut eval, vec![Value::Int(1), Value::symbol("face")]);
         assert!(matches!(result, Ok(Value::Nil)));
     }
 
@@ -1619,11 +1536,7 @@ mod tests {
     #[test]
     fn delete_overlay_twice_is_ok() {
         let mut eval = eval_with_text("hello");
-        let ov = builtin_make_overlay(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(3)],
-        )
-        .unwrap();
+        let ov = builtin_make_overlay(&mut eval, vec![Value::Int(1), Value::Int(3)]).unwrap();
 
         builtin_delete_overlay(&mut eval, vec![ov.clone()]).unwrap();
         // Second delete should not crash.

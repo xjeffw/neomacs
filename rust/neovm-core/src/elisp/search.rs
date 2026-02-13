@@ -223,7 +223,8 @@ pub(crate) fn builtin_replace_regexp_in_string(args: Vec<Value>) -> EvalResult {
     };
 
     let result = if literal {
-        re.replace_all(search_region, regex::NoExpand(&rep)).into_owned()
+        re.replace_all(search_region, regex::NoExpand(&rep))
+            .into_owned()
     } else {
         // Translate Emacs-style back-references (\1, \&, etc.) to regex crate style ($1, ${0})
         let rust_rep = rep
@@ -237,7 +238,8 @@ pub(crate) fn builtin_replace_regexp_in_string(args: Vec<Value>) -> EvalResult {
             .replace("\\7", "${7}")
             .replace("\\8", "${8}")
             .replace("\\9", "${9}");
-        re.replace_all(search_region, rust_rep.as_str()).into_owned()
+        re.replace_all(search_region, rust_rep.as_str())
+            .into_owned()
     };
 
     if start > 0 && start < s.len() {
@@ -387,10 +389,8 @@ mod tests {
 
     #[test]
     fn string_match_basic() {
-        let result = builtin_string_match(vec![
-            Value::string("he..o"),
-            Value::string("hello world"),
-        ]);
+        let result =
+            builtin_string_match(vec![Value::string("he..o"), Value::string("hello world")]);
         assert_int(result.unwrap(), 0);
     }
 
@@ -406,19 +406,14 @@ mod tests {
 
     #[test]
     fn string_match_no_match() {
-        let result = builtin_string_match(vec![
-            Value::string("xyz"),
-            Value::string("hello world"),
-        ]);
+        let result = builtin_string_match(vec![Value::string("xyz"), Value::string("hello world")]);
         assert_nil(result.unwrap());
     }
 
     #[test]
     fn string_match_p_basic() {
-        let result = builtin_string_match_p(vec![
-            Value::string("[0-9]+"),
-            Value::string("abc 123 def"),
-        ]);
+        let result =
+            builtin_string_match_p(vec![Value::string("[0-9]+"), Value::string("abc 123 def")]);
         assert_int(result.unwrap(), 4);
     }
 
@@ -518,9 +513,9 @@ mod tests {
             Value::string("[0-9]+"),
             Value::string("X"),
             Value::string("111 222 333"),
-            Value::Nil, // fixedcase
-            Value::Nil, // literal
-            Value::Nil, // subexp
+            Value::Nil,    // fixedcase
+            Value::Nil,    // literal
+            Value::Nil,    // subexp
             Value::Int(4), // start
         ]);
         assert_str(result.unwrap(), "111 X X");

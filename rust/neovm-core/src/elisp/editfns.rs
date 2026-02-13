@@ -61,10 +61,7 @@ fn expect_integer(_name: &str, val: &Value) -> Result<i64, Flow> {
 
 /// Convert a Lisp 1-based character position to a 0-based byte position,
 /// clamping to the accessible region `[begv, zv]`.
-fn lisp_pos_to_byte(
-    buf: &crate::buffer::Buffer,
-    lisp_pos: i64,
-) -> usize {
+fn lisp_pos_to_byte(buf: &crate::buffer::Buffer, lisp_pos: i64) -> usize {
     let char_count = buf.text.byte_to_char(buf.text.len());
     // Clamp the 1-based char pos into [1, char_count+1] (point-max is size+1 in
     // Emacs convention, but that maps to byte pos == text.len()).
@@ -84,10 +81,7 @@ fn byte_to_lisp_pos(buf: &crate::buffer::Buffer, byte: usize) -> i64 {
 // ---------------------------------------------------------------------------
 
 /// `(point)` — return current point as a 1-based character position.
-pub(crate) fn builtin_point(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_point(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("point", &args, 0)?;
     match eval.buffers.current_buffer() {
         Some(buf) => Ok(Value::Int(byte_to_lisp_pos(buf, buf.pt))),
@@ -96,10 +90,7 @@ pub(crate) fn builtin_point(
 }
 
 /// `(point-min)` — return minimum accessible position (1-based).
-pub(crate) fn builtin_point_min(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_point_min(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("point-min", &args, 0)?;
     match eval.buffers.current_buffer() {
         Some(buf) => Ok(Value::Int(byte_to_lisp_pos(buf, buf.begv))),
@@ -108,10 +99,7 @@ pub(crate) fn builtin_point_min(
 }
 
 /// `(point-max)` — return maximum accessible position (1-based).
-pub(crate) fn builtin_point_max(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_point_max(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("point-max", &args, 0)?;
     match eval.buffers.current_buffer() {
         Some(buf) => Ok(Value::Int(byte_to_lisp_pos(buf, buf.zv))),
@@ -120,10 +108,7 @@ pub(crate) fn builtin_point_max(
 }
 
 /// `(goto-char POSITION)` — set point to POSITION, return POSITION.
-pub(crate) fn builtin_goto_char(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_goto_char(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("goto-char", &args, 1)?;
     let pos = expect_integer("goto-char", &args[0])?;
     let position_val = args[0].clone();
@@ -212,17 +197,11 @@ fn collect_insert_text(_name: &str, args: &[Value]) -> Result<String, Flow> {
 }
 
 /// `(insert &rest ARGS)` — insert strings or characters at point.
-pub(crate) fn builtin_insert(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_insert(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     let text = collect_insert_text("insert", &args)?;
     if let Some(buf) = eval.buffers.current_buffer_mut() {
         if buf.read_only {
-            return Err(signal(
-                "buffer-read-only",
-                vec![Value::string(&buf.name)],
-            ));
+            return Err(signal("buffer-read-only", vec![Value::string(&buf.name)]));
         }
         buf.insert(&text);
     }
@@ -251,10 +230,7 @@ pub(crate) fn builtin_delete_region(
     let end_pos = expect_integer("delete-region", &args[1])?;
     if let Some(buf) = eval.buffers.current_buffer_mut() {
         if buf.read_only {
-            return Err(signal(
-                "buffer-read-only",
-                vec![Value::string(&buf.name)],
-            ));
+            return Err(signal("buffer-read-only", vec![Value::string(&buf.name)]));
         }
         let start_byte = lisp_pos_to_byte(buf, start_pos);
         let end_byte = lisp_pos_to_byte(buf, end_pos);
@@ -278,10 +254,7 @@ pub(crate) fn builtin_delete_char(
     let n = expect_integer("delete-char", &args[0])?;
     if let Some(buf) = eval.buffers.current_buffer_mut() {
         if buf.read_only {
-            return Err(signal(
-                "buffer-read-only",
-                vec![Value::string(&buf.name)],
-            ));
+            return Err(signal("buffer-read-only", vec![Value::string(&buf.name)]));
         }
         let pt = buf.pt;
         if n > 0 {
@@ -291,10 +264,7 @@ pub(crate) fn builtin_delete_char(
                 match buf.char_after(end) {
                     Some(ch) => end += ch.len_utf8(),
                     None => {
-                        return Err(signal(
-                            "end-of-buffer",
-                            vec![],
-                        ));
+                        return Err(signal("end-of-buffer", vec![]));
                     }
                 }
             }
@@ -306,10 +276,7 @@ pub(crate) fn builtin_delete_char(
                 match buf.char_before(start) {
                     Some(ch) => start -= ch.len_utf8(),
                     None => {
-                        return Err(signal(
-                            "beginning-of-buffer",
-                            vec![],
-                        ));
+                        return Err(signal("beginning-of-buffer", vec![]));
                     }
                 }
             }
@@ -374,7 +341,8 @@ pub(crate) fn builtin_region_beginning(
     match eval.buffers.current_buffer() {
         Some(buf) => {
             let pt_lisp = byte_to_lisp_pos(buf, buf.pt);
-            let mark_lisp = buf.mark
+            let mark_lisp = buf
+                .mark
                 .map(|m| byte_to_lisp_pos(buf, m))
                 .unwrap_or_else(|| byte_to_lisp_pos(buf, buf.begv));
             Ok(Value::Int(pt_lisp.min(mark_lisp)))
@@ -393,7 +361,8 @@ pub(crate) fn builtin_region_end(
     match eval.buffers.current_buffer() {
         Some(buf) => {
             let pt_lisp = byte_to_lisp_pos(buf, buf.pt);
-            let mark_lisp = buf.mark
+            let mark_lisp = buf
+                .mark
                 .map(|m| byte_to_lisp_pos(buf, m))
                 .unwrap_or_else(|| byte_to_lisp_pos(buf, buf.zv));
             Ok(Value::Int(pt_lisp.max(mark_lisp)))
@@ -403,10 +372,7 @@ pub(crate) fn builtin_region_end(
 }
 
 /// `(mark &optional FORCE)` — return mark position, or nil if not set.
-pub(crate) fn builtin_mark(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_mark(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_max_args("mark", &args, 1)?;
     match eval.buffers.current_buffer() {
         Some(buf) => match buf.mark {
@@ -418,10 +384,7 @@ pub(crate) fn builtin_mark(
 }
 
 /// `(set-mark POS)` — set the mark to POS, return POS.
-pub(crate) fn builtin_set_mark(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_set_mark(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("set-mark", &args, 1)?;
     let pos = expect_integer("set-mark", &args[0])?;
     let ret = args[0].clone();
@@ -433,10 +396,7 @@ pub(crate) fn builtin_set_mark(
 }
 
 /// `(bobp)` — return t if point is at beginning of accessible region.
-pub(crate) fn builtin_bobp(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_bobp(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("bobp", &args, 0)?;
     match eval.buffers.current_buffer() {
         Some(buf) => Ok(Value::bool(buf.pt <= buf.begv)),
@@ -445,10 +405,7 @@ pub(crate) fn builtin_bobp(
 }
 
 /// `(eobp)` — return t if point is at end of accessible region.
-pub(crate) fn builtin_eobp(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_eobp(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("eobp", &args, 0)?;
     match eval.buffers.current_buffer() {
         Some(buf) => Ok(Value::bool(buf.pt >= buf.zv)),
@@ -458,10 +415,7 @@ pub(crate) fn builtin_eobp(
 
 /// `(bolp)` — return t if point is at beginning of a line.
 /// True at buffer beginning or if the character before point is a newline.
-pub(crate) fn builtin_bolp(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_bolp(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("bolp", &args, 0)?;
     match eval.buffers.current_buffer() {
         Some(buf) => {
@@ -480,10 +434,7 @@ pub(crate) fn builtin_bolp(
 
 /// `(eolp)` — return t if point is at end of a line.
 /// True at buffer end or if the character after point is a newline.
-pub(crate) fn builtin_eolp(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_eolp(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("eolp", &args, 0)?;
     match eval.buffers.current_buffer() {
         Some(buf) => {

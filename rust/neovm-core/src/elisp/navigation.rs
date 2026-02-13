@@ -145,44 +145,30 @@ fn move_by_lines(text: &str, byte_pos: usize, n: i64) -> (usize, i64) {
 // ===========================================================================
 
 /// (bobp) -- at beginning of buffer?
-pub(crate) fn builtin_bobp(
-    eval: &mut super::eval::Evaluator,
-    _args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_bobp(eval: &mut super::eval::Evaluator, _args: Vec<Value>) -> EvalResult {
     let buf = eval.buffers.current_buffer().ok_or_else(no_buffer)?;
     Ok(Value::bool(buf.pt == buf.begv))
 }
 
 /// (eobp) -- at end of buffer?
-pub(crate) fn builtin_eobp(
-    eval: &mut super::eval::Evaluator,
-    _args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_eobp(eval: &mut super::eval::Evaluator, _args: Vec<Value>) -> EvalResult {
     let buf = eval.buffers.current_buffer().ok_or_else(no_buffer)?;
     Ok(Value::bool(buf.pt == buf.zv))
 }
 
 /// (bolp) -- at beginning of line?
-pub(crate) fn builtin_bolp(
-    eval: &mut super::eval::Evaluator,
-    _args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_bolp(eval: &mut super::eval::Evaluator, _args: Vec<Value>) -> EvalResult {
     let buf = eval.buffers.current_buffer().ok_or_else(no_buffer)?;
     if buf.pt == buf.begv {
         return Ok(Value::True);
     }
     let text = buffer_text(buf);
-    let at_bol = buf.pt > 0
-        && buf.pt <= text.len()
-        && text.as_bytes()[buf.pt - 1] == b'\n';
+    let at_bol = buf.pt > 0 && buf.pt <= text.len() && text.as_bytes()[buf.pt - 1] == b'\n';
     Ok(Value::bool(buf.pt == 0 || at_bol))
 }
 
 /// (eolp) -- at end of line?
-pub(crate) fn builtin_eolp(
-    eval: &mut super::eval::Evaluator,
-    _args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_eolp(eval: &mut super::eval::Evaluator, _args: Vec<Value>) -> EvalResult {
     let buf = eval.buffers.current_buffer().ok_or_else(no_buffer)?;
     if buf.pt == buf.zv {
         return Ok(Value::True);
@@ -345,10 +331,7 @@ pub(crate) fn builtin_end_of_line(
 }
 
 /// (goto-line LINE)
-pub(crate) fn builtin_goto_line(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_goto_line(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("goto-line", &args, 1)?;
     let line = expect_int(&args[0])?;
     if line < 1 {
@@ -552,10 +535,7 @@ pub(crate) fn builtin_skip_chars_backward(
 // ===========================================================================
 
 /// (push-mark &optional LOCATION NOMSG ACTIVATE)
-pub(crate) fn builtin_push_mark(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_push_mark(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     let buf = eval.buffers.current_buffer_mut().ok_or_else(no_buffer)?;
     let byte_pos = if args.is_empty() || args[0].is_nil() {
         buf.pt
@@ -583,10 +563,7 @@ pub(crate) fn builtin_push_mark(
 }
 
 /// (pop-mark)
-pub(crate) fn builtin_pop_mark(
-    eval: &mut super::eval::Evaluator,
-    _args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_pop_mark(eval: &mut super::eval::Evaluator, _args: Vec<Value>) -> EvalResult {
     let buf = eval.buffers.current_buffer_mut().ok_or_else(no_buffer)?;
     let ring = buf
         .properties
@@ -634,10 +611,7 @@ pub(crate) fn builtin_set_mark_nav(
 }
 
 /// (mark &optional FORCE) -> integer or signal
-pub(crate) fn builtin_mark_nav(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_mark_nav(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     let force = args.first().is_some_and(|v| v.is_truthy());
     let buf = eval.buffers.current_buffer().ok_or_else(no_buffer)?;
     let mark_active = buf
@@ -656,7 +630,9 @@ pub(crate) fn builtin_mark_nav(
             } else {
                 Err(signal(
                     "mark-not-set",
-                    vec![Value::string("The mark is not set now, so there is no region")],
+                    vec![Value::string(
+                        "The mark is not set now, so there is no region",
+                    )],
                 ))
             }
         }
@@ -672,7 +648,9 @@ pub(crate) fn builtin_region_beginning(
     let mark = buf.mark().ok_or_else(|| {
         signal(
             "mark-not-set",
-            vec![Value::string("The mark is not set now, so there is no region")],
+            vec![Value::string(
+                "The mark is not set now, so there is no region",
+            )],
         )
     })?;
     let pt = buf.pt;
@@ -689,7 +667,9 @@ pub(crate) fn builtin_region_end(
     let mark = buf.mark().ok_or_else(|| {
         signal(
             "mark-not-set",
-            vec![Value::string("The mark is not set now, so there is no region")],
+            vec![Value::string(
+                "The mark is not set now, so there is no region",
+            )],
         )
     })?;
     let pt = buf.pt;
@@ -717,8 +697,7 @@ pub(crate) fn builtin_deactivate_mark(
     _args: Vec<Value>,
 ) -> EvalResult {
     let buf = eval.buffers.current_buffer_mut().ok_or_else(no_buffer)?;
-    buf.properties
-        .insert("mark-active".to_string(), Value::Nil);
+    buf.properties.insert("mark-active".to_string(), Value::Nil);
     Ok(Value::Nil)
 }
 
@@ -753,7 +732,8 @@ pub(crate) fn builtin_transient_mark_mode(
     } else {
         Value::True
     };
-    eval.obarray.set_symbol_value("transient-mark-mode", val.clone());
+    eval.obarray
+        .set_symbol_value("transient-mark-mode", val.clone());
     Ok(val)
 }
 

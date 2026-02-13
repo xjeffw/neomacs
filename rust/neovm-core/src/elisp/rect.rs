@@ -85,9 +85,7 @@ pub(crate) struct RectangleState {
 
 impl RectangleState {
     pub fn new() -> Self {
-        Self {
-            killed: Vec::new(),
-        }
+        Self { killed: Vec::new() }
     }
 }
 
@@ -103,11 +101,7 @@ impl Default for RectangleState {
 
 /// Given START and END positions, estimate the number of lines spanned.
 /// Uses the current buffer's text to count newlines between the two positions.
-fn line_count_between(
-    eval: &super::eval::Evaluator,
-    start: i64,
-    end: i64,
-) -> usize {
+fn line_count_between(eval: &super::eval::Evaluator, start: i64, end: i64) -> usize {
     let (lo, hi) = if start <= end {
         (start as usize, end as usize)
     } else {
@@ -215,10 +209,7 @@ pub(crate) fn builtin_yank_rectangle(
 ) -> EvalResult {
     expect_args("yank-rectangle", &args, 0)?;
     if eval.rectangle.killed.is_empty() {
-        return Err(signal(
-            "error",
-            vec![Value::string("No rectangle to yank")],
-        ));
+        return Err(signal("error", vec![Value::string("No rectangle to yank")]));
     }
     // Stub: no-op insertion.
     Ok(Value::Nil)
@@ -285,7 +276,7 @@ pub(crate) fn builtin_clear_rectangle(
     // Optional FILL argument (character or string) — validated but unused in stub.
     if args.len() == 3 {
         match &args[2] {
-            Value::Nil => {} // nil means use spaces (default)
+            Value::Nil => {}                     // nil means use spaces (default)
             Value::Char(_) | Value::Str(_) => {} // valid fill
             other => {
                 return Err(signal(
@@ -377,8 +368,7 @@ mod tests {
     #[test]
     fn extract_rectangle_line_returns_string() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result =
-            builtin_extract_rectangle_line(&mut eval, vec![Value::Int(1), Value::Int(10)]);
+        let result = builtin_extract_rectangle_line(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_string());
     }
@@ -386,8 +376,7 @@ mod tests {
     #[test]
     fn extract_rectangle_returns_list() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result =
-            builtin_extract_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
+        let result = builtin_extract_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_list());
     }
@@ -395,18 +384,15 @@ mod tests {
     #[test]
     fn delete_rectangle_wrong_type() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result = builtin_delete_rectangle(
-            &mut eval,
-            vec![Value::string("not-int"), Value::Int(10)],
-        );
+        let result =
+            builtin_delete_rectangle(&mut eval, vec![Value::string("not-int"), Value::Int(10)]);
         assert!(result.is_err());
     }
 
     #[test]
     fn delete_rectangle_returns_nil() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result =
-            builtin_delete_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
+        let result = builtin_delete_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
@@ -414,8 +400,7 @@ mod tests {
     #[test]
     fn kill_rectangle_updates_state() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result =
-            builtin_kill_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
+        let result = builtin_kill_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
         // State should have been updated (may be empty strings, but vector should exist).
         // The killed rectangle is stored in eval.rectangle.killed.
@@ -440,8 +425,7 @@ mod tests {
     #[test]
     fn insert_rectangle_validates_list() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result =
-            builtin_insert_rectangle(&mut eval, vec![Value::Int(42)]);
+        let result = builtin_insert_rectangle(&mut eval, vec![Value::Int(42)]);
         assert!(result.is_err());
     }
 
@@ -456,8 +440,7 @@ mod tests {
     #[test]
     fn insert_rectangle_valid() {
         let mut eval = super::super::eval::Evaluator::new();
-        let rect =
-            Value::list(vec![Value::string("hello"), Value::string("world")]);
+        let rect = Value::list(vec![Value::string("hello"), Value::string("world")]);
         let result = builtin_insert_rectangle(&mut eval, vec![rect]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
@@ -466,8 +449,7 @@ mod tests {
     #[test]
     fn open_rectangle_returns_nil() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result =
-            builtin_open_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
+        let result = builtin_open_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
@@ -475,8 +457,7 @@ mod tests {
     #[test]
     fn clear_rectangle_returns_nil() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result =
-            builtin_clear_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
+        let result = builtin_clear_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
@@ -526,10 +507,8 @@ mod tests {
     #[test]
     fn delete_extract_rectangle_returns_list() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result = builtin_delete_extract_rectangle(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(10)],
-        );
+        let result =
+            builtin_delete_extract_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_list());
     }
@@ -548,10 +527,7 @@ mod tests {
     #[test]
     fn replace_rectangle_wrong_arity() {
         let mut eval = super::super::eval::Evaluator::new();
-        let result = builtin_replace_rectangle(
-            &mut eval,
-            vec![Value::Int(1), Value::Int(10)],
-        );
+        let result = builtin_replace_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_err());
     }
 }

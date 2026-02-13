@@ -79,25 +79,61 @@ pub fn translate_emacs_regex(pattern: &str) -> String {
                 }
             }
             // Emacs uses literal `(`, `)`, `{`, `}`, `|` — escape them for Rust regex.
-            '(' => { out.push_str("\\("); i += 1; }
-            ')' => { out.push_str("\\)"); i += 1; }
-            '{' => { out.push_str("\\{"); i += 1; }
-            '}' => { out.push_str("\\}"); i += 1; }
-            '|' => { out.push_str("\\|"); i += 1; }
+            '(' => {
+                out.push_str("\\(");
+                i += 1;
+            }
+            ')' => {
+                out.push_str("\\)");
+                i += 1;
+            }
+            '{' => {
+                out.push_str("\\{");
+                i += 1;
+            }
+            '}' => {
+                out.push_str("\\}");
+                i += 1;
+            }
+            '|' => {
+                out.push_str("\\|");
+                i += 1;
+            }
             '\\' if i + 1 < len => {
                 let next = bytes[i + 1] as char;
                 match next {
                     // Emacs group → Rust group
-                    '(' => { out.push('('); i += 2; }
-                    ')' => { out.push(')'); i += 2; }
+                    '(' => {
+                        out.push('(');
+                        i += 2;
+                    }
+                    ')' => {
+                        out.push(')');
+                        i += 2;
+                    }
                     // Emacs alternation → Rust alternation
-                    '|' => { out.push('|'); i += 2; }
+                    '|' => {
+                        out.push('|');
+                        i += 2;
+                    }
                     // Emacs repetition braces → Rust repetition braces
-                    '{' => { out.push('{'); i += 2; }
-                    '}' => { out.push('}'); i += 2; }
+                    '{' => {
+                        out.push('{');
+                        i += 2;
+                    }
+                    '}' => {
+                        out.push('}');
+                        i += 2;
+                    }
                     // Word boundaries
-                    '<' => { out.push_str("\\b"); i += 2; }
-                    '>' => { out.push_str("\\b"); i += 2; }
+                    '<' => {
+                        out.push_str("\\b");
+                        i += 2;
+                    }
+                    '>' => {
+                        out.push_str("\\b");
+                        i += 2;
+                    }
                     // Back-references (1-9) — not supported by `regex` crate,
                     // but translate the syntax for pattern acceptance.
                     '1'..='9' => {
@@ -115,7 +151,9 @@ pub fn translate_emacs_regex(pattern: &str) -> String {
                         if i < len {
                             let class_ch = bytes[i] as char;
                             match class_ch {
-                                '-' | ' ' | '.' | '_' | 'w' => { i += 1; }
+                                '-' | ' ' | '.' | '_' | 'w' => {
+                                    i += 1;
+                                }
                                 _ => {}
                             }
                         }
@@ -126,19 +164,26 @@ pub fn translate_emacs_regex(pattern: &str) -> String {
                         if i < len {
                             let class_ch = bytes[i] as char;
                             match class_ch {
-                                '-' | ' ' | '.' | '_' | 'w' => { i += 1; }
+                                '-' | ' ' | '.' | '_' | 'w' => {
+                                    i += 1;
+                                }
                                 _ => {}
                             }
                         }
                         out.push_str("\\S");
                     }
                     // Known escape sequences — pass through
-                    'w' | 'W' | 'b' | 'B' | 'd' | 'D'
-                    | 'n' | 't' | 'r' | '`' | '\'' => {
+                    'w' | 'W' | 'b' | 'B' | 'd' | 'D' | 'n' | 't' | 'r' | '`' | '\'' => {
                         match next {
                             // \` (beginning of buffer) and \' (end of buffer) → \A and \z
-                            '`' => { out.push_str("\\A"); i += 2; }
-                            '\'' => { out.push_str("\\z"); i += 2; }
+                            '`' => {
+                                out.push_str("\\A");
+                                i += 2;
+                            }
+                            '\'' => {
+                                out.push_str("\\z");
+                                i += 2;
+                            }
                             _ => {
                                 out.push('\\');
                                 out.push(next);
@@ -147,7 +192,10 @@ pub fn translate_emacs_regex(pattern: &str) -> String {
                         }
                     }
                     // Literal backslash
-                    '\\' => { out.push_str("\\\\"); i += 2; }
+                    '\\' => {
+                        out.push_str("\\\\");
+                        i += 2;
+                    }
                     // Anything else after `\` — pass through the escape
                     _ => {
                         out.push('\\');
@@ -157,9 +205,15 @@ pub fn translate_emacs_regex(pattern: &str) -> String {
                 }
             }
             // Lone trailing backslash — pass through
-            '\\' => { out.push('\\'); i += 1; }
+            '\\' => {
+                out.push('\\');
+                i += 1;
+            }
             // All other chars — pass through as-is
-            _ => { out.push(ch); i += 1; }
+            _ => {
+                out.push(ch);
+                i += 1;
+            }
         }
     }
 
@@ -451,7 +505,9 @@ pub fn replace_match(
 
     // We only support buffer-based replace (not string match replace).
     if md.searched_string.is_some() {
-        return Err("replace-match on string match not supported for buffer modification".to_string());
+        return Err(
+            "replace-match on string match not supported for buffer modification".to_string(),
+        );
     }
 
     let (match_start, match_end) = match md.groups.first() {
@@ -638,12 +694,7 @@ mod tests {
     fn string_match_with_groups() {
         let mut md = None;
         // Emacs regex: \(\w+\)@\(\w+\)
-        let result = string_match_full(
-            "\\(\\w+\\)@\\(\\w+\\)",
-            "user@host",
-            0,
-            &mut md,
-        );
+        let result = string_match_full("\\(\\w+\\)@\\(\\w+\\)", "user@host", 0, &mut md);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some(0));
         let md = md.unwrap();
@@ -934,12 +985,7 @@ mod tests {
     #[test]
     fn string_match_then_match_data() {
         let mut md = None;
-        let _ = string_match_full(
-            "\\([0-9]+\\)-\\([0-9]+\\)",
-            "date: 2024-01-15",
-            0,
-            &mut md,
-        );
+        let _ = string_match_full("\\([0-9]+\\)-\\([0-9]+\\)", "date: 2024-01-15", 0, &mut md);
         let md = md.as_ref().unwrap();
         let string = md.searched_string.as_ref().unwrap();
 

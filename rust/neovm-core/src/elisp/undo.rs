@@ -93,10 +93,7 @@ pub(crate) fn builtin_primitive_undo(args: Vec<Value>) -> EvalResult {
 /// 3. Update buffer state accordingly
 ///
 /// Stub implementation: returns nil without performing undo.
-pub(crate) fn builtin_undo(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
+pub(crate) fn builtin_undo(_eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("undo", &args, 0)?;
 
     // If ARG is provided, verify it's an integer
@@ -131,11 +128,7 @@ mod tests {
 
     #[test]
     fn test_primitive_undo_with_count_and_list() {
-        let list = Value::list(vec![
-            Value::Nil,
-            Value::Nil,
-            Value::Nil,
-        ]);
+        let list = Value::list(vec![Value::Nil, Value::Nil, Value::Nil]);
         let result = builtin_primitive_undo(vec![Value::Int(1), list.clone()]);
         assert!(result.is_ok());
         // Stub returns list unchanged

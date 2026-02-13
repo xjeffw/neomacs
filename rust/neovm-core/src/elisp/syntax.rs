@@ -124,19 +124,19 @@ pub struct SyntaxFlags(u8);
 
 impl SyntaxFlags {
     /// '1' — first char of a two-char comment start sequence
-    pub const COMMENT_START_FIRST: SyntaxFlags  = SyntaxFlags(0b0000_0001);
+    pub const COMMENT_START_FIRST: SyntaxFlags = SyntaxFlags(0b0000_0001);
     /// '2' — second char of a two-char comment start sequence
     pub const COMMENT_START_SECOND: SyntaxFlags = SyntaxFlags(0b0000_0010);
     /// '3' — first char of a two-char comment end sequence
-    pub const COMMENT_END_FIRST: SyntaxFlags    = SyntaxFlags(0b0000_0100);
+    pub const COMMENT_END_FIRST: SyntaxFlags = SyntaxFlags(0b0000_0100);
     /// '4' — second char of a two-char comment end sequence
-    pub const COMMENT_END_SECOND: SyntaxFlags   = SyntaxFlags(0b0000_1000);
+    pub const COMMENT_END_SECOND: SyntaxFlags = SyntaxFlags(0b0000_1000);
     /// 'p' — prefix character (e.g., quote, backquote)
-    pub const PREFIX: SyntaxFlags               = SyntaxFlags(0b0001_0000);
+    pub const PREFIX: SyntaxFlags = SyntaxFlags(0b0001_0000);
     /// 'b' — belongs to alternative "b" comment style
-    pub const COMMENT_STYLE_B: SyntaxFlags      = SyntaxFlags(0b0010_0000);
+    pub const COMMENT_STYLE_B: SyntaxFlags = SyntaxFlags(0b0010_0000);
     /// 'n' — nestable comment
-    pub const COMMENT_NESTABLE: SyntaxFlags     = SyntaxFlags(0b0100_0000);
+    pub const COMMENT_NESTABLE: SyntaxFlags = SyntaxFlags(0b0100_0000);
 
     /// Empty flags (no bits set).
     pub const fn empty() -> Self {
@@ -239,7 +239,7 @@ pub fn string_to_syntax(s: &str) -> Result<SyntaxEntry, String> {
             'b' => flags |= SyntaxFlags::COMMENT_STYLE_B,
             'n' => flags |= SyntaxFlags::COMMENT_NESTABLE,
             ' ' => {} // whitespace in flag area is ignored
-            _ => {} // Emacs silently ignores unknown flags
+            _ => {}   // Emacs silently ignores unknown flags
         }
     }
 
@@ -325,8 +325,8 @@ impl SyntaxTable {
         // covered.  In Emacs the standard table marks most punctuation as
         // punctuation; we enumerate the important ones.
         for ch in [
-            '!', '#', '%', '&', '*', '+', ',', '.', '/', ':', ';', '<', '=',
-            '>', '?', '@', '^', '|', '~',
+            '!', '#', '%', '&', '*', '+', ',', '.', '/', ':', ';', '<', '=', '>', '?', '@', '^',
+            '|', '~',
         ] {
             entries.insert(ch, SyntaxEntry::simple(SyntaxClass::Punctuation));
         }
@@ -375,9 +375,9 @@ impl SyntaxTable {
 
     /// Look up the syntax entry for `ch`.
     pub fn get_entry(&self, ch: char) -> Option<&SyntaxEntry> {
-        self.entries.get(&ch).or_else(|| {
-            self.parent.as_ref().and_then(|p| p.get_entry(ch))
-        })
+        self.entries
+            .get(&ch)
+            .or_else(|| self.parent.as_ref().and_then(|p| p.get_entry(ch)))
     }
 
     /// Return the syntax class for `ch`, defaulting to `Symbol` for
@@ -599,7 +599,12 @@ fn scan_sexp_forward(
     let mut idx = start;
 
     // Skip whitespace and comments
-    while idx < len && matches!(table.char_syntax(chars[idx]), SyntaxClass::Whitespace | SyntaxClass::Comment | SyntaxClass::EndComment) {
+    while idx < len
+        && matches!(
+            table.char_syntax(chars[idx]),
+            SyntaxClass::Whitespace | SyntaxClass::Comment | SyntaxClass::EndComment
+        )
+    {
         idx += 1;
     }
 
@@ -715,15 +720,16 @@ fn scan_sexp_forward(
 }
 
 /// Scan one sexp backward from char index `start`.
-fn scan_sexp_backward(
-    chars: &[char],
-    start: usize,
-    table: &SyntaxTable,
-) -> Result<usize, String> {
+fn scan_sexp_backward(chars: &[char], start: usize, table: &SyntaxTable) -> Result<usize, String> {
     let mut idx = start;
 
     // Skip whitespace and comments backward
-    while idx > 0 && matches!(table.char_syntax(chars[idx - 1]), SyntaxClass::Whitespace | SyntaxClass::Comment | SyntaxClass::EndComment) {
+    while idx > 0
+        && matches!(
+            table.char_syntax(chars[idx - 1]),
+            SyntaxClass::Whitespace | SyntaxClass::Comment | SyntaxClass::EndComment
+        )
+    {
         idx -= 1;
     }
 
@@ -841,7 +847,10 @@ pub(crate) fn builtin_string_to_syntax(args: Vec<Value>) -> EvalResult {
     if args.len() != 1 {
         return Err(signal(
             "wrong-number-of-arguments",
-            vec![Value::symbol("string-to-syntax"), Value::Int(args.len() as i64)],
+            vec![
+                Value::symbol("string-to-syntax"),
+                Value::Int(args.len() as i64),
+            ],
         ));
     }
     let s = match &args[0] {
@@ -853,9 +862,7 @@ pub(crate) fn builtin_string_to_syntax(args: Vec<Value>) -> EvalResult {
             ));
         }
     };
-    let entry = string_to_syntax(&s).map_err(|msg| {
-        signal("error", vec![Value::string(&msg)])
-    })?;
+    let entry = string_to_syntax(&s).map_err(|msg| signal("error", vec![Value::string(&msg)]))?;
     Ok(syntax_entry_to_value(&entry))
 }
 
@@ -880,16 +887,20 @@ pub(crate) fn builtin_modify_syntax_entry(
     if args.len() < 2 {
         return Err(signal(
             "wrong-number-of-arguments",
-            vec![Value::symbol("modify-syntax-entry"), Value::Int(args.len() as i64)],
+            vec![
+                Value::symbol("modify-syntax-entry"),
+                Value::Int(args.len() as i64),
+            ],
         ));
     }
     let ch = match &args[0] {
         Value::Char(c) => *c,
-        Value::Int(n) => {
-            char::from_u32(*n as u32).ok_or_else(|| {
-                signal("error", vec![Value::string(&format!("Invalid character code: {}", n))])
-            })?
-        }
+        Value::Int(n) => char::from_u32(*n as u32).ok_or_else(|| {
+            signal(
+                "error",
+                vec![Value::string(&format!("Invalid character code: {}", n))],
+            )
+        })?,
         other => {
             return Err(signal(
                 "wrong-type-argument",
@@ -906,9 +917,8 @@ pub(crate) fn builtin_modify_syntax_entry(
             ));
         }
     };
-    let entry = string_to_syntax(&descriptor).map_err(|msg| {
-        signal("error", vec![Value::string(&msg)])
-    })?;
+    let entry =
+        string_to_syntax(&descriptor).map_err(|msg| signal("error", vec![Value::string(&msg)]))?;
 
     let buf = eval
         .buffers
@@ -931,11 +941,12 @@ pub(crate) fn builtin_char_syntax(
     }
     let ch = match &args[0] {
         Value::Char(c) => *c,
-        Value::Int(n) => {
-            char::from_u32(*n as u32).ok_or_else(|| {
-                signal("error", vec![Value::string(&format!("Invalid character code: {}", n))])
-            })?
-        }
+        Value::Int(n) => char::from_u32(*n as u32).ok_or_else(|| {
+            signal(
+                "error",
+                vec![Value::string(&format!("Invalid character code: {}", n))],
+            )
+        })?,
         other => {
             return Err(signal(
                 "wrong-type-argument",
@@ -1048,9 +1059,8 @@ pub(crate) fn builtin_forward_sexp(
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let table = buf.syntax_table.clone();
     let from = buf.point();
-    let new_pos = scan_sexps(buf, &table, from, count).map_err(|msg| {
-        signal("scan-error", vec![Value::string(&msg)])
-    })?;
+    let new_pos = scan_sexps(buf, &table, from, count)
+        .map_err(|msg| signal("scan-error", vec![Value::string(&msg)]))?;
 
     let buf = eval
         .buffers
@@ -1087,9 +1097,8 @@ pub(crate) fn builtin_backward_sexp(
     let table = buf.syntax_table.clone();
     let from = buf.point();
     // backward-sexp with positive count => scan_sexps with negative count
-    let new_pos = scan_sexps(buf, &table, from, -count).map_err(|msg| {
-        signal("scan-error", vec![Value::string(&msg)])
-    })?;
+    let new_pos = scan_sexps(buf, &table, from, -count)
+        .map_err(|msg| signal("scan-error", vec![Value::string(&msg)]))?;
 
     let buf = eval
         .buffers

@@ -71,8 +71,7 @@ pub(crate) fn is_marker(v: &Value) -> bool {
     match v {
         Value::Vector(vec) => {
             let elems = vec.lock().expect("poisoned");
-            elems.len() == 4
-                && matches!(&elems[0], Value::Keyword(k) if k == MARKER_TAG)
+            elems.len() == 4 && matches!(&elems[0], Value::Keyword(k) if k == MARKER_TAG)
         }
         _ => false,
     }
@@ -201,7 +200,11 @@ pub(crate) fn builtin_set_marker_insertion_type(args: Vec<Value>) -> EvalResult 
 /// TYPE, if non-nil, sets the insertion type of the new marker.
 pub(crate) fn builtin_copy_marker(args: Vec<Value>) -> EvalResult {
     expect_range_args("copy-marker", &args, 1, 2)?;
-    let insertion_type = if args.len() > 1 { args[1].is_truthy() } else { false };
+    let insertion_type = if args.len() > 1 {
+        args[1].is_truthy()
+    } else {
+        false
+    };
 
     match &args[0] {
         v if is_marker(v) => {
@@ -217,9 +220,7 @@ pub(crate) fn builtin_copy_marker(args: Vec<Value>) -> EvalResult {
             };
             Ok(make_marker_value(buffer_name, position, insertion_type))
         }
-        Value::Int(n) => {
-            Ok(make_marker_value(None, Some(*n), insertion_type))
-        }
+        Value::Int(n) => Ok(make_marker_value(None, Some(*n), insertion_type)),
         Value::Nil => {
             // nil means no position — return an unset marker
             Ok(make_marker_value(None, None, insertion_type))
@@ -257,9 +258,7 @@ pub(crate) fn builtin_set_marker(
     let buffer_name: Option<String> = if args.len() > 2 && args[2].is_truthy() {
         match &args[2] {
             Value::Str(s) => Some((**s).clone()),
-            Value::Buffer(id) => {
-                eval.buffers.get(*id).map(|b| b.name.clone())
-            }
+            Value::Buffer(id) => eval.buffers.get(*id).map(|b| b.name.clone()),
             other => {
                 return Err(signal(
                     "wrong-type-argument",
@@ -276,12 +275,10 @@ pub(crate) fn builtin_set_marker(
     let position: Option<i64> = match &args[1] {
         Value::Nil => None,
         Value::Int(n) => Some(*n),
-        v if is_marker(v) => {
-            match marker_position_value(v) {
-                Value::Int(n) => Some(n),
-                _ => None,
-            }
-        }
+        v if is_marker(v) => match marker_position_value(v) {
+            Value::Int(n) => Some(n),
+            _ => None,
+        },
         other => {
             return Err(signal(
                 "wrong-type-argument",
@@ -315,7 +312,9 @@ pub(crate) fn builtin_point_marker(
     args: Vec<Value>,
 ) -> EvalResult {
     let _ = args;
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let pos = buf.point_char() as i64 + 1; // 1-based
     let name = buf.name.clone();
@@ -328,7 +327,9 @@ pub(crate) fn builtin_point_min_marker(
     args: Vec<Value>,
 ) -> EvalResult {
     let _ = args;
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let pos = buf.text.byte_to_char(buf.point_min()) as i64 + 1; // 1-based
     let name = buf.name.clone();
@@ -341,7 +342,9 @@ pub(crate) fn builtin_point_max_marker(
     args: Vec<Value>,
 ) -> EvalResult {
     let _ = args;
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let pos = buf.text.byte_to_char(buf.point_max()) as i64 + 1; // 1-based
     let name = buf.name.clone();
@@ -354,7 +357,9 @@ pub(crate) fn builtin_mark_marker(
     args: Vec<Value>,
 ) -> EvalResult {
     let _ = args;
-    let buf = eval.buffers.current_buffer()
+    let buf = eval
+        .buffers
+        .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
     let name = buf.name.clone();
     match buf.mark() {
@@ -436,7 +441,9 @@ mod tests {
     #[test]
     fn builtin_marker_insertion_type_roundtrip() {
         let m = make_marker_value(None, None, false);
-        assert!(builtin_marker_insertion_type(vec![m.clone()]).unwrap().is_nil());
+        assert!(builtin_marker_insertion_type(vec![m.clone()])
+            .unwrap()
+            .is_nil());
 
         builtin_set_marker_insertion_type(vec![m.clone(), Value::True]).unwrap();
         assert!(builtin_marker_insertion_type(vec![m]).unwrap().is_truthy());
