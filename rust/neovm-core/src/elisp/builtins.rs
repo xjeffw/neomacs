@@ -3195,6 +3195,11 @@ pub(crate) fn dispatch_builtin(
         "read-char" => return Some(super::reader::builtin_read_char(eval, args)),
         "read-key-sequence" => return Some(super::reader::builtin_read_key_sequence(eval, args)),
 
+        // Misc (evaluator-dependent)
+        "backtrace-frame" => return Some(super::misc::builtin_backtrace_frame(eval, args)),
+        "recursion-depth" => return Some(super::misc::builtin_recursion_depth(eval, args)),
+        "abort-recursive-edit" => return Some(super::misc::builtin_abort_recursive_edit(eval, args)),
+
         // Char-table (evaluator-dependent — applies function)
         "map-char-table" => return Some(super::chartable::builtin_map_char_table(eval, args)),
 
@@ -3489,6 +3494,28 @@ pub(crate) fn dispatch_builtin(
 
         // Error hierarchy (pure)
         "signal" => super::errors::builtin_signal(args),
+
+        // Misc (pure)
+        "copy-alist" => super::misc::builtin_copy_alist(args),
+        "rassoc" => super::misc::builtin_rassoc(args),
+        "rassq" => super::misc::builtin_rassq(args),
+        "assoc-default" => super::misc::builtin_assoc_default(args),
+        "make-list" => super::misc::builtin_make_list(args),
+        "safe-length" => super::misc::builtin_safe_length(args),
+        "subst-char-in-string" => super::misc::builtin_subst_char_in_string(args),
+        "string-to-multibyte" => super::misc::builtin_string_to_multibyte(args),
+        "string-to-unibyte" => super::misc::builtin_string_to_unibyte(args),
+        "string-as-unibyte" => super::misc::builtin_string_as_unibyte(args),
+        "string-as-multibyte" => super::misc::builtin_string_as_multibyte(args),
+        "unibyte-char-to-multibyte" => super::misc::builtin_unibyte_char_to_multibyte(args),
+        "multibyte-char-to-unibyte" => super::misc::builtin_multibyte_char_to_unibyte(args),
+        "decode-char" => super::misc::builtin_decode_char(args),
+        "encode-char" => super::misc::builtin_encode_char(args),
+        "define-coding-system-alias" => super::misc::builtin_define_coding_system_alias(args),
+        "coding-system-p" => super::misc::builtin_coding_system_p(args),
+        "check-coding-system" => super::misc::builtin_check_coding_system(args),
+        "set-coding-system-priority" => super::misc::builtin_set_coding_system_priority(args),
+        "locale-info" => super::misc::builtin_locale_info(args),
 
         // Reader/printer (pure)
         "prin1-to-string" => super::reader::builtin_prin1_to_string_full(args),

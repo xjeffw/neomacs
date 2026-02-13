@@ -49,6 +49,7 @@ pub mod pcase;
 pub mod setf;
 pub mod cl_extra;
 pub mod reader;
+pub mod misc;
 
 // Re-export the main public API
 pub use value::{Value, ConsCell, LambdaData, LambdaParams};

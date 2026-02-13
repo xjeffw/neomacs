@@ -426,6 +426,12 @@ impl Evaluator {
             "cl-progv" => super::cl_extra::sf_cl_progv(self, tail),
             // Reader/printer special forms
             "with-output-to-string" => super::reader::sf_with_output_to_string(self, tail),
+            // Misc special forms
+            "prog2" => super::misc::sf_prog2(self, tail),
+            "with-temp-buffer" => super::misc::sf_with_temp_buffer(self, tail),
+            "save-current-buffer" => super::misc::sf_save_current_buffer(self, tail),
+            "track-mouse" => super::misc::sf_track_mouse(self, tail),
+            "with-syntax-table" => super::misc::sf_with_syntax_table(self, tail),
             // Interactive / mode definition special forms
             "define-minor-mode" => super::interactive::sf_define_minor_mode(self, tail),
             "define-derived-mode" => super::interactive::sf_define_derived_mode(self, tail),
