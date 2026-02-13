@@ -1,0 +1,6 @@
+1	(progn (setq vm-locate-dir (expand-file-name "locate-file-fixtures" (file-name-directory (getenv "NEOVM_FORMS_FILE")))) 'ok)	OK ok
+2	(file-name-nondirectory (locate-file "vm-locate-probe" (list vm-locate-dir) '(".el" ".xelc")))	OK "vm-locate-probe.el"
+3	(file-name-nondirectory (locate-file "vm-locate-probe" (list vm-locate-dir) '(".xelc")))	OK "vm-locate-probe.xelc"
+4	(locate-file "vm-locate-missing" (list vm-locate-dir) '(".el" ".xelc"))	OK nil
+5	(file-name-nondirectory (locate-file-internal "vm-locate-probe" (list vm-locate-dir) '(".xelc")))	OK "vm-locate-probe.xelc"
+6	(locate-file-internal "vm-locate-missing" (list vm-locate-dir) '(".el"))	OK nil
