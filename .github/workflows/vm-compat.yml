@@ -15,6 +15,28 @@ on:
       - ".github/workflows/vm-compat.yml"
 
 jobs:
+  neovm-vm-compat-introspection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust/neovm-core
+            rust/neovm-worker
+
+      - name: Run NeoVM introspection compatibility suite
+        working-directory: test/neovm/vm-compat
+        run: |
+          RUSTFLAGS='-Awarnings' make check-introspection-neovm
+
   neovm-vm-compat:
     runs-on: ubuntu-latest
     timeout-minutes: 30
