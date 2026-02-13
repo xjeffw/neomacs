@@ -3697,6 +3697,10 @@ pub(crate) fn dispatch_builtin(
         _ => {}
     }
 
+    if let Ok(id) = name.parse::<PureBuiltinId>() {
+        return Some(dispatch_builtin_id_pure(id, args));
+    }
+
     // Pure builtins (no evaluator needed)
     Some(match name {
         // Arithmetic
@@ -4840,5 +4844,18 @@ mod tests {
             .expect("builtin last should resolve")
             .expect("builtin last should evaluate");
         assert_eq!(last, Value::list(vec![Value::Int(4)]));
+    }
+
+    #[test]
+    fn dispatch_builtin_resolves_typed_only_pure_names() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        let result = dispatch_builtin(
+            &mut eval,
+            "string-equal",
+            vec![Value::string("neo"), Value::string("neo")],
+        )
+        .expect("dispatch_builtin should resolve string-equal")
+        .expect("dispatch_builtin should evaluate string-equal");
+        assert!(result.is_truthy());
     }
 }
