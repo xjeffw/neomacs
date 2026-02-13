@@ -654,42 +654,6 @@ pub(crate) fn builtin_locale_info(args: Vec<Value>) -> EvalResult {
 // Eval-dependent builtins
 // ===========================================================================
 
-/// `(replace-regexp-in-string REGEXP REP STRING ...)` -- version that
-/// can update evaluator match data. Delegates to the pure version and
-/// then synchronizes match data.
-pub(crate) fn builtin_replace_regexp_in_string_eval(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    // Perform the replacement
-    let result = builtin_replace_regexp_in_string(args.clone())?;
-
-    // Optionally set match data from the last match
-    if args.len() >= 3 {
-        let pattern = expect_string(&args[0])?;
-        let s = expect_string(&args[2])?;
-        let start = if args.len() > 6 {
-            expect_int(&args[6])? as usize
-        } else {
-            0
-        };
-        // Run a final match to populate match data (matching Emacs behavior
-        // where match data reflects the last replacement)
-        let _ = super::regex::string_match_full(&pattern, &s, start, &mut eval.match_data);
-    }
-    Ok(result)
-}
-
-/// `(string-match-p REGEXP STRING &optional START)` -- eval-aware version.
-/// Does NOT modify match data (that is the point of string-match-p).
-pub(crate) fn builtin_string_match_p_eval(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    // Delegate to the pure version; match data is intentionally not touched
-    builtin_string_match_p(args)
-}
-
 /// `(backtrace-frame NFRAMES &optional BASE)` -- stub returning nil.
 /// A real implementation would inspect the call stack.
 pub(crate) fn builtin_backtrace_frame(
