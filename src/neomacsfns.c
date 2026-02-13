@@ -686,11 +686,17 @@ neomacs_widget_resize_cb (void *user_data, int width, int height)
   if (!f || !FRAME_LIVE_P (f) || !FRAME_NEOMACS_P (f))
     return;
 
+  /* Child frames are composited overlays — ignore OS window resize. */
+  if (FRAME_PARENT_FRAME (f))
+    return;
+
   struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
 
   /* Update Rust display engine with new size */
   if (dpyinfo && dpyinfo->display_handle)
-    neomacs_display_resize (dpyinfo->display_handle, width, height);
+    {
+      neomacs_display_resize (dpyinfo->display_handle, width, height);
+    }
 
   /* Avoid division by zero */
   int col_width = FRAME_COLUMN_WIDTH (f);
@@ -760,11 +766,14 @@ neomacs_create_frame_widgets (struct frame *f)
   output->window_id = window_id;
   output->window_desc = (Window) window_id;
 
-  /* Set up resize callback for the window */
-  neomacs_display_set_resize_callback (neomacs_widget_resize_cb, f);
-
-  /* Show the window */
-  neomacs_display_show_window (dpyinfo->display_handle, window_id, true);
+  /* Child frames share the parent's winit window and are composited as
+     overlays.  Don't overwrite the global resize callback (it must
+     point to the root frame) and don't show a separate OS window.  */
+  if (!FRAME_PARENT_FRAME (f))
+    {
+      neomacs_display_set_resize_callback (neomacs_widget_resize_cb, f);
+      neomacs_display_show_window (dpyinfo->display_handle, window_id, true);
+    }
 
   output->widget = NULL;
   output->drawing_area = NULL;
@@ -926,6 +935,25 @@ If the parameters specify a display, that display is used.  */)
       = FRAME_FOREGROUND_PIXEL (f);
     FRAME_NEOMACS_OUTPUT (f)->background_pixel
       = FRAME_BACKGROUND_PIXEL (f);
+  }
+
+  /* Set parent-frame EARLY so that adjust_frame_size / set_window_size
+     can detect child frames before resizing the OS window.  Official
+     Emacs (xfns.c) does this at the same stage.  */
+  {
+    Lisp_Object parent_frame = gui_display_get_arg (dpyinfo, parms,
+                                                     Qparent_frame,
+                                                     NULL, NULL,
+                                                     RES_TYPE_SYMBOL);
+    if (!BASE_EQ (parent_frame, Qunbound) && !NILP (parent_frame))
+      {
+        /* Validate that the parent is a live neomacs frame */
+        struct frame *p = decode_live_frame (parent_frame);
+        if (!FRAME_NEOMACS_P (p))
+          error ("Parent frame is not a neomacs frame");
+        fset_parent_frame (f, parent_frame);
+        store_frame_param (f, Qparent_frame, parent_frame);
+      }
   }
 
   /* Initialize frame dimensions */

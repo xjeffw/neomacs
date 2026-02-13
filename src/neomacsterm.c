@@ -5166,6 +5166,19 @@ neomacs_set_window_size (struct frame *f, bool change_gravity,
 
   block_input ();
 
+  /* Child frames are rendered as composited overlays by the Rust
+     ChildFrameManager — they do not own the OS window.  Store their
+     dimensions in the output struct (read by Rust layout) but do NOT
+     resize the winit window or the primary display scene.  */
+  if (FRAME_PARENT_FRAME (f))
+    {
+      output->pixel_width = width;
+      output->pixel_height = height;
+      SET_FRAME_GARBAGED (f);
+      unblock_input ();
+      return;
+    }
+
   /* Clamp to display dimensions so the window doesn't extend beyond
      the screen.  On a real display the WM would do this; without a WM
      (e.g. Xvfb) the window would grow beyond the screen otherwise.
@@ -15697,7 +15710,9 @@ neomacs_display_wakeup_handler (int fd, void *data)
 
             /* Update the Rust display handle */
             if (dpyinfo && dpyinfo->display_handle)
-              neomacs_display_resize (dpyinfo->display_handle, new_width, new_height);
+              {
+                neomacs_display_resize (dpyinfo->display_handle, new_width, new_height);
+              }
 
             if (FRAME_PIXEL_WIDTH (f) != new_width
                 || FRAME_PIXEL_HEIGHT (f) != new_height)
