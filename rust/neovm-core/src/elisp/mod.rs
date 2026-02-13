@@ -54,12 +54,16 @@ pub mod misc;
 pub mod threads;
 pub mod coding;
 pub mod hashtab;
+pub mod json;
 pub mod category;
 pub mod kmacro;
 pub mod display;
 pub mod image;
 pub mod doc;
 pub mod indent;
+pub mod subr_info;
+pub mod rect;
+pub mod format;
 
 // Re-export the main public API
 pub use value::{Value, ConsCell, LambdaData, LambdaParams};

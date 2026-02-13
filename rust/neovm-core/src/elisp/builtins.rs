@@ -3136,6 +3136,19 @@ pub(crate) fn dispatch_builtin(
         "tab-to-tab-stop" => return Some(super::kill_ring::builtin_tab_to_tab_stop(eval, args)),
         "indent-rigidly" => return Some(super::kill_ring::builtin_indent_rigidly(eval, args)),
 
+        // Rectangle operations (evaluator-dependent — buffer access)
+        "extract-rectangle-line" => return Some(super::rect::builtin_extract_rectangle_line(eval, args)),
+        "extract-rectangle" => return Some(super::rect::builtin_extract_rectangle(eval, args)),
+        "delete-rectangle" => return Some(super::rect::builtin_delete_rectangle(eval, args)),
+        "kill-rectangle" => return Some(super::rect::builtin_kill_rectangle(eval, args)),
+        "yank-rectangle" => return Some(super::rect::builtin_yank_rectangle(eval, args)),
+        "insert-rectangle" => return Some(super::rect::builtin_insert_rectangle(eval, args)),
+        "open-rectangle" => return Some(super::rect::builtin_open_rectangle(eval, args)),
+        "clear-rectangle" => return Some(super::rect::builtin_clear_rectangle(eval, args)),
+        "string-rectangle" => return Some(super::rect::builtin_string_rectangle(eval, args)),
+        "delete-extract-rectangle" => return Some(super::rect::builtin_delete_extract_rectangle(eval, args)),
+        "replace-rectangle" => return Some(super::rect::builtin_replace_rectangle(eval, args)),
+
         // Window/frame operations (evaluator-dependent)
         "selected-window" => return Some(super::window_cmds::builtin_selected_window(eval, args)),
         "window-buffer" => return Some(super::window_cmds::builtin_window_buffer(eval, args)),
@@ -3284,6 +3297,23 @@ pub(crate) fn dispatch_builtin(
         "seq-sort" => return Some(super::cl_lib::builtin_seq_sort(eval, args)),
         "json-parse-buffer" => return Some(super::cl_lib::builtin_json_parse_buffer(eval, args)),
         "json-insert" => return Some(super::cl_lib::builtin_json_insert(eval, args)),
+
+        // Documentation/help (evaluator-dependent)
+        "documentation" => return Some(super::doc::builtin_documentation(eval, args)),
+        "describe-function" => return Some(super::doc::builtin_describe_function(eval, args)),
+        "describe-variable" => return Some(super::doc::builtin_describe_variable(eval, args)),
+
+        // Indentation (evaluator-dependent)
+        "indent-region" => return Some(super::indent::builtin_indent_region(eval, args)),
+        "indent-line-to" => return Some(super::indent::builtin_indent_line_to(eval, args)),
+        "indent-rigidly" => return Some(super::indent::builtin_indent_rigidly(eval, args)),
+        "newline-and-indent" => return Some(super::indent::builtin_newline_and_indent(eval, args)),
+        "reindent-then-newline-and-indent" => return Some(super::indent::builtin_reindent_then_newline_and_indent(eval, args)),
+        "indent-for-tab-command" => return Some(super::indent::builtin_indent_for_tab_command(eval, args)),
+        "indent-according-to-mode" => return Some(super::indent::builtin_indent_according_to_mode(eval, args)),
+        "tab-to-tab-stop" => return Some(super::indent::builtin_tab_to_tab_stop(eval, args)),
+        "back-to-indentation" => return Some(super::indent::builtin_back_to_indentation(eval, args)),
+        "delete-indentation" => return Some(super::indent::builtin_delete_indentation(eval, args)),
 
         _ => {}
     }
@@ -3621,6 +3651,18 @@ pub(crate) fn dispatch_builtin(
 
         // Custom system (pure)
         "custom-set-faces" => super::custom::builtin_custom_set_faces(args),
+
+        // Documentation/help (pure)
+        "documentation-property" => super::doc::builtin_documentation_property(args),
+        "Snarf-documentation" => super::doc::builtin_snarf_documentation(args),
+        "substitute-command-keys" => super::doc::builtin_substitute_command_keys(args),
+        "help-function-arglist" => super::doc::builtin_help_function_arglist(args),
+
+        // Indentation (pure)
+        "current-indentation" => super::indent::builtin_current_indentation(args),
+        "indent-to" => super::indent::builtin_indent_to(args),
+        "current-column" => super::indent::builtin_current_column(args),
+        "move-to-column" => super::indent::builtin_move_to_column(args),
 
         // Error hierarchy (pure)
         "signal" => super::errors::builtin_signal(args),
