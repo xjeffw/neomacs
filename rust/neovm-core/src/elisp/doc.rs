@@ -79,12 +79,10 @@ pub(crate) fn builtin_documentation(
 
     // Extract the docstring from the resolved function value.
     match &func_val {
-        Value::Lambda(data) | Value::Macro(data) => {
-            match &data.docstring {
-                Some(doc) => Ok(Value::string(doc.clone())),
-                None => Ok(Value::Nil),
-            }
-        }
+        Value::Lambda(data) | Value::Macro(data) => match &data.docstring {
+            Some(doc) => Ok(Value::string(doc.clone())),
+            None => Ok(Value::Nil),
+        },
         Value::Subr(_) | Value::ByteCode(_) => {
             // Built-in functions and bytecode don't carry docstrings in our
             // implementation.
@@ -128,10 +126,7 @@ pub(crate) fn builtin_describe_function(
             if eval.obarray.fboundp(&name) {
                 "Lisp function"
             } else {
-                return Err(signal(
-                    "void-function",
-                    vec![Value::symbol(&name)],
-                ));
+                return Err(signal("void-function", vec![Value::symbol(&name)]));
             }
         }
     };
@@ -339,9 +334,8 @@ mod tests {
 
     #[test]
     fn substitute_command_key_binding() {
-        let result = builtin_substitute_command_keys(vec![Value::string(
-            "Press \\[save-buffer] to save.",
-        )]);
+        let result =
+            builtin_substitute_command_keys(vec![Value::string("Press \\[save-buffer] to save.")]);
         assert!(result.is_ok());
         let s = result.unwrap();
         let text = s.as_str().unwrap();
@@ -352,9 +346,8 @@ mod tests {
 
     #[test]
     fn substitute_keymap_description() {
-        let result = builtin_substitute_command_keys(vec![Value::string(
-            "Bindings:\\{foo-mode-map}done",
-        )]);
+        let result =
+            builtin_substitute_command_keys(vec![Value::string("Bindings:\\{foo-mode-map}done")]);
         assert!(result.is_ok());
         let s = result.unwrap();
         let text = s.as_str().unwrap();
@@ -364,9 +357,8 @@ mod tests {
 
     #[test]
     fn substitute_keymap_context() {
-        let result = builtin_substitute_command_keys(vec![Value::string(
-            "\\<foo-map>Press \\[bar] now",
-        )]);
+        let result =
+            builtin_substitute_command_keys(vec![Value::string("\\<foo-map>Press \\[bar] now")]);
         assert!(result.is_ok());
         let s = result.unwrap();
         let text = s.as_str().unwrap();
@@ -389,8 +381,7 @@ mod tests {
 
     #[test]
     fn substitute_literal_backslash() {
-        let result =
-            builtin_substitute_command_keys(vec![Value::string("path\\\\name")]);
+        let result = builtin_substitute_command_keys(vec![Value::string("path\\\\name")]);
         assert!(result.is_ok());
         let s = result.unwrap();
         assert_eq!(s.as_str(), Some("path\\name"));
@@ -484,8 +475,7 @@ mod tests {
 
     #[test]
     fn help_function_arglist_with_preserve_names() {
-        let result =
-            builtin_help_function_arglist(vec![Value::symbol("foo"), Value::True]);
+        let result = builtin_help_function_arglist(vec![Value::symbol("foo"), Value::True]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
@@ -538,8 +528,7 @@ mod tests {
     #[test]
     fn documentation_unbound_function() {
         let mut evaluator = super::super::eval::Evaluator::new();
-        let result =
-            builtin_documentation(&mut evaluator, vec![Value::symbol("nonexistent")]);
+        let result = builtin_documentation(&mut evaluator, vec![Value::symbol("nonexistent")]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
@@ -579,8 +568,7 @@ mod tests {
         }));
         evaluator.obarray.set_symbol_function("my-fn", lambda);
 
-        let result =
-            builtin_describe_function(&mut evaluator, vec![Value::symbol("my-fn")]);
+        let result = builtin_describe_function(&mut evaluator, vec![Value::symbol("my-fn")]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("Lisp function"));
     }
@@ -592,8 +580,7 @@ mod tests {
             .obarray
             .set_symbol_function("plus", Value::Subr("+".to_string()));
 
-        let result =
-            builtin_describe_function(&mut evaluator, vec![Value::symbol("plus")]);
+        let result = builtin_describe_function(&mut evaluator, vec![Value::symbol("plus")]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("Built-in function"));
     }
@@ -601,8 +588,7 @@ mod tests {
     #[test]
     fn describe_function_void() {
         let mut evaluator = super::super::eval::Evaluator::new();
-        let result =
-            builtin_describe_function(&mut evaluator, vec![Value::symbol("nonexistent")]);
+        let result = builtin_describe_function(&mut evaluator, vec![Value::symbol("nonexistent")]);
         assert!(result.is_err());
     }
 
@@ -620,17 +606,14 @@ mod tests {
     #[test]
     fn describe_variable_with_doc() {
         let mut evaluator = super::super::eval::Evaluator::new();
-        evaluator
-            .obarray
-            .set_symbol_value("my-var", Value::Int(42));
+        evaluator.obarray.set_symbol_value("my-var", Value::Int(42));
         evaluator.obarray.put_property(
             "my-var",
             "variable-documentation",
             Value::string("The answer."),
         );
 
-        let result =
-            builtin_describe_variable(&mut evaluator, vec![Value::symbol("my-var")]);
+        let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("my-var")]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("The answer."));
     }
@@ -638,9 +621,7 @@ mod tests {
     #[test]
     fn describe_variable_bound_no_doc() {
         let mut evaluator = super::super::eval::Evaluator::new();
-        evaluator
-            .obarray
-            .set_symbol_value("x", Value::Int(10));
+        evaluator.obarray.set_symbol_value("x", Value::Int(10));
 
         let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("x")]);
         assert!(result.is_ok());
@@ -651,8 +632,7 @@ mod tests {
     #[test]
     fn describe_variable_unbound() {
         let mut evaluator = super::super::eval::Evaluator::new();
-        let result =
-            builtin_describe_variable(&mut evaluator, vec![Value::symbol("nonexistent")]);
+        let result = builtin_describe_variable(&mut evaluator, vec![Value::symbol("nonexistent")]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
