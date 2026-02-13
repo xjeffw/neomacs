@@ -1122,27 +1122,27 @@ fn preserve_case(replacement: &str, matched: &str) -> String {
 // ---------------------------------------------------------------------------
 
 /// `(isearch-forward)` — stub: initiates forward incremental search.
-pub fn builtin_isearch_forward(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_isearch_forward(args: Vec<Value>) -> EvalResult {
     // Interactive search requires a running event loop; return nil as a stub.
     let _ = &args;
     Ok(Value::Nil)
 }
 
 /// `(isearch-backward)` — stub: initiates backward incremental search.
-pub fn builtin_isearch_backward(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_isearch_backward(args: Vec<Value>) -> EvalResult {
     let _ = &args;
     Ok(Value::Nil)
 }
 
 /// `(query-replace FROM TO &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS)` — stub.
-pub fn builtin_query_replace(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_query_replace(args: Vec<Value>) -> EvalResult {
     expect_min_args("query-replace", &args, 2)?;
     // Interactive; return nil as a stub.
     Ok(Value::Nil)
 }
 
 /// `(query-replace-regexp FROM TO &optional DELIMITED START END BACKWARD)` — stub.
-pub fn builtin_query_replace_regexp(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_query_replace_regexp(args: Vec<Value>) -> EvalResult {
     expect_min_args("query-replace-regexp", &args, 2)?;
     Ok(Value::Nil)
 }
@@ -1152,7 +1152,7 @@ pub fn builtin_query_replace_regexp(args: Vec<Value>) -> EvalResult {
 ///
 /// Operates on a notional "buffer text" supplied as the first arg (our
 /// simplified version takes two string args and returns the result string).
-pub fn builtin_replace_string(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_replace_string(args: Vec<Value>) -> EvalResult {
     expect_min_args("replace-string", &args, 2)?;
     let from = expect_string(&args[0])?;
     let to = expect_string(&args[1])?;
@@ -1170,7 +1170,7 @@ pub fn builtin_replace_string(args: Vec<Value>) -> EvalResult {
 
 /// `(replace-regexp REGEXP TO-STRING &optional DELIMITED START END BACKWARD)` —
 /// non-interactive regexp replace (stub).
-pub fn builtin_replace_regexp(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_replace_regexp(args: Vec<Value>) -> EvalResult {
     expect_min_args("replace-regexp", &args, 2)?;
     let _from = expect_string(&args[0])?;
     let _to = expect_string(&args[1])?;
@@ -1180,7 +1180,7 @@ pub fn builtin_replace_regexp(args: Vec<Value>) -> EvalResult {
 /// `(how-many REGEXP &optional RSTART REND INTERACTIVE)` — count matches.
 ///
 /// Simplified version: counts occurrences of REGEXP in string arg (or returns 0).
-pub fn builtin_how_many(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_how_many(args: Vec<Value>) -> EvalResult {
     expect_min_args("how-many", &args, 1)?;
     let _pattern = expect_string(&args[0])?;
     // In a full implementation this would search the current buffer.
@@ -1188,14 +1188,14 @@ pub fn builtin_how_many(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(keep-lines REGEXP &optional RSTART REND INTERACTIVE)` — delete non-matching lines (stub).
-pub fn builtin_keep_lines(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_keep_lines(args: Vec<Value>) -> EvalResult {
     expect_min_args("keep-lines", &args, 1)?;
     let _pattern = expect_string(&args[0])?;
     Ok(Value::Int(0))
 }
 
 /// `(flush-lines REGEXP &optional RSTART REND INTERACTIVE)` — delete matching lines (stub).
-pub fn builtin_flush_lines(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_flush_lines(args: Vec<Value>) -> EvalResult {
     expect_min_args("flush-lines", &args, 1)?;
     let _pattern = expect_string(&args[0])?;
     Ok(Value::Int(0))
