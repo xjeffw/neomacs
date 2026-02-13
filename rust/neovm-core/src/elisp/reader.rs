@@ -758,6 +758,7 @@ pub(crate) fn builtin_read_number(
 ) -> EvalResult {
     expect_min_args("read-number", &args, 1)?;
     expect_max_args("read-number", &args, 3)?;
+    let _prompt = expect_string(&args[0])?;
     Err(signal("end-of-file", vec![]))
 }
 
@@ -1496,6 +1497,16 @@ mod tests {
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn read_number_rejects_non_string_prompt() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_number(&mut ev, vec![Value::Int(123)]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
         ));
     }
 
