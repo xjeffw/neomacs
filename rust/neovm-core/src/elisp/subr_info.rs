@@ -148,6 +148,10 @@ fn is_special_form_name(name: &str) -> bool {
     )
 }
 
+pub(crate) fn is_special_form(name: &str) -> bool {
+    is_special_form_name(name)
+}
+
 // ---------------------------------------------------------------------------
 // Arity helpers
 // ---------------------------------------------------------------------------

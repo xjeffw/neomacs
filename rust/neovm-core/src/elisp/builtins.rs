@@ -1649,7 +1649,11 @@ pub(crate) fn builtin_fboundp(eval: &mut super::eval::Evaluator, args: Vec<Value
             vec![Value::symbol("symbolp"), args[0].clone()],
         )
     })?;
-    Ok(Value::bool(eval.obarray().fboundp(name)))
+    Ok(Value::bool(
+        eval.obarray().fboundp(name)
+            || super::subr_info::is_special_form(name)
+            || name.parse::<PureBuiltinId>().is_ok(),
+    ))
 }
 
 pub(crate) fn builtin_symbol_value(
