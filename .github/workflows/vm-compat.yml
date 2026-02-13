@@ -22,6 +22,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Emacs for oracle checks
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y emacs-nox
+
+      - name: Verify oracle baselines
+        working-directory: test/neovm/vm-compat
+        env:
+          NEOVM_ORACLE_EMACS: /usr/bin/emacs
+        run: |
+          make check-all
+
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
 
