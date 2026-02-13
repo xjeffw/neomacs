@@ -896,7 +896,7 @@ pub(crate) fn builtin_read_key_sequence(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-key-sequence", &args, 1)?;
-    let _prompt = expect_string(&args[0])?;
+    expect_optional_prompt_string(&args)?;
     if let Some(event) = pop_unread_command_event(eval) {
         if let Some(c) = event_to_char(&event) {
             return Ok(Value::string(c.to_string()));
@@ -915,7 +915,7 @@ pub(crate) fn builtin_read_key_sequence_vector(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-key-sequence-vector", &args, 1)?;
-    let _prompt = expect_string(&args[0])?;
+    expect_optional_prompt_string(&args)?;
     if let Some(event) = pop_unread_command_event(eval) {
         if let Some(n) = event_to_int(&event) {
             return Ok(Value::vector(vec![Value::Int(n)]));
@@ -1540,6 +1540,15 @@ mod tests {
     }
 
     #[test]
+    fn read_key_sequence_accepts_nil_prompt() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_read_key_sequence(&mut ev, vec![Value::Nil]).unwrap();
+        assert!(matches!(result, Value::Str(s) if s.as_str() == "a"));
+    }
+
+    #[test]
     fn read_key_sequence_vector_returns_empty_vector() {
         let mut ev = Evaluator::new();
         let result =
@@ -1557,6 +1566,22 @@ mod tests {
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
         let result =
             builtin_read_key_sequence_vector(&mut ev, vec![Value::string("key: ")]).unwrap();
+        match result {
+            Value::Vector(v) => {
+                let items = v.lock().expect("poisoned");
+                assert_eq!(items.len(), 1);
+                assert_eq!(items[0].as_int(), Some(97));
+            }
+            other => panic!("expected vector, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn read_key_sequence_vector_accepts_nil_prompt() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_read_key_sequence_vector(&mut ev, vec![Value::Nil]).unwrap();
         match result {
             Value::Vector(v) => {
                 let items = v.lock().expect("poisoned");
