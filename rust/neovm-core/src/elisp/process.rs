@@ -6,10 +6,11 @@
 //! commands via `std::process::Command`.
 
 use std::collections::HashMap;
+use std::fs::OpenOptions;
 use std::process::{Command, Stdio};
 
 use super::error::{signal, EvalResult, Flow};
-use super::value::Value;
+use super::value::{list_to_vec, Value};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -227,22 +228,128 @@ fn signal_process_io(action: &str, target: Option<&str>, err: std::io::Error) ->
     signal(file_error_symbol(err.kind()), data)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum CallProcessDestination {
-    /// Wait for process exit and discard output.
-    WaitDiscard,
-    /// Wait for process exit and insert stdout into current buffer.
-    WaitInsertCurrentBuffer,
-    /// Return immediately (integer destination semantics).
-    NoWaitDiscard,
+#[derive(Clone, Debug)]
+enum OutputTarget {
+    Discard,
+    Buffer(Value),
+    File(String),
 }
 
-fn classify_call_process_destination(destination: &Value) -> CallProcessDestination {
-    match destination {
-        Value::Int(_) => CallProcessDestination::NoWaitDiscard,
-        Value::Nil => CallProcessDestination::WaitDiscard,
-        _ => CallProcessDestination::WaitInsertCurrentBuffer,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StderrTarget {
+    Discard,
+    ToStdoutTarget,
+    File,
+}
+
+#[derive(Clone, Debug)]
+struct DestinationSpec {
+    stdout: OutputTarget,
+    stderr: StderrTarget,
+    stderr_file: Option<String>,
+    no_wait: bool,
+}
+
+fn signal_wrong_type_string(value: Value) -> Flow {
+    signal(
+        "wrong-type-argument",
+        vec![Value::symbol("stringp"), value],
+    )
+}
+
+fn expect_string_strict(value: &Value) -> Result<String, Flow> {
+    match value {
+        Value::Str(s) => Ok((**s).clone()),
+        other => Err(signal_wrong_type_string(other.clone())),
     }
+}
+
+fn is_file_keyword(value: &Value) -> bool {
+    matches!(value, Value::Keyword(k) if k == ":file" || k == "file")
+}
+
+fn parse_file_target(items: &[Value]) -> Result<OutputTarget, Flow> {
+    let file_value = items.get(1).cloned().unwrap_or(Value::Nil);
+    let file = expect_string_strict(&file_value)?;
+    Ok(OutputTarget::File(file))
+}
+
+fn parse_real_buffer_destination(
+    eval: &super::eval::Evaluator,
+    value: &Value,
+) -> Result<(OutputTarget, bool), Flow> {
+    match value {
+        Value::Int(_) => Ok((OutputTarget::Discard, true)),
+        Value::Nil => Ok((OutputTarget::Discard, false)),
+        Value::True | Value::Str(_) => Ok((OutputTarget::Buffer(value.clone()), false)),
+        Value::Buffer(id) => {
+            if eval.buffers.get(*id).is_none() {
+                Err(signal("error", vec![Value::string("Selecting deleted buffer")]))
+            } else {
+                Ok((OutputTarget::Buffer(value.clone()), false))
+            }
+        }
+        Value::Cons(_) => {
+            let items = list_to_vec(value).ok_or_else(|| signal_wrong_type_string(value.clone()))?;
+            let first = items.first().cloned().unwrap_or(Value::Nil);
+            if is_file_keyword(&first) {
+                Ok((parse_file_target(&items)?, false))
+            } else {
+                Err(signal_wrong_type_string(first))
+            }
+        }
+        other => Err(signal_wrong_type_string(other.clone())),
+    }
+}
+
+fn parse_stderr_destination(value: &Value) -> Result<(StderrTarget, Option<String>), Flow> {
+    match value {
+        Value::Nil => Ok((StderrTarget::Discard, None)),
+        Value::True => Ok((StderrTarget::ToStdoutTarget, None)),
+        Value::Str(s) => Ok((StderrTarget::File, Some((**s).clone()))),
+        other => Err(signal_wrong_type_string(other.clone())),
+    }
+}
+
+fn parse_call_process_destination(
+    eval: &super::eval::Evaluator,
+    destination: &Value,
+) -> Result<DestinationSpec, Flow> {
+    if let Value::Cons(_) = destination {
+        let items =
+            list_to_vec(destination).ok_or_else(|| signal_wrong_type_string(destination.clone()))?;
+        let first = items.first().cloned().unwrap_or(Value::Nil);
+        if is_file_keyword(&first) {
+            let stdout = parse_file_target(&items)?;
+            return Ok(DestinationSpec {
+                stdout,
+                stderr: StderrTarget::ToStdoutTarget,
+                stderr_file: None,
+                no_wait: false,
+            });
+        }
+        let second = items.get(1).cloned().unwrap_or(Value::Nil);
+        let (stdout, no_wait) = parse_real_buffer_destination(eval, &first)?;
+        let (stderr, stderr_file) = parse_stderr_destination(&second)?;
+        return Ok(DestinationSpec {
+            stdout,
+            stderr,
+            stderr_file,
+            no_wait,
+        });
+    }
+
+    let (stdout, no_wait) = parse_real_buffer_destination(eval, destination)?;
+    let stderr = match destination {
+        Value::Nil | Value::Int(_) => StderrTarget::Discard,
+        _ => StderrTarget::ToStdoutTarget,
+    };
+    Ok(DestinationSpec {
+        stdout,
+        stderr,
+        stderr_file: None,
+        no_wait,
+    })
 }
 
 fn insert_process_output(
@@ -274,6 +381,59 @@ fn insert_process_output(
                 buf.insert(output);
             }
             Ok(())
+        }
+    }
+}
+
+fn write_output_target(
+    eval: &mut super::eval::Evaluator,
+    target: &OutputTarget,
+    output: &[u8],
+    append: bool,
+) -> Result<(), Flow> {
+    match target {
+        OutputTarget::Discard => Ok(()),
+        OutputTarget::Buffer(destination) => {
+            let text = String::from_utf8_lossy(output).into_owned();
+            insert_process_output(eval, destination, &text)
+        }
+        OutputTarget::File(path) => {
+            if append {
+                use std::io::Write;
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                    .map_err(|e| signal_process_io("Writing process output", Some(path), e))?;
+                file.write_all(output)
+                    .map_err(|e| signal_process_io("Writing process output", Some(path), e))
+            } else {
+                std::fs::write(path, output)
+                    .map_err(|e| signal_process_io("Writing process output", Some(path), e))
+            }
+        }
+    }
+}
+
+fn route_captured_output(
+    eval: &mut super::eval::Evaluator,
+    destination: &DestinationSpec,
+    stdout: &[u8],
+    stderr: &[u8],
+) -> Result<(), Flow> {
+    write_output_target(eval, &destination.stdout, stdout, false)?;
+    match destination.stderr {
+        StderrTarget::Discard => Ok(()),
+        StderrTarget::ToStdoutTarget => {
+            write_output_target(eval, &destination.stdout, stderr, true)
+        }
+        StderrTarget::File => {
+            let path = destination
+                .stderr_file
+                .as_ref()
+                .ok_or_else(|| signal("error", vec![Value::string("Missing stderr file target")]))?
+                .clone();
+            write_output_target(eval, &OutputTarget::File(path), stderr, false)
         }
     }
 }
@@ -356,18 +516,12 @@ pub(crate) fn builtin_call_process(
         None
     };
 
-    // DESTINATION: integer => discard and return immediately (nil).
-    // nil => discard and wait.
-    // other non-nil => insert into current buffer and wait.
-    // Note: buffer-name and stderr routing forms are not modeled yet; this
-    // keeps current simplified insertion behavior while matching integer
-    // destination return semantics.
     let destination = if args.len() > 2 {
         &args[2]
     } else {
         &Value::Nil
     };
-    let destination_behavior = classify_call_process_destination(destination);
+    let destination_spec = parse_call_process_destination(eval, destination)?;
 
     // DISPLAY (arg index 3): ignored in this implementation.
 
@@ -380,42 +534,48 @@ pub(crate) fn builtin_call_process(
         Vec::new()
     };
 
-    match destination_behavior {
-        CallProcessDestination::NoWaitDiscard => {
-            let mut child = Command::new(&program)
-                .args(&cmd_args)
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()
-                .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
-            std::thread::spawn(move || {
-                let _ = child.wait();
-            });
-            Ok(Value::Nil)
-        }
-        CallProcessDestination::WaitDiscard => {
-            let status = Command::new(&program)
-                .args(&cmd_args)
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-                .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
-            Ok(Value::Int(status.code().unwrap_or(-1) as i64))
-        }
-        CallProcessDestination::WaitInsertCurrentBuffer => {
-            let output = Command::new(&program)
-                .args(&cmd_args)
-                .output()
-                .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
+    if destination_spec.no_wait {
+        let mut command = Command::new(&program);
+        command.args(&cmd_args).stdin(Stdio::null()).stdout(Stdio::null());
+        match destination_spec.stderr {
+            StderrTarget::Discard | StderrTarget::ToStdoutTarget => {
+                command.stderr(Stdio::null());
+            }
+            StderrTarget::File => {
+                let path = destination_spec
+                    .stderr_file
+                    .as_ref()
+                    .ok_or_else(|| signal("error", vec![Value::string("Missing stderr file target")]))?;
+                let file = OpenOptions::new()
+                    .create(true)
+                    .truncate(true)
+                    .write(true)
+                    .open(path)
+                    .map_err(|e| signal_process_io("Writing process output", Some(path), e))?;
+                command.stderr(Stdio::from(file));
+            }
+        };
 
-            let exit_code = output.status.code().unwrap_or(-1);
-            let stdout_str = String::from_utf8_lossy(&output.stdout).into_owned();
-            insert_process_output(eval, destination, &stdout_str)?;
-            Ok(Value::Int(exit_code as i64))
-        }
+        let mut child = command
+            .spawn()
+            .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+        return Ok(Value::Nil);
     }
+
+    let output = Command::new(&program)
+        .args(&cmd_args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
+
+    let exit_code = output.status.code().unwrap_or(-1);
+    route_captured_output(eval, &destination_spec, &output.stdout, &output.stderr)?;
+    Ok(Value::Int(exit_code as i64))
 }
 
 /// (call-process-region START END PROGRAM &optional DELETE DESTINATION DISPLAY &rest ARGS)
@@ -436,7 +596,7 @@ pub(crate) fn builtin_call_process_region(
     } else {
         &Value::Nil
     };
-    let destination_behavior = classify_call_process_destination(destination);
+    let destination_spec = parse_call_process_destination(eval, destination)?;
     // DISPLAY (arg index 5): ignored.
 
     let cmd_args: Vec<String> = if args.len() > 6 {
@@ -472,69 +632,62 @@ pub(crate) fn builtin_call_process_region(
     }
 
     use std::io::Write;
-    match destination_behavior {
-        CallProcessDestination::WaitInsertCurrentBuffer => {
-            let mut child = Command::new(&program)
-                .args(&cmd_args)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()
-                .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
-
-            // Write region text to stdin.
-            if let Some(mut stdin) = child.stdin.take() {
-                let _ = stdin.write_all(region_text.as_bytes());
+    if destination_spec.no_wait {
+        let mut command = Command::new(&program);
+        command.args(&cmd_args).stdin(Stdio::piped()).stdout(Stdio::null());
+        match destination_spec.stderr {
+            StderrTarget::Discard | StderrTarget::ToStdoutTarget => {
+                command.stderr(Stdio::null());
             }
-
-            let output = child
-                .wait_with_output()
-                .map_err(|e| signal_process_io("Process error", None, e))?;
-
-            let exit_code = output.status.code().unwrap_or(-1);
-            let stdout_str = String::from_utf8_lossy(&output.stdout).into_owned();
-            insert_process_output(eval, destination, &stdout_str)?;
-
-            Ok(Value::Int(exit_code as i64))
-        }
-        CallProcessDestination::WaitDiscard => {
-            let mut child = Command::new(&program)
-                .args(&cmd_args)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()
-                .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
-
-            if let Some(mut stdin) = child.stdin.take() {
-                let _ = stdin.write_all(region_text.as_bytes());
+            StderrTarget::File => {
+                let path = destination_spec
+                    .stderr_file
+                    .as_ref()
+                    .ok_or_else(|| signal("error", vec![Value::string("Missing stderr file target")]))?;
+                let file = OpenOptions::new()
+                    .create(true)
+                    .truncate(true)
+                    .write(true)
+                    .open(path)
+                    .map_err(|e| signal_process_io("Writing process output", Some(path), e))?;
+                command.stderr(Stdio::from(file));
             }
+        };
 
-            let status = child
-                .wait()
-                .map_err(|e| signal_process_io("Process error", None, e))?;
-            Ok(Value::Int(status.code().unwrap_or(-1) as i64))
+        let mut child = command
+            .spawn()
+            .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(region_text.as_bytes());
         }
-        CallProcessDestination::NoWaitDiscard => {
-            let mut child = Command::new(&program)
-                .args(&cmd_args)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()
-                .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
 
-            if let Some(mut stdin) = child.stdin.take() {
-                let _ = stdin.write_all(region_text.as_bytes());
-            }
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
 
-            std::thread::spawn(move || {
-                let _ = child.wait();
-            });
-
-            Ok(Value::Nil)
-        }
+        return Ok(Value::Nil);
     }
+
+    let mut child = Command::new(&program)
+        .args(&cmd_args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| signal_process_io("Searching for program", Some(&program), e))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(region_text.as_bytes());
+    }
+
+    let output = child
+        .wait_with_output()
+        .map_err(|e| signal_process_io("Process error", None, e))?;
+
+    let exit_code = output.status.code().unwrap_or(-1);
+    route_captured_output(eval, &destination_spec, &output.stdout, &output.stderr)?;
+    Ok(Value::Int(exit_code as i64))
 }
 
 /// (delete-process PROCESS) -> nil
@@ -733,6 +886,14 @@ mod tests {
         name.to_string()
     }
 
+    fn tmp_file(label: &str) -> String {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("time should be monotonic")
+            .as_nanos();
+        format!("/tmp/neovm-{label}-{}-{nonce}.txt", std::process::id())
+    }
+
     // -- ProcessManager unit tests ------------------------------------------
 
     #[test]
@@ -928,6 +1089,41 @@ mod tests {
     }
 
     #[test]
+    fn call_process_file_destination_collects_stdout_and_stderr() {
+        let sh = find_bin("sh");
+        let out = tmp_file("cp-file");
+        let _ = std::fs::remove_file(&out);
+        let results = eval_all(&format!(
+            r#"(call-process "{sh}" nil '(:file "{out}") nil "-c" "echo out; echo err >&2")
+               (with-temp-buffer (insert-file-contents "{out}") (buffer-string))"#
+        ));
+        assert_eq!(results[0], "OK 0");
+        assert!(results[1].contains("out"));
+        assert!(results[1].contains("err"));
+        let _ = std::fs::remove_file(&out);
+    }
+
+    #[test]
+    fn call_process_pair_destination_splits_stderr_to_file() {
+        let sh = find_bin("sh");
+        let out = tmp_file("cp-pair-out");
+        let err = tmp_file("cp-pair-err");
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(&err);
+        let results = eval_all(&format!(
+            r#"(call-process "{sh}" nil '((:file "{out}") "{err}") nil "-c" "echo out; echo err >&2")
+               (with-temp-buffer (insert-file-contents "{out}") (buffer-string))
+               (with-temp-buffer (insert-file-contents "{err}") (buffer-string))"#
+        ));
+        assert_eq!(results[0], "OK 0");
+        assert!(results[1].contains("out"));
+        assert!(!results[1].contains("err"));
+        assert!(results[2].contains("err"));
+        let _ = std::fs::remove_file(&out);
+        let _ = std::fs::remove_file(&err);
+    }
+
+    #[test]
     fn call_process_integer_destination_returns_nil() {
         let echo = find_bin("echo");
         // Any integer destination behaves like 0: discard and return nil.
@@ -981,6 +1177,22 @@ mod tests {
         ));
         assert_eq!(results[4], "OK 0");
         assert_eq!(results[5], r#"OK ("abc" "abc")"#);
+    }
+
+    #[test]
+    fn call_process_region_file_destination_writes_file() {
+        let cat = find_bin("cat");
+        let out = tmp_file("cpr-file");
+        let _ = std::fs::remove_file(&out);
+        let results = eval_all(&format!(
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (call-process-region (point-min) (point-max) "{cat}" nil '(:file "{out}") nil))
+               (with-temp-buffer (insert-file-contents "{out}") (buffer-string))"#
+        ));
+        assert_eq!(results[0], "OK 0");
+        assert_eq!(results[1], r#"OK "abc""#);
+        let _ = std::fs::remove_file(&out);
     }
 
     #[test]
@@ -1063,6 +1275,24 @@ mod tests {
             r#"(condition-case err (call-process-region 1 1 "/nonexistent/program_xyz") (error (car err)))"#,
         );
         assert_eq!(result, "OK file-missing");
+    }
+
+    #[test]
+    fn call_process_symbol_destination_signals_wrong_type_argument() {
+        let echo = find_bin("echo");
+        let result = eval_one(&format!(
+            r#"(condition-case err (call-process "{echo}" nil 'foo nil "x") (error err))"#
+        ));
+        assert_eq!(result, "OK (wrong-type-argument stringp foo)");
+    }
+
+    #[test]
+    fn call_process_bad_stderr_target_signals_wrong_type_argument() {
+        let echo = find_bin("echo");
+        let result = eval_one(&format!(
+            r#"(condition-case err (call-process "{echo}" nil '(t 99) nil "x") (error err))"#
+        ));
+        assert_eq!(result, "OK (wrong-type-argument stringp 99)");
     }
 
     #[test]

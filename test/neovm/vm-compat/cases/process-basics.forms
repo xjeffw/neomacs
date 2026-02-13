@@ -30,6 +30,32 @@
     (list (call-process-region (point-min) (point-max) "cat" nil "cpr-dst" nil)
           (buffer-string)
           (with-current-buffer "cpr-dst" (buffer-string)))))
+(let ((out "/tmp/neovm-vm-compat-process-out.txt"))
+  (condition-case nil (delete-file out) (error nil))
+  (call-process "sh" nil (list :file out) nil "-c" "echo out; echo err >&2")
+  (with-temp-buffer
+    (insert-file-contents out)
+    (and (string-match-p "out" (buffer-string))
+         (string-match-p "err" (buffer-string))
+         t)))
+(let ((out "/tmp/neovm-vm-compat-process-out-split.txt")
+      (err "/tmp/neovm-vm-compat-process-err-split.txt"))
+  (condition-case nil (delete-file out) (error nil))
+  (condition-case nil (delete-file err) (error nil))
+  (call-process "sh" nil (list (list :file out) err) nil "-c" "echo out; echo err >&2")
+  (list
+   (with-temp-buffer
+     (insert-file-contents out)
+     (string-prefix-p "out" (buffer-string)))
+   (with-temp-buffer
+     (insert-file-contents err)
+     (string-prefix-p "err" (buffer-string)))))
+(condition-case err
+    (call-process "echo" nil 'foo nil "x")
+  (error (car err)))
+(condition-case err
+    (call-process "echo" nil '(t 99) nil "x")
+  (error (car err)))
 (condition-case err
     (call-process "/nonexistent/neovm-vm-compat-missing-prog")
   (error (car err)))
