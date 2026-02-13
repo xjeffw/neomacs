@@ -89,6 +89,20 @@ impl Keymap {
             name,
         }
     }
+
+    /// Look up a key by its description string (e.g. "C-x", "M-f", "a").
+    /// Returns the bound `Value` if found, or `None`.
+    pub fn lookup(&self, key_desc: &str) -> Option<Value> {
+        let events = KeymapManager::parse_key_description(key_desc).ok()?;
+        if events.len() != 1 {
+            return None;
+        }
+        match self.bindings.get(&events[0])? {
+            KeyBinding::Command(name) => Some(Value::Symbol(name.clone())),
+            KeyBinding::LispValue(v) => Some(v.clone()),
+            KeyBinding::Prefix(id) => Some(Value::Symbol(format!("keymap-{}", id))),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

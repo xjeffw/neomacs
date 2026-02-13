@@ -26,6 +26,7 @@ pub mod syntax;
 pub mod advice;
 pub mod process;
 pub mod timer;
+pub mod builtins_extra;
 
 // Re-export the main public API
 pub use value::{Value, ConsCell, LambdaData, LambdaParams};

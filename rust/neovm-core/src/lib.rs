@@ -4,6 +4,7 @@ pub mod encoding;
 pub mod face;
 pub mod gc;
 pub mod hooks;
+pub mod keyboard;
 pub mod window;
 
 use neovm_host_abi::{
