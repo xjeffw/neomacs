@@ -1616,6 +1616,16 @@ fn expect_string(value: &Value) -> Result<String, Flow> {
     }
 }
 
+fn expect_strict_string(value: &Value) -> Result<String, Flow> {
+    match value {
+        Value::Str(s) => Ok((**s).clone()),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), other.clone()],
+        )),
+    }
+}
+
 // ===========================================================================
 // Symbol operations (need evaluator for obarray access)
 // ===========================================================================
@@ -5748,23 +5758,80 @@ pub(crate) fn builtin_replace_match(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("replace-match", &args, 1)?;
-    let newtext = expect_string(&args[0])?;
+    if args.len() > 6 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("replace-match"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let newtext = expect_strict_string(&args[0])?;
     let fixedcase = args.len() > 1 && args[1].is_truthy();
     let literal = args.len() > 2 && args[2].is_truthy();
+    let string_arg = if args.len() > 3 && !args[3].is_nil() {
+        Some(expect_strict_string(&args[3])?)
+    } else {
+        None
+    };
+    let subexp = if args.len() > 4 && !args[4].is_nil() {
+        let n = expect_int(&args[4])?;
+        // Emacs clamps SUBEXP argument range checks to 0..29.
+        if !(0..=29).contains(&n) {
+            return Err(signal(
+                "args-out-of-range",
+                vec![Value::Int(n), Value::Int(0), Value::Int(29)],
+            ));
+        }
+        n as usize
+    } else {
+        0usize
+    };
 
     // Clone match_data to avoid borrow conflict
     let md = eval.match_data.clone();
+    let missing_subexp_error = super::regex::REPLACE_MATCH_SUBEXP_MISSING;
+
+    if let Some(source) = string_arg {
+        if md
+            .as_ref()
+            .and_then(|m| m.groups.first())
+            .and_then(|g| *g)
+            .is_none()
+            && subexp == 0
+        {
+            return Err(signal("args-out-of-range", vec![Value::Int(0)]));
+        }
+        return match super::regex::replace_match_string(
+            &source, &newtext, fixedcase, literal, subexp, &md,
+        ) {
+            Ok(result) => Ok(Value::string(result)),
+            Err(msg) if msg == missing_subexp_error && subexp == 0 => {
+                Err(signal("args-out-of-range", vec![Value::Int(0)]))
+            }
+            Err(msg) if msg == missing_subexp_error => Err(signal(
+                "error",
+                vec![Value::string(msg), Value::Int(subexp as i64)],
+            )),
+            Err(msg) => Err(signal("error", vec![Value::string(msg)])),
+        };
+    }
+
+    if md.as_ref().is_some_and(|m| m.searched_string.is_some()) {
+        return Err(signal("args-out-of-range", vec![Value::Int(0)]));
+    }
 
     let buf = eval
         .buffers
         .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-
-    match super::regex::replace_match(buf, &newtext, fixedcase, literal, &md) {
-        Ok(true) => Ok(Value::Nil), // Emacs returns nil on success
-        Ok(false) => Err(signal(
+    match super::regex::replace_match_buffer(buf, &newtext, fixedcase, literal, subexp, &md) {
+        Ok(()) => Ok(Value::Nil), // Emacs returns nil on buffer replacement
+        Err(msg) if msg == missing_subexp_error && subexp == 0 => {
+            Err(signal("args-out-of-range", vec![Value::Int(0)]))
+        }
+        Err(msg) if msg == missing_subexp_error => Err(signal(
             "error",
-            vec![Value::string("replace-match: no match")],
+            vec![Value::string(msg), Value::Int(subexp as i64)],
         )),
         Err(msg) => Err(signal("error", vec![Value::string(msg)])),
     }

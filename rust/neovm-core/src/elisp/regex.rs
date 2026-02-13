@@ -7,6 +7,8 @@ use regex::Regex;
 
 use crate::buffer::Buffer;
 
+pub(crate) const REPLACE_MATCH_SUBEXP_MISSING: &str = "replace-match subexpression does not exist";
+
 // ---------------------------------------------------------------------------
 // MatchData
 // ---------------------------------------------------------------------------
@@ -483,54 +485,84 @@ pub fn string_match_full(
     }
 }
 
-/// Replace the last match with replacement text.
-///
-/// `newtext` is the replacement string. If `fixedcase` is false, the
-/// replacement preserves the case pattern of the original match.
-/// If `literal` is true, `newtext` is used literally; otherwise `\&` and
-/// `\N` substitutions are performed.
-///
-/// Returns `true` if a replacement was made, `false` otherwise.
-pub fn replace_match(
+/// Replace the last match in a buffer and return `nil`-style success.
+pub fn replace_match_buffer(
     buf: &mut Buffer,
     newtext: &str,
-    _fixedcase: bool,
+    fixedcase: bool,
     literal: bool,
+    subexp: usize,
     match_data: &Option<MatchData>,
-) -> Result<bool, String> {
-    let md = match match_data {
-        Some(md) => md,
-        None => return Err("No match data".to_string()),
-    };
+) -> Result<(), String> {
+    let source = buf.text.text_range(0, buf.text.len());
+    let (match_start, match_end, replacement) =
+        compute_replacement(newtext, fixedcase, literal, subexp, match_data, &source)?;
 
-    // We only support buffer-based replace (not string match replace).
-    if md.searched_string.is_some() {
-        return Err(
-            "replace-match on string match not supported for buffer modification".to_string(),
-        );
-    }
-
-    let (match_start, match_end) = match md.groups.first() {
-        Some(Some(pair)) => *pair,
-        _ => return Err("No match data".to_string()),
-    };
-
-    let replacement = if literal {
-        newtext.to_string()
-    } else {
-        build_replacement(newtext, md, buf)
-    };
-
-    // Delete old match, insert replacement
     buf.pt = match_start;
     buf.delete_region(match_start, match_end);
     buf.insert(&replacement);
+    Ok(())
+}
 
-    Ok(true)
+/// Replace the last match in SOURCE and return the resulting string.
+pub fn replace_match_string(
+    source: &str,
+    newtext: &str,
+    fixedcase: bool,
+    literal: bool,
+    subexp: usize,
+    match_data: &Option<MatchData>,
+) -> Result<String, String> {
+    let (match_start, match_end, replacement) =
+        compute_replacement(newtext, fixedcase, literal, subexp, match_data, source)?;
+    if match_end > source.len() || match_start > match_end {
+        return Err(REPLACE_MATCH_SUBEXP_MISSING.to_string());
+    }
+    Ok(format!(
+        "{}{}{}",
+        &source[..match_start],
+        replacement,
+        &source[match_end..]
+    ))
+}
+
+fn compute_replacement(
+    newtext: &str,
+    fixedcase: bool,
+    literal: bool,
+    subexp: usize,
+    match_data: &Option<MatchData>,
+    source: &str,
+) -> Result<(usize, usize, String), String> {
+    let md = match match_data {
+        Some(md) => md,
+        None => return Err(REPLACE_MATCH_SUBEXP_MISSING.to_string()),
+    };
+
+    let (match_start, match_end) = match md.groups.get(subexp) {
+        Some(Some(pair)) => *pair,
+        _ => return Err(REPLACE_MATCH_SUBEXP_MISSING.to_string()),
+    };
+    if match_end > source.len() || match_start > match_end {
+        return Err(REPLACE_MATCH_SUBEXP_MISSING.to_string());
+    }
+
+    let mut replacement = if literal {
+        newtext.to_string()
+    } else {
+        build_replacement(newtext, md, source)
+    };
+
+    if !fixedcase {
+        let matched = &source[match_start..match_end];
+        replacement = apply_match_case(&replacement, matched);
+    }
+
+    Ok((match_start, match_end, replacement))
 }
 
 /// Build a replacement string handling `\&` (whole match) and `\N` (group N).
-fn build_replacement(template: &str, md: &MatchData, buf: &Buffer) -> String {
+fn build_replacement(template: &str, md: &MatchData, source: &str) -> String {
     let mut out = String::with_capacity(template.len());
     let bytes = template.as_bytes();
     let len = bytes.len();
@@ -543,8 +575,8 @@ fn build_replacement(template: &str, md: &MatchData, buf: &Buffer) -> String {
                 b'&' => {
                     // Whole match
                     if let Some(Some((s, e))) = md.groups.first() {
-                        if *e <= buf.text.len() {
-                            out.push_str(&buf.text.text_range(*s, *e));
+                        if *e <= source.len() && *s <= *e {
+                            out.push_str(&source[*s..*e]);
                         }
                     }
                     i += 2;
@@ -552,8 +584,8 @@ fn build_replacement(template: &str, md: &MatchData, buf: &Buffer) -> String {
                 b'0'..=b'9' => {
                     let group = (next - b'0') as usize;
                     if let Some(Some((s, e))) = md.groups.get(group) {
-                        if *e <= buf.text.len() {
-                            out.push_str(&buf.text.text_range(*s, *e));
+                        if *e <= source.len() && *s <= *e {
+                            out.push_str(&source[*s..*e]);
                         }
                     }
                     i += 2;
@@ -575,6 +607,51 @@ fn build_replacement(template: &str, md: &MatchData, buf: &Buffer) -> String {
     }
 
     out
+}
+
+fn apply_match_case(replacement: &str, matched: &str) -> String {
+    let mut first_is_upper = false;
+    let mut saw_first_cased = false;
+    let mut has_upper = false;
+    let mut has_lower = false;
+
+    for ch in matched.chars() {
+        if ch.is_uppercase() {
+            has_upper = true;
+            if !saw_first_cased {
+                first_is_upper = true;
+                saw_first_cased = true;
+            }
+        } else if ch.is_lowercase() {
+            has_lower = true;
+            if !saw_first_cased {
+                first_is_upper = false;
+                saw_first_cased = true;
+            }
+        }
+    }
+
+    if has_upper && !has_lower {
+        return replacement.chars().flat_map(char::to_uppercase).collect();
+    }
+
+    if first_is_upper {
+        let mut out = String::with_capacity(replacement.len());
+        let mut uppered = false;
+        for ch in replacement.chars() {
+            if !uppered && ch.is_lowercase() {
+                for uc in ch.to_uppercase() {
+                    out.push(uc);
+                }
+                uppered = true;
+            } else {
+                out.push(ch);
+            }
+        }
+        return out;
+    }
+
+    replacement.to_string()
 }
 
 // ---------------------------------------------------------------------------
@@ -937,9 +1014,8 @@ mod tests {
         let mut buf = make_test_buffer("hello world");
         let mut md = None;
         let _ = re_search_forward(&mut buf, "world", None, false, &mut md);
-        let result = replace_match(&mut buf, "rust", false, true, &md);
+        let result = replace_match_buffer(&mut buf, "rust", false, true, 0, &md);
         assert!(result.is_ok());
-        assert!(result.unwrap());
         let content = buf.text.text_range(0, buf.text.len());
         assert_eq!(content, "hello rust");
     }
@@ -951,11 +1027,38 @@ mod tests {
         let mut md = None;
         // Match "hello" with a group
         let _ = re_search_forward(&mut buf, "\\(hello\\)", None, false, &mut md);
-        let result = replace_match(&mut buf, "\\1 there", false, false, &md);
+        let result = replace_match_buffer(&mut buf, "\\1 there", false, false, 0, &md);
         assert!(result.is_ok());
-        assert!(result.unwrap());
         let content = buf.text.text_range(0, buf.text.len());
         assert_eq!(content, "hello there world");
+    }
+
+    #[test]
+    fn replace_match_applies_case_pattern() {
+        let mut md = None;
+        let _ = string_match_full("FOO", "FOO", 0, &mut md);
+        let replaced = replace_match_string("FOO", "bar", false, false, 0, &md).unwrap();
+        assert_eq!(replaced, "BAR");
+
+        let _ = string_match_full("Foo", "Foo", 0, &mut md);
+        let replaced = replace_match_string("Foo", "bar", false, false, 0, &md).unwrap();
+        assert_eq!(replaced, "Bar");
+    }
+
+    #[test]
+    fn replace_match_subexp_replaces_requested_group() {
+        let mut md = None;
+        let _ = string_match_full("\\([a-z]+\\)\\([0-9]+\\)", "abc123", 0, &mut md);
+        let replaced = replace_match_string("abc123", "X", false, false, 2, &md).unwrap();
+        assert_eq!(replaced, "abcX");
+    }
+
+    #[test]
+    fn replace_match_subexp_errors_when_missing() {
+        let mut md = None;
+        let _ = string_match_full("\\([a-z]+\\)?\\([0-9]+\\)", "123", 0, &mut md);
+        let err = replace_match_string("123", "X", false, false, 1, &md).unwrap_err();
+        assert_eq!(err, REPLACE_MATCH_SUBEXP_MISSING);
     }
 
     // -----------------------------------------------------------------------
