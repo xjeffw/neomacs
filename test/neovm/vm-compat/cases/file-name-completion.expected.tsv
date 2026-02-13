@@ -1,0 +1,17 @@
+1	(setq vm-fnc-dir (let* ((forms-file (getenv "NEOVM_FORMS_FILE")) (base (if forms-file (file-name-directory forms-file) default-directory))) (expand-file-name "file-name-completion-fixtures" base)))	OK "/home/exec/Projects/github.com/eval-exec/neomacs/test/neovm/vm-compat/cases/file-name-completion-fixtures"
+2	(file-name-completion "a" vm-fnc-dir)	OK "alpha.txt"
+3	(file-name-completion "alpha.txt" vm-fnc-dir)	OK t
+4	(file-name-completion "al" vm-fnc-dir)	OK "alpha.txt"
+5	(file-name-completion "z" vm-fnc-dir)	OK t
+6	(file-name-completion "." vm-fnc-dir)	OK ".hidden"
+7	(file-name-completion ".." vm-fnc-dir)	OK "../"
+8	(file-name-completion "./" vm-fnc-dir)	OK nil
+9	(file-name-completion "../" vm-fnc-dir)	OK nil
+10	(file-name-completion "sub" vm-fnc-dir)	OK "subdir/"
+11	(file-name-completion "subdir/" vm-fnc-dir)	OK nil
+12	(file-name-all-completions "" vm-fnc-dir)	OK ("z" ".hidden" "../" "subdir/" "beta.el" "alpha.txt" "./")
+13	(file-name-all-completions "." vm-fnc-dir)	OK (".hidden" "../" "./")
+14	(file-name-all-completions ".." vm-fnc-dir)	OK ("../")
+15	(file-name-all-completions "sub" vm-fnc-dir)	OK ("subdir/")
+16	(file-name-all-completions "subdir/" vm-fnc-dir)	OK nil
+17	(file-name-all-completions "./" vm-fnc-dir)	OK nil
