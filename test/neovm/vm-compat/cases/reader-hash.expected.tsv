@@ -1,0 +1,6 @@
+1	(setq load-file-name "/tmp/neovm-reader-hash-1.elc")	OK "/tmp/neovm-reader-hash-1.elc"
+2	(read-from-string "#$")	OK ("/tmp/neovm-reader-hash-1.elc" . 2)
+3	(setq load-file-name nil)	OK nil
+4	(read-from-string "#$")	OK (nil . 2)
+5	(setq load-file-name "/tmp/neovm-reader-hash-2.elc")	OK "/tmp/neovm-reader-hash-2.elc"
+6	(read-from-string "#$")	OK ("/tmp/neovm-reader-hash-2.elc" . 2)
