@@ -124,7 +124,7 @@ fn seq_default_match(left: &Value, right: &Value) -> bool {
 // ===========================================================================
 
 /// `(cl-find ITEM SEQ)` — find item in sequence using `equal`.
-pub fn builtin_cl_find(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_find(args: Vec<Value>) -> EvalResult {
     expect_args("cl-find", &args, 2)?;
     let item = &args[0];
     let elems = collect_sequence(&args[1]);
@@ -137,7 +137,7 @@ pub fn builtin_cl_find(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-position ITEM SEQ)` — position of item in sequence using `equal`.
-pub fn builtin_cl_position(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_position(args: Vec<Value>) -> EvalResult {
     expect_args("cl-position", &args, 2)?;
     let item = &args[0];
     let elems = collect_sequence(&args[1]);
@@ -150,7 +150,7 @@ pub fn builtin_cl_position(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-count ITEM SEQ)` — count occurrences of item using `equal`.
-pub fn builtin_cl_count(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_count(args: Vec<Value>) -> EvalResult {
     expect_args("cl-count", &args, 2)?;
     let item = &args[0];
     let elems = collect_sequence(&args[1]);
@@ -159,7 +159,7 @@ pub fn builtin_cl_count(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-remove ITEM SEQ)` — remove all occurrences of item using `equal`.
-pub fn builtin_cl_remove(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_remove(args: Vec<Value>) -> EvalResult {
     expect_args("cl-remove", &args, 2)?;
     let item = &args[0];
     let elems = collect_sequence(&args[1]);
@@ -171,7 +171,7 @@ pub fn builtin_cl_remove(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-substitute NEW OLD SEQ)` — replace old with new in sequence using `equal`.
-pub fn builtin_cl_substitute(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_substitute(args: Vec<Value>) -> EvalResult {
     expect_args("cl-substitute", &args, 3)?;
     let new = &args[0];
     let old = &args[1];
@@ -190,7 +190,7 @@ pub fn builtin_cl_substitute(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-intersection LIST1 LIST2)` — set intersection using `equal`.
-pub fn builtin_cl_intersection(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_intersection(args: Vec<Value>) -> EvalResult {
     expect_args("cl-intersection", &args, 2)?;
     let elems1 = collect_sequence(&args[0]);
     let elems2 = collect_sequence(&args[1]);
@@ -202,7 +202,7 @@ pub fn builtin_cl_intersection(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-union LIST1 LIST2)` — set union using `equal`.
-pub fn builtin_cl_union(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_union(args: Vec<Value>) -> EvalResult {
     expect_args("cl-union", &args, 2)?;
     let elems1 = collect_sequence(&args[0]);
     let elems2 = collect_sequence(&args[1]);
@@ -216,7 +216,7 @@ pub fn builtin_cl_union(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-set-difference LIST1 LIST2)` — set difference using `equal`.
-pub fn builtin_cl_set_difference(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_set_difference(args: Vec<Value>) -> EvalResult {
     expect_args("cl-set-difference", &args, 2)?;
     let elems1 = collect_sequence(&args[0]);
     let elems2 = collect_sequence(&args[1]);
@@ -228,7 +228,7 @@ pub fn builtin_cl_set_difference(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-subsetp LIST1 LIST2)` — is list1 a subset of list2?
-pub fn builtin_cl_subsetp(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_subsetp(args: Vec<Value>) -> EvalResult {
     expect_args("cl-subsetp", &args, 2)?;
     let elems1 = collect_sequence(&args[0]);
     let elems2 = collect_sequence(&args[1]);
@@ -239,7 +239,7 @@ pub fn builtin_cl_subsetp(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-adjoin ITEM LIST)` — add item if not present using `equal`.
-pub fn builtin_cl_adjoin(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_adjoin(args: Vec<Value>) -> EvalResult {
     expect_args("cl-adjoin", &args, 2)?;
     let item = &args[0];
     let elems = collect_sequence(&args[1]);
@@ -251,7 +251,7 @@ pub fn builtin_cl_adjoin(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-remove-duplicates SEQ)` — remove duplicates using `equal`.
-pub fn builtin_cl_remove_duplicates(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_remove_duplicates(args: Vec<Value>) -> EvalResult {
     expect_args("cl-remove-duplicates", &args, 1)?;
     let elems = collect_sequence(&args[0]);
     let mut result: Vec<Value> = Vec::new();
@@ -264,7 +264,7 @@ pub fn builtin_cl_remove_duplicates(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-member ITEM LIST)` — like member but using `equal` (same as member).
-pub fn builtin_cl_member(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_member(args: Vec<Value>) -> EvalResult {
     expect_args("cl-member", &args, 2)?;
     let item = &args[0];
     let mut cursor = args[1].clone();
@@ -311,39 +311,39 @@ fn nth_helper(name: &str, args: &[Value], n: usize) -> EvalResult {
     }
 }
 
-pub fn builtin_cl_first(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_first(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-first", &args, 0)
 }
-pub fn builtin_cl_second(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_second(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-second", &args, 1)
 }
-pub fn builtin_cl_third(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_third(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-third", &args, 2)
 }
-pub fn builtin_cl_fourth(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_fourth(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-fourth", &args, 3)
 }
-pub fn builtin_cl_fifth(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_fifth(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-fifth", &args, 4)
 }
-pub fn builtin_cl_sixth(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_sixth(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-sixth", &args, 5)
 }
-pub fn builtin_cl_seventh(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_seventh(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-seventh", &args, 6)
 }
-pub fn builtin_cl_eighth(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_eighth(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-eighth", &args, 7)
 }
-pub fn builtin_cl_ninth(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_ninth(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-ninth", &args, 8)
 }
-pub fn builtin_cl_tenth(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_tenth(args: Vec<Value>) -> EvalResult {
     nth_helper("cl-tenth", &args, 9)
 }
 
 /// `(cl-rest LIST)` — alias for cdr.
-pub fn builtin_cl_rest(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_rest(args: Vec<Value>) -> EvalResult {
     expect_args("cl-rest", &args, 1)?;
     match &args[0] {
         Value::Nil => Ok(Value::Nil),
@@ -356,7 +356,7 @@ pub fn builtin_cl_rest(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-subseq SEQ START &optional END)` — subsequence.
-pub fn builtin_cl_subseq(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_subseq(args: Vec<Value>) -> EvalResult {
     expect_min_args("cl-subseq", &args, 2)?;
     let elems = collect_sequence(&args[0]);
     let start = expect_int(&args[1])? as usize;
@@ -394,7 +394,7 @@ pub fn builtin_cl_subseq(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-concatenate TYPE &rest SEQUENCES)` — concatenate sequences into target type.
-pub fn builtin_cl_concatenate(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_concatenate(args: Vec<Value>) -> EvalResult {
     expect_min_args("cl-concatenate", &args, 1)?;
     let target = type_name_str(&args[0]);
     let mut combined = Vec::new();
@@ -419,7 +419,7 @@ pub fn builtin_cl_concatenate(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(cl-coerce OBJ TYPE)` — type coercion.
-pub fn builtin_cl_coerce(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_coerce(args: Vec<Value>) -> EvalResult {
     expect_args("cl-coerce", &args, 2)?;
     let obj = &args[0];
     let target = type_name_str(&args[1]);
@@ -470,7 +470,7 @@ pub fn builtin_cl_coerce(args: Vec<Value>) -> EvalResult {
 // ===========================================================================
 
 /// `(cl-map TYPE FN &rest SEQS)` — map over sequences, return target type.
-pub fn builtin_cl_map(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_map(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("cl-map", &args, 3)?;
     let target = type_name_str(&args[0]);
     let func = args[1].clone();
@@ -502,7 +502,7 @@ pub fn builtin_cl_map(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> Ev
 }
 
 /// `(cl-every PRED &rest SEQS)` — all elements satisfy predicate.
-pub fn builtin_cl_every(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_every(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("cl-every", &args, 2)?;
     let pred = args[0].clone();
     let seqs: Vec<Vec<Value>> = args[1..].iter().map(|s| collect_sequence(s)).collect();
@@ -521,7 +521,7 @@ pub fn builtin_cl_every(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> 
 }
 
 /// `(cl-some PRED &rest SEQS)` — some element satisfies predicate.
-pub fn builtin_cl_some(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_some(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("cl-some", &args, 2)?;
     let pred = args[0].clone();
     let seqs: Vec<Vec<Value>> = args[1..].iter().map(|s| collect_sequence(s)).collect();
@@ -540,19 +540,19 @@ pub fn builtin_cl_some(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> E
 }
 
 /// `(cl-notevery PRED &rest SEQS)` — not all satisfy.
-pub fn builtin_cl_notevery(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_notevery(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     let result = builtin_cl_every(eval, args)?;
     Ok(Value::bool(result.is_nil()))
 }
 
 /// `(cl-notany PRED &rest SEQS)` — none satisfy.
-pub fn builtin_cl_notany(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_notany(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     let result = builtin_cl_some(eval, args)?;
     Ok(Value::bool(result.is_nil()))
 }
 
 /// `(cl-reduce FN SEQ &optional INITIAL-VALUE)` — reduce/fold.
-pub fn builtin_cl_reduce(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_reduce(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("cl-reduce", &args, 2)?;
     let func = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -577,7 +577,7 @@ pub fn builtin_cl_reduce(eval: &mut super::eval::Evaluator, args: Vec<Value>) ->
 }
 
 /// `(cl-remove-if PRED SEQ)` — remove elements matching predicate.
-pub fn builtin_cl_remove_if(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_remove_if(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("cl-remove-if", &args, 2)?;
     let pred = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -592,7 +592,7 @@ pub fn builtin_cl_remove_if(eval: &mut super::eval::Evaluator, args: Vec<Value>)
 }
 
 /// `(cl-remove-if-not PRED SEQ)` — keep only elements matching predicate.
-pub fn builtin_cl_remove_if_not(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_remove_if_not(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("cl-remove-if-not", &args, 2)?;
     let pred = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -607,7 +607,7 @@ pub fn builtin_cl_remove_if_not(eval: &mut super::eval::Evaluator, args: Vec<Val
 }
 
 /// `(cl-find-if PRED SEQ)` — find first element matching predicate.
-pub fn builtin_cl_find_if(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_find_if(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("cl-find-if", &args, 2)?;
     let pred = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -621,7 +621,7 @@ pub fn builtin_cl_find_if(eval: &mut super::eval::Evaluator, args: Vec<Value>) -
 }
 
 /// `(cl-count-if PRED SEQ)` — count elements matching predicate.
-pub fn builtin_cl_count_if(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_count_if(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("cl-count-if", &args, 2)?;
     let pred = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -636,7 +636,7 @@ pub fn builtin_cl_count_if(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
 }
 
 /// `(cl-sort SEQ PRED)` — sort with predicate (not guaranteed stable).
-pub fn builtin_cl_sort(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_sort(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("cl-sort", &args, 2)?;
     let pred = args[1].clone();
     let mut items = collect_sequence(&args[0]);
@@ -658,7 +658,7 @@ pub fn builtin_cl_sort(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> E
 }
 
 /// `(cl-stable-sort SEQ PRED)` — stable sort with predicate.
-pub fn builtin_cl_stable_sort(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_cl_stable_sort(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     // Same as cl-sort since our insertion sort is already stable
     builtin_cl_sort(eval, args)
 }
@@ -668,7 +668,7 @@ pub fn builtin_cl_stable_sort(eval: &mut super::eval::Evaluator, args: Vec<Value
 // ===========================================================================
 
 /// `(seq-reverse SEQ)` — reverse a sequence.
-pub fn builtin_seq_reverse(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_reverse(args: Vec<Value>) -> EvalResult {
     expect_args("seq-reverse", &args, 1)?;
     let mut elems = collect_sequence(&args[0]);
     elems.reverse();
@@ -689,7 +689,7 @@ pub fn builtin_seq_reverse(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(seq-drop SEQ N)` — drop first n elements.
-pub fn builtin_seq_drop(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_drop(args: Vec<Value>) -> EvalResult {
     expect_args("seq-drop", &args, 2)?;
     let n = expect_int(&args[1])?;
 
@@ -744,7 +744,7 @@ pub fn builtin_seq_drop(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(seq-take SEQ N)` — take first n elements.
-pub fn builtin_seq_take(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_take(args: Vec<Value>) -> EvalResult {
     expect_args("seq-take", &args, 2)?;
     let n = expect_int(&args[1])?;
 
@@ -821,7 +821,7 @@ fn builtin_seq_subseq_legacy(args: &[Value]) -> EvalResult {
 }
 
 /// `(seq-subseq SEQ START &optional END)` — subsequence.
-pub fn builtin_seq_subseq(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_subseq(args: Vec<Value>) -> EvalResult {
     expect_min_args("seq-subseq", &args, 2)?;
     let start = expect_int(&args[1])?;
     let end = if args.len() > 2 && !args[2].is_nil() {
@@ -857,7 +857,7 @@ pub fn builtin_seq_subseq(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(seq-concatenate TYPE &rest SEQS)` — concatenate sequences into target type.
-pub fn builtin_seq_concatenate(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_concatenate(args: Vec<Value>) -> EvalResult {
     expect_min_args("seq-concatenate", &args, 1)?;
     let target = type_name_str(&args[0]);
     let mut combined = Vec::new();
@@ -882,7 +882,7 @@ pub fn builtin_seq_concatenate(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(seq-empty-p SEQ)` — is sequence empty?
-pub fn builtin_seq_empty_p(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_empty_p(args: Vec<Value>) -> EvalResult {
     expect_args("seq-empty-p", &args, 1)?;
     let empty = match &args[0] {
         Value::Nil => true,
@@ -895,7 +895,7 @@ pub fn builtin_seq_empty_p(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(seq-min SEQ)` — minimum element (numeric).
-pub fn builtin_seq_min(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_min(args: Vec<Value>) -> EvalResult {
     expect_args("seq-min", &args, 1)?;
     let elems = collect_sequence(&args[0]);
     if elems.is_empty() {
@@ -915,7 +915,7 @@ pub fn builtin_seq_min(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(seq-max SEQ)` — maximum element (numeric).
-pub fn builtin_seq_max(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_max(args: Vec<Value>) -> EvalResult {
     expect_args("seq-max", &args, 1)?;
     let elems = collect_sequence(&args[0]);
     if elems.is_empty() {
@@ -935,7 +935,7 @@ pub fn builtin_seq_max(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(seq-into SEQ TYPE)` — convert sequence type.
-pub fn builtin_seq_into(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_into(args: Vec<Value>) -> EvalResult {
     expect_args("seq-into", &args, 2)?;
     let elems = collect_sequence(&args[0]);
     let target = type_name_str(&args[1]);
@@ -961,7 +961,7 @@ pub fn builtin_seq_into(args: Vec<Value>) -> EvalResult {
 // ===========================================================================
 
 /// `(seq-position SEQ ELT &optional TESTFN)` — return first matching index.
-pub fn builtin_seq_position(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_position(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("seq-position", &args, 2)?;
     let seq = &args[0];
     let target = args[1].clone();
@@ -987,7 +987,7 @@ pub fn builtin_seq_position(eval: &mut super::eval::Evaluator, args: Vec<Value>)
 }
 
 /// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
-pub fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !(2..=3).contains(&args.len()) {
         return Err(signal(
             "wrong-number-of-arguments",
@@ -1018,7 +1018,7 @@ pub fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value
 }
 
 /// `(seq-mapn FN &rest SEQS)` — map over multiple sequences.
-pub fn builtin_seq_mapn(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_mapn(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("seq-mapn", &args, 2)?;
     let func = args[0].clone();
     let seqs: Vec<Vec<Value>> = args[1..].iter().map(|s| collect_sequence(s)).collect();
@@ -1035,7 +1035,7 @@ pub fn builtin_seq_mapn(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> 
 }
 
 /// `(seq-do FN SEQ)` — apply fn for side effects, return nil.
-pub fn builtin_seq_do(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_do(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("seq-do", &args, 2)?;
     let func = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -1046,7 +1046,7 @@ pub fn builtin_seq_do(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> Ev
 }
 
 /// `(seq-count PRED SEQ)` — count elements matching predicate.
-pub fn builtin_seq_count(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_count(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("seq-count", &args, 2)?;
     let pred = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -1061,7 +1061,7 @@ pub fn builtin_seq_count(eval: &mut super::eval::Evaluator, args: Vec<Value>) ->
 }
 
 /// `(seq-reduce FN SEQ INITIAL)` — reduce with initial value.
-pub fn builtin_seq_reduce(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_reduce(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("seq-reduce", &args, 3)?;
     let func = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -1073,7 +1073,7 @@ pub fn builtin_seq_reduce(eval: &mut super::eval::Evaluator, args: Vec<Value>) -
 }
 
 /// `(seq-some PRED SEQ)` — some element matches predicate.
-pub fn builtin_seq_some(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_some(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("seq-some", &args, 2)?;
     let pred = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -1087,7 +1087,7 @@ pub fn builtin_seq_some(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> 
 }
 
 /// `(seq-every-p PRED SEQ)` — all elements match predicate.
-pub fn builtin_seq_every_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_every_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("seq-every-p", &args, 2)?;
     let pred = args[0].clone();
     let elems = collect_sequence(&args[1]);
@@ -1101,7 +1101,7 @@ pub fn builtin_seq_every_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
 }
 
 /// `(seq-sort PRED SEQ)` — sort with predicate.
-pub fn builtin_seq_sort(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_seq_sort(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("seq-sort", &args, 2)?;
     let pred = args[0].clone();
     let mut items = collect_sequence(&args[1]);
@@ -1519,20 +1519,20 @@ fn json_escape_string(s: &str) -> String {
 }
 
 /// `(json-parse-string STRING &rest ARGS)` — parse JSON string to Lisp.
-pub fn builtin_json_parse_string(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_json_parse_string(args: Vec<Value>) -> EvalResult {
     expect_min_args("json-parse-string", &args, 1)?;
     let s = expect_string(&args[0])?;
     json_to_lisp(&s)
 }
 
 /// `(json-serialize OBJECT &rest ARGS)` — serialize Lisp object to JSON string.
-pub fn builtin_json_serialize(args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_json_serialize(args: Vec<Value>) -> EvalResult {
     expect_min_args("json-serialize", &args, 1)?;
     lisp_to_json(&args[0])
 }
 
 /// `(json-parse-buffer &rest ARGS)` — parse JSON from current buffer.
-pub fn builtin_json_parse_buffer(
+pub(crate) fn builtin_json_parse_buffer(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
@@ -1546,7 +1546,7 @@ pub fn builtin_json_parse_buffer(
 }
 
 /// `(json-insert OBJECT &rest ARGS)` — insert JSON into current buffer.
-pub fn builtin_json_insert(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+pub(crate) fn builtin_json_insert(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("json-insert", &args, 1)?;
     let json_str = lisp_to_json(&args[0])?;
     let s = match &json_str {
