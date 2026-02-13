@@ -2769,6 +2769,10 @@ neomacs_layout_default_face (void *frame_ptr, void *face_out)
   return DEFAULT_FACE_ID;
 }
 
+/* Forward declaration (defined later, used by mode-line extraction). */
+static int extract_string_align_entries (Lisp_Object, struct window *,
+                                          uint8_t *, int, int);
+
 /* Get mode-line text for a window as plain UTF-8.
    Returns the number of bytes written, or -1 on error.
    Also fills face_out with the mode-line face (active or inactive). */
@@ -2985,10 +2989,25 @@ neomacs_layout_mode_line_text (void *window_ptr, void *frame_ptr,
             }
         }
 
-      /* Return packed: text_len | (nruns << 32) | (ndisplay << 48) */
+      /* Extract align-to entries from (space :align-to ...) display
+         text properties.  Entries are 6-byte records appended after the
+         display property area.  This enables mode-line right-alignment
+         (e.g. Doom Emacs places parts of its mode-line via
+         (space :align-to (- right N))). */
+      int naligns = 0;
+      if (run_offset + 6 <= out_buf_len)
+        {
+          naligns = extract_string_align_entries (result, w, out_buf,
+                                                   out_buf_len, run_offset);
+          run_offset += naligns * 6;
+        }
+
+      /* Return packed: text_len | (nruns << 32)
+                        | (ndisplay << 48) | (naligns << 56) */
       return (int64_t) len
         | ((int64_t) nruns << 32)
-        | ((int64_t) ndisplay << 48);
+        | ((int64_t) (ndisplay & 0xFF) << 48)
+        | ((int64_t) (naligns & 0xFF) << 56);
     }
 
   return (int64_t) len;
@@ -3999,7 +4018,9 @@ neomacs_layout_check_display_prop (void *buffer_ptr, void *window_ptr,
 
 /* Resolve align-to value from a (space :align-to SPEC) display property.
    Returns the align-to column value, or -1 if not a space align-to spec.
-   Handles simple integers, floats, and symbolic forms like (+ left N). */
+   Handles simple integers/floats (column values), (N) pixel forms,
+   and symbolic forms like (+ left N), (- right-margin (136)), etc.
+   Works in pixels internally, converts to columns at the end. */
 static float
 resolve_space_align_to (Lisp_Object display_val, struct window *w)
 {
@@ -4012,52 +4033,90 @@ resolve_space_align_to (Lisp_Object display_val, struct window *w)
   Lisp_Object align_val = Fplist_get (plist, QCalign_to, Qnil);
   if (NILP (align_val))
     return -1;
+
+  float col_w = w ? (float) FRAME_COLUMN_WIDTH (XFRAME (WINDOW_FRAME (w)))
+                   : 8.0f;
+
+  /* Simple integer/float: value is in columns. */
   if (FIXNUMP (align_val))
     return (float) XFIXNUM (align_val);
   if (FLOATP (align_val))
     return (float) XFLOAT_DATA (align_val);
+
   if (CONSP (align_val))
     {
       Lisp_Object acar = XCAR (align_val);
       if (EQ (acar, Qplus) || EQ (acar, Qminus))
         {
-          float col_w = w ? (float) FRAME_COLUMN_WIDTH (XFRAME (WINDOW_FRAME (w)))
-                          : 8.0f;
-          float base_cols = 0;
-          float offset_cols = 0;
+          /* (+ ARGS...) or (- ARGS...) — evaluate in pixels.
+             Symbols are pixel positions, plain numbers are columns
+             (converted to pixels), (N) cons forms are pixel values. */
+          float base_px = 0;
+          float offset_px = 0;
           Lisp_Object args = XCDR (align_val);
           while (CONSP (args))
             {
               Lisp_Object arg = XCAR (args);
               if (EQ (arg, Qleft))
-                base_cols = 0;
+                base_px = 0;
               else if (EQ (arg, Qcenter))
                 {
-                  if (w && col_w > 0)
-                    base_cols = (float) window_box_width (w, TEXT_AREA) / (2.0f * col_w);
+                  if (w)
+                    base_px = (float) window_box_width (w, TEXT_AREA) / 2.0f;
                 }
               else if (EQ (arg, Qright))
                 {
-                  if (w && col_w > 0)
-                    base_cols = (float) window_box_width (w, TEXT_AREA) / col_w;
+                  if (w)
+                    base_px = (float) window_box_width (w, TEXT_AREA);
+                }
+              else if (EQ (arg, Qright_margin))
+                {
+                  /* Position context: left edge of right margin area.
+                     If no right margin, equals right edge of text area. */
+                  if (w)
+                    base_px = (float) window_box_left_offset (w, RIGHT_MARGIN_AREA);
+                }
+              else if (EQ (arg, Qleft_margin))
+                {
+                  if (w)
+                    base_px = (float) window_box_left_offset (w, LEFT_MARGIN_AREA);
+                }
+              else if (EQ (arg, Qright_fringe))
+                {
+                  if (w)
+                    offset_px += (float) WINDOW_RIGHT_FRINGE_WIDTH (w);
+                }
+              else if (EQ (arg, Qleft_fringe))
+                {
+                  if (w)
+                    offset_px += (float) WINDOW_LEFT_FRINGE_WIDTH (w);
                 }
               else if (FIXNUMP (arg))
-                offset_cols += (float) XFIXNUM (arg);
+                offset_px += (float) XFIXNUM (arg) * col_w;
               else if (FLOATP (arg))
-                offset_cols += (float) XFLOAT_DATA (arg);
+                offset_px += (float) XFLOAT_DATA (arg) * col_w;
+              else if (CONSP (arg))
+                {
+                  /* (N) pixel form */
+                  Lisp_Object n = XCAR (arg);
+                  if (FIXNUMP (n))
+                    offset_px += (float) XFIXNUM (n);
+                  else if (FLOATP (n))
+                    offset_px += (float) XFLOAT_DATA (n);
+                }
               args = XCDR (args);
             }
-          return base_cols + (EQ (acar, Qplus) ? offset_cols : -offset_cols);
+          float result_px = base_px
+            + (EQ (acar, Qplus) ? offset_px : -offset_px);
+          return col_w > 0 ? result_px / col_w : 0;
         }
-      /* (N) pixel form */
+      /* (N) pixel form at top level */
       Lisp_Object n = XCAR (align_val);
       float pixel_pos = 0;
       if (FIXNUMP (n))
         pixel_pos = (float) XFIXNUM (n);
       else if (FLOATP (n))
         pixel_pos = (float) XFLOAT_DATA (n);
-      float col_w = w ? (float) FRAME_COLUMN_WIDTH (XFRAME (WINDOW_FRAME (w)))
-                       : 8.0f;
       return col_w > 0 ? pixel_pos / col_w : 0;
     }
   return -1;

@@ -177,11 +177,16 @@ impl LayoutEngine {
             return;
         }
 
-        // Extract text length, face run count, and display prop count from packed
-        // return value: bits 0-31 = text_len, 32-47 = nruns, 48-63 = ndisplay
+        // Extract text length, face run count, display prop count, and align
+        // count from packed return value:
+        //   bits  0-31 = text_len
+        //   bits 32-47 = nruns (face runs)
+        //   bits 48-55 = ndisplay (image display props)
+        //   bits 56-63 = naligns (align-to entries)
         let text_len = (bytes & 0xFFFFFFFF) as usize;
         let nruns = ((bytes >> 32) & 0xFFFF) as usize;
-        let ndisplay = ((bytes >> 48) & 0xFFFF) as usize;
+        let ndisplay = ((bytes >> 48) & 0xFF) as usize;
+        let naligns = ((bytes >> 56) & 0xFF) as usize;
 
         let text = &line_buf[..text_len];
 
@@ -223,17 +228,62 @@ impl LayoutEngine {
         let display_start = text_len + nruns * 10;
         let display_props = parse_display_props(&line_buf, display_start, ndisplay);
 
+        // Parse align-to entries after display props.
+        // Each entry is 6 bytes: u16 byte_offset + f32 align_to_cols.
+        let align_start = display_start + ndisplay * 16;
+        let align_entries = if naligns > 0 {
+            let mut entries = Vec::with_capacity(naligns);
+            for i in 0..naligns {
+                let off = align_start + i * 6;
+                if off + 6 <= line_buf.len() {
+                    let byte_offset = u16::from_ne_bytes([line_buf[off], line_buf[off + 1]]);
+                    let align_to_cols = f32::from_ne_bytes([
+                        line_buf[off + 2], line_buf[off + 3],
+                        line_buf[off + 4], line_buf[off + 5],
+                    ]);
+                    entries.push(OverlayAlignEntry { byte_offset, align_to_cols });
+                }
+            }
+            entries
+        } else {
+            Vec::new()
+        };
+
         // Use the mode-line face for character width queries
         let face_id = line_face.face_id;
         let window = wp.window_ptr;
 
-        // Render text with face runs and display properties
+        // Render text with face runs, display properties, and align-to entries
         let mut sl_x_offset: f32 = 0.0;
         let mut byte_idx = 0usize;
         let mut current_run = 0usize;
         let mut dp_idx = 0usize; // current display prop index
+        let mut align_idx = 0usize; // current align-to entry index
 
         while byte_idx < text.len() && sl_x_offset < width {
+            // Check if an align-to entry matches this byte position.
+            // If so, jump x offset to the target column and skip the char.
+            if align_idx < align_entries.len()
+                && byte_idx == align_entries[align_idx].byte_offset as usize
+            {
+                let target_x = align_entries[align_idx].align_to_cols * char_w;
+                if target_x > sl_x_offset {
+                    let stretch_w = target_x - sl_x_offset;
+                    Self::add_stretch_for_face(
+                        &line_face, frame_glyphs,
+                        x + sl_x_offset, y,
+                        stretch_w, height, bg,
+                        line_face.face_id, true,
+                    );
+                    sl_x_offset = target_x;
+                }
+                align_idx += 1;
+                // Skip the character that has the display property
+                let (_ch, ch_len) = decode_utf8(&text[byte_idx..]);
+                byte_idx += ch_len;
+                continue;
+            }
+
             // Check if a display property (image) covers this byte position.
             // If so, render the image and skip the covered bytes.
             if dp_idx < display_props.len() {
