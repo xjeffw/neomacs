@@ -2982,6 +2982,16 @@ enum PureBuiltinId {
     Downcase,
     #[strum(serialize = "format")]
     Format,
+    #[strum(serialize = "make-vector")]
+    MakeVector,
+    #[strum(serialize = "vector")]
+    Vector,
+    #[strum(serialize = "aref")]
+    Aref,
+    #[strum(serialize = "aset")]
+    Aset,
+    #[strum(serialize = "vconcat")]
+    Vconcat,
 }
 
 fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
@@ -3058,6 +3068,11 @@ fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
         PureBuiltinId::Upcase => builtin_upcase(args),
         PureBuiltinId::Downcase => builtin_downcase(args),
         PureBuiltinId::Format => builtin_format(args),
+        PureBuiltinId::MakeVector => builtin_make_vector(args),
+        PureBuiltinId::Vector => builtin_vector(args),
+        PureBuiltinId::Aref => builtin_aref(args),
+        PureBuiltinId::Aset => builtin_aset(args),
+        PureBuiltinId::Vconcat => builtin_vconcat(args),
     }
 }
 
@@ -3599,12 +3614,7 @@ pub(crate) fn dispatch_builtin(
 
         // String (typed subset is dispatched above)
 
-        // Vector
-        "make-vector" => builtin_make_vector(args),
-        "vector" => builtin_vector(args),
-        "aref" => builtin_aref(args),
-        "aset" => builtin_aset(args),
-        "vconcat" => builtin_vconcat(args),
+        // Vector (typed subset is dispatched above)
 
         // Hash table
         "make-hash-table" => builtin_make_hash_table(args),
@@ -4626,5 +4636,13 @@ mod tests {
             .expect("builtin string= should evaluate");
         assert_eq!(full, short);
         assert!(full.is_truthy());
+    }
+
+    #[test]
+    fn pure_dispatch_typed_vector_builds_vector() {
+        let result = dispatch_builtin_pure("vector", vec![Value::Int(7), Value::Int(9)])
+            .expect("builtin vector should resolve")
+            .expect("builtin vector should evaluate");
+        assert_eq!(result, Value::vector(vec![Value::Int(7), Value::Int(9)]));
     }
 }
