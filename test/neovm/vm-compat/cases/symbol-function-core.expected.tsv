@@ -1,0 +1,4 @@
+1	(symbol-function 'message)	OK #<subr message>
+2	(symbol-function 'load)	OK #<subr load>
+3	(symbol-function 'if)	OK #<subr if>
+4	(symbol-function 'car)	OK #<subr car>
