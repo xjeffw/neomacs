@@ -127,6 +127,10 @@ Implemented now:
   - load-path suffix resolution uses source-first policy (`.el`, not `.elc`)
   - explicit `.elc` rejection with `file-error` and actionable message
   - no implicit `.elc` parse/eval fallback behavior
+- `lread` locate helpers:
+  - `locate-file` and `locate-file-internal` now resolve across path/suffix lists
+  - supports symbol predicate filtering through pure builtin dispatch
+  - compatibility corpus includes oracle-checked `cases/locate-file`
 - Source parse cache (`.neoc` sidecar):
   - cache file: `<module>.neoc` beside `<module>.el`
   - key includes schema version, VM version, and lexical-binding mode
