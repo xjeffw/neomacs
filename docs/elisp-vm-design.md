@@ -143,9 +143,10 @@ Implemented now:
 - pathname normalization builtins:
   - `file-name-as-directory` and `directory-file-name` mirror GNU Emacs semantics for trailing separator normalization
   - `file-name-concat` matches GNU Emacs nil/empty filtering and separator insertion behavior
+  - filename and file predicate builtins enforce GNU-style strict string type checks (`wrong-type-argument` on non-strings)
   - path predicates `file-name-absolute-p` and `directory-name-p` are implemented with GNU behavior for Unix-style path forms
   - `substitute-in-file-name` supports `$VAR` / `${VAR}` replacement, `$$` escaping, and embedded absolute-path trimming (`//`, `/~`)
-  - compatibility corpus includes oracle-checked `cases/directory-file-name`, `cases/file-name-concat`, `cases/path-predicates`, and `cases/substitute-in-file-name`
+  - compatibility corpus includes oracle-checked `cases/directory-file-name`, `cases/file-name-concat`, `cases/file-name-types`, `cases/path-predicates`, and `cases/substitute-in-file-name`
 - Source parse cache (`.neoc` sidecar):
   - cache file: `<module>.neoc` beside `<module>.el`
   - key includes schema version, VM version, and lexical-binding mode
