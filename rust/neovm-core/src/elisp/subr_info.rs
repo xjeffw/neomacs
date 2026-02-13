@@ -8,6 +8,7 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
+use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
 // Argument helpers
@@ -36,13 +37,14 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
 }
 
 // ---------------------------------------------------------------------------
-// Special-form name table
+// Evaluator/public callable classification
 // ---------------------------------------------------------------------------
 
-/// Returns true if `name` is a special form recognized by the evaluator.
+/// Returns true if `name` is recognized by the evaluator's special-form
+/// dispatch path.
 ///
 /// This list mirrors `Evaluator::try_special_form()` in `eval.rs`.
-fn is_special_form_name(name: &str) -> bool {
+fn is_evaluator_special_form_name(name: &str) -> bool {
     matches!(
         name,
         "quote"
@@ -148,8 +150,106 @@ fn is_special_form_name(name: &str) -> bool {
     )
 }
 
+/// Returns true for special forms exposed by `special-form-p`.
+///
+/// Emacs distinguishes evaluator internals from public special forms:
+/// many evaluator-recognized constructs are macros/functions in user-visible
+/// introspection.
+fn is_public_special_form_name(name: &str) -> bool {
+    matches!(
+        name,
+        "quote"
+            | "function"
+            | "let"
+            | "let*"
+            | "setq"
+            | "if"
+            | "and"
+            | "or"
+            | "cond"
+            | "while"
+            | "progn"
+            | "prog1"
+            | "defvar"
+            | "defconst"
+            | "catch"
+            | "unwind-protect"
+            | "condition-case"
+            | "interactive"
+            | "save-excursion"
+            | "save-restriction"
+            | "save-current-buffer"
+    )
+}
+
 pub(crate) fn is_special_form(name: &str) -> bool {
-    is_special_form_name(name)
+    is_public_special_form_name(name)
+}
+
+pub(crate) fn is_evaluator_macro_name(name: &str) -> bool {
+    let is_macro = matches!(
+        name,
+        "when"
+            | "unless"
+            | "dotimes"
+            | "dolist"
+            | "with-temp-buffer"
+            | "with-current-buffer"
+            | "ignore-errors"
+            | "setq-local"
+            | "defvar-local"
+            | "with-output-to-string"
+            | "prog2"
+            | "track-mouse"
+            | "with-syntax-table"
+            | "eval-when-compile"
+            | "eval-and-compile"
+            | "with-eval-after-load"
+    );
+    debug_assert!(!is_macro || is_evaluator_special_form_name(name));
+    is_macro
+}
+
+fn fallback_macro_arity(name: &str) -> Option<(usize, Option<usize>)> {
+    match name {
+        "when" | "unless" | "dotimes" | "dolist" => Some((1, None)),
+        "with-current-buffer" | "with-syntax-table" | "with-eval-after-load" => Some((1, None)),
+        "ignore-errors"
+        | "setq-local"
+        | "with-temp-buffer"
+        | "with-output-to-string"
+        | "track-mouse"
+        | "eval-when-compile"
+        | "eval-and-compile" => Some((0, None)),
+        "defvar-local" => Some((2, Some(3))),
+        "prog2" => Some((2, None)),
+        _ => None,
+    }
+}
+
+/// Return a placeholder macro object for evaluator-integrated macro names.
+///
+/// This keeps `fboundp`/`symbol-function`/`indirect-function`/`macrop`
+/// introspection aligned with Emacs for core macros even when they are not
+/// materialized via Elisp bootstrap code in the function cell.
+pub(crate) fn fallback_macro_value(name: &str) -> Option<Value> {
+    let (min, max) = fallback_macro_arity(name)?;
+    let required = (0..min).map(|idx| format!("arg{idx}")).collect();
+    let rest = if max.is_none() {
+        Some("rest".to_string())
+    } else {
+        None
+    };
+    Some(Value::Macro(Arc::new(LambdaData {
+        params: LambdaParams {
+            required,
+            optional: Vec::new(),
+            rest,
+        },
+        body: vec![],
+        env: None,
+        docstring: None,
+    })))
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +266,24 @@ fn arity_cons(min: usize, max: Option<usize>) -> Value {
         None => Value::symbol("many"),
     };
     Value::cons(min_val, max_val)
+}
+
+fn subr_arity_value(name: &str) -> Value {
+    match name {
+        // Oracle-compatible overrides for core subrs used in vm-compat.
+        "car" | "cdr" => arity_cons(1, Some(1)),
+        "message" => arity_cons(1, None),
+        "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
+        _ => arity_cons(0, None),
+    }
+}
+
+fn is_macro_object(value: &Value) -> bool {
+    match value {
+        Value::Macro(_) => true,
+        Value::Cons(cell) => cell.lock().expect("poisoned").car.as_symbol_name() == Some("macro"),
+        _ => false,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -198,16 +316,7 @@ pub(crate) fn builtin_subr_name(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_subr_arity(args: Vec<Value>) -> EvalResult {
     expect_args("subr-arity", &args, 1)?;
     match &args[0] {
-        Value::Subr(name) => {
-            let arity = match name.as_str() {
-                // Oracle-compatible overrides for core subrs used in vm-compat.
-                "car" | "cdr" => arity_cons(1, Some(1)),
-                "message" => arity_cons(1, None),
-                "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
-                _ => arity_cons(0, None),
-            };
-            Ok(arity)
-        }
+        Value::Subr(name) => Ok(subr_arity_value(name)),
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("subrp"), other.clone()],
@@ -276,8 +385,8 @@ pub(crate) fn builtin_interpreted_function_p(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_special_form_p(args: Vec<Value>) -> EvalResult {
     expect_args("special-form-p", &args, 1)?;
     let result = match &args[0] {
-        Value::Symbol(name) => is_special_form_name(name),
-        Value::Subr(name) => is_special_form_name(name),
+        Value::Symbol(name) => is_public_special_form_name(name),
+        Value::Subr(name) => is_public_special_form_name(name),
         _ => false,
     };
     Ok(Value::bool(result))
@@ -286,7 +395,7 @@ pub(crate) fn builtin_special_form_p(args: Vec<Value>) -> EvalResult {
 /// `(macrop OBJECT)` -- return t if OBJECT is a macro.
 pub(crate) fn builtin_macrop(args: Vec<Value>) -> EvalResult {
     expect_args("macrop", &args, 1)?;
-    Ok(Value::bool(matches!(&args[0], Value::Macro(_))))
+    Ok(Value::bool(is_macro_object(&args[0])))
 }
 
 /// `(commandp FUNCTION &optional FOR-CALL-INTERACTIVELY)` -- return t if
@@ -317,10 +426,7 @@ pub(crate) fn builtin_func_arity(args: Vec<Value>) -> EvalResult {
             let max = bc.params.max_arity();
             Ok(arity_cons(min, max))
         }
-        Value::Subr(_) => {
-            // No per-subr arity metadata; conservative default.
-            Ok(arity_cons(0, None))
-        }
+        Value::Subr(name) => Ok(subr_arity_value(name)),
         Value::Macro(m) => {
             let min = m.params.min_arity();
             let max = m.params.max_arity();
@@ -640,6 +746,12 @@ mod tests {
     }
 
     #[test]
+    fn special_form_p_false_for_when() {
+        let result = builtin_special_form_p(vec![Value::symbol("when")]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
     fn special_form_p_false_for_int() {
         let result = builtin_special_form_p(vec![Value::Int(42)]).unwrap();
         assert!(result.is_nil());
@@ -665,6 +777,13 @@ mod tests {
     fn macrop_false_for_nil() {
         let result = builtin_macrop(vec![Value::Nil]).unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn macrop_true_for_macro_cons_marker() {
+        let marker = Value::cons(Value::symbol("macro"), Value::Int(1));
+        let result = builtin_macrop(vec![marker]).unwrap();
+        assert!(result.is_truthy());
     }
 
     // -- commandp --
@@ -755,6 +874,27 @@ mod tests {
             let pair = cell.lock().unwrap();
             assert_eq!(pair.car.as_int(), Some(0));
             assert_eq!(pair.cdr.as_symbol_name(), Some("many"));
+        } else {
+            panic!("expected cons cell");
+        }
+    }
+
+    #[test]
+    fn func_arity_subr_uses_compat_overrides() {
+        let message = builtin_func_arity(vec![Value::Subr("message".into())]).unwrap();
+        if let Value::Cons(cell) = &message {
+            let pair = cell.lock().unwrap();
+            assert_eq!(pair.car.as_int(), Some(1));
+            assert_eq!(pair.cdr.as_symbol_name(), Some("many"));
+        } else {
+            panic!("expected cons cell");
+        }
+
+        let car = builtin_func_arity(vec![Value::Subr("car".into())]).unwrap();
+        if let Value::Cons(cell) = &car {
+            let pair = cell.lock().unwrap();
+            assert_eq!(pair.car.as_int(), Some(1));
+            assert_eq!(pair.cdr.as_int(), Some(1));
         } else {
             panic!("expected cons cell");
         }

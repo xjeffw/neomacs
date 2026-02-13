@@ -474,7 +474,12 @@ pub(crate) fn builtin_characterp(args: Vec<Value>) -> EvalResult {
 
 pub(crate) fn builtin_functionp(args: Vec<Value>) -> EvalResult {
     expect_args("functionp", &args, 1)?;
-    Ok(Value::bool(args[0].is_function()))
+    let is_function = match &args[0] {
+        Value::Symbol(_) => false,
+        Value::Cons(_) => is_lambda_form_list(&args[0]),
+        other => is_runtime_function_object(other),
+    };
+    Ok(Value::bool(is_function))
 }
 
 fn is_lambda_form_list(value: &Value) -> bool {
@@ -487,18 +492,30 @@ fn is_lambda_form_list(value: &Value) -> bool {
     }
 }
 
+fn is_runtime_function_object(value: &Value) -> bool {
+    match value {
+        Value::Lambda(_) | Value::ByteCode(_) => true,
+        Value::Subr(name) => !super::subr_info::is_special_form(name),
+        _ => false,
+    }
+}
+
 pub(crate) fn builtin_functionp_eval(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("functionp", &args, 1)?;
     let is_function = match &args[0] {
-        Value::Lambda(_) | Value::Subr(_) | Value::ByteCode(_) => true,
+        Value::Lambda(_) | Value::Subr(_) | Value::ByteCode(_) => is_runtime_function_object(&args[0]),
         Value::Symbol(name) => {
-            eval.obarray().fboundp(name)
-                || super::subr_info::is_special_form(name)
-                || super::builtin_registry::is_dispatch_builtin_name(name)
-                || name.parse::<PureBuiltinId>().is_ok()
+            if let Some(function) = eval.obarray().symbol_function(name) {
+                is_runtime_function_object(function)
+            } else if super::subr_info::is_evaluator_macro_name(name) {
+                false
+            } else {
+                super::builtin_registry::is_dispatch_builtin_name(name)
+                    || name.parse::<PureBuiltinId>().is_ok()
+            }
         }
         Value::Cons(_) => is_lambda_form_list(&args[0]),
         _ => false,
@@ -1681,6 +1698,7 @@ pub(crate) fn builtin_fboundp(eval: &mut super::eval::Evaluator, args: Vec<Value
     Ok(Value::bool(
         eval.obarray().fboundp(name)
             || super::subr_info::is_special_form(name)
+            || super::subr_info::is_evaluator_macro_name(name)
             || super::builtin_registry::is_dispatch_builtin_name(name)
             || name.parse::<PureBuiltinId>().is_ok(),
     ))
@@ -1728,6 +1746,10 @@ pub(crate) fn builtin_symbol_function(
     })?;
     if let Some(function) = eval.obarray().symbol_function(name) {
         return Ok(function.clone());
+    }
+
+    if let Some(function) = super::subr_info::fallback_macro_value(name) {
+        return Ok(function);
     }
 
     if super::subr_info::is_special_form(name)
@@ -1863,6 +1885,10 @@ pub(crate) fn builtin_indirect_function(
                 return Ok(function);
             }
 
+            if let Some(function) = super::subr_info::fallback_macro_value(name) {
+                return Ok(function);
+            }
+
             if super::subr_info::is_special_form(name)
                 || super::builtin_registry::is_dispatch_builtin_name(name)
                 || name.parse::<PureBuiltinId>().is_ok()
@@ -1874,6 +1900,25 @@ pub(crate) fn builtin_indirect_function(
         }
         Value::Nil => Ok(Value::Nil),
         other => Ok(other.clone()),
+    }
+}
+
+pub(crate) fn builtin_macrop_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("macrop", &args, 1)?;
+    match &args[0] {
+        Value::Symbol(name) => {
+            if let Some(function) = eval.obarray().symbol_function(name) {
+                return super::subr_info::builtin_macrop(vec![function.clone()]);
+            }
+            if let Some(function) = super::subr_info::fallback_macro_value(name) {
+                return super::subr_info::builtin_macrop(vec![function]);
+            }
+            Ok(Value::Nil)
+        }
+        _ => super::subr_info::builtin_macrop(args),
     }
 }
 
@@ -3832,6 +3877,7 @@ pub(crate) fn dispatch_builtin(
         "mapc" => return Some(builtin_mapc(eval, args)),
         "sort" => return Some(builtin_sort(eval, args)),
         "functionp" => return Some(builtin_functionp_eval(eval, args)),
+        "macrop" => return Some(builtin_macrop_eval(eval, args)),
         // Symbol/obarray
         "boundp" => return Some(builtin_boundp(eval, args)),
         "fboundp" => return Some(builtin_fboundp(eval, args)),
@@ -6358,6 +6404,14 @@ mod tests {
         let random = builtin_fboundp(&mut eval, vec![Value::symbol("random")])
             .expect("fboundp should succeed for random");
         assert!(random.is_truthy());
+
+        let when_macro = builtin_fboundp(&mut eval, vec![Value::symbol("when")])
+            .expect("fboundp should succeed for when");
+        assert!(when_macro.is_truthy());
+
+        let with_temp_buffer = builtin_fboundp(&mut eval, vec![Value::symbol("with-temp-buffer")])
+            .expect("fboundp should succeed for with-temp-buffer");
+        assert!(with_temp_buffer.is_truthy());
     }
 
     #[test]
@@ -6391,6 +6445,18 @@ mod tests {
         let closure_result = builtin_functionp_eval(&mut eval, vec![quoted_closure])
             .expect("functionp should reject quoted closure lists");
         assert!(closure_result.is_nil());
+
+        let special_symbol = builtin_functionp_eval(&mut eval, vec![Value::symbol("if")])
+            .expect("functionp should reject special-form symbols");
+        assert!(special_symbol.is_nil());
+
+        let macro_symbol = builtin_functionp_eval(&mut eval, vec![Value::symbol("when")])
+            .expect("functionp should reject macro symbols");
+        assert!(macro_symbol.is_nil());
+
+        let special_subr = builtin_functionp_eval(&mut eval, vec![Value::Subr("if".to_string())])
+            .expect("functionp should reject special-form subr objects");
+        assert!(special_subr.is_nil());
     }
 
     #[test]
@@ -6412,6 +6478,10 @@ mod tests {
         let typed = builtin_symbol_function(&mut eval, vec![Value::symbol("car")])
             .expect("symbol-function should resolve car");
         assert_eq!(typed, Value::Subr("car".to_string()));
+
+        let when_macro = builtin_symbol_function(&mut eval, vec![Value::symbol("when")])
+            .expect("symbol-function should resolve when as a macro");
+        assert!(matches!(when_macro, Value::Macro(_)));
     }
 
     #[test]
@@ -6433,6 +6503,28 @@ mod tests {
         let typed = builtin_indirect_function(&mut eval, vec![Value::symbol("car")])
             .expect("indirect-function should resolve car");
         assert_eq!(typed, Value::Subr("car".to_string()));
+
+        let when_macro = builtin_indirect_function(&mut eval, vec![Value::symbol("when")])
+            .expect("indirect-function should resolve when as a macro");
+        assert!(matches!(when_macro, Value::Macro(_)));
+    }
+
+    #[test]
+    fn macrop_eval_recognizes_symbol_function_and_marker_forms() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+
+        let when_symbol = builtin_macrop_eval(&mut eval, vec![Value::symbol("when")])
+            .expect("macrop should handle symbol input");
+        assert!(when_symbol.is_truthy());
+
+        let plain_symbol = builtin_macrop_eval(&mut eval, vec![Value::symbol("if")])
+            .expect("macrop should handle non-macro symbols");
+        assert!(plain_symbol.is_nil());
+
+        let marker = Value::cons(Value::symbol("macro"), Value::Int(1));
+        let marker_result =
+            builtin_macrop_eval(&mut eval, vec![marker]).expect("macrop should accept markers");
+        assert!(marker_result.is_truthy());
     }
 
     #[test]
