@@ -1,6 +1,7 @@
 //! File loading and module system (require/provide/load).
 
 use super::error::EvalError;
+use super::expr::Expr;
 use super::value::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -172,6 +173,14 @@ pub fn load_file(eval: &mut super::eval::Evaluator, path: &Path) -> Result<Value
             }
         };
 
+        // Until native `.elc` execution is implemented, prefer source if this
+        // file contains compiled-function literals and a sibling `.el` exists.
+        if forms_contain_compiled_literals(&forms) {
+            if let Some(source_path) = source_sibling_for_elc(path) {
+                return load_file(eval, &source_path);
+            }
+        }
+
         for (i, form) in forms.iter().enumerate() {
             if let Err(err) = eval.eval_expr(form) {
                 if i == 0 {
@@ -220,6 +229,52 @@ fn record_load_history(eval: &mut super::eval::Evaluator, path: &Path) {
         .cloned()
         .unwrap_or(Value::Nil);
     eval.set_variable("load-history", Value::cons(entry, history));
+}
+
+fn forms_contain_compiled_literals(forms: &[Expr]) -> bool {
+    forms.iter().any(expr_contains_compiled_literal)
+}
+
+fn expr_contains_compiled_literal(expr: &Expr) -> bool {
+    match expr {
+        Expr::List(items) => {
+            if is_compiled_literal_quote(items) {
+                return true;
+            }
+            items.iter().any(expr_contains_compiled_literal)
+        }
+        Expr::Vector(items) => items.iter().any(expr_contains_compiled_literal),
+        Expr::DottedList(items, last) => {
+            items.iter().any(expr_contains_compiled_literal) || expr_contains_compiled_literal(last)
+        }
+        _ => false,
+    }
+}
+
+fn is_compiled_literal_quote(items: &[Expr]) -> bool {
+    if items.len() != 2 {
+        return false;
+    }
+    if !matches!(&items[0], Expr::Symbol(s) if s == "quote") {
+        return false;
+    }
+    let Expr::Vector(vector_items) = &items[1] else {
+        return false;
+    };
+    matches!(
+        (
+            vector_items.first(),
+            vector_items.get(1),
+            vector_items.get(2),
+            vector_items.get(3),
+        ),
+        (
+            Some(Expr::List(_)),
+            Some(Expr::Str(_)),
+            Some(Expr::Vector(_)),
+            Some(Expr::Int(_)),
+        )
+    )
 }
 
 #[cfg(test)]
@@ -498,6 +553,41 @@ mod tests {
                 .iter()
                 .any(|v| matches!(v, Value::Symbol(s) if s == "vm-bytecode-probe")),
             "feature should be present after provide",
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_elc_with_source_prefers_source_for_compiled_literals() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock before epoch")
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("neovm-load-elc-source-fallback-compiled-{unique}"));
+        fs::create_dir_all(&dir).expect("create temp fixture dir");
+        let source = dir.join("probe.el");
+        let compiled = dir.join("probe.elc");
+        fs::write(
+            &source,
+            "(setq vm-load-elc-compiled-literal-fallback 'source)\n",
+        )
+        .expect("write source fixture");
+        fs::write(
+            &compiled,
+            "(defalias 'vm-load-elc-compiled-literal-fallback-fn #[(x) \"\\bT\\207\" [x] 1 (#$ . 83)])\n",
+        )
+        .expect("write compiled fixture");
+
+        let mut eval = super::super::eval::Evaluator::new();
+        let loaded = load_file(&mut eval, &compiled).expect("load file with source fallback");
+        assert_eq!(loaded, Value::True);
+        assert_eq!(
+            eval.obarray()
+                .symbol_value("vm-load-elc-compiled-literal-fallback")
+                .cloned(),
+            Some(Value::symbol("source"))
         );
 
         let _ = fs::remove_dir_all(&dir);
