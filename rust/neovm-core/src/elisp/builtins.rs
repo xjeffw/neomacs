@@ -3026,6 +3026,30 @@ enum PureBuiltinId {
     SymbolName,
     #[strum(serialize = "make-symbol")]
     MakeSymbol,
+    #[strum(serialize = "sqrt")]
+    Sqrt,
+    #[strum(serialize = "sin")]
+    Sin,
+    #[strum(serialize = "cos")]
+    Cos,
+    #[strum(serialize = "tan")]
+    Tan,
+    #[strum(serialize = "asin")]
+    Asin,
+    #[strum(serialize = "acos")]
+    Acos,
+    #[strum(serialize = "atan")]
+    Atan,
+    #[strum(serialize = "exp")]
+    Exp,
+    #[strum(serialize = "log")]
+    Log,
+    #[strum(serialize = "expt")]
+    Expt,
+    #[strum(serialize = "random")]
+    Random,
+    #[strum(serialize = "isnan")]
+    Isnan,
 }
 
 fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
@@ -3124,6 +3148,18 @@ fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
         PureBuiltinId::PlistPut => builtin_plist_put(args),
         PureBuiltinId::SymbolName => builtin_symbol_name(args),
         PureBuiltinId::MakeSymbol => builtin_make_symbol(args),
+        PureBuiltinId::Sqrt => builtin_sqrt(args),
+        PureBuiltinId::Sin => builtin_sin(args),
+        PureBuiltinId::Cos => builtin_cos(args),
+        PureBuiltinId::Tan => builtin_tan(args),
+        PureBuiltinId::Asin => builtin_asin(args),
+        PureBuiltinId::Acos => builtin_acos(args),
+        PureBuiltinId::Atan => builtin_atan(args),
+        PureBuiltinId::Exp => builtin_exp(args),
+        PureBuiltinId::Log => builtin_log(args),
+        PureBuiltinId::Expt => builtin_expt(args),
+        PureBuiltinId::Random => builtin_random(args),
+        PureBuiltinId::Isnan => builtin_isnan(args),
     }
 }
 
@@ -3679,19 +3715,7 @@ pub(crate) fn dispatch_builtin(
         "symbol-name" => builtin_symbol_name(args),
         "make-symbol" => builtin_make_symbol(args),
 
-        // Math
-        "sqrt" => builtin_sqrt(args),
-        "sin" => builtin_sin(args),
-        "cos" => builtin_cos(args),
-        "tan" => builtin_tan(args),
-        "asin" => builtin_asin(args),
-        "acos" => builtin_acos(args),
-        "atan" => builtin_atan(args),
-        "exp" => builtin_exp(args),
-        "log" => builtin_log(args),
-        "expt" => builtin_expt(args),
-        "random" => builtin_random(args),
-        "isnan" => builtin_isnan(args),
+        // Math (typed subset is dispatched above)
 
         // Extended string
         "string-prefix-p" => builtin_string_prefix_p(args),
@@ -4722,5 +4746,23 @@ mod tests {
             .expect("builtin symbol-name should resolve")
             .expect("builtin symbol-name should evaluate");
         assert_eq!(name, Value::string("neo-vm"));
+    }
+
+    #[test]
+    fn pure_dispatch_typed_math_ops_work() {
+        let sqrt = dispatch_builtin_pure("sqrt", vec![Value::Int(4)])
+            .expect("builtin sqrt should resolve")
+            .expect("builtin sqrt should evaluate");
+        assert_eq!(sqrt, Value::Float(2.0));
+
+        let expt = dispatch_builtin_pure("expt", vec![Value::Int(2), Value::Int(8)])
+            .expect("builtin expt should resolve")
+            .expect("builtin expt should evaluate");
+        assert_eq!(expt, Value::Int(256));
+
+        let nan_check = dispatch_builtin_pure("isnan", vec![Value::Float(f64::NAN)])
+            .expect("builtin isnan should resolve")
+            .expect("builtin isnan should evaluate");
+        assert!(nan_check.is_truthy());
     }
 }
