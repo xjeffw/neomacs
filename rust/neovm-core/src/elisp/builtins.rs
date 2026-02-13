@@ -3018,6 +3018,14 @@ enum PureBuiltinId {
     Clrhash,
     #[strum(serialize = "hash-table-count")]
     HashTableCount,
+    #[strum(serialize = "plist-get")]
+    PlistGet,
+    #[strum(serialize = "plist-put")]
+    PlistPut,
+    #[strum(serialize = "symbol-name")]
+    SymbolName,
+    #[strum(serialize = "make-symbol")]
+    MakeSymbol,
 }
 
 fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
@@ -3112,6 +3120,10 @@ fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
         PureBuiltinId::Remhash => builtin_remhash(args),
         PureBuiltinId::Clrhash => builtin_clrhash(args),
         PureBuiltinId::HashTableCount => builtin_hash_table_count(args),
+        PureBuiltinId::PlistGet => builtin_plist_get(args),
+        PureBuiltinId::PlistPut => builtin_plist_put(args),
+        PureBuiltinId::SymbolName => builtin_symbol_name(args),
+        PureBuiltinId::MakeSymbol => builtin_make_symbol(args),
     }
 }
 
@@ -4710,5 +4722,31 @@ mod tests {
             .expect("builtin hash-table-count should resolve")
             .expect("builtin hash-table-count should evaluate");
         assert_eq!(count, Value::Int(1));
+    }
+
+    #[test]
+    fn pure_dispatch_typed_plist_and_symbol_round_trip() {
+        let plist = dispatch_builtin_pure(
+            "plist-put",
+            vec![Value::Nil, Value::keyword(":lang"), Value::string("rust")],
+        )
+        .expect("builtin plist-put should resolve")
+        .expect("builtin plist-put should evaluate");
+
+        let lang = dispatch_builtin_pure(
+            "plist-get",
+            vec![plist, Value::keyword(":lang")],
+        )
+        .expect("builtin plist-get should resolve")
+        .expect("builtin plist-get should evaluate");
+        assert_eq!(lang, Value::string("rust"));
+
+        let sym = dispatch_builtin_pure("make-symbol", vec![Value::string("neo-vm")])
+            .expect("builtin make-symbol should resolve")
+            .expect("builtin make-symbol should evaluate");
+        let name = dispatch_builtin_pure("symbol-name", vec![sym])
+            .expect("builtin symbol-name should resolve")
+            .expect("builtin symbol-name should evaluate");
+        assert_eq!(name, Value::string("neo-vm"));
     }
 }
