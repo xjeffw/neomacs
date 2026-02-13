@@ -2948,6 +2948,22 @@ enum PureBuiltinId {
     Nth,
     #[strum(serialize = "nthcdr")]
     Nthcdr,
+    #[strum(serialize = "append")]
+    Append,
+    #[strum(serialize = "reverse")]
+    Reverse,
+    #[strum(serialize = "nreverse")]
+    Nreverse,
+    #[strum(serialize = "member")]
+    Member,
+    #[strum(serialize = "memq")]
+    Memq,
+    #[strum(serialize = "assoc")]
+    Assoc,
+    #[strum(serialize = "assq")]
+    Assq,
+    #[strum(serialize = "copy-sequence")]
+    CopySequence,
 }
 
 fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
@@ -3007,6 +3023,14 @@ fn dispatch_builtin_id_pure(id: PureBuiltinId, args: Vec<Value>) -> EvalResult {
         PureBuiltinId::Length => builtin_length(args),
         PureBuiltinId::Nth => builtin_nth(args),
         PureBuiltinId::Nthcdr => builtin_nthcdr(args),
+        PureBuiltinId::Append => builtin_append(args),
+        PureBuiltinId::Reverse => builtin_reverse(args),
+        PureBuiltinId::Nreverse => builtin_nreverse(args),
+        PureBuiltinId::Member => builtin_member(args),
+        PureBuiltinId::Memq => builtin_memq(args),
+        PureBuiltinId::Assoc => builtin_assoc(args),
+        PureBuiltinId::Assq => builtin_assq(args),
+        PureBuiltinId::CopySequence => builtin_copy_sequence(args),
     }
 }
 
@@ -4140,14 +4164,6 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         // Arithmetic (typed subset is dispatched above)
         // Type predicates and equality (typed subset is dispatched above)
         // Cons/List (typed subset is dispatched above)
-        "append" => builtin_append(args),
-        "reverse" => builtin_reverse(args),
-        "nreverse" => builtin_nreverse(args),
-        "member" => builtin_member(args),
-        "memq" => builtin_memq(args),
-        "assoc" => builtin_assoc(args),
-        "assq" => builtin_assq(args),
-        "copy-sequence" => builtin_copy_sequence(args),
         // String
         "string-equal" | "string=" => builtin_string_equal(args),
         "string-lessp" | "string<" => builtin_string_lessp(args),
@@ -4574,5 +4590,18 @@ mod tests {
             .expect("builtin eq should resolve")
             .expect("builtin eq should evaluate");
         assert!(result.is_truthy());
+    }
+
+    #[test]
+    fn pure_dispatch_typed_append_concatenates_lists() {
+        let left = Value::list(vec![Value::Int(1), Value::Int(2)]);
+        let right = Value::list(vec![Value::Int(3), Value::Int(4)]);
+        let result = dispatch_builtin_pure("append", vec![left, right])
+            .expect("builtin append should resolve")
+            .expect("builtin append should evaluate");
+        assert_eq!(
+            result,
+            Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(4)])
+        );
     }
 }
