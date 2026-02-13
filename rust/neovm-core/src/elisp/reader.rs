@@ -64,7 +64,7 @@ fn print_value_no_escape(value: &Value) -> String {
 /// Returns `(OBJECT . END-POSITION)` where END-POSITION is the character index
 /// after the parsed object.
 pub(crate) fn builtin_read_from_string(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-from-string", &args, 1)?;
@@ -128,14 +128,61 @@ pub(crate) fn builtin_read_from_string(
         ));
     }
 
-    let value = super::eval::quote_to_value(&forms[0]);
-
     // Compute end position: re-parse to find where the first form ends.
     // We do this by parsing form-by-form and tracking consumed bytes.
     let end_pos = compute_read_end_position(substring, &forms[0]);
+    let consumed = &substring[..end_pos.min(substring.len())];
+    let value = if first_form_is_reader_hash_dollar(&forms[0], consumed) {
+        eval.obarray()
+            .symbol_value("load-file-name")
+            .cloned()
+            .unwrap_or(Value::Nil)
+    } else {
+        super::eval::quote_to_value(&forms[0])
+    };
     let absolute_end = start + end_pos;
 
     Ok(Value::cons(value, Value::Int(absolute_end as i64)))
+}
+
+fn first_form_is_reader_hash_dollar(expr: &Expr, consumed: &str) -> bool {
+    matches!(expr, Expr::Symbol(s) if s == "load-file-name")
+        && consumed_represents_hash_dollar(consumed)
+}
+
+fn consumed_represents_hash_dollar(input: &str) -> bool {
+    let bytes = input.as_bytes();
+    let mut pos = skip_ws_comments(input, 0);
+    loop {
+        if pos + 1 >= bytes.len() {
+            return false;
+        }
+        if bytes[pos] == b'#' && bytes[pos + 1] == b'@' {
+            pos += 2;
+            let digits_start = pos;
+            while pos < bytes.len() && bytes[pos].is_ascii_digit() {
+                pos += 1;
+            }
+            if pos == digits_start {
+                return false;
+            }
+            let len = std::str::from_utf8(&bytes[digits_start..pos])
+                .ok()
+                .and_then(|s| s.parse::<usize>().ok());
+            let Some(len) = len else {
+                return false;
+            };
+            let Some(after_data) = pos.checked_add(len) else {
+                return false;
+            };
+            if after_data > bytes.len() {
+                return false;
+            }
+            pos = skip_ws_comments(input, after_data);
+            continue;
+        }
+        return bytes[pos] == b'#' && bytes[pos + 1] == b'$';
+    }
 }
 
 /// Estimate the end position of the first parsed form in the input string.
@@ -1429,6 +1476,47 @@ mod tests {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
                 assert!(matches!(&pair.car, Value::Int(255)));
+            }
+            _ => panic!("Expected cons"),
+        }
+    }
+
+    #[test]
+    fn read_from_string_hash_dollar_uses_load_file_name() {
+        let mut ev = Evaluator::new();
+        ev.set_variable("load-file-name", Value::string("/tmp/reader-probe.elc"));
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#$")]).unwrap();
+        match &result {
+            Value::Cons(cell) => {
+                let pair = cell.lock().unwrap();
+                assert_eq!(pair.car.as_str(), Some("/tmp/reader-probe.elc"));
+            }
+            _ => panic!("Expected cons"),
+        }
+    }
+
+    #[test]
+    fn read_from_string_hash_dollar_defaults_to_nil() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#$")]).unwrap();
+        match &result {
+            Value::Cons(cell) => {
+                let pair = cell.lock().unwrap();
+                assert!(pair.car.is_nil());
+            }
+            _ => panic!("Expected cons"),
+        }
+    }
+
+    #[test]
+    fn read_from_string_hash_skip_then_hash_dollar() {
+        let mut ev = Evaluator::new();
+        ev.set_variable("load-file-name", Value::string("/tmp/reader-skip.elc"));
+        let result = builtin_read_from_string(&mut ev, vec![Value::string("#@4data#$")]).unwrap();
+        match &result {
+            Value::Cons(cell) => {
+                let pair = cell.lock().unwrap();
+                assert_eq!(pair.car.as_str(), Some("/tmp/reader-skip.elc"));
             }
             _ => panic!("Expected cons"),
         }
