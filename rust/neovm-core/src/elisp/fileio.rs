@@ -548,6 +548,15 @@ fn expect_string_strict(value: &Value) -> Result<String, Flow> {
 /// (expand-file-name NAME &optional DEFAULT-DIRECTORY) -> string
 pub(crate) fn builtin_expand_file_name(args: Vec<Value>) -> EvalResult {
     expect_min_args("expand-file-name", &args, 1)?;
+    if args.len() > 2 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![
+                Value::symbol("expand-file-name"),
+                Value::Int(args.len() as i64),
+            ],
+        ));
+    }
     let name = expect_string_strict(&args[0])?;
     let default_dir = if let Some(arg) = args.get(1) {
         match arg {
@@ -1347,6 +1356,13 @@ mod tests {
         // Emacs treats non-string DEFAULT-DIRECTORY as root.
         let result = builtin_expand_file_name(vec![Value::string("a"), Value::symbol("x")]);
         assert_eq!(result.unwrap().as_str(), Some("/a"));
+
+        let result = builtin_expand_file_name(vec![
+            Value::string("a"),
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(result.is_err());
     }
 
     #[test]
