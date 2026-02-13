@@ -187,7 +187,11 @@ impl TimerManager {
 
     /// Return a list of active timer ids.
     pub fn list_active_timers(&self) -> Vec<TimerId> {
-        self.timers.iter().filter(|t| t.active).map(|t| t.id).collect()
+        self.timers
+            .iter()
+            .filter(|t| t.active)
+            .map(|t| t.id)
+            .collect()
     }
 
     /// Check if the given id refers to a known timer.
@@ -271,7 +275,9 @@ pub(crate) fn builtin_run_at_time(
     let callback = args[2].clone();
     let timer_args: Vec<Value> = args[3..].to_vec();
 
-    let id = eval.timers.add_timer(delay, repeat, callback, timer_args, false);
+    let id = eval
+        .timers
+        .add_timer(delay, repeat, callback, timer_args, false);
     Ok(Value::Timer(id))
 }
 
@@ -302,7 +308,9 @@ pub(crate) fn builtin_run_with_idle_timer(
     let callback = args[2].clone();
     let timer_args: Vec<Value> = args[3..].to_vec();
 
-    let id = eval.timers.add_timer(delay, repeat, callback, timer_args, true);
+    let id = eval
+        .timers
+        .add_timer(delay, repeat, callback, timer_args, true);
     Ok(Value::Timer(id))
 }
 
@@ -359,7 +367,13 @@ mod tests {
     fn timer_creation_and_list() {
         let mut mgr = TimerManager::new();
         let id1 = mgr.add_timer(1.0, 0.0, Value::symbol("my-callback"), vec![], false);
-        let id2 = mgr.add_timer(2.0, 0.0, Value::symbol("other-callback"), vec![Value::Int(42)], false);
+        let id2 = mgr.add_timer(
+            2.0,
+            0.0,
+            Value::symbol("other-callback"),
+            vec![Value::Int(42)],
+            false,
+        );
 
         assert_ne!(id1, id2);
         assert!(mgr.is_timer(id1));
@@ -392,7 +406,13 @@ mod tests {
     fn fire_pending_timers_one_shot() {
         let mut mgr = TimerManager::new();
         // Create a timer with 0 delay (fires immediately)
-        let id = mgr.add_timer(0.0, 0.0, Value::symbol("immediate"), vec![Value::Int(1)], false);
+        let id = mgr.add_timer(
+            0.0,
+            0.0,
+            Value::symbol("immediate"),
+            vec![Value::Int(1)],
+            false,
+        );
 
         // Fire it
         let now = Instant::now();
@@ -614,11 +634,7 @@ mod tests {
 
         let result = builtin_run_with_idle_timer(
             &mut eval,
-            vec![
-                Value::Int(5),
-                Value::Nil,
-                Value::symbol("idle-func"),
-            ],
+            vec![Value::Int(5), Value::Nil, Value::symbol("idle-func")],
         );
         assert!(result.is_ok());
         let timer_val = result.unwrap();

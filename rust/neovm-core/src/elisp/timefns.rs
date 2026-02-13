@@ -135,10 +135,7 @@ impl TimeMicros {
 fn parse_time(val: &Value) -> Result<TimeMicros, Flow> {
     match val {
         Value::Nil => Ok(TimeMicros::now()),
-        Value::Int(n) => Ok(TimeMicros {
-            secs: *n,
-            usecs: 0,
-        }),
+        Value::Int(n) => Ok(TimeMicros { secs: *n, usecs: 0 }),
         Value::Float(f) => {
             let secs = f.floor() as i64;
             let usecs = ((f - f.floor()) * 1_000_000.0).round() as i64;
@@ -233,7 +230,7 @@ struct DecodedTime {
     day: i64,   // 1-based
     month: i64, // 1-based
     year: i64,
-    dow: i64,   // 0=Sunday, 1=Monday, ..., 6=Saturday
+    dow: i64, // 0=Sunday, 1=Monday, ..., 6=Saturday
 }
 
 /// Break epoch seconds into UTC date/time components.
@@ -506,7 +503,11 @@ pub(crate) fn builtin_time_convert(args: Vec<Value>) -> EvalResult {
     expect_min_max_args("time-convert", &args, 1, 2)?;
     let tm = parse_time(&args[0])?;
 
-    let form = if args.len() > 1 { &args[1] } else { &Value::Nil };
+    let form = if args.len() > 1 {
+        &args[1]
+    } else {
+        &Value::Nil
+    };
 
     match form {
         Value::Nil => Ok(tm.to_list()),
@@ -611,14 +612,8 @@ mod tests {
 
     #[test]
     fn time_micros_less_than() {
-        let a = TimeMicros {
-            secs: 10,
-            usecs: 0,
-        };
-        let b = TimeMicros {
-            secs: 10,
-            usecs: 1,
-        };
+        let a = TimeMicros { secs: 10, usecs: 0 };
+        let b = TimeMicros { secs: 10, usecs: 1 };
         assert!(a.less_than(b));
         assert!(!b.less_than(a));
         assert!(!a.less_than(a));
@@ -1011,8 +1006,7 @@ mod tests {
 
     #[test]
     fn builtin_time_convert_to_float() {
-        let result =
-            builtin_time_convert(vec![Value::Int(1000), Value::symbol("float")]).unwrap();
+        let result = builtin_time_convert(vec![Value::Int(1000), Value::symbol("float")]).unwrap();
         match result {
             Value::Float(f) => assert!((f - 1000.0).abs() < 1e-9),
             _ => panic!("expected float"),

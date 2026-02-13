@@ -115,7 +115,9 @@ fn parse_parse_kwargs(args: &[Value], start_index: usize) -> Result<ParseOpts, F
                     ));
                 }
                 match &rest[i] {
-                    Value::Symbol(s) if s == "hash-table" => opts.object_type = ObjectType::HashTable,
+                    Value::Symbol(s) if s == "hash-table" => {
+                        opts.object_type = ObjectType::HashTable
+                    }
                     Value::Symbol(s) if s == "alist" => opts.object_type = ObjectType::Alist,
                     Value::Symbol(s) if s == "plist" => opts.object_type = ObjectType::Plist,
                     other => {
@@ -319,7 +321,9 @@ fn serialize_to_json(value: &Value, opts: &SerializeOpts, depth: usize) -> Resul
             let items = list_to_vec(value).ok_or_else(|| {
                 signal(
                     "json-serialize-error",
-                    vec![Value::string("Expected a proper list (alist) for JSON object")],
+                    vec![Value::string(
+                        "Expected a proper list (alist) for JSON object",
+                    )],
                 )
             })?;
             let mut parts = Vec::with_capacity(items.len());
@@ -381,7 +385,9 @@ fn hash_key_to_string(key: &HashKey) -> Result<String, Flow> {
         HashKey::True => Ok("t".to_string()),
         _ => Err(signal(
             "json-serialize-error",
-            vec![Value::string("Hash table key cannot be converted to JSON object key")],
+            vec![Value::string(
+                "Hash table key cannot be converted to JSON object key",
+            )],
         )),
     }
 }
@@ -590,14 +596,38 @@ impl<'a> JsonParser<'a> {
                 Some(b'\\') => {
                     self.advance();
                     match self.peek() {
-                        Some(b'"') => { self.advance(); result.push('"'); }
-                        Some(b'\\') => { self.advance(); result.push('\\'); }
-                        Some(b'/') => { self.advance(); result.push('/'); }
-                        Some(b'n') => { self.advance(); result.push('\n'); }
-                        Some(b'r') => { self.advance(); result.push('\r'); }
-                        Some(b't') => { self.advance(); result.push('\t'); }
-                        Some(b'b') => { self.advance(); result.push('\x08'); }
-                        Some(b'f') => { self.advance(); result.push('\x0C'); }
+                        Some(b'"') => {
+                            self.advance();
+                            result.push('"');
+                        }
+                        Some(b'\\') => {
+                            self.advance();
+                            result.push('\\');
+                        }
+                        Some(b'/') => {
+                            self.advance();
+                            result.push('/');
+                        }
+                        Some(b'n') => {
+                            self.advance();
+                            result.push('\n');
+                        }
+                        Some(b'r') => {
+                            self.advance();
+                            result.push('\r');
+                        }
+                        Some(b't') => {
+                            self.advance();
+                            result.push('\t');
+                        }
+                        Some(b'b') => {
+                            self.advance();
+                            result.push('\x08');
+                        }
+                        Some(b'f') => {
+                            self.advance();
+                            result.push('\x0C');
+                        }
                         Some(b'u') => {
                             self.advance();
                             let cp = self.parse_unicode_escape()?;
@@ -1030,7 +1060,9 @@ pub(crate) fn builtin_json_insert(args: Vec<Value>) -> EvalResult {
     // Stub: cannot insert into buffer from a pure builtin.
     Err(signal(
         "json-error",
-        vec![Value::string("json-insert is not yet implemented (no buffer context)")],
+        vec![Value::string(
+            "json-insert is not yet implemented (no buffer context)",
+        )],
     ))
 }
 
@@ -1078,7 +1110,9 @@ pub(crate) fn builtin_json_parse_buffer(args: Vec<Value>) -> EvalResult {
     let _opts = parse_parse_kwargs(&args, 0)?;
     Err(signal(
         "json-error",
-        vec![Value::string("json-parse-buffer is not yet implemented (no buffer context)")],
+        vec![Value::string(
+            "json-parse-buffer is not yet implemented (no buffer context)",
+        )],
     ))
 }
 
@@ -1188,7 +1222,9 @@ mod tests {
         let ht = Value::hash_table(HashTableTest::Equal);
         if let Value::HashTable(ref table_arc) = ht {
             let mut table = table_arc.lock().unwrap();
-            table.data.insert(HashKey::Str("name".to_string()), Value::string("Alice"));
+            table
+                .data
+                .insert(HashKey::Str("name".to_string()), Value::string("Alice"));
         }
         let result = builtin_json_serialize(vec![ht]);
         assert_eq!(result.unwrap().as_str(), Some("{\"name\":\"Alice\"}"));
@@ -1521,7 +1557,9 @@ mod tests {
         let ht = Value::hash_table(HashTableTest::Equal);
         if let Value::HashTable(ref table_arc) = ht {
             let mut table = table_arc.lock().unwrap();
-            table.data.insert(HashKey::Str("key".to_string()), Value::Int(99));
+            table
+                .data
+                .insert(HashKey::Str("key".to_string()), Value::Int(99));
         }
         let serialized = builtin_json_serialize(vec![ht]).unwrap();
         let parsed = builtin_json_parse_string(vec![serialized]).unwrap();
@@ -1583,9 +1621,10 @@ mod tests {
 
     #[test]
     fn serialize_symbol_key_in_alist() {
-        let alist = Value::list(vec![
-            Value::cons(Value::symbol("name"), Value::string("test")),
-        ]);
+        let alist = Value::list(vec![Value::cons(
+            Value::symbol("name"),
+            Value::string("test"),
+        )]);
         let result = builtin_json_serialize(vec![alist]);
         assert_eq!(result.unwrap().as_str(), Some("{\"name\":\"test\"}"));
     }

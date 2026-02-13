@@ -125,7 +125,10 @@ impl ProcessManager {
 
     /// Find a process by name.
     pub fn find_by_name(&self, name: &str) -> Option<ProcessId> {
-        self.processes.values().find(|p| p.name == name).map(|p| p.id)
+        self.processes
+            .values()
+            .find(|p| p.name == name)
+            .map(|p| p.id)
     }
 
     /// Queue input for a process.
@@ -215,17 +218,24 @@ fn resolve_process(eval: &super::eval::Evaluator, value: &Value) -> Result<Proce
             if eval.processes.get(id).is_some() {
                 Ok(id)
             } else {
-                Err(signal("error", vec![Value::string(format!("No process {}", n))]))
+                Err(signal(
+                    "error",
+                    vec![Value::string(format!("No process {}", n))],
+                ))
             }
         }
-        Value::Str(s) => {
-            eval.processes.find_by_name(s)
-                .ok_or_else(|| signal("error", vec![Value::string(format!("No process named {}", s))]))
-        }
-        Value::Symbol(s) => {
-            eval.processes.find_by_name(s)
-                .ok_or_else(|| signal("error", vec![Value::string(format!("No process named {}", s))]))
-        }
+        Value::Str(s) => eval.processes.find_by_name(s).ok_or_else(|| {
+            signal(
+                "error",
+                vec![Value::string(format!("No process named {}", s))],
+            )
+        }),
+        Value::Symbol(s) => eval.processes.find_by_name(s).ok_or_else(|| {
+            signal(
+                "error",
+                vec![Value::string(format!("No process named {}", s))],
+            )
+        }),
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("processp"), other.clone()],
@@ -255,7 +265,9 @@ pub(crate) fn builtin_start_process(
         .map(expect_string)
         .collect::<Result<Vec<_>, _>>()?;
 
-    let id = eval.processes.create_process(name, buffer, program, proc_args);
+    let id = eval
+        .processes
+        .create_process(name, buffer, program, proc_args);
     Ok(Value::Int(id as i64))
 }
 
@@ -279,7 +291,11 @@ pub(crate) fn builtin_call_process(
     // DESTINATION: nil = discard, t = current buffer, 0 = discard (we treat
     // nil and 0 the same), string = buffer name.  We simplify: if truthy and
     // not 0, insert into current buffer.
-    let destination = if args.len() > 2 { &args[2] } else { &Value::Nil };
+    let destination = if args.len() > 2 {
+        &args[2]
+    } else {
+        &Value::Nil
+    };
     let insert_into_buffer = destination.is_truthy() && !matches!(destination, Value::Int(0));
 
     // DISPLAY (arg index 3): ignored in this implementation.
@@ -296,10 +312,15 @@ pub(crate) fn builtin_call_process(
     let output = Command::new(&program)
         .args(&cmd_args)
         .output()
-        .map_err(|e| signal("file-error", vec![
-            Value::string(format!("Searching for program: {}", e)),
-            Value::string(program.clone()),
-        ]))?;
+        .map_err(|e| {
+            signal(
+                "file-error",
+                vec![
+                    Value::string(format!("Searching for program: {}", e)),
+                    Value::string(program.clone()),
+                ],
+            )
+        })?;
 
     let exit_code = output.status.code().unwrap_or(-1);
 
@@ -326,7 +347,11 @@ pub(crate) fn builtin_call_process_region(
     let program = expect_string(&args[2])?;
 
     let delete = args.len() > 3 && args[3].is_truthy();
-    let destination = if args.len() > 4 { &args[4] } else { &Value::Nil };
+    let destination = if args.len() > 4 {
+        &args[4]
+    } else {
+        &Value::Nil
+    };
     let insert_into_buffer = destination.is_truthy() && !matches!(destination, Value::Int(0));
     // DISPLAY (arg index 5): ignored.
 
@@ -341,7 +366,9 @@ pub(crate) fn builtin_call_process_region(
 
     // Extract the region text from current buffer.
     let region_text = {
-        let buf = eval.buffers.current_buffer()
+        let buf = eval
+            .buffers
+            .current_buffer()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         // Convert 1-based Emacs positions to 0-based byte positions.
         let beg = (start.saturating_sub(1)).min(buf.text.len());
@@ -351,7 +378,9 @@ pub(crate) fn builtin_call_process_region(
 
     // Optionally delete the region from the buffer.
     if delete {
-        let buf = eval.buffers.current_buffer_mut()
+        let buf = eval
+            .buffers
+            .current_buffer_mut()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         let beg = (start.saturating_sub(1)).min(buf.text.len());
         let e = (end.saturating_sub(1)).min(buf.text.len());
@@ -365,20 +394,27 @@ pub(crate) fn builtin_call_process_region(
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .map_err(|e| signal("file-error", vec![
-            Value::string(format!("Searching for program: {}", e)),
-            Value::string(program.clone()),
-        ]))?;
+        .map_err(|e| {
+            signal(
+                "file-error",
+                vec![
+                    Value::string(format!("Searching for program: {}", e)),
+                    Value::string(program.clone()),
+                ],
+            )
+        })?;
 
     // Write region text to stdin.
     if let Some(mut stdin) = child.stdin.take() {
         let _ = stdin.write_all(region_text.as_bytes());
     }
 
-    let output = child.wait_with_output()
-        .map_err(|e| signal("file-error", vec![
-            Value::string(format!("Process error: {}", e)),
-        ]))?;
+    let output = child.wait_with_output().map_err(|e| {
+        signal(
+            "file-error",
+            vec![Value::string(format!("Process error: {}", e))],
+        )
+    })?;
 
     let exit_code = output.status.code().unwrap_or(-1);
 
@@ -505,9 +541,12 @@ pub(crate) fn builtin_shell_command_to_string(args: Vec<Value>) -> EvalResult {
         .arg("-c")
         .arg(&command)
         .output()
-        .map_err(|e| signal("file-error", vec![
-            Value::string(format!("Shell command failed: {}", e)),
-        ]))?;
+        .map_err(|e| {
+            signal(
+                "file-error",
+                vec![Value::string(format!("Shell command failed: {}", e))],
+            )
+        })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     Ok(Value::string(stdout))
@@ -535,10 +574,14 @@ pub(crate) fn builtin_setenv(args: Vec<Value>) -> EvalResult {
         let value = expect_string(&args[1])?;
         // Safety: this is single-threaded for the Elisp VM, so setting env
         // vars is acceptable.
-        unsafe { std::env::set_var(&name, &value); }
+        unsafe {
+            std::env::set_var(&name, &value);
+        }
         Ok(Value::string(value))
     } else {
-        unsafe { std::env::remove_var(&name); }
+        unsafe {
+            std::env::remove_var(&name);
+        }
         Ok(Value::Nil)
     }
 }
@@ -550,7 +593,7 @@ pub(crate) fn builtin_setenv(args: Vec<Value>) -> EvalResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elisp::{Evaluator, parse_forms, format_eval_result};
+    use crate::elisp::{format_eval_result, parse_forms, Evaluator};
 
     fn eval_one(src: &str) -> String {
         let forms = parse_forms(src).expect("parse");
@@ -562,7 +605,10 @@ mod tests {
     fn eval_all(src: &str) -> Vec<String> {
         let forms = parse_forms(src).expect("parse");
         let mut ev = Evaluator::new();
-        ev.eval_forms(&forms).iter().map(format_eval_result).collect()
+        ev.eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect()
     }
 
     /// Find the path of a binary, trying /bin, /usr/bin, and PATH lookup.

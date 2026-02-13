@@ -212,8 +212,18 @@ fn build_file_attributes(filename: &str, id_format_string: bool) -> Option<Value
     let device = Value::Int(0);
 
     Some(Value::list(vec![
-        file_type, nlinks, uid_val, gid_val, atime, mtime, ctime, size, mode, gid_changep,
-        inode, device,
+        file_type,
+        nlinks,
+        uid_val,
+        gid_val,
+        atime,
+        mtime,
+        ctime,
+        size,
+        mode,
+        gid_changep,
+        inode,
+        device,
     ]))
 }
 
@@ -235,7 +245,11 @@ fn format_mode_string(mode: u32, meta: &fs::Metadata) -> String {
     s.push(if mode & 0o400 != 0 { 'r' } else { '-' });
     s.push(if mode & 0o200 != 0 { 'w' } else { '-' });
     s.push(if mode & 0o4000 != 0 {
-        if mode & 0o100 != 0 { 's' } else { 'S' }
+        if mode & 0o100 != 0 {
+            's'
+        } else {
+            'S'
+        }
     } else if mode & 0o100 != 0 {
         'x'
     } else {
@@ -246,7 +260,11 @@ fn format_mode_string(mode: u32, meta: &fs::Metadata) -> String {
     s.push(if mode & 0o040 != 0 { 'r' } else { '-' });
     s.push(if mode & 0o020 != 0 { 'w' } else { '-' });
     s.push(if mode & 0o2000 != 0 {
-        if mode & 0o010 != 0 { 's' } else { 'S' }
+        if mode & 0o010 != 0 {
+            's'
+        } else {
+            'S'
+        }
     } else if mode & 0o010 != 0 {
         'x'
     } else {
@@ -257,7 +275,11 @@ fn format_mode_string(mode: u32, meta: &fs::Metadata) -> String {
     s.push(if mode & 0o004 != 0 { 'r' } else { '-' });
     s.push(if mode & 0o002 != 0 { 'w' } else { '-' });
     s.push(if mode & 0o1000 != 0 {
-        if mode & 0o001 != 0 { 't' } else { 'T' }
+        if mode & 0o001 != 0 {
+            't'
+        } else {
+            'T'
+        }
     } else if mode & 0o001 != 0 {
         'x'
     } else {
@@ -305,7 +327,10 @@ pub(crate) fn builtin_directory_files(args: Vec<Value>) -> EvalResult {
             let compiled = regex::Regex::new(pattern).map_err(|e| {
                 signal(
                     "invalid-regexp",
-                    vec![Value::string(format!("Invalid regexp \"{}\": {}", pattern, e))],
+                    vec![Value::string(format!(
+                        "Invalid regexp \"{}\": {}",
+                        pattern, e
+                    ))],
                 )
             })?;
             Some(compiled)
@@ -329,7 +354,10 @@ pub(crate) fn builtin_directory_files(args: Vec<Value>) -> EvalResult {
     let mut result: Vec<String> = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|e| {
-            signal("file-error", vec![Value::string(format!("Reading directory entry: {}", e))])
+            signal(
+                "file-error",
+                vec![Value::string(format!("Reading directory entry: {}", e))],
+            )
         })?;
         let name = entry.file_name().to_string_lossy().into_owned();
 
@@ -395,7 +423,10 @@ pub(crate) fn builtin_directory_files_and_attributes(args: Vec<Value>) -> EvalRe
             let compiled = regex::Regex::new(pattern).map_err(|e| {
                 signal(
                     "invalid-regexp",
-                    vec![Value::string(format!("Invalid regexp \"{}\": {}", pattern, e))],
+                    vec![Value::string(format!(
+                        "Invalid regexp \"{}\": {}",
+                        pattern, e
+                    ))],
                 )
             })?;
             Some(compiled)
@@ -420,7 +451,10 @@ pub(crate) fn builtin_directory_files_and_attributes(args: Vec<Value>) -> EvalRe
     let mut items: Vec<(String, String)> = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|e| {
-            signal("file-error", vec![Value::string(format!("Reading directory entry: {}", e))])
+            signal(
+                "file-error",
+                vec![Value::string(format!("Reading directory entry: {}", e))],
+            )
         })?;
         let name = entry.file_name().to_string_lossy().into_owned();
 
@@ -432,11 +466,7 @@ pub(crate) fn builtin_directory_files_and_attributes(args: Vec<Value>) -> EvalRe
         }
 
         let full_path = format!("{}{}", dir_with_slash, name);
-        let display_name = if full_name {
-            full_path.clone()
-        } else {
-            name
-        };
+        let display_name = if full_name { full_path.clone() } else { name };
         items.push((display_name, full_path));
     }
 
@@ -454,8 +484,7 @@ pub(crate) fn builtin_directory_files_and_attributes(args: Vec<Value>) -> EvalRe
     let result: Vec<Value> = items
         .into_iter()
         .map(|(display_name, full_path)| {
-            let attrs = build_file_attributes(&full_path, id_format_string)
-                .unwrap_or(Value::Nil);
+            let attrs = build_file_attributes(&full_path, id_format_string).unwrap_or(Value::Nil);
             Value::cons(Value::string(display_name), attrs)
         })
         .collect();
@@ -489,7 +518,10 @@ pub(crate) fn builtin_file_name_completion(args: Vec<Value>) -> EvalResult {
     let mut completions: Vec<String> = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|e| {
-            signal("file-error", vec![Value::string(format!("Reading directory entry: {}", e))])
+            signal(
+                "file-error",
+                vec![Value::string(format!("Reading directory entry: {}", e))],
+            )
         })?;
         let name = entry.file_name().to_string_lossy().into_owned();
         if name.starts_with(&file) {
@@ -564,7 +596,10 @@ pub(crate) fn builtin_file_name_all_completions(args: Vec<Value>) -> EvalResult 
     let mut completions: Vec<String> = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|e| {
-            signal("file-error", vec![Value::string(format!("Reading directory entry: {}", e))])
+            signal(
+                "file-error",
+                vec![Value::string(format!("Reading directory entry: {}", e))],
+            )
         })?;
         let name = entry.file_name().to_string_lossy().into_owned();
         if name.starts_with(&file) {
@@ -580,7 +615,9 @@ pub(crate) fn builtin_file_name_all_completions(args: Vec<Value>) -> EvalResult 
 
     completions.sort();
 
-    Ok(Value::list(completions.into_iter().map(Value::string).collect()))
+    Ok(Value::list(
+        completions.into_iter().map(Value::string).collect(),
+    ))
 }
 
 /// (file-attributes FILENAME &optional ID-FORMAT)
@@ -708,7 +745,10 @@ mod tests {
 
         let result = builtin_directory_files(vec![Value::string(&dir_str)]).unwrap();
         let items = list_to_vec(&result).unwrap();
-        let names: Vec<String> = items.iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        let names: Vec<String> = items
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
 
         assert!(names.contains(&"alpha.txt".to_string()));
         assert!(names.contains(&"beta.txt".to_string()));
@@ -724,11 +764,7 @@ mod tests {
         let (dir, dir_str) = make_test_dir("df_full");
         create_file(&dir, "file.txt", "data");
 
-        let result = builtin_directory_files(vec![
-            Value::string(&dir_str),
-            Value::True,
-        ])
-        .unwrap();
+        let result = builtin_directory_files(vec![Value::string(&dir_str), Value::True]).unwrap();
         let items = list_to_vec(&result).unwrap();
         for item in &items {
             let s = item.as_str().unwrap();
@@ -860,11 +896,9 @@ mod tests {
         create_file(&dir, "foobaz.txt", "");
 
         // "foo" should complete to "fooba" (longest common prefix).
-        let result = builtin_file_name_completion(vec![
-            Value::string("foo"),
-            Value::string(&dir_str),
-        ])
-        .unwrap();
+        let result =
+            builtin_file_name_completion(vec![Value::string("foo"), Value::string(&dir_str)])
+                .unwrap();
         assert_eq!(result.as_str(), Some("fooba"));
 
         let _ = fs::remove_dir_all(&dir);
@@ -896,11 +930,9 @@ mod tests {
         let (dir, dir_str) = make_test_dir("fnc_none");
         create_file(&dir, "hello.txt", "");
 
-        let result = builtin_file_name_completion(vec![
-            Value::string("xyz"),
-            Value::string(&dir_str),
-        ])
-        .unwrap();
+        let result =
+            builtin_file_name_completion(vec![Value::string("xyz"), Value::string(&dir_str)])
+                .unwrap();
         assert!(result.is_nil());
 
         let _ = fs::remove_dir_all(&dir);
@@ -917,11 +949,9 @@ mod tests {
         create_file(&dir, "abd.txt", "");
         create_file(&dir, "xyz.txt", "");
 
-        let result = builtin_file_name_all_completions(vec![
-            Value::string("ab"),
-            Value::string(&dir_str),
-        ])
-        .unwrap();
+        let result =
+            builtin_file_name_all_completions(vec![Value::string("ab"), Value::string(&dir_str)])
+                .unwrap();
         let items = list_to_vec(&result).unwrap();
         assert_eq!(items.len(), 2);
         let names: Vec<&str> = items.iter().map(|v| v.as_str().unwrap()).collect();
@@ -936,11 +966,9 @@ mod tests {
         let (dir, dir_str) = make_test_dir("fnac_empty");
         create_file(&dir, "hello.txt", "");
 
-        let result = builtin_file_name_all_completions(vec![
-            Value::string("zzz"),
-            Value::string(&dir_str),
-        ])
-        .unwrap();
+        let result =
+            builtin_file_name_all_completions(vec![Value::string("zzz"), Value::string(&dir_str)])
+                .unwrap();
         assert!(result.is_nil());
 
         let _ = fs::remove_dir_all(&dir);
@@ -999,11 +1027,9 @@ mod tests {
         let path_str = path.to_string_lossy().to_string();
         create_file(&dir, "idtest.txt", "x");
 
-        let result = builtin_file_attributes(vec![
-            Value::string(&path_str),
-            Value::symbol("string"),
-        ])
-        .unwrap();
+        let result =
+            builtin_file_attributes(vec![Value::string(&path_str), Value::symbol("string")])
+                .unwrap();
         let items = list_to_vec(&result).unwrap();
         // UID (index 2) should be a string.
         assert!(items[2].is_string());
@@ -1079,12 +1105,9 @@ mod tests {
     #[test]
     fn test_file_attributes_wrong_args() {
         assert!(builtin_file_attributes(vec![]).is_err());
-        assert!(builtin_file_attributes(vec![
-            Value::string("/tmp"),
-            Value::Nil,
-            Value::Nil,
-        ])
-        .is_err());
+        assert!(
+            builtin_file_attributes(vec![Value::string("/tmp"), Value::Nil, Value::Nil,]).is_err()
+        );
     }
 
     #[test]

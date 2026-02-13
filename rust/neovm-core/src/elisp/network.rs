@@ -162,7 +162,10 @@ impl NetworkManager {
         match conn.status {
             NetworkStatus::Open => {}
             ref status => {
-                return Err(format!("Connection {} is not open (status: {:?})", id, status));
+                return Err(format!(
+                    "Connection {} is not open (status: {:?})",
+                    id, status
+                ));
             }
         }
 
@@ -185,11 +188,7 @@ impl NetworkManager {
     /// Receive data from a connection.  An optional timeout overrides the
     /// socket's default read timeout.  Returns the bytes read (may be empty
     /// if the timeout expires with no data).
-    pub fn receive_data(
-        &mut self,
-        id: u64,
-        timeout: Option<Duration>,
-    ) -> Result<Vec<u8>, String> {
+    pub fn receive_data(&mut self, id: u64, timeout: Option<Duration>) -> Result<Vec<u8>, String> {
         let conn = self
             .connections
             .get_mut(&id)
@@ -198,7 +197,10 @@ impl NetworkManager {
         match conn.status {
             NetworkStatus::Open => {}
             ref status => {
-                return Err(format!("Connection {} is not open (status: {:?})", id, status));
+                return Err(format!(
+                    "Connection {} is not open (status: {:?})",
+                    id, status
+                ));
             }
         }
 
@@ -225,8 +227,9 @@ impl NetworkManager {
                 conn.output_buffer.extend_from_slice(&buf);
                 Ok(buf)
             }
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock
-                || e.kind() == std::io::ErrorKind::TimedOut =>
+            Err(ref e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut =>
             {
                 // Timeout expired, no data available.
                 Ok(Vec::new())
@@ -411,11 +414,7 @@ fn parse_http_url(url: &str) -> Result<(String, u16, String), String> {
         return Err(format!("Unsupported URL scheme in: {}", url));
     };
 
-    let default_port: u16 = if url.starts_with("https://") {
-        443
-    } else {
-        80
-    };
+    let default_port: u16 = if url.starts_with("https://") { 443 } else { 80 };
 
     // Split host(+port) from path.
     let (hostport, path) = match rest.find('/') {

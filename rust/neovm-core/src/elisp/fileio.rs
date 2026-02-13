@@ -115,7 +115,8 @@ pub fn file_name_extension(filename: &str) -> Option<String> {
 /// Return FILENAME without its extension.
 pub fn file_name_sans_extension(filename: &str) -> String {
     let path = Path::new(filename);
-    let stem = path.file_stem()
+    let stem = path
+        .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
     match path.parent() {
@@ -193,8 +194,7 @@ pub fn file_symlink_p(filename: &str) -> bool {
 
 /// Read the contents of FILENAME as a UTF-8 string.
 pub fn read_file_contents(filename: &str) -> Result<String, String> {
-    fs::read_to_string(filename)
-        .map_err(|e| format!("Opening input file: {}: {}", filename, e))
+    fs::read_to_string(filename).map_err(|e| format!("Opening input file: {}: {}", filename, e))
 }
 
 /// Write CONTENT to FILENAME, optionally appending.
@@ -228,8 +228,7 @@ pub fn directory_files(
     full: bool,
     match_regex: Option<&str>,
 ) -> Result<Vec<String>, String> {
-    let entries =
-        fs::read_dir(dir).map_err(|e| format!("Opening directory {}: {}", dir, e))?;
+    let entries = fs::read_dir(dir).map_err(|e| format!("Opening directory {}: {}", dir, e))?;
 
     let mut result = Vec::new();
     for entry in entries {
@@ -272,8 +271,7 @@ pub fn make_directory(dir: &str, parents: bool) -> Result<(), String> {
 
 /// Delete FILENAME.
 pub fn delete_file(filename: &str) -> Result<(), String> {
-    fs::remove_file(filename)
-        .map_err(|e| format!("Deleting {}: {}", filename, e))
+    fs::remove_file(filename).map_err(|e| format!("Deleting {}: {}", filename, e))
 }
 
 /// Rename file FROM to TO.
@@ -495,8 +493,7 @@ pub(crate) fn builtin_make_directory(args: Vec<Value>) -> EvalResult {
     expect_min_args("make-directory", &args, 1)?;
     let dir = expect_string(&args[0])?;
     let parents = args.get(1).is_some_and(|v| v.is_truthy());
-    make_directory(&dir, parents)
-        .map_err(|e| signal("file-error", vec![Value::string(e)]))?;
+    make_directory(&dir, parents).map_err(|e| signal("file-error", vec![Value::string(e)]))?;
     Ok(Value::Nil)
 }
 
@@ -516,9 +513,7 @@ pub(crate) fn builtin_directory_files(args: Vec<Value>) -> EvalResult {
     };
     let files = directory_files(&dir, full, match_pattern.as_deref())
         .map_err(|e| signal("file-error", vec![Value::string(e)]))?;
-    Ok(Value::list(
-        files.into_iter().map(Value::string).collect(),
-    ))
+    Ok(Value::list(files.into_iter().map(Value::string).collect()))
 }
 
 /// (file-attributes FILENAME) -> list or nil
@@ -572,8 +567,8 @@ pub(crate) fn builtin_insert_file_contents(
     let visit = args.get(1).is_some_and(|v| v.is_truthy());
 
     // Read file contents
-    let contents = read_file_contents(&filename)
-        .map_err(|e| signal("file-error", vec![Value::string(e)]))?;
+    let contents =
+        read_file_contents(&filename).map_err(|e| signal("file-error", vec![Value::string(e)]))?;
 
     let char_count = contents.chars().count() as i64;
 
@@ -684,11 +679,7 @@ pub(crate) fn builtin_find_file_noselect(
             .buffers
             .buffer_list()
             .into_iter()
-            .find(|&id| {
-                eval.buffers
-                    .current_buffer()
-                    .map_or(false, |b| b.id == id)
-            });
+            .find(|&id| eval.buffers.current_buffer().map_or(false, |b| b.id == id));
 
         eval.buffers.set_current(buf_id);
         if let Some(buf) = eval.buffers.get_mut(buf_id) {
@@ -781,10 +772,7 @@ mod tests {
 
     #[test]
     fn test_file_name_extension() {
-        assert_eq!(
-            file_name_extension("test.txt"),
-            Some("txt".to_string())
-        );
+        assert_eq!(file_name_extension("test.txt"), Some("txt".to_string()));
         assert_eq!(
             file_name_extension("/home/user/file.el"),
             Some("el".to_string())
@@ -804,10 +792,7 @@ mod tests {
             "/home/user/file"
         );
         assert_eq!(file_name_sans_extension("no_ext"), "no_ext");
-        assert_eq!(
-            file_name_sans_extension("archive.tar.gz"),
-            "archive.tar"
-        );
+        assert_eq!(file_name_sans_extension("archive.tar.gz"), "archive.tar");
     }
 
     // -----------------------------------------------------------------------
@@ -1003,9 +988,7 @@ mod tests {
 
     #[test]
     fn test_builtin_expand_file_name() {
-        let result = builtin_expand_file_name(vec![
-            Value::string("/usr/local/bin/emacs"),
-        ]);
+        let result = builtin_expand_file_name(vec![Value::string("/usr/local/bin/emacs")]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().as_str(), Some("/usr/local/bin/emacs"));
     }
@@ -1027,27 +1010,17 @@ mod tests {
 
     #[test]
     fn test_builtin_file_name_ops() {
-        let result =
-            builtin_file_name_directory(vec![Value::string("/home/user/test.el")]);
-        assert_eq!(
-            result.unwrap().as_str(),
-            Some("/home/user/")
-        );
+        let result = builtin_file_name_directory(vec![Value::string("/home/user/test.el")]);
+        assert_eq!(result.unwrap().as_str(), Some("/home/user/"));
 
-        let result =
-            builtin_file_name_nondirectory(vec![Value::string("/home/user/test.el")]);
+        let result = builtin_file_name_nondirectory(vec![Value::string("/home/user/test.el")]);
         assert_eq!(result.unwrap().as_str(), Some("test.el"));
 
-        let result =
-            builtin_file_name_extension(vec![Value::string("/home/user/test.el")]);
+        let result = builtin_file_name_extension(vec![Value::string("/home/user/test.el")]);
         assert_eq!(result.unwrap().as_str(), Some("el"));
 
-        let result =
-            builtin_file_name_sans_extension(vec![Value::string("/home/user/test.el")]);
-        assert_eq!(
-            result.unwrap().as_str(),
-            Some("/home/user/test")
-        );
+        let result = builtin_file_name_sans_extension(vec![Value::string("/home/user/test.el")]);
+        assert_eq!(result.unwrap().as_str(), Some("/home/user/test"));
     }
 
     #[test]
