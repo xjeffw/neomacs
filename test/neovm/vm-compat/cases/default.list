@@ -51,6 +51,7 @@ cases/char-byte-conversion-semantics
 cases/custom-group-p-availability
 cases/custom-set-semantics
 cases/bookmark-helper-availability
+cases/kmacro-helper-availability
 cases/bindings
 cases/specpdl-dynamic-unwind-semantics
 cases/buffer-locals
