@@ -1,0 +1,18 @@
+1	(unibyte-char-to-multibyte 65)	OK 65
+2	(unibyte-char-to-multibyte 255)	OK 4194303
+3	(unibyte-char-to-multibyte 65)	OK 65
+4	(unibyte-char-to-multibyte 233)	OK 4194281
+5	(condition-case err (unibyte-char-to-multibyte 256) (error err))	OK (error "Not a unibyte character: 256")
+6	(condition-case err (unibyte-char-to-multibyte -1) (error err))	OK (wrong-type-argument characterp -1)
+7	(condition-case err (unibyte-char-to-multibyte 3.14) (error err))	OK (wrong-type-argument characterp 3.14)
+8	(list (unibyte-char-to-multibyte 128) (multibyte-char-to-unibyte (unibyte-char-to-multibyte 128)))	OK (4194176 128)
+9	(multibyte-char-to-unibyte 65)	OK 65
+10	(multibyte-char-to-unibyte 233)	OK 233
+11	(multibyte-char-to-unibyte 255)	OK 255
+12	(multibyte-char-to-unibyte 256)	OK -1
+13	(multibyte-char-to-unibyte 128512)	OK -1
+14	(multibyte-char-to-unibyte (aref (string-to-multibyte (unibyte-string 255)) 0))	OK 255
+15	(multibyte-char-to-unibyte 4194303)	OK 255
+16	(condition-case err (multibyte-char-to-unibyte -1) (error err))	OK (wrong-type-argument characterp -1)
+17	(condition-case err (multibyte-char-to-unibyte 4194304) (error err))	OK (wrong-type-argument characterp 4194304)
+18	(condition-case err (multibyte-char-to-unibyte 3.14) (error err))	OK (wrong-type-argument characterp 3.14)
