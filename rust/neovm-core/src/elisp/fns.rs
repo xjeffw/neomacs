@@ -6,7 +6,10 @@
 //! compare-strings, string-version-lessp, string-collate-lessp/equalp.
 
 use super::error::{signal, EvalResult, Flow};
+use super::string_escape::{storage_char_len, storage_substring};
 use super::value::*;
+use sha1::Sha1;
+use sha2::{Digest, Sha224, Sha256, Sha384, Sha512};
 
 // ---------------------------------------------------------------------------
 // Argument helpers
@@ -45,7 +48,7 @@ fn expect_range_args(name: &str, args: &[Value], min: usize, max: usize) -> Resu
     }
 }
 
-fn require_string(name: &str, val: &Value) -> Result<String, Flow> {
+fn require_string(_name: &str, val: &Value) -> Result<String, Flow> {
     match val {
         Value::Str(s) => Ok((**s).clone()),
         other => Err(signal(
@@ -53,6 +56,26 @@ fn require_string(name: &str, val: &Value) -> Result<String, Flow> {
             vec![Value::symbol("stringp"), other.clone()],
         )),
     }
+}
+
+fn require_int(val: &Value) -> Result<i64, Flow> {
+    match val {
+        Value::Int(n) => Ok(*n),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integerp"), other.clone()],
+        )),
+    }
+}
+
+fn bytes_to_hex(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +227,7 @@ pub(crate) fn builtin_base64url_decode_string(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// Hash / digest stubs
+// Hash / digest builtins
 // ---------------------------------------------------------------------------
 
 /// (md5 OBJECT &optional START END CODING-SYSTEM NOERROR)
@@ -235,7 +258,7 @@ pub(crate) fn builtin_md5(args: Vec<Value>) -> EvalResult {
 }
 
 /// Minimal MD5 implementation (RFC 1321).
-fn md5_hash(message: &[u8]) -> String {
+fn md5_digest(message: &[u8]) -> [u8; 16] {
     // Per-round shift amounts
     const S: [u32; 64] = [
         7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5, 9, 14, 20, 5,
@@ -311,41 +334,161 @@ fn md5_hash(message: &[u8]) -> String {
         d0 = d0.wrapping_add(d);
     }
 
-    // Produce the 128-bit digest as hex string (little-endian word order)
-    format!(
-        "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-        a0 as u8, (a0 >> 8) as u8, (a0 >> 16) as u8, (a0 >> 24) as u8,
-        b0 as u8, (b0 >> 8) as u8, (b0 >> 16) as u8, (b0 >> 24) as u8,
-        c0 as u8, (c0 >> 8) as u8, (c0 >> 16) as u8, (c0 >> 24) as u8,
-        d0 as u8, (d0 >> 8) as u8, (d0 >> 16) as u8, (d0 >> 24) as u8,
-    )
+    [
+        a0 as u8,
+        (a0 >> 8) as u8,
+        (a0 >> 16) as u8,
+        (a0 >> 24) as u8,
+        b0 as u8,
+        (b0 >> 8) as u8,
+        (b0 >> 16) as u8,
+        (b0 >> 24) as u8,
+        c0 as u8,
+        (c0 >> 8) as u8,
+        (c0 >> 16) as u8,
+        (c0 >> 24) as u8,
+        d0 as u8,
+        (d0 >> 8) as u8,
+        (d0 >> 16) as u8,
+        (d0 >> 24) as u8,
+    ]
+}
+
+fn md5_hash(message: &[u8]) -> String {
+    bytes_to_hex(&md5_digest(message))
+}
+
+fn secure_hash_algorithm_name(val: &Value) -> Result<String, Flow> {
+    match val {
+        Value::Symbol(s) => Ok(s.clone()),
+        Value::Nil => Ok("nil".to_string()),
+        Value::True => Ok("t".to_string()),
+        Value::Keyword(k) => Ok(format!(":{k}")),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("symbolp"), other.clone()],
+        )),
+    }
+}
+
+fn normalize_secure_hash_index(
+    val: Option<&Value>,
+    default: i64,
+    len: i64,
+    object: &Value,
+    start_arg: &Value,
+    end_arg: &Value,
+) -> Result<i64, Flow> {
+    let raw = match val {
+        None => default,
+        Some(v) if v.is_nil() => default,
+        Some(v) => require_int(v)?,
+    };
+    let idx = if raw < 0 { len + raw } else { raw };
+    if idx < 0 || idx > len {
+        return Err(signal(
+            "args-out-of-range",
+            vec![object.clone(), start_arg.clone(), end_arg.clone()],
+        ));
+    }
+    Ok(idx)
+}
+
+fn invalid_object_payload(val: &Value) -> Value {
+    if val.is_nil() {
+        Value::string("nil")
+    } else {
+        val.clone()
+    }
+}
+
+fn bytes_to_lisp_binary_string(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| char::from(*b)).collect()
 }
 
 /// (secure-hash ALGORITHM OBJECT &optional START END BINARY)
-/// Stub: returns a hex string of zeros whose length matches the algorithm.
+/// Returns a digest string for supported hash algorithms.
 pub(crate) fn builtin_secure_hash(args: Vec<Value>) -> EvalResult {
     expect_range_args("secure-hash", &args, 2, 5)?;
-    let algo_name = match &args[0] {
-        Value::Symbol(s) => s.as_str(),
-        Value::Nil => "nil",
-        Value::True => "t",
-        _ => "",
+    let algo_name = secure_hash_algorithm_name(&args[0])?;
+
+    let object = &args[1];
+    let input = match object {
+        Value::Str(s) => (**s).clone(),
+        other => {
+            return Err(signal(
+                "error",
+                vec![
+                    Value::string("Invalid object argument"),
+                    invalid_object_payload(other),
+                ],
+            ));
+        }
     };
-    let hex_len = match algo_name {
-        "md5" => 32,
-        "sha1" => 40,
-        "sha224" => 56,
-        "sha256" => 64,
-        "sha384" => 96,
-        "sha512" => 128,
-        _ => 64, // default to sha256-length
-    };
-    // If algorithm is md5, delegate to the real implementation
-    if algo_name == "md5" {
-        return builtin_md5(args[1..].to_vec());
+
+    let len = storage_char_len(&input) as i64;
+    let start_arg = args.get(2).cloned().unwrap_or(Value::Int(0));
+    let end_arg = args.get(3).cloned().unwrap_or(Value::Nil);
+    let start =
+        normalize_secure_hash_index(args.get(2), 0, len, object, &start_arg, &end_arg)? as usize;
+    let end =
+        normalize_secure_hash_index(args.get(3), len, len, object, &start_arg, &end_arg)? as usize;
+
+    if start > end {
+        return Err(signal(
+            "args-out-of-range",
+            vec![object.clone(), start_arg.clone(), end_arg.clone()],
+        ));
     }
-    let zeros = "0".repeat(hex_len);
-    Ok(Value::string(zeros))
+
+    let slice = storage_substring(&input, start, end).ok_or_else(|| {
+        signal(
+            "args-out-of-range",
+            vec![object.clone(), start_arg.clone(), end_arg.clone()],
+        )
+    })?;
+
+    let digest = match algo_name.as_str() {
+        "md5" => md5_digest(slice.as_bytes()).to_vec(),
+        "sha1" => {
+            let mut h = Sha1::new();
+            h.update(slice.as_bytes());
+            h.finalize().to_vec()
+        }
+        "sha224" => {
+            let mut h = Sha224::new();
+            h.update(slice.as_bytes());
+            h.finalize().to_vec()
+        }
+        "sha256" => {
+            let mut h = Sha256::new();
+            h.update(slice.as_bytes());
+            h.finalize().to_vec()
+        }
+        "sha384" => {
+            let mut h = Sha384::new();
+            h.update(slice.as_bytes());
+            h.finalize().to_vec()
+        }
+        "sha512" => {
+            let mut h = Sha512::new();
+            h.update(slice.as_bytes());
+            h.finalize().to_vec()
+        }
+        _ => {
+            return Err(signal(
+                "error",
+                vec![Value::string(format!("Invalid algorithm arg: {algo_name}"))],
+            ));
+        }
+    };
+
+    let binary = args.get(4).is_some_and(|v| v.is_truthy());
+    if binary {
+        Ok(Value::string(bytes_to_lisp_binary_string(&digest)))
+    } else {
+        Ok(Value::string(bytes_to_hex(&digest)))
+    }
 }
 
 /// (buffer-hash &optional BUFFER-OR-NAME)
@@ -845,18 +988,82 @@ mod tests {
         assert_eq!(r.as_str(), Some("9e107d9d372bb6826bd81d3542a419d6"));
     }
 
-    // ---- secure-hash stub ----
+    // ---- secure-hash ----
 
     #[test]
-    fn secure_hash_sha256_stub() {
-        let r = builtin_secure_hash(vec![Value::symbol("sha256"), Value::string("x")]).unwrap();
-        assert_eq!(r.as_str().unwrap().len(), 64); // 64 hex chars
+    fn secure_hash_sha256_known() {
+        let r = builtin_secure_hash(vec![Value::symbol("sha256"), Value::string("abc")]).unwrap();
+        assert_eq!(
+            r.as_str(),
+            Some("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        );
     }
 
     #[test]
-    fn secure_hash_md5_delegates() {
-        let r = builtin_secure_hash(vec![Value::symbol("md5"), Value::string("")]).unwrap();
-        assert_eq!(r.as_str(), Some("d41d8cd98f00b204e9800998ecf8427e"));
+    fn secure_hash_sha1_known() {
+        let r = builtin_secure_hash(vec![Value::symbol("sha1"), Value::string("abc")]).unwrap();
+        assert_eq!(r.as_str(), Some("a9993e364706816aba3e25717850c26c9cd0d89d"));
+    }
+
+    #[test]
+    fn secure_hash_md5_known() {
+        let r = builtin_secure_hash(vec![Value::symbol("md5"), Value::string("abc")]).unwrap();
+        assert_eq!(r.as_str(), Some("900150983cd24fb0d6963f7d28e17f72"));
+    }
+
+    #[test]
+    fn secure_hash_subrange_semantics() {
+        let r = builtin_secure_hash(vec![
+            Value::symbol("sha256"),
+            Value::string("abcdef"),
+            Value::Int(1),
+            Value::Int(4),
+        ])
+        .unwrap();
+        assert_eq!(
+            r.as_str(),
+            Some("a6b0f90d2ac2b8d1f250c687301aef132049e9016df936680e81fa7bc7d81d70")
+        );
+    }
+
+    #[test]
+    fn secure_hash_invalid_algorithm_errors() {
+        match builtin_secure_hash(vec![Value::symbol("no-such"), Value::string("abc")]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data.first().and_then(|v| v.as_str()),
+                    Some("Invalid algorithm arg: no-such")
+                );
+            }
+            other => panic!("expected error signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn secure_hash_invalid_algorithm_type_errors() {
+        match builtin_secure_hash(vec![Value::Int(1), Value::string("abc")]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("symbolp")));
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn secure_hash_invalid_object_errors() {
+        match builtin_secure_hash(vec![Value::symbol("sha256"), Value::Int(123)]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data.first().and_then(|v| v.as_str()),
+                    Some("Invalid object argument")
+                );
+                assert_eq!(sig.data.get(1), Some(&Value::Int(123)));
+            }
+            other => panic!("expected error signal, got {other:?}"),
+        }
     }
 
     // ---- buffer-hash stub ----
