@@ -140,7 +140,9 @@ Implemented now:
 - thread primitive compatibility hardening:
   - `thread-join` matches GNU Emacs self-join behavior (`error` with "Cannot join current thread")
   - `thread-last-error` publication is join-driven (set on first join of a signaled thread; not on thread creation)
-  - compatibility corpus includes oracle-checked `cases/thread-join-semantics`, `cases/thread-join-error-paths`, `cases/thread-last-error-publication`, `cases/thread-signal-semantics`, and `cases/thread-sync-error-payloads`
+  - `thread-name` on the main thread returns `nil` (no synthetic `"main"` name)
+  - `all-threads` drops joined thread handles while preserving join idempotency on the handle object
+  - compatibility corpus includes oracle-checked `cases/thread-join-semantics`, `cases/thread-join-error-paths`, `cases/thread-last-error-publication`, `cases/thread-last-error-clear-flag`, `cases/thread-name-semantics`, `cases/thread-all-threads-semantics`, `cases/thread-signal-semantics`, `cases/thread-sync-error-payloads`, `cases/thread-sync-semantics`, and `cases/thread-condition-wait-arity`
 - configure-time core backend selection: `--with-neovm-core-backend=emacs-c|rust`
   - `emacs-c` keeps the current legacy core path
   - `rust` enables the future Rust-core build mode surface for migration
