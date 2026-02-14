@@ -47,6 +47,7 @@ cases/func-arity-fallback-macros
 cases/printing
 cases/prin1-to-string-noescape
 cases/chars
+cases/char-byte-conversion-semantics
 cases/bindings
 cases/specpdl-dynamic-unwind-semantics
 cases/buffer-locals
