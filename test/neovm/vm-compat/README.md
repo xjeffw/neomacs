@@ -202,6 +202,8 @@ Post-freeze updates:
   - `cases/hash-rehash-copy-semantics`
 - Added dynamic-binding/unwind restoration compatibility case:
   - `cases/specpdl-dynamic-unwind-semantics`
+- Added bytecode literal reader compatibility case:
+  - `cases/bytecode-literal-reader-semantics`
 - Added higher-order map primitive compatibility case:
   - `cases/map-family-semantics`
 - Added `ignore` callable compatibility case:
