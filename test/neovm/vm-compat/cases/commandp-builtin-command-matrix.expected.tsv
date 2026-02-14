@@ -44,3 +44,6 @@
 44	(commandp 'recenter-top-bottom)	OK t
 45	(commandp 'move-beginning-of-line)	OK t
 46	(commandp 'move-end-of-line)	OK t
+47	(commandp 'open-line)	OK t
+48	(commandp 'delete-horizontal-space)	OK t
+49	(commandp 'just-one-space)	OK t

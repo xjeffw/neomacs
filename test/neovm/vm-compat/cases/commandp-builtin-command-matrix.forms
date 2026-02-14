@@ -45,3 +45,6 @@
 (commandp 'recenter-top-bottom)
 (commandp 'move-beginning-of-line)
 (commandp 'move-end-of-line)
+(commandp 'open-line)
+(commandp 'delete-horizontal-space)
+(commandp 'just-one-space)
