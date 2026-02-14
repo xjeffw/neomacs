@@ -20,3 +20,7 @@
 20	(error-message-string '(user-error))	OK ""
 21	(error-message-string '(peculiar-condition 1 2 3))	OK "peculiar error: 1, 2, 3"
 22	(error-message-string t)	ERR (wrong-type-argument (listp t))
+23	(error-message-string '(foo))	OK "peculiar error"
+24	(error-message-string 'foo)	ERR (wrong-type-argument (listp foo))
+25	(error-message-string 42)	ERR (wrong-type-argument (listp 42))
+26	(error-message-string "x")	ERR (wrong-type-argument (listp "x"))

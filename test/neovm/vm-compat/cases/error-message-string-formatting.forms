@@ -20,3 +20,7 @@
 (error-message-string '(user-error))
 (error-message-string '(peculiar-condition 1 2 3))
 (error-message-string t)
+(error-message-string '(foo))
+(error-message-string 'foo)
+(error-message-string 42)
+(error-message-string "x")
