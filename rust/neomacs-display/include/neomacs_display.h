@@ -627,6 +627,18 @@ typedef struct FaceDataFFI {
    * Set by Emacs when bold variant is unavailable for the font.
    */
   int overstrike;
+  /**
+   * Font descent in pixels (FONT_DESCENT)
+   */
+  int fontDescent;
+  /**
+   * Underline position below baseline (font->underline_position, >=1)
+   */
+  int underlinePosition;
+  /**
+   * Underline thickness in pixels (font->underline_thickness, >=1)
+   */
+  int underlineThickness;
 } FaceDataFFI;
 
 /**

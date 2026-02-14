@@ -196,19 +196,6 @@ pub struct StipplePattern {
     pub bits: Vec<u8>,
 }
 
-/// Lightweight box attributes for a face (avoids storing full Face on Emacs thread)
-#[derive(Debug, Clone)]
-pub struct FaceBoxAttrs {
-    /// Box type (0=none, 1=line)
-    pub box_type: i32,
-    /// Box color
-    pub box_color: Color,
-    /// Box line width
-    pub box_line_width: i32,
-    /// Box corner radius (0 = sharp)
-    pub box_corner_radius: i32,
-}
-
 /// Per-window metadata for animation transition detection
 #[derive(Debug, Clone, PartialEq)]
 pub struct WindowInfo {
@@ -310,19 +297,12 @@ pub struct FrameGlyphBuffer {
     current_overline_color: Option<Color>,
     current_overstrike: bool,
 
-    /// Font family cache: face_id -> font_family
-    pub face_fonts: HashMap<u32, String>,
-
     /// Full face data: face_id -> Face (includes box, underline, etc.)
+    /// Rebuilt from scratch each frame by apply_face() in the layout engine.
     pub faces: HashMap<u32, Face>,
 
     /// Stipple patterns: bitmap_id -> StipplePattern
     pub stipple_patterns: HashMap<i32, StipplePattern>,
-
-    /// Box attributes per face: face_id -> FaceBoxAttrs
-    /// Populated by the Rust layout engine's apply_face() as a lightweight
-    /// side-channel (avoids inserting full Face objects which causes heap corruption).
-    pub face_box_attrs: HashMap<u32, FaceBoxAttrs>,
 }
 
 impl FrameGlyphBuffer {
@@ -363,10 +343,8 @@ impl FrameGlyphBuffer {
             current_overline: 0,
             current_overline_color: None,
             current_overstrike: false,
-            face_fonts: HashMap::new(),
             faces: HashMap::new(),
             stipple_patterns: HashMap::new(),
-            face_box_attrs: HashMap::new(),
         }
     }
 
@@ -387,7 +365,7 @@ impl FrameGlyphBuffer {
         self.window_infos.clear();
         self.cursor_inverse = None;
         self.stipple_patterns.clear();
-        self.face_box_attrs.clear();
+        self.faces.clear();
     }
 
     /// Start new frame - prepare for new content (compatibility shim)
@@ -416,7 +394,7 @@ impl FrameGlyphBuffer {
         self.glyphs.clear();
         self.cursor_inverse = None;
         self.stipple_patterns.clear();
-        self.face_box_attrs.clear();
+        self.faces.clear();
     }
 
     /// Set frame identity for child frame support.
@@ -465,7 +443,6 @@ impl FrameGlyphBuffer {
         self.current_overline = overline;
         self.current_overline_color = overline_color;
         self.current_overstrike = overstrike;
-        self.face_fonts.insert(face_id, font_family.to_string());
     }
 
     /// Set current face attributes for subsequent char glyphs
@@ -488,7 +465,7 @@ impl FrameGlyphBuffer {
 
     /// Get font family for a face_id
     pub fn get_face_font(&self, face_id: u32) -> &str {
-        self.face_fonts.get(&face_id).map(|s| s.as_str()).unwrap_or("monospace")
+        self.faces.get(&face_id).map(|f| f.font_family.as_str()).unwrap_or("monospace")
     }
 
     /// Get current font family
@@ -703,9 +680,7 @@ mod tests {
         assert!(buf.window_regions.is_empty());
         assert!(buf.window_infos.is_empty());
         assert!(buf.faces.is_empty());
-        assert!(buf.face_fonts.is_empty());
         assert!(buf.stipple_patterns.is_empty());
-        assert!(buf.face_box_attrs.is_empty());
         assert!(buf.cursor_inverse.is_none());
         assert!(!buf.layout_changed);
     }
@@ -770,13 +745,6 @@ mod tests {
             height: 8,
             bits: vec![0xAA; 8],
         });
-        buf.face_box_attrs.insert(1, FaceBoxAttrs {
-            box_type: 1,
-            box_color: Color::RED,
-            box_line_width: 1,
-            box_corner_radius: 0,
-        });
-
         assert!(!buf.glyphs.is_empty());
         assert!(!buf.window_infos.is_empty());
 
@@ -787,7 +755,7 @@ mod tests {
         assert!(buf.window_infos.is_empty());
         assert!(buf.cursor_inverse.is_none());
         assert!(buf.stipple_patterns.is_empty());
-        assert!(buf.face_box_attrs.is_empty());
+        assert!(buf.faces.is_empty());
     }
 
     #[test]
@@ -840,21 +808,16 @@ mod tests {
     }
 
     #[test]
-    fn begin_frame_clears_stipple_patterns_and_box_attrs() {
+    fn begin_frame_clears_stipple_patterns_and_faces() {
         let mut buf = FrameGlyphBuffer::new();
         buf.stipple_patterns.insert(1, StipplePattern {
             width: 4, height: 4, bits: vec![0xFF; 2],
         });
-        buf.face_box_attrs.insert(1, FaceBoxAttrs {
-            box_type: 1,
-            box_color: Color::RED,
-            box_line_width: 2,
-            box_corner_radius: 0,
-        });
+        buf.faces.insert(1, Face::new(1));
 
         buf.begin_frame(800.0, 600.0, Color::BLACK);
         assert!(buf.stipple_patterns.is_empty());
-        assert!(buf.face_box_attrs.is_empty());
+        assert!(buf.faces.is_empty());
     }
 
     #[test]
@@ -1238,9 +1201,15 @@ mod tests {
             false,
         );
 
-        // face_fonts map should have the entry
-        assert_eq!(buf.get_face_font(7), "Fira Code");
+        // current_font_family is set by set_face_with_font
         assert_eq!(buf.get_current_font_family(), "Fira Code");
+
+        // get_face_font reads from faces map (populated by layout engine)
+        assert_eq!(buf.get_face_font(7), "monospace"); // no Face inserted yet
+        let mut face = Face::new(7);
+        face.font_family = "Fira Code".to_string();
+        buf.faces.insert(7, face);
+        assert_eq!(buf.get_face_font(7), "Fira Code");
     }
 
     #[test]
@@ -1263,25 +1232,19 @@ mod tests {
     }
 
     #[test]
-    fn set_face_preserves_font_family_from_previous_set_face_with_font() {
+    fn get_face_font_reads_from_faces_map() {
         let mut buf = FrameGlyphBuffer::new();
 
-        // First set with font
-        buf.set_face_with_font(
-            1, Color::WHITE, None,
-            "JetBrains Mono", 400, false, 14.0,
-            0, None, 0, None, 0, None,
-            false,
-        );
-        assert_eq!(buf.get_face_font(1), "JetBrains Mono");
+        // No face inserted yet — falls back to "monospace"
+        assert_eq!(buf.get_face_font(1), "monospace");
 
-        // Then set_face (without font) for a different face_id
-        buf.set_face(2, Color::WHITE, None, 400, false, 0, None, 0, None, 0, None);
+        // Insert faces (as layout engine's apply_face would)
+        let mut face1 = Face::new(1);
+        face1.font_family = "JetBrains Mono".to_string();
+        buf.faces.insert(1, face1);
 
-        // face_id 1 font should still be accessible
         assert_eq!(buf.get_face_font(1), "JetBrains Mono");
-        // face_id 2 font should be default
-        assert_eq!(buf.get_face_font(2), "monospace");
+        assert_eq!(buf.get_face_font(2), "monospace"); // not inserted
     }
 
     #[test]

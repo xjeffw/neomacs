@@ -8,7 +8,8 @@ use std::ffi::CStr;
 use std::ffi::c_int;
 use std::ffi::c_void;
 
-use crate::core::frame_glyphs::{FaceBoxAttrs, FrameGlyphBuffer, StipplePattern};
+use crate::core::face::{Face, FaceAttributes, UnderlineStyle, BoxType};
+use crate::core::frame_glyphs::{FrameGlyphBuffer, StipplePattern};
 use crate::core::types::{Color, Rect};
 use super::types::*;
 use super::emacs_ffi::*;
@@ -483,16 +484,45 @@ impl LayoutEngine {
             overstrike,
         );
 
-        // Store box attributes in side-channel for render thread to pick up.
-        // We don't insert full Face objects here (causes heap corruption on Emacs thread).
-        if face.box_type > 0 {
-            frame_glyphs.face_box_attrs.insert(face.face_id, FaceBoxAttrs {
-                box_type: face.box_type,
-                box_color: Color::from_pixel(face.box_color),
-                box_line_width: face.box_line_width,
-                box_corner_radius: face.box_corner_radius,
-            });
-        }
+        // Build complete Face for this face_id so the render thread gets
+        // all attributes (box, underline, etc.) in one shot per frame,
+        // eliminating stale-cache bugs when Emacs reuses face IDs.
+        let mut attrs = FaceAttributes::empty();
+        if font_weight >= 700 { attrs |= FaceAttributes::BOLD; }
+        if italic { attrs |= FaceAttributes::ITALIC; }
+        if face.underline_style > 0 { attrs |= FaceAttributes::UNDERLINE; }
+        if face.strike_through > 0 { attrs |= FaceAttributes::STRIKE_THROUGH; }
+        if face.overline > 0 { attrs |= FaceAttributes::OVERLINE; }
+        if face.box_type > 0 { attrs |= FaceAttributes::BOX; }
+
+        frame_glyphs.faces.insert(face.face_id, Face {
+            id: face.face_id,
+            foreground: fg,
+            background: bg,
+            underline_color,
+            overline_color,
+            strike_through_color: strike_color,
+            box_color: if face.box_type > 0 { Some(Color::from_pixel(face.box_color)) } else { None },
+            font_family: effective_family.to_string(),
+            font_size: face.font_size as f32,
+            font_weight,
+            attributes: attrs,
+            underline_style: match face.underline_style {
+                1 => UnderlineStyle::Line,
+                2 => UnderlineStyle::Wave,
+                3 => UnderlineStyle::Double,
+                4 => UnderlineStyle::Dotted,
+                5 => UnderlineStyle::Dashed,
+                _ => UnderlineStyle::None,
+            },
+            box_type: if face.box_type == 1 { BoxType::Line } else { BoxType::None },
+            box_line_width: face.box_line_width,
+            box_corner_radius: face.box_corner_radius,
+            font_ascent: face.font_ascent as i32,
+            font_descent: face.font_descent,
+            underline_position: face.underline_position.max(1),
+            underline_thickness: face.underline_thickness.max(1),
+        });
 
         // Fetch stipple pattern data if present and not yet cached
         if face.stipple > 0 && !frame_glyphs.stipple_patterns.contains_key(&face.stipple) {
@@ -596,6 +626,15 @@ impl LayoutEngine {
         // How many columns and rows fit (accounting for line numbers)
         let cols = ((text_width - lnum_pixel_width) / char_w).floor() as i32;
         let max_rows = (text_height / char_h).floor() as i32;
+
+        // The minibuffer must always render at least 1 row.  Its pixel
+        // height may be fractionally smaller than char_h (e.g. 24px vs
+        // 24.15 with line-spacing) causing floor() to yield 0.
+        let max_rows = if params.is_minibuffer && max_rows <= 0 && text_height > 0.0 {
+            1
+        } else {
+            max_rows
+        };
 
         if cols <= 0 || max_rows <= 0 {
             log::debug!("  layout_window id={}: skip — cols={} max_rows={}", params.window_id, cols, max_rows);

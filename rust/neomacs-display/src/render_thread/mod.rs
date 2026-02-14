@@ -1998,101 +1998,16 @@ impl RenderApp {
         // Process pending image uploads (decoded images → GPU textures)
         self.process_pending_images();
 
-        // Update faces from frame data (the frame carries the full face map
-        // set by the FFI side, including box/underline/overline attributes).
+        // Update faces: replace wholesale from frame data.
+        // The layout engine builds complete Face objects per-frame in apply_face(),
+        // so no incremental merge or stale-cache cleanup is needed.
         if let Some(ref frame) = self.current_frame {
-            // Use full face data from frame (set by neomacs_display_set_face FFI)
-            for (face_id, face) in &frame.faces {
-                self.faces.insert(*face_id, face.clone());
-            }
-            // Also update font families from the per-glyph font cache
-            for (face_id, font_family) in &frame.face_fonts {
-                if let Some(face) = self.faces.get_mut(face_id) {
-                    face.font_family = font_family.clone();
-                }
-            }
-            // Build/update Face entries from per-glyph data. This handles the
-            // Rust layout engine path where frame.faces is empty but per-glyph
-            // font_size/bold/italic are set. Always update because face_ids can
-            // be reused by Emacs for different realized faces across frames.
-            for glyph in &frame.glyphs {
-                if let crate::core::frame_glyphs::FrameGlyph::Char {
-                    face_id, font_weight, italic, font_size, ..
-                } = glyph {
-                    let face = self.faces.entry(*face_id).or_insert_with(|| {
-                        crate::core::face::Face::new(*face_id)
-                    });
-                    face.font_size = *font_size;
-                    face.font_weight = *font_weight;
-                    if *font_weight >= 700 {
-                        face.attributes |= crate::core::face::FaceAttributes::BOLD;
-                    } else {
-                        face.attributes.remove(crate::core::face::FaceAttributes::BOLD);
-                    }
-                    if *italic {
-                        face.attributes |= crate::core::face::FaceAttributes::ITALIC;
-                    } else {
-                        face.attributes.remove(crate::core::face::FaceAttributes::ITALIC);
-                    }
-                    if let Some(family) = frame.face_fonts.get(face_id) {
-                        face.font_family = family.clone();
-                    }
-                }
-            }
-
-            // Merge box attributes from the Rust layout engine's side-channel.
-            // The layout engine populates face_box_attrs instead of inserting
-            // full Face objects (which causes heap corruption on the Emacs thread).
-            for (face_id, box_attrs) in &frame.face_box_attrs {
-                let face = self.faces.entry(*face_id).or_insert_with(|| {
-                    crate::core::face::Face::new(*face_id)
-                });
-                face.box_type = if box_attrs.box_type == 1 {
-                    crate::core::face::BoxType::Line
-                } else {
-                    crate::core::face::BoxType::None
-                };
-                face.box_color = Some(box_attrs.box_color);
-                face.box_line_width = box_attrs.box_line_width;
-                face.box_corner_radius = box_attrs.box_corner_radius;
-                face.attributes |= crate::core::face::FaceAttributes::BOX;
-            }
+            self.faces = frame.faces.clone();
         }
-
-        // Build face cache from child frame glyphs too
+        // Merge child frame faces (don't overwrite main frame faces)
         for entry in self.child_frames.frames.values() {
-            let child = &entry.frame;
-            for (face_id, face) in &child.faces {
-                self.faces.insert(*face_id, face.clone());
-            }
-            for (face_id, font_family) in &child.face_fonts {
-                if let Some(face) = self.faces.get_mut(face_id) {
-                    face.font_family = font_family.clone();
-                }
-            }
-            for glyph in &child.glyphs {
-                if let crate::core::frame_glyphs::FrameGlyph::Char {
-                    face_id, font_weight, italic, font_size, ..
-                } = glyph {
-                    let face = self.faces.entry(*face_id).or_insert_with(|| {
-                        crate::core::face::Face::new(*face_id)
-                    });
-                    face.font_size = *font_size;
-                    face.font_weight = *font_weight;
-                    if *font_weight >= 700 {
-                        face.attributes |= crate::core::face::FaceAttributes::BOLD;
-                    } else {
-                        face.attributes.remove(crate::core::face::FaceAttributes::BOLD);
-                    }
-                    if *italic {
-                        face.attributes |= crate::core::face::FaceAttributes::ITALIC;
-                    } else {
-                        face.attributes.remove(crate::core::face::FaceAttributes::ITALIC);
-                    }
-                    if let Some(family) = child.face_fonts.get(face_id) {
-                        face.font_family = family.clone();
-                    }
-                }
+            for (face_id, face) in &entry.frame.faces {
+                self.faces.entry(*face_id).or_insert_with(|| face.clone());
             }
         }
 

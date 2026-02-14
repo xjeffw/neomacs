@@ -603,4 +603,10 @@ pub struct FaceDataFFI {
     /// Overstrike flag (1 = simulate bold by drawing twice at x and x+1)
     /// Set by Emacs when bold variant is unavailable for the font.
     pub overstrike: c_int,
+    /// Font descent in pixels (FONT_DESCENT)
+    pub font_descent: c_int,
+    /// Underline position below baseline (font->underline_position, >=1)
+    pub underline_position: c_int,
+    /// Underline thickness in pixels (font->underline_thickness, >=1)
+    pub underline_thickness: c_int,
 }

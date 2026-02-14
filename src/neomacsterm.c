@@ -2343,6 +2343,9 @@ struct FaceDataFFI {
   int font_is_monospace;
   int stipple;  /* Bitmap ID for stipple pattern (0 = none) */
   int overstrike;  /* 1 if bold variant unavailable, simulate by drawing twice */
+  int font_descent;  /* FONT_DESCENT in pixels */
+  int underline_position;  /* font->underline_position (>=1) */
+  int underline_thickness;  /* font->underline_thickness (>=1) */
 };
 
 static void
@@ -2519,6 +2522,19 @@ fill_face_data (struct frame *f, struct face *face, struct FaceDataFFI *out)
   /* Overstrike: Emacs sets this when bold variant is unavailable,
      signaling the renderer to simulate bold by drawing twice. */
   out->overstrike = face->overstrike ? 1 : 0;
+
+  /* Font descent and underline metrics */
+  out->font_descent = 0;
+  out->underline_position = 1;
+  out->underline_thickness = 1;
+  if (face->font)
+    {
+      out->font_descent = FONT_DESCENT (face->font);
+      if (face->font->underline_position > 0)
+        out->underline_position = face->font->underline_position;
+      if (face->font->underline_thickness > 0)
+        out->underline_thickness = face->font->underline_thickness;
+    }
 }
 
 /* Get stipple bitmap data for a given bitmap ID.
