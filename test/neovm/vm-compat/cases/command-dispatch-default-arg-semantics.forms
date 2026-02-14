@@ -105,6 +105,38 @@
       (insert "abc")
       (goto-char 1)
       (set-mark 3)
+      (command-execute 'upcase-region))
+  (error err))
+
+(condition-case err
+    (with-temp-buffer
+      (insert "ABC")
+      (goto-char 1)
+      (set-mark 3)
+      (command-execute 'downcase-region))
+  (error err))
+
+(condition-case err
+    (with-temp-buffer
+      (insert "abc")
+      (goto-char 1)
+      (set-mark 3)
+      (command-execute 'capitalize-region)
+      (buffer-string))
+  (error err))
+
+(condition-case err
+    (with-temp-buffer
+      (insert "abc")
+      (goto-char 1)
+      (command-execute 'capitalize-region))
+  (error err))
+
+(condition-case err
+    (with-temp-buffer
+      (insert "abc")
+      (goto-char 1)
+      (set-mark 3)
       (call-interactively 'upcase-region)
       (buffer-string))
   (error err))
