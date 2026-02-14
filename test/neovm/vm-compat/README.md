@@ -13,7 +13,7 @@ results against that baseline once evaluator execution is wired in.
 - `run-oracle.sh`: runs all forms from a corpus file and prints TSV output
 - `run-neovm.sh`: runs NeoVM worker-runtime compatibility runner and prints TSV output
 - `compare-results.sh`: diffs oracle TSV vs NeoVM TSV
-- `bench-load-cache.sh`: runs cold/warm `.neoc` load benchmark via `load_cache_bench`
+- `bench-load-cache.sh`: runs cold/warm/post-edit `.neoc` load benchmark reporting via `load_cache_bench`
 - `cases/default.list`: default `check-all-neovm` corpus order (one case per line)
 - `cases/neovm-only.list`: NeoVM-only policy corpus order
 - `cases/legacy-elc-literal.list`: opt-in `.elc` literal compatibility corpus order
@@ -147,7 +147,7 @@ cargo run --manifest-path rust/neovm-core/Cargo.toml --example precompile_neoc -
   path/to/file.el [path/to/another.el ...]
 ```
 
-Run cache-load benchmark reporting cold miss vs warm hit timing:
+Run cache-load benchmark reporting cold miss, warm hit, and post-edit rebuild timing:
 
 ```bash
 cd test/neovm/vm-compat
@@ -155,6 +155,9 @@ make bench-load-cache
 # or override:
 make bench-load-cache BENCH_SOURCE=cases/load-policy-fixtures/vm-policy-cache-probe.el BENCH_ITERS=200
 ```
+
+The benchmark output includes `cold_load_ms`, `warm_load_ms`,
+`warm_avg_ms(iterations=...)`, and `post_edit_rebuild_ms`.
 
 ## Batch Freeze Notes (2026-02-13)
 
