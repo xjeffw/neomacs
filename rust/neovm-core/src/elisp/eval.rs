@@ -2651,7 +2651,8 @@ mod tests {
              (funcall (car (read-from-string \"#[(x) \\\"\\\\10\\\\242\\\\10\\\\243\\\\104\\\\207\\\" [x] 2]\")) 'a)
              (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\234\\\\207\\\" [x y] 2]\")) [10 20 30] 1)
              (funcall (car (read-from-string \"#[nil \\\"\\\\300\\\\202\\\\5\\\\0\\\\301\\\\207\\\" [10 20] 1]\")))
-             (funcall (car (read-from-string \"#[nil \\\"\\\\300\\\\61\\\\6\\\\0\\\\301\\\\60\\\\207\\\" [0 99] 2]\")))",
+             (funcall (car (read-from-string \"#[nil \\\"\\\\300\\\\61\\\\6\\\\0\\\\301\\\\60\\\\207\\\" [0 99] 2]\")))
+             (funcall (car (read-from-string \"#[nil \\\"\\\\300\\\\62\\\\6\\\\0\\\\301\\\\60\\\\207\\\" [0 77] 2]\")))",
         );
         assert_eq!(results[0], "OK t");
         assert_eq!(results[1], "OK t");
@@ -2711,6 +2712,7 @@ mod tests {
         assert_eq!(results[55], "OK 20");
         assert_eq!(results[56], "OK 10");
         assert_eq!(results[57], "OK 99");
+        assert_eq!(results[58], "OK 77");
     }
 
     #[test]
