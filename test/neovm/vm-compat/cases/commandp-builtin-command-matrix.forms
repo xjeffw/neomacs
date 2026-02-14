@@ -43,3 +43,5 @@
 (commandp 'scroll-up-command)
 (commandp 'scroll-down-command)
 (commandp 'recenter-top-bottom)
+(commandp 'move-beginning-of-line)
+(commandp 'move-end-of-line)

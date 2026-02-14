@@ -42,3 +42,5 @@
 42	(commandp 'scroll-up-command)	OK t
 43	(commandp 'scroll-down-command)	OK t
 44	(commandp 'recenter-top-bottom)	OK t
+45	(commandp 'move-beginning-of-line)	OK t
+46	(commandp 'move-end-of-line)	OK t
