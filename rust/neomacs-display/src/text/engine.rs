@@ -1,5 +1,7 @@
 //! Text rendering engine using cosmic-text
 
+use std::collections::HashSet;
+
 use cosmic_text::{
     Attrs, Buffer, Color as CosmicColor, Family, FontSystem, Metrics,
     ShapeBuffer, SwashCache, Weight, Style,
@@ -19,6 +21,8 @@ pub struct TextEngine {
     default_font_size: f32,
     /// Default line height in pixels
     default_line_height: f32,
+    /// Interned font family names (each unique name leaked only once)
+    interned_families: HashSet<&'static str>,
 }
 
 impl TextEngine {
@@ -34,6 +38,7 @@ impl TextEngine {
             // GTK handles HiDPI scaling automatically via scale_factor
             default_font_size: 13.0,
             default_line_height: 17.0,
+            interned_families: HashSet::new(),
         }
     }
 
@@ -155,18 +160,27 @@ impl TextEngine {
     }
 
     /// Convert Emacs Face to cosmic-text Attrs
-    fn face_to_attrs(&self, face: Option<&Face>) -> Attrs<'static> {
+    fn face_to_attrs(&mut self, face: Option<&Face>) -> Attrs<'static> {
         let mut attrs = Attrs::new();
 
         if let Some(f) = face {
-            // Font family
+            // Font family - support specific font names
             if !f.font_family.is_empty() {
-                // cosmic-text needs static lifetime, use common families
-                attrs = match f.font_family.to_lowercase().as_str() {
-                    "monospace" | "mono" => attrs.family(Family::Monospace),
+                let family_lower = f.font_family.to_lowercase();
+                attrs = match family_lower.as_str() {
+                    "monospace" | "mono" | "" => attrs.family(Family::Monospace),
                     "serif" => attrs.family(Family::Serif),
-                    "sans-serif" | "sans" => attrs.family(Family::SansSerif),
-                    _ => attrs.family(Family::Monospace), // Default to monospace for Emacs
+                    "sans-serif" | "sans" | "sansserif" => attrs.family(Family::SansSerif),
+                    _ => {
+                        let interned = if let Some(&existing) = self.interned_families.get(f.font_family.as_str()) {
+                            existing
+                        } else {
+                            let leaked: &'static str = Box::leak(f.font_family.clone().into_boxed_str());
+                            self.interned_families.insert(leaked);
+                            leaked
+                        };
+                        attrs.family(Family::Name(interned))
+                    }
                 };
             } else {
                 attrs = attrs.family(Family::Monospace);
@@ -346,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_none_returns_monospace() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let attrs = engine.face_to_attrs(None);
         // When face is None, family should be Monospace
         assert_eq!(attrs.family, Family::Monospace);
@@ -354,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_none_returns_white_color() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let attrs = engine.face_to_attrs(None);
         let expected = CosmicColor::rgba(255, 255, 255, 255);
         assert_eq!(attrs.color_opt, Some(expected));
@@ -366,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_monospace_family() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_family = "monospace".to_string();
         let attrs = engine.face_to_attrs(Some(&face));
@@ -375,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_mono_family() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_family = "mono".to_string();
         let attrs = engine.face_to_attrs(Some(&face));
@@ -384,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_serif_family() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_family = "serif".to_string();
         let attrs = engine.face_to_attrs(Some(&face));
@@ -393,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_sans_serif_family() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_family = "sans-serif".to_string();
         let attrs = engine.face_to_attrs(Some(&face));
@@ -402,7 +416,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_sans_family() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_family = "sans".to_string();
         let attrs = engine.face_to_attrs(Some(&face));
@@ -410,18 +424,18 @@ mod tests {
     }
 
     #[test]
-    fn test_face_to_attrs_unknown_family_defaults_to_monospace() {
-        let engine = TextEngine::new();
+    fn test_face_to_attrs_specific_family_uses_name() {
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_family = "DejaVu Sans Mono".to_string();
         let attrs = engine.face_to_attrs(Some(&face));
-        // Unknown font family names default to Monospace
-        assert_eq!(attrs.family, Family::Monospace);
+        // Specific font family names are passed through as Family::Name
+        assert_eq!(attrs.family, Family::Name("DejaVu Sans Mono"));
     }
 
     #[test]
     fn test_face_to_attrs_empty_family_defaults_to_monospace() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_family = String::new();
         let attrs = engine.face_to_attrs(Some(&face));
@@ -430,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_case_insensitive_family() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
 
         let mut face = Face::default();
         face.font_family = "MONOSPACE".to_string();
@@ -460,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_weight_normal() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_weight = 400;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -469,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_weight_bold() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_weight = 700;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -478,7 +492,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_weight_thin() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_weight = 100;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -487,7 +501,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_weight_black() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_weight = 900;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -500,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_italic() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.attributes |= FaceAttributes::ITALIC;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -509,7 +523,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_not_italic() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let face = Face::default();
         let attrs = engine.face_to_attrs(Some(&face));
         assert_eq!(attrs.style, Style::Normal);
@@ -521,7 +535,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_foreground_color_white() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.foreground = Color::WHITE; // r=1.0, g=1.0, b=1.0, a=1.0
         let attrs = engine.face_to_attrs(Some(&face));
@@ -531,7 +545,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_foreground_color_red() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.foreground = Color::RED; // r=1.0, g=0.0, b=0.0, a=1.0
         let attrs = engine.face_to_attrs(Some(&face));
@@ -541,7 +555,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_foreground_color_green() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.foreground = Color::GREEN;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -551,7 +565,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_foreground_color_blue() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.foreground = Color::BLUE;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -561,7 +575,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_foreground_color_custom() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.foreground = Color::new(0.5, 0.25, 0.75, 0.8);
         let attrs = engine.face_to_attrs(Some(&face));
@@ -576,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_foreground_color_black() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.foreground = Color::BLACK;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -586,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_foreground_transparent() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.foreground = Color::TRANSPARENT;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -600,7 +614,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_bold_italic_serif() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_family = "serif".to_string();
         face.font_weight = 700;
@@ -945,7 +959,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_weight_zero() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_weight = 0;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -954,7 +968,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_weight_max_u16() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
         face.font_weight = u16::MAX;
         let attrs = engine.face_to_attrs(Some(&face));
@@ -963,7 +977,7 @@ mod tests {
 
     #[test]
     fn test_face_to_attrs_foreground_boundary_colors() {
-        let engine = TextEngine::new();
+        let mut engine = TextEngine::new();
         let mut face = Face::default();
 
         // Color with all channels at 0.0 (but alpha 0 too)
