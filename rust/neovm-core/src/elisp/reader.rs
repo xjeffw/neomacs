@@ -562,9 +562,14 @@ fn skip_string(input: &str, mut pos: usize) -> usize {
 /// - If STREAM is nil, would read from stdin (returns nil in non-interactive mode).
 /// - If STREAM is a buffer, read from buffer at point.
 pub(crate) fn builtin_read(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_max_args("read", &args, 1)?;
+
     if args.is_empty() || args[0].is_nil() {
-        // No stream / nil — non-interactive, return nil
-        return Ok(Value::Nil);
+        // In batch/non-interactive runs, stdin-backed read signals EOF.
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("End of file during parsing")],
+        ));
     }
 
     match &args[0] {
@@ -620,9 +625,15 @@ pub(crate) fn builtin_read(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
             }
             Ok(value)
         }
+        Value::Symbol(name) => Err(signal("void-function", vec![Value::symbol(name.clone())])),
+        Value::True => Err(signal(
+            "end-of-file",
+            vec![Value::string("End of file during parsing")],
+        )),
+        Value::Keyword(name) => Err(signal("void-function", vec![Value::symbol(name.clone())])),
         _ => {
-            // Unsupported stream type — treat as nil
-            Ok(Value::Nil)
+            // Unsupported stream source type for read-char function protocol.
+            Err(signal("invalid-function", vec![args[0].clone()]))
         }
     }
 }
@@ -1299,15 +1310,32 @@ mod tests {
     #[test]
     fn read_nil_stream() {
         let mut ev = Evaluator::new();
-        let result = builtin_read(&mut ev, vec![Value::Nil]).unwrap();
-        assert!(result.is_nil());
+        let result = builtin_read(&mut ev, vec![Value::Nil]);
+        assert!(result.is_err());
     }
 
     #[test]
     fn read_no_args() {
         let mut ev = Evaluator::new();
-        let result = builtin_read(&mut ev, vec![]).unwrap();
-        assert!(result.is_nil());
+        let result = builtin_read(&mut ev, vec![]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn read_rejects_extra_args() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read(&mut ev, vec![Value::string("a"), Value::Nil]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn read_non_stream_type_is_invalid_function() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read(&mut ev, vec![Value::Int(1)]);
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "invalid-function"),
+            other => panic!("expected invalid-function signal, got {other:?}"),
+        }
     }
 
     // ===================================================================
