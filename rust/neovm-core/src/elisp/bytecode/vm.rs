@@ -351,6 +351,26 @@ impl<'a> Vm<'a> {
                     let val = stack.pop().unwrap_or(Value::Nil);
                     stack.push(cdr(&val));
                 }
+                Op::CarSafe => {
+                    let val = stack.pop().unwrap_or(Value::Nil);
+                    match val {
+                        Value::Cons(cell) => {
+                            let pair = cell.lock().expect("poisoned");
+                            stack.push(pair.car.clone());
+                        }
+                        _ => stack.push(Value::Nil),
+                    }
+                }
+                Op::CdrSafe => {
+                    let val = stack.pop().unwrap_or(Value::Nil);
+                    match val {
+                        Value::Cons(cell) => {
+                            let pair = cell.lock().expect("poisoned");
+                            stack.push(pair.cdr.clone());
+                        }
+                        _ => stack.push(Value::Nil),
+                    }
+                }
                 Op::Cons => {
                     let cdr_val = stack.pop().unwrap_or(Value::Nil);
                     let car_val = stack.pop().unwrap_or(Value::Nil);
@@ -377,6 +397,12 @@ impl<'a> Vm<'a> {
                     let n = stack.pop().unwrap_or(Value::Int(0));
                     let idx = n.as_int().unwrap_or(0);
                     stack.push(nthcdr_value(idx, &list));
+                }
+                Op::Elt => {
+                    let idx = stack.pop().unwrap_or(Value::Nil);
+                    let seq = stack.pop().unwrap_or(Value::Nil);
+                    let result = self.dispatch_vm_builtin("elt", vec![seq, idx])?;
+                    stack.push(result);
                 }
                 Op::Setcar => {
                     let newcar = stack.pop().unwrap_or(Value::Nil);

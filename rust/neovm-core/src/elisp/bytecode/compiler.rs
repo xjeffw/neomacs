@@ -1719,11 +1719,11 @@ fn stack_delta(op: &Op) -> i32 {
         Op::Add | Op::Sub | Op::Mul | Op::Div | Op::Rem => -1,
         Op::Add1 | Op::Sub1 | Op::Negate => 0, // pop 1, push 1
         Op::Eqlsign | Op::Gtr | Op::Lss | Op::Leq | Op::Geq | Op::Max | Op::Min => -1,
-        Op::Car | Op::Cdr => 0,
+        Op::Car | Op::Cdr | Op::CarSafe | Op::CdrSafe => 0,
         Op::Cons => -1,
         Op::List(n) => -(*n as i32) + 1,
         Op::Length => 0,
-        Op::Nth | Op::Nthcdr | Op::Member | Op::Memq | Op::Assq | Op::Nconc => -1,
+        Op::Nth | Op::Nthcdr | Op::Elt | Op::Member | Op::Memq | Op::Assq | Op::Nconc => -1,
         Op::Nreverse => 0,
         Op::Setcar | Op::Setcdr => -1,
         Op::Symbolp
