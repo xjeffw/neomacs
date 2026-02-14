@@ -209,7 +209,21 @@ pub(crate) fn builtin_called_interactively_p(eval: &mut Evaluator, args: Vec<Val
             ],
         ));
     }
-    Ok(Value::bool(eval.interactive.is_called_interactively()))
+    if !eval.interactive.is_called_interactively() {
+        return Ok(Value::Nil);
+    }
+
+    // GNU Emacs semantics:
+    // - KIND = 'interactive => nil
+    // - KIND = nil / 'any / unknown => t (when called interactively)
+    if args
+        .first()
+        .is_some_and(|v| matches!(v, Value::Symbol(s) if s == "interactive"))
+    {
+        Ok(Value::Nil)
+    } else {
+        Ok(Value::True)
+    }
 }
 
 /// `(commandp FUNCTION &optional FOR-CALL-INTERACTIVELY)`
@@ -1978,6 +1992,33 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_called_interactively_p(&mut ev, vec![Value::symbol("any")]);
         assert!(result.unwrap().is_nil());
+    }
+
+    #[test]
+    fn called_interactively_p_kind_interactive_is_nil_when_interactive() {
+        let mut ev = Evaluator::new();
+        ev.interactive.push_interactive_call(true);
+        let result = builtin_called_interactively_p(&mut ev, vec![Value::symbol("interactive")]);
+        ev.interactive.pop_interactive_call();
+        assert!(result.unwrap().is_nil());
+    }
+
+    #[test]
+    fn called_interactively_p_kind_any_is_t_when_interactive() {
+        let mut ev = Evaluator::new();
+        ev.interactive.push_interactive_call(true);
+        let result = builtin_called_interactively_p(&mut ev, vec![Value::symbol("any")]);
+        ev.interactive.pop_interactive_call();
+        assert!(result.unwrap().is_truthy());
+    }
+
+    #[test]
+    fn called_interactively_p_unknown_kind_is_t_when_interactive() {
+        let mut ev = Evaluator::new();
+        ev.interactive.push_interactive_call(true);
+        let result = builtin_called_interactively_p(&mut ev, vec![Value::symbol("foo")]);
+        ev.interactive.pop_interactive_call();
+        assert!(result.unwrap().is_truthy());
     }
 
     #[test]
