@@ -244,6 +244,7 @@ fn builtin_command_name(name: &str) -> bool {
             | "yank-pop"
             | "transpose-chars"
             | "transpose-lines"
+            | "transpose-paragraphs"
             | "transpose-sentences"
             | "transpose-sexps"
             | "transpose-words"
@@ -432,6 +433,7 @@ fn default_command_execute_args(eval: &Evaluator, name: &str) -> Result<Vec<Valu
         | "upcase-word"
         | "capitalize-word"
         | "transpose-lines"
+        | "transpose-paragraphs"
         | "transpose-sentences"
         | "transpose-sexps"
         | "transpose-words" => Ok(vec![Value::Int(1)]),
@@ -1864,6 +1866,7 @@ mod tests {
             "yank-pop",
             "transpose-chars",
             "transpose-lines",
+            "transpose-paragraphs",
             "transpose-sentences",
             "transpose-sexps",
             "upcase-word",
@@ -2474,6 +2477,21 @@ mod tests {
                  (buffer-string))"#,
         );
         assert_eq!(results[0], "OK \"Two.  One.\"");
+    }
+
+    #[test]
+    fn command_execute_builtin_transpose_paragraphs_reports_error_for_now() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "A\n\nB")
+                 (goto-char 1)
+                 (condition-case e
+                     (progn (command-execute 'transpose-paragraphs) 'ok)
+                   (error (car e))))"#,
+        );
+        assert_eq!(results[0], "OK error");
     }
 
     #[test]

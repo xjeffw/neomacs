@@ -834,6 +834,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "transient-mark-mode",
     "transpose-chars",
     "transpose-lines",
+    "transpose-paragraphs",
     "transpose-sentences",
     "transpose-sexps",
     "transpose-words",

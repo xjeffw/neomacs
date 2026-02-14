@@ -5633,6 +5633,9 @@ pub(crate) fn dispatch_builtin(
         "transpose-sentences" => {
             return Some(super::kill_ring::builtin_transpose_sentences(eval, args))
         }
+        "transpose-paragraphs" => {
+            return Some(super::kill_ring::builtin_transpose_paragraphs(eval, args))
+        }
         "transpose-words" => return Some(super::kill_ring::builtin_transpose_words(eval, args)),
         "transpose-lines" => return Some(super::kill_ring::builtin_transpose_lines(eval, args)),
         "indent-line-to" => return Some(super::kill_ring::builtin_indent_line_to(eval, args)),

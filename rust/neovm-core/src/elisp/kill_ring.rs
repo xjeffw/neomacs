@@ -1678,6 +1678,21 @@ pub(crate) fn builtin_transpose_sentences(
     Ok(Value::Nil)
 }
 
+/// `(transpose-paragraphs ARG)` — interchange paragraphs around point.
+///
+/// TODO(neovm): implement paragraph boundary semantics compatible with Emacs.
+pub(crate) fn builtin_transpose_paragraphs(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("transpose-paragraphs", &args, 1)?;
+    let _n = expect_int(&args[0])?;
+    Err(signal(
+        "error",
+        vec![Value::string("Don\u{2019}t have two things to transpose")],
+    ))
+}
+
 /// `(transpose-lines ARG)` — interchange lines around point.
 pub(crate) fn builtin_transpose_lines(
     eval: &mut super::eval::Evaluator,
@@ -2874,6 +2889,19 @@ mod tests {
                  (transpose-sentences 1))"#,
         );
         assert!(result.starts_with("ERR (end-of-buffer"));
+    }
+
+    // -- transpose-paragraphs tests --
+
+    #[test]
+    fn transpose_paragraphs_reports_not_implemented_for_now() {
+        let result = eval_one(
+            r#"(with-temp-buffer
+                 (insert "A\n\nB")
+                 (goto-char 1)
+                 (transpose-paragraphs 1))"#,
+        );
+        assert!(result.starts_with("ERR (error"));
     }
 
     // -- indent-line-to tests --
