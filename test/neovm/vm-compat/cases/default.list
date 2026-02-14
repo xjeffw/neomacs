@@ -103,6 +103,7 @@ cases/find-charset-string-semantics
 cases/unibyte-string-semantics
 cases/string-to-unibyte-semantics
 cases/string-as-unibyte-semantics
+cases/string-to-multibyte-semantics
 cases/locale-info-semantics
 cases/secure-hash-semantics
 cases/secure-hash-binary-semantics
