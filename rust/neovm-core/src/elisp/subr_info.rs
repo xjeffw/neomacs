@@ -207,7 +207,9 @@ struct FallbackMacroSpec {
 
 fn fallback_macro_spec(name: &str) -> Option<FallbackMacroSpec> {
     match name {
-        "when" | "unless" | "dotimes" | "dolist" => Some(FallbackMacroSpec { min: 1, max: None }),
+        "when" | "unless" | "dotimes" | "dolist" | "with-mutex" => {
+            Some(FallbackMacroSpec { min: 1, max: None })
+        }
         "with-current-buffer" | "with-syntax-table" | "with-eval-after-load" => {
             Some(FallbackMacroSpec { min: 1, max: None })
         }
