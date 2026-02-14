@@ -2615,7 +2615,9 @@ mod tests {
              (funcall (car (read-from-string \"#[(x y) \\\"\\\\302\\\\10\\\\11\\\\42\\\\207\\\" [x y logand] 3]\")) 6 3)
              (funcall (car (read-from-string \"#[(x) \\\"\\\\301\\\\10\\\\41\\\\207\\\" [x floor] 2]\")) 3.7)
              (funcall (car (read-from-string \"#[(x y) \\\"\\\\302\\\\10\\\\11\\\\42\\\\207\\\" [x y vector] 3]\")) 1 2)
-             (funcall (car (read-from-string \"#[(x y) \\\"\\\\302\\\\10\\\\11\\\\42\\\\207\\\" [x y assoc] 3]\")) 'b '((a . 1) (b . 2)))",
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\302\\\\10\\\\11\\\\42\\\\207\\\" [x y assoc] 3]\")) 'b '((a . 1) (b . 2)))
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\244\\\\207\\\" [x y] 2]\")) '(1) '(2))
+             (funcall (car (read-from-string \"#[(x y z) \\\"\\\\10\\\\11\\\\244\\\\12\\\\244\\\\207\\\" [x y z] 3]\")) '(1) '(2) '(3))",
         );
         assert_eq!(results[0], "OK t");
         assert_eq!(results[1], "OK t");
@@ -2643,6 +2645,8 @@ mod tests {
         assert_eq!(results[23], "OK 3");
         assert_eq!(results[24], "OK [1 2]");
         assert_eq!(results[25], "OK (b . 2)");
+        assert_eq!(results[26], "OK (1 2)");
+        assert_eq!(results[27], "OK (1 2 3)");
     }
 
     #[test]
