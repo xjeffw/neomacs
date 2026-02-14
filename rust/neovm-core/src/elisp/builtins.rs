@@ -3130,42 +3130,80 @@ pub(crate) fn builtin_string_width(args: Vec<Value>) -> EvalResult {
 
 pub(crate) fn builtin_last(args: Vec<Value>) -> EvalResult {
     expect_min_args("last", &args, 1)?;
-    let n = if args.len() > 1 {
-        expect_int(&args[1])? as usize
-    } else {
-        1
-    };
-    let items = list_to_vec(&args[0]).ok_or_else(|| {
-        signal(
-            "wrong-type-argument",
-            vec![Value::symbol("listp"), args[0].clone()],
-        )
-    })?;
-    if n >= items.len() {
-        Ok(args[0].clone())
-    } else {
-        Ok(Value::list(items[items.len() - n..].to_vec()))
+    let n = if args.len() > 1 { expect_int(&args[1])? } else { 1 };
+    if n < 0 {
+        return Ok(Value::Nil);
+    }
+
+    let mut lag = args[0].clone();
+    let mut lead = args[0].clone();
+    for _ in 0..(n as usize) {
+        match lead {
+            Value::Cons(cell) => {
+                lead = cell.lock().expect("poisoned").cdr.clone();
+            }
+            _ => return Ok(lag),
+        }
+    }
+
+    loop {
+        match lead {
+            Value::Cons(cell) => {
+                lead = cell.lock().expect("poisoned").cdr.clone();
+                lag = match lag {
+                    Value::Cons(lag_cell) => lag_cell.lock().expect("poisoned").cdr.clone(),
+                    _ => unreachable!("lag should be a cons while lead is a cons"),
+                };
+            }
+            _ => return Ok(lag),
+        }
     }
 }
 
 pub(crate) fn builtin_butlast(args: Vec<Value>) -> EvalResult {
     expect_min_args("butlast", &args, 1)?;
-    let n = if args.len() > 1 {
-        expect_int(&args[1])? as usize
-    } else {
-        1
-    };
-    let items = list_to_vec(&args[0]).ok_or_else(|| {
-        signal(
-            "wrong-type-argument",
-            vec![Value::symbol("listp"), args[0].clone()],
-        )
-    })?;
-    if n >= items.len() {
-        Ok(Value::Nil)
-    } else {
-        Ok(Value::list(items[..items.len() - n].to_vec()))
+    let n = if args.len() > 1 { expect_int(&args[1])? } else { 1 };
+    if n <= 0 {
+        return Ok(args[0].clone());
     }
+
+    match &args[0] {
+        Value::Nil | Value::Cons(_) => {}
+        Value::Vector(_) | Value::Str(_) => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("listp"), args[0].clone()],
+            ))
+        }
+        _ => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("sequencep"), args[0].clone()],
+            ))
+        }
+    }
+
+    let mut items = Vec::new();
+    let mut cursor = args[0].clone();
+    loop {
+        match cursor {
+            Value::Nil => break,
+            Value::Cons(cell) => {
+                let pair = cell.lock().expect("poisoned");
+                items.push(pair.car.clone());
+                cursor = pair.cdr.clone();
+            }
+            tail => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("listp"), tail],
+                ))
+            }
+        }
+    }
+
+    let keep = items.len().saturating_sub(n as usize);
+    Ok(Value::list(items[..keep].to_vec()))
 }
 
 fn delete_from_list_in_place<F>(seq: &Value, should_delete: F) -> Result<Value, Flow>
