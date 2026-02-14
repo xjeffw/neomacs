@@ -176,5 +176,7 @@ Post-freeze updates:
   - `cases/sort-semantics`
 - Added list tail/suffix compatibility case:
   - `cases/last-butlast-semantics`
+- Added higher-order map primitive compatibility case:
+  - `cases/map-family-semantics`
 - Full NeoVM gate is green with these additions:
   - `make check-all-neovm`
