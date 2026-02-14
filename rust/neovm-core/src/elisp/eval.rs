@@ -429,7 +429,12 @@ impl Evaluator {
                 for expr in tail {
                     args.push(self.eval(expr)?);
                 }
-                return self.apply(func, args);
+                return match self.apply(func, args) {
+                    Err(Flow::Signal(sig)) if sig.symbol == "invalid-function" => {
+                        Err(signal("invalid-function", vec![Value::symbol(name)]))
+                    }
+                    other => other,
+                };
             }
 
             // Special forms
@@ -1716,7 +1721,12 @@ impl Evaluator {
         rewrite_builtin_wrong_arity: bool,
     ) -> EvalResult {
         match self.resolve_named_call_target(name) {
-            NamedCallTarget::Obarray(func) => self.apply(func, args),
+            NamedCallTarget::Obarray(func) => match self.apply(func, args) {
+                Err(Flow::Signal(sig)) if sig.symbol == "invalid-function" => {
+                    Err(signal("invalid-function", vec![Value::symbol(name)]))
+                }
+                other => other,
+            },
             NamedCallTarget::EvaluatorCallable => self.apply_evaluator_callable(name, args),
             NamedCallTarget::Probe => {
                 if let Some(result) = builtins::dispatch_builtin(self, name, args) {
@@ -2497,6 +2507,25 @@ mod tests {
         assert_eq!(results[5], "OK nil");
         assert_eq!(results[6], "OK nil");
         assert_eq!(results[7], "OK (void-function length)");
+    }
+
+    #[test]
+    fn fset_noncallable_reports_symbol_payload_for_invalid_function_calls() {
+        let results = eval_all(
+            "(fset 'vm-fsetint 1)
+             (fboundp 'vm-fsetint)
+             (symbol-function 'vm-fsetint)
+             (condition-case err (vm-fsetint) (error err))
+             (condition-case err (funcall 'vm-fsetint) (error err))
+             (condition-case err (apply 'vm-fsetint nil) (error err))",
+        );
+
+        assert_eq!(results[0], "OK 1");
+        assert_eq!(results[1], "OK t");
+        assert_eq!(results[2], "OK 1");
+        assert_eq!(results[3], "OK (invalid-function vm-fsetint)");
+        assert_eq!(results[4], "OK (invalid-function vm-fsetint)");
+        assert_eq!(results[5], "OK (invalid-function vm-fsetint)");
     }
 
     #[test]
