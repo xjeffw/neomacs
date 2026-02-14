@@ -1,0 +1,7 @@
+(error-message-string '(error "abc"))
+(error-message-string '(error "abc" 1))
+(error-message-string '(user-error "u"))
+(error-message-string '(user-error "u" 1))
+(error-message-string '(user-error integerp "x"))
+(error-message-string '(file-error "No such file" "foo"))
+(let ((msg (condition-case e (progn (error "%S" (current-thread)) "") (error (error-message-string e))))) (string-prefix-p "#<thread" msg))
