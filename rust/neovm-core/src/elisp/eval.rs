@@ -2499,12 +2499,28 @@ mod tests {
              (funcall (car (read-from-string \"#[(x) \\\"\\\\bT\\\\207\\\" [x] 1]\")) 77)
              (condition-case err
                  (funcall (car (read-from-string \"#[(x) \\\"\\\\bT\\\\207\\\" [x] 1]\")) 'vm-x)
-               (error err))",
+               (error err))
+             (funcall (car (read-from-string \"#[(x) \\\"\\\\10\\\\123\\\\207\\\" [x] 1]\")) 77)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\134\\\\207\\\" [x y] 2]\")) 7 35)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\132\\\\207\\\" [x y] 2]\")) 7 2)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\137\\\\207\\\" [x y] 2]\")) 7 2)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\125\\\\207\\\" [x y] 2]\")) 7 7)
+             (funcall (car (read-from-string \"#[(x y) \\\"\\\\10\\\\11\\\\125\\\\207\\\" [x y] 2]\")) 7 8)
+             (funcall (car (read-from-string \"#[(x) \\\"\\\\10\\\\100\\\\207\\\" [x] 1]\")) '(1 2))
+             (funcall (car (read-from-string \"#[(x) \\\"\\\\10\\\\101\\\\207\\\" [x] 1]\")) '(1 2))",
         );
         assert_eq!(results[0], "OK 42");
         assert_eq!(results[1], "OK vm-x");
         assert_eq!(results[2], "OK 78");
         assert_eq!(results[3], "OK (wrong-type-argument number-or-marker-p vm-x)");
+        assert_eq!(results[4], "OK 76");
+        assert_eq!(results[5], "OK 42");
+        assert_eq!(results[6], "OK 5");
+        assert_eq!(results[7], "OK 14");
+        assert_eq!(results[8], "OK t");
+        assert_eq!(results[9], "OK nil");
+        assert_eq!(results[10], "OK 1");
+        assert_eq!(results[11], "OK (2)");
     }
 
     #[test]

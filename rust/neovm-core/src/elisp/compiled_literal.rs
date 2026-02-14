@@ -142,8 +142,22 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
                 }
                 ops.push(Op::VarRef(idx as u16));
             }
+            // car
+            0o100 => ops.push(Op::Car),
+            // cdr
+            0o101 => ops.push(Op::Cdr),
+            // 1- (sub1)
+            0o123 => ops.push(Op::Sub1),
             // 1+ (add1)
             0o124 => ops.push(Op::Add1),
+            // numeric =
+            0o125 => ops.push(Op::Eqlsign),
+            // -
+            0o132 => ops.push(Op::Sub),
+            // +
+            0o134 => ops.push(Op::Add),
+            // *
+            0o137 => ops.push(Op::Mul),
             // return
             0o207 => ops.push(Op::Return),
             _ => return None,
@@ -311,6 +325,39 @@ mod tests {
             panic!("expected Value::ByteCode");
         };
         assert_eq!(bc.ops, vec![Op::VarRef(0), Op::Add1, Op::Return]);
+    }
+
+    #[test]
+    fn decodes_binary_arith_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::list(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::string("\u{8}\u{9}\\\u{87}"),
+            Value::vector(vec![Value::symbol("x"), Value::symbol("y")]),
+            Value::Int(2),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(
+            bc.ops,
+            vec![Op::VarRef(0), Op::VarRef(1), Op::Add, Op::Return]
+        );
+    }
+
+    #[test]
+    fn decodes_car_return_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::list(vec![Value::symbol("x")]),
+            Value::string("\u{8}@\u{87}"),
+            Value::vector(vec![Value::symbol("x")]),
+            Value::Int(1),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(bc.ops, vec![Op::VarRef(0), Op::Car, Op::Return]);
     }
 
     #[test]
