@@ -144,3 +144,14 @@ Post-freeze updates:
 
 - Added `cases/input-batch-readers` corpus and wired it into default `check-all-neovm` coverage.
 - Added CI gate job for `make check-ert-allowlist` in `.github/workflows/vm-compat.yml`.
+- Added reader stream compatibility cases: `cases/read-from-string-edges` and `cases/read-stream-semantics`.
+- Added obarray argument compatibility cases: `cases/intern-obarray-semantics` and `cases/obarray-arg-semantics`.
+- Added string primitive compatibility cases:
+  - `cases/split-string-semantics`
+  - `cases/string-trim-semantics`
+  - `cases/string-prefix-suffix-semantics`
+  - `cases/string-join-semantics`
+  - `cases/string-to-number-semantics`
+  - `cases/substring-edge-semantics`
+- Full NeoVM gate is green with these additions:
+  - `make check-all-neovm`
