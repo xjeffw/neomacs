@@ -6055,19 +6055,6 @@ pub(crate) fn dispatch_builtin(
             ))
         }
 
-        // CL-lib higher-order (evaluator-dependent — applies functions)
-        "cl-map" => return Some(super::cl_lib::builtin_cl_map(eval, args)),
-        "cl-every" => return Some(super::cl_lib::builtin_cl_every(eval, args)),
-        "cl-some" => return Some(super::cl_lib::builtin_cl_some(eval, args)),
-        "cl-notevery" => return Some(super::cl_lib::builtin_cl_notevery(eval, args)),
-        "cl-notany" => return Some(super::cl_lib::builtin_cl_notany(eval, args)),
-        "cl-reduce" => return Some(super::cl_lib::builtin_cl_reduce(eval, args)),
-        "cl-remove-if" => return Some(super::cl_lib::builtin_cl_remove_if(eval, args)),
-        "cl-remove-if-not" => return Some(super::cl_lib::builtin_cl_remove_if_not(eval, args)),
-        "cl-find-if" => return Some(super::cl_lib::builtin_cl_find_if(eval, args)),
-        "cl-count-if" => return Some(super::cl_lib::builtin_cl_count_if(eval, args)),
-        "cl-sort" => return Some(super::cl_lib::builtin_cl_sort(eval, args)),
-        "cl-stable-sort" => return Some(super::cl_lib::builtin_cl_stable_sort(eval, args)),
         "seq-position" => return Some(super::cl_lib::builtin_seq_position(eval, args)),
         "seq-contains-p" => return Some(super::cl_lib::builtin_seq_contains_p(eval, args)),
         "seq-mapn" => return Some(super::cl_lib::builtin_seq_mapn(eval, args)),
@@ -6395,10 +6382,6 @@ pub(crate) fn dispatch_builtin(
         "bignump" => super::builtins_extra::builtin_bignump(args),
         "wholenump" => super::builtins_extra::builtin_wholenump(args),
         "zerop" => super::builtins_extra::builtin_zerop(args),
-        "cl-oddp" => super::builtins_extra::builtin_cl_oddp(args),
-        "cl-evenp" => super::builtins_extra::builtin_cl_evenp(args),
-        "cl-plusp" => super::builtins_extra::builtin_cl_plusp(args),
-        "cl-minusp" => super::builtins_extra::builtin_cl_minusp(args),
         "user-login-name" => super::builtins_extra::builtin_user_login_name(args),
         "user-real-login-name" => super::builtins_extra::builtin_user_real_login_name(args),
         "user-full-name" => super::builtins_extra::builtin_user_full_name(args),
@@ -6406,7 +6389,6 @@ pub(crate) fn dispatch_builtin(
         "emacs-version" => super::builtins_extra::builtin_emacs_version(args),
         "emacs-pid" => super::builtins_extra::builtin_emacs_pid(args),
         "garbage-collect" => super::builtins_extra::builtin_garbage_collect(args),
-        "cl-gensym" => super::builtins_extra::builtin_cl_gensym(args),
         // Note: overlayp is in the eval-dependent section above
 
         // Autoload (pure)
@@ -6666,33 +6648,6 @@ pub(crate) fn dispatch_builtin(
 
         // Note: windowp and framep are in the eval-dependent section above
 
-        // CL-lib (pure)
-        "cl-find" => super::cl_lib::builtin_cl_find(args),
-        "cl-position" => super::cl_lib::builtin_cl_position(args),
-        "cl-count" => super::cl_lib::builtin_cl_count(args),
-        "cl-remove" => super::cl_lib::builtin_cl_remove(args),
-        "cl-substitute" => super::cl_lib::builtin_cl_substitute(args),
-        "cl-intersection" => super::cl_lib::builtin_cl_intersection(args),
-        "cl-union" => super::cl_lib::builtin_cl_union(args),
-        "cl-set-difference" => super::cl_lib::builtin_cl_set_difference(args),
-        "cl-subsetp" => super::cl_lib::builtin_cl_subsetp(args),
-        "cl-adjoin" => super::cl_lib::builtin_cl_adjoin(args),
-        "cl-remove-duplicates" => super::cl_lib::builtin_cl_remove_duplicates(args),
-        "cl-first" => super::cl_lib::builtin_cl_first(args),
-        "cl-second" => super::cl_lib::builtin_cl_second(args),
-        "cl-third" => super::cl_lib::builtin_cl_third(args),
-        "cl-fourth" => super::cl_lib::builtin_cl_fourth(args),
-        "cl-fifth" => super::cl_lib::builtin_cl_fifth(args),
-        "cl-sixth" => super::cl_lib::builtin_cl_sixth(args),
-        "cl-seventh" => super::cl_lib::builtin_cl_seventh(args),
-        "cl-eighth" => super::cl_lib::builtin_cl_eighth(args),
-        "cl-ninth" => super::cl_lib::builtin_cl_ninth(args),
-        "cl-tenth" => super::cl_lib::builtin_cl_tenth(args),
-        "cl-rest" => super::cl_lib::builtin_cl_rest(args),
-        "cl-subseq" => super::cl_lib::builtin_cl_subseq(args),
-        "cl-concatenate" => super::cl_lib::builtin_cl_concatenate(args),
-        "cl-coerce" => super::cl_lib::builtin_cl_coerce(args),
-        "cl-member" => super::cl_lib::builtin_cl_member(args),
         "seq-reverse" => super::cl_lib::builtin_seq_reverse(args),
         "seq-drop" => super::cl_lib::builtin_seq_drop(args),
         "seq-take" => super::cl_lib::builtin_seq_take(args),
