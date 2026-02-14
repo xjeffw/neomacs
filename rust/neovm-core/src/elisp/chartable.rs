@@ -619,28 +619,6 @@ pub(crate) fn builtin_bool_vector_exclusive_or(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// `(bool-vector-complement BV &optional C)` -- bitwise NOT.
-pub(crate) fn builtin_bool_vector_complement(args: Vec<Value>) -> EvalResult {
-    expect_min_args("bool-vector-complement", &args, 1)?;
-    expect_max_args("bool-vector-complement", &args, 2)?;
-    let bv = &args[0];
-    let arc = match bv {
-        Value::Vector(a) if is_bool_vector(bv) => a,
-        _ => return Err(wrong_type("bool-vector-p", bv)),
-    };
-    let vec = arc.lock().expect("poisoned");
-    let bits = bv_bits(&vec);
-    drop(vec);
-    let result_bits: Vec<bool> = bits.iter().map(|&b| !b).collect();
-
-    if args.len() == 2 {
-        store_bv_result(&args[1], &result_bits)?;
-        Ok(args[1].clone())
-    } else {
-        Ok(bv_from_bits(&result_bits))
-    }
-}
-
 /// `(bool-vector-subsetp A B)` -- return t if every true bit in A is also true
 /// in B.
 pub(crate) fn builtin_bool_vector_subsetp(args: Vec<Value>) -> EvalResult {
@@ -975,13 +953,6 @@ mod tests {
     }
 
     #[test]
-    fn bool_vector_complement() {
-        let bv = make_bv(&[true, false, true]);
-        let result = builtin_bool_vector_complement(vec![bv]).unwrap();
-        assert_bv_bits(&result, &[false, true, false]);
-    }
-
-    #[test]
     fn bool_vector_subsetp_true() {
         let a = make_bv(&[true, false, false]);
         let b = make_bv(&[true, true, false]);
@@ -1022,8 +993,6 @@ mod tests {
     fn bool_vector_wrong_type_signals() {
         let result = builtin_bool_vector_count_population(vec![Value::Int(0)]);
         assert!(result.is_err());
-        let result = builtin_bool_vector_complement(vec![Value::Nil]);
-        assert!(result.is_err());
     }
 
     #[test]
@@ -1053,14 +1022,6 @@ mod tests {
         let dest = make_bv(&[false, false, false]);
         builtin_bool_vector_union(vec![a, b, dest.clone()]).unwrap();
         assert_bv_bits(&dest, &[true, true, false]);
-    }
-
-    #[test]
-    fn bool_vector_complement_into_dest() {
-        let bv = make_bv(&[true, false]);
-        let dest = make_bv(&[false, false]);
-        builtin_bool_vector_complement(vec![bv, dest.clone()]).unwrap();
-        assert_bv_bits(&dest, &[false, true]);
     }
 
     #[test]
