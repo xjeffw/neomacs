@@ -90,7 +90,7 @@ pub use error::{format_eval_result, EvalError};
 pub use eval::Evaluator;
 pub use expr::{print_expr, Expr, ParseError};
 pub use parser::parse_forms;
-pub use print::print_value;
+pub use print::{print_value, print_value_bytes};
 pub use symbol::Obarray;
 pub use value::{ConsCell, LambdaData, LambdaParams, Value};
 

@@ -1,7 +1,7 @@
 //! Value printing (Lisp representation).
 
 use super::expr::{self, Expr};
-use super::string_escape::format_lisp_string;
+use super::string_escape::{format_lisp_string, format_lisp_string_bytes};
 use super::value::{list_to_vec, Value};
 
 /// Print a `Value` as a Lisp string.
@@ -62,6 +62,81 @@ pub fn print_value(value: &Value) -> String {
         }
         Value::Buffer(id) => format!("#<buffer {}>", id.0),
         Value::Timer(id) => format!("#<timer {}>", id),
+    }
+}
+
+/// Print a `Value` as a Lisp byte sequence.
+///
+/// This preserves non-UTF-8 byte payloads encoded via NeoVM string sentinels.
+pub fn print_value_bytes(value: &Value) -> Vec<u8> {
+    let mut out = Vec::new();
+    append_print_value_bytes(value, &mut out);
+    out
+}
+
+fn append_print_value_bytes(value: &Value, out: &mut Vec<u8>) {
+    match value {
+        Value::Nil => out.extend_from_slice(b"nil"),
+        Value::True => out.extend_from_slice(b"t"),
+        Value::Int(v) => out.extend_from_slice(v.to_string().as_bytes()),
+        Value::Float(f) => out.extend_from_slice(format_float(*f).as_bytes()),
+        Value::Symbol(s) => out.extend_from_slice(s.as_bytes()),
+        Value::Keyword(s) => out.extend_from_slice(s.as_bytes()),
+        Value::Str(s) => out.extend_from_slice(&format_lisp_string_bytes(s)),
+        Value::Char(c) => out.extend_from_slice((*c as u32).to_string().as_bytes()),
+        Value::Cons(_) => {
+            if let Some(shorthand) = print_list_shorthand_bytes(value) {
+                out.extend_from_slice(&shorthand);
+                return;
+            }
+            out.push(b'(');
+            print_cons_bytes(value, out);
+            out.push(b')');
+        }
+        Value::Vector(v) => {
+            out.push(b'[');
+            let items = v.lock().expect("poisoned");
+            for (idx, item) in items.iter().enumerate() {
+                if idx > 0 {
+                    out.push(b' ');
+                }
+                append_print_value_bytes(item, out);
+            }
+            out.push(b']');
+        }
+        Value::HashTable(_) => out.extend_from_slice(b"#<hash-table>"),
+        Value::Lambda(lambda) => {
+            let params = format_params(&lambda.params);
+            let body = lambda
+                .body
+                .iter()
+                .map(|e| expr::print_expr(e))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let text = if lambda.env.is_some() {
+                format!("(closure {} {})", params, body)
+            } else {
+                format!("(lambda {} {})", params, body)
+            };
+            out.extend_from_slice(text.as_bytes());
+        }
+        Value::Macro(m) => {
+            let params = format_params(&m.params);
+            let body = m
+                .body
+                .iter()
+                .map(|e| expr::print_expr(e))
+                .collect::<Vec<_>>()
+                .join(" ");
+            out.extend_from_slice(format!("(macro {} {})", params, body).as_bytes());
+        }
+        Value::Subr(name) => out.extend_from_slice(format!("#<subr {}>", name).as_bytes()),
+        Value::ByteCode(bc) => {
+            let params = format_params(&bc.params);
+            out.extend_from_slice(format!("#<bytecode {} ({} ops)>", params, bc.ops.len()).as_bytes());
+        }
+        Value::Buffer(id) => out.extend_from_slice(format!("#<buffer {}>", id.0).as_bytes()),
+        Value::Timer(id) => out.extend_from_slice(format!("#<timer {}>", id).as_bytes()),
     }
 }
 
@@ -133,6 +208,32 @@ fn print_list_shorthand(value: &Value) -> Option<String> {
     Some(format!("{prefix}{}", print_value(&items[1])))
 }
 
+fn print_list_shorthand_bytes(value: &Value) -> Option<Vec<u8>> {
+    let items = list_to_vec(value)?;
+    if items.len() != 2 {
+        return None;
+    }
+
+    let head = match &items[0] {
+        Value::Symbol(name) => name.as_str(),
+        _ => return None,
+    };
+
+    let prefix: &[u8] = match head {
+        "quote" => b"'",
+        "function" => b"#'",
+        "\\`" => b"`",
+        "\\," => b",",
+        "\\,@" => b",@",
+        _ => return None,
+    };
+
+    let mut out = Vec::new();
+    out.extend_from_slice(prefix);
+    append_print_value_bytes(&items[1], &mut out);
+    Some(out)
+}
+
 fn print_cons(value: &Value, out: &mut String) {
     let mut cursor = value.clone();
     let mut first = true;
@@ -153,6 +254,32 @@ fn print_cons(value: &Value, out: &mut String) {
                     out.push_str(" . ");
                 }
                 out.push_str(&print_value(&other));
+                return;
+            }
+        }
+    }
+}
+
+fn print_cons_bytes(value: &Value, out: &mut Vec<u8>) {
+    let mut cursor = value.clone();
+    let mut first = true;
+    loop {
+        match cursor {
+            Value::Cons(cell) => {
+                if !first {
+                    out.push(b' ');
+                }
+                let pair = cell.lock().expect("poisoned");
+                append_print_value_bytes(&pair.car, out);
+                cursor = pair.cdr.clone();
+                first = false;
+            }
+            Value::Nil => return,
+            other => {
+                if !first {
+                    out.extend_from_slice(b" . ");
+                }
+                append_print_value_bytes(&other, out);
                 return;
             }
         }
@@ -184,6 +311,12 @@ mod tests {
     #[test]
     fn print_string_keeps_non_bmp_visible() {
         assert_eq!(print_value(&Value::string("\u{10ffff}")), "\"\u{10ffff}\"");
+    }
+
+    #[test]
+    fn print_string_bytes_preserve_non_utf8_payloads() {
+        let raw = char::from_u32(0xE0FF).expect("raw-byte sentinel");
+        assert_eq!(print_value_bytes(&Value::string(raw.to_string())), b"\"\\377\"");
     }
 
     #[test]
