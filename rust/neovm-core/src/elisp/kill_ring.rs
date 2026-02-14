@@ -138,6 +138,90 @@ fn pivot_sexp_at_point_or_after(
     next_sexp_after(buf, table, pt)
 }
 
+fn is_text_whitespace(ch: char) -> bool {
+    matches!(ch, ' ' | '\t' | '\n' | '\r')
+}
+
+fn skip_text_whitespace_forward(buf: &Buffer, mut pos: usize) -> usize {
+    let pmax = buf.point_max();
+    while pos < pmax {
+        let Some(ch) = buf.char_after(pos) else {
+            break;
+        };
+        if !is_text_whitespace(ch) {
+            break;
+        }
+        pos += ch.len_utf8();
+    }
+    pos
+}
+
+fn is_sentence_terminator(ch: char) -> bool {
+    matches!(ch, '.' | '!' | '?')
+}
+
+fn collect_sentence_spans(buf: &Buffer) -> Vec<(usize, usize)> {
+    let pmin = buf.point_min();
+    let pmax = buf.point_max();
+    let mut spans = Vec::new();
+    let mut pos = skip_text_whitespace_forward(buf, pmin);
+
+    while pos < pmax {
+        let start = pos;
+        let mut end = pmax;
+        let mut scan = pos;
+
+        while scan < pmax {
+            let Some(ch) = buf.char_after(scan) else {
+                break;
+            };
+            scan += ch.len_utf8();
+
+            if !is_sentence_terminator(ch) {
+                continue;
+            }
+
+            if scan >= pmax {
+                end = scan;
+                break;
+            }
+
+            let mut look = scan;
+            let mut spaces = 0usize;
+            while look < pmax {
+                let Some(next) = buf.char_after(look) else {
+                    break;
+                };
+                if next == ' ' || next == '\t' {
+                    spaces += 1;
+                    look += next.len_utf8();
+                } else {
+                    break;
+                }
+            }
+
+            let newline_break = look < pmax
+                && buf
+                    .char_after(look)
+                    .is_some_and(|next| next == '\n' || next == '\r');
+
+            // Emacs defaults to `sentence-end-double-space` semantics.
+            if spaces >= 2 || newline_break {
+                end = scan;
+                break;
+            }
+        }
+
+        spans.push((start, end));
+        if end >= pmax {
+            break;
+        }
+        pos = skip_text_whitespace_forward(buf, end);
+    }
+
+    spans
+}
+
 // ===========================================================================
 // KillRing data structure
 // ===========================================================================
@@ -1501,6 +1585,99 @@ pub(crate) fn builtin_transpose_sexps(
     Ok(Value::Nil)
 }
 
+/// `(transpose-sentences ARG)` — interchange sentences around point.
+pub(crate) fn builtin_transpose_sentences(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("transpose-sentences", &args, 1)?;
+    let n = expect_int(&args[0])?;
+    if n == 0 {
+        return Ok(Value::Nil);
+    }
+
+    let buf = eval
+        .buffers
+        .current_buffer()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    if buf.read_only {
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
+    }
+
+    let steps = n.unsigned_abs() as usize;
+    let backward = n < 0;
+
+    for _ in 0..steps {
+        let (s1, e1, s2, e2) = {
+            let buf = eval
+                .buffers
+                .current_buffer()
+                .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+            let spans = collect_sentence_spans(buf);
+            if spans.is_empty() {
+                return Err(signal("end-of-buffer", vec![]));
+            }
+            let pt = buf.point();
+            let pivot_idx = spans
+                .iter()
+                .enumerate()
+                .find_map(|(idx, (start, end))| {
+                    if (pt >= *start && pt <= *end) || pt < *start {
+                        Some(idx)
+                    } else {
+                        None
+                    }
+                })
+                .ok_or_else(|| signal("end-of-buffer", vec![]))?;
+
+            let (first_idx, second_idx) = if backward {
+                if pivot_idx == 0 {
+                    return Err(signal("beginning-of-buffer", vec![]));
+                }
+                (pivot_idx - 1, pivot_idx)
+            } else if pivot_idx > 0 {
+                (pivot_idx - 1, pivot_idx)
+            } else if spans.len() > 1 {
+                (0, 1)
+            } else {
+                return Err(signal("end-of-buffer", vec![]));
+            };
+
+            let (first_start, first_end) = spans[first_idx];
+            let (second_start, second_end) = spans[second_idx];
+            (first_start, first_end, second_start, second_end)
+        };
+
+        let (sentence_a, between, sentence_b) = {
+            let buf_r = eval
+                .buffers
+                .current_buffer()
+                .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+            (
+                buf_r.buffer_substring(s1, e1),
+                buf_r.buffer_substring(e1, s2),
+                buf_r.buffer_substring(s2, e2),
+            )
+        };
+
+        let buf_m = eval
+            .buffers
+            .current_buffer_mut()
+            .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+        buf_m.delete_region(s1, e2);
+        buf_m.goto_char(s1);
+        buf_m.insert(&sentence_b);
+        buf_m.insert(&between);
+        buf_m.insert(&sentence_a);
+        buf_m.goto_char(s1 + sentence_b.len() + between.len() + sentence_a.len());
+    }
+
+    Ok(Value::Nil)
+}
+
 /// `(transpose-lines ARG)` — interchange lines around point.
 pub(crate) fn builtin_transpose_lines(
     eval: &mut super::eval::Evaluator,
@@ -2673,6 +2850,30 @@ mod tests {
                (list (buffer-string) (point))"#,
         );
         assert_eq!(results[3], r#"OK ("(aa) (bb)" 5)"#);
+    }
+
+    // -- transpose-sentences tests --
+
+    #[test]
+    fn transpose_sentences_basic() {
+        let results = eval_all(
+            r#"(insert "One.  Two.")
+               (goto-char 1)
+               (transpose-sentences 1)
+               (list (buffer-string) (point))"#,
+        );
+        assert_eq!(results[3], r#"OK ("Two.  One." 11)"#);
+    }
+
+    #[test]
+    fn transpose_sentences_with_single_space_signals_end_of_buffer() {
+        let result = eval_one(
+            r#"(with-temp-buffer
+                 (insert "One. Two.")
+                 (goto-char 1)
+                 (transpose-sentences 1))"#,
+        );
+        assert!(result.starts_with("ERR (end-of-buffer"));
     }
 
     // -- indent-line-to tests --

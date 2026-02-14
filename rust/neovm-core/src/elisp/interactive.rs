@@ -244,6 +244,7 @@ fn builtin_command_name(name: &str) -> bool {
             | "yank-pop"
             | "transpose-chars"
             | "transpose-lines"
+            | "transpose-sentences"
             | "transpose-sexps"
             | "transpose-words"
             | "open-line"
@@ -431,6 +432,7 @@ fn default_command_execute_args(eval: &Evaluator, name: &str) -> Result<Vec<Valu
         | "upcase-word"
         | "capitalize-word"
         | "transpose-lines"
+        | "transpose-sentences"
         | "transpose-sexps"
         | "transpose-words" => Ok(vec![Value::Int(1)]),
         "kill-region" => interactive_region_args(eval, "user-error"),
@@ -1862,6 +1864,7 @@ mod tests {
             "yank-pop",
             "transpose-chars",
             "transpose-lines",
+            "transpose-sentences",
             "transpose-sexps",
             "upcase-word",
             "downcase-word",
@@ -2443,6 +2446,34 @@ mod tests {
                  (buffer-string))"#,
         );
         assert_eq!(results[0], "OK \"(bb) (aa)\"");
+    }
+
+    #[test]
+    fn command_execute_builtin_transpose_sentences_uses_default_prefix_arg() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "One.  Two.")
+                 (goto-char 1)
+                 (command-execute 'transpose-sentences)
+                 (buffer-string))"#,
+        );
+        assert_eq!(results[0], "OK \"Two.  One.\"");
+    }
+
+    #[test]
+    fn call_interactively_builtin_transpose_sentences_uses_default_prefix_arg() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "One.  Two.")
+                 (goto-char 1)
+                 (call-interactively 'transpose-sentences)
+                 (buffer-string))"#,
+        );
+        assert_eq!(results[0], "OK \"Two.  One.\"");
     }
 
     #[test]
