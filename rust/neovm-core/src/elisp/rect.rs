@@ -4,7 +4,7 @@
 //! - `extract-rectangle`, `delete-rectangle`, `kill-rectangle`
 //! - `yank-rectangle`, `insert-rectangle`, `open-rectangle`
 //! - `clear-rectangle`, `string-rectangle`, `replace-rectangle`
-//! - `delete-extract-rectangle`, `extract-rectangle-line`
+//! - `delete-extract-rectangle`
 //!
 //! These are stub implementations that register the correct function
 //! signatures so Elisp code can reference them.  Full column-aware
@@ -132,22 +132,6 @@ fn line_count_between(eval: &super::eval::Evaluator, start: i64, end: i64) -> us
 // ---------------------------------------------------------------------------
 // Eval-dependent builtins
 // ---------------------------------------------------------------------------
-
-/// `(extract-rectangle-line START END)` -- helper: extract text from a
-/// single line between column positions.
-///
-/// Stub: returns an empty string.  Full implementation requires column-aware
-/// buffer access.
-pub(crate) fn builtin_extract_rectangle_line(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_args("extract-rectangle-line", &args, 2)?;
-    let _start = expect_int(&args[0])?;
-    let _end = expect_int(&args[1])?;
-    // Stub: return empty string for the line.
-    Ok(Value::string(""))
-}
 
 /// `(extract-rectangle START END)` -- return a list of strings, one per line,
 /// representing the rectangular region between START and END.
@@ -356,21 +340,6 @@ mod tests {
     fn rectangle_state_default_trait() {
         let state = RectangleState::default();
         assert!(state.killed.is_empty());
-    }
-
-    #[test]
-    fn extract_rectangle_line_wrong_arity() {
-        let mut eval = super::super::eval::Evaluator::new();
-        let result = builtin_extract_rectangle_line(&mut eval, vec![Value::Int(1)]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn extract_rectangle_line_returns_string() {
-        let mut eval = super::super::eval::Evaluator::new();
-        let result = builtin_extract_rectangle_line(&mut eval, vec![Value::Int(1), Value::Int(10)]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_string());
     }
 
     #[test]
