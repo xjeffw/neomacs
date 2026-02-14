@@ -1,0 +1,6 @@
+(fset 'vm-fsetint 1)
+(fboundp 'vm-fsetint)
+(symbol-function 'vm-fsetint)
+(condition-case err (vm-fsetint) (error err))
+(condition-case err (funcall 'vm-fsetint) (error err))
+(condition-case err (apply 'vm-fsetint nil) (error err))
