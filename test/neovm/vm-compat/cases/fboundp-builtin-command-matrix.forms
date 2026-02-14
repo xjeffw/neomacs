@@ -24,6 +24,7 @@
 (fboundp 'yank-pop)
 (fboundp 'transpose-chars)
 (fboundp 'transpose-lines)
+(fboundp 'transpose-sexps)
 (fboundp 'upcase-word)
 (fboundp 'downcase-word)
 (fboundp 'capitalize-word)
