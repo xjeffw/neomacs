@@ -2301,7 +2301,11 @@ pub(crate) fn builtin_featurep(eval: &mut super::eval::Evaluator, args: Vec<Valu
 fn eval_error_to_flow(e: super::error::EvalError) -> Flow {
     match e {
         super::error::EvalError::Signal { symbol, data } => {
-            Flow::Signal(super::error::SignalData { symbol, data })
+            Flow::Signal(super::error::SignalData {
+                symbol,
+                data,
+                raw_data: None,
+            })
         }
         super::error::EvalError::UncaughtThrow { tag, value } => Flow::Throw { tag, value },
     }

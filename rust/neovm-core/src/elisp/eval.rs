@@ -1194,6 +1194,7 @@ impl Evaluator {
                 let no_catch = SignalData {
                     symbol: "no-catch".to_string(),
                     data: vec![tag.clone(), value.clone()],
+                    raw_data: None,
                 };
 
                 for handler in handlers {

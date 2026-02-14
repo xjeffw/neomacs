@@ -17,7 +17,7 @@
 
 use std::collections::HashMap;
 
-use super::error::{make_signal_binding_value, signal, EvalResult, Flow};
+use super::error::{make_signal_binding_value, signal, signal_with_data, EvalResult, Flow};
 use super::value::{eq_value, Value};
 
 // ---------------------------------------------------------------------------
@@ -635,9 +635,16 @@ pub(crate) fn builtin_thread_signal(
         ));
     }
     let error_symbol = args[1].clone();
+    let Some(error_name) = error_symbol.as_symbol_name() else {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("symbolp"), error_symbol],
+        ));
+    };
     let data = args[2].clone();
-    let error_val = Value::list(vec![error_symbol, data]);
-    eval.threads.signal_thread(id, error_val);
+    if id == eval.threads.current_thread_id() {
+        return Err(signal_with_data(error_name, data));
+    }
     Ok(Value::Nil)
 }
 
@@ -1242,7 +1249,7 @@ mod tests {
     }
 
     #[test]
-    fn test_builtin_thread_signal_records_error() {
+    fn test_builtin_thread_signal_non_current_is_noop() {
         let mut eval = Evaluator::new();
         let tid_val = builtin_make_thread(
             &mut eval,
@@ -1263,10 +1270,27 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        // last-error should be set
+        // Signaling an already-finished non-current thread does not set global last-error.
         let err = builtin_thread_last_error(&mut eval, vec![]);
         assert!(err.is_ok());
-        assert!(err.unwrap().is_truthy());
+        assert!(err.unwrap().is_nil());
+    }
+
+    #[test]
+    fn test_builtin_thread_signal_current_thread_raises() {
+        let mut eval = Evaluator::new();
+        let current = builtin_current_thread(&mut eval, vec![]).unwrap();
+        let result = builtin_thread_signal(
+            &mut eval,
+            vec![current, Value::symbol("foo"), Value::Int(1)],
+        );
+        match result {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "foo");
+                assert_eq!(sig.raw_data, Some(Value::Int(1)));
+            }
+            other => panic!("expected signal from thread-signal current thread, got {other:?}"),
+        }
     }
 
     #[test]

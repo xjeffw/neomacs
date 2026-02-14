@@ -477,7 +477,11 @@ pub(crate) fn builtin_read_non_nil_coding_system(args: Vec<Value>) -> EvalResult
 fn eval_error_to_flow(e: super::error::EvalError) -> Flow {
     match e {
         super::error::EvalError::Signal { symbol, data } => {
-            Flow::Signal(SignalData { symbol, data })
+            Flow::Signal(SignalData {
+                symbol,
+                data,
+                raw_data: None,
+            })
         }
         super::error::EvalError::UncaughtThrow { tag, value } => Flow::Throw { tag, value },
     }

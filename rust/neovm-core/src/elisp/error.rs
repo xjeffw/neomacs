@@ -46,6 +46,8 @@ pub(crate) enum Flow {
 pub(crate) struct SignalData {
     pub symbol: String,
     pub data: Vec<Value>,
+    /// Original cdr payload when a signal uses non-list data.
+    pub raw_data: Option<Value>,
 }
 
 pub(crate) type EvalResult = Result<Value, Flow>;
@@ -55,6 +57,19 @@ pub(crate) fn signal(symbol: &str, data: Vec<Value>) -> Flow {
     Flow::Signal(SignalData {
         symbol: symbol.to_string(),
         data,
+        raw_data: None,
+    })
+}
+
+/// Create a signal where DATA is used as the raw cdr payload.
+///
+/// This preserves dotted signal data shapes such as `(foo . 1)`.
+pub(crate) fn signal_with_data(symbol: &str, data: Value) -> Flow {
+    let normalized = super::value::list_to_vec(&data).unwrap_or_else(|| vec![data.clone()]);
+    Flow::Signal(SignalData {
+        symbol: symbol.to_string(),
+        data: normalized,
+        raw_data: Some(data),
     })
 }
 
@@ -81,6 +96,9 @@ pub(crate) fn signal_matches(pattern: &super::expr::Expr, symbol: &str) -> bool 
 
 /// Build the binding value for condition-case variable: (symbol . data)
 pub(crate) fn make_signal_binding_value(sig: &SignalData) -> Value {
+    if let Some(raw) = &sig.raw_data {
+        return Value::cons(Value::symbol(sig.symbol.clone()), raw.clone());
+    }
     let mut values = Vec::with_capacity(sig.data.len() + 1);
     values.push(Value::symbol(sig.symbol.clone()));
     values.extend(sig.data.clone());
