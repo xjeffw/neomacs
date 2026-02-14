@@ -18,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 
 /// Information about a single charset.
 struct CharsetInfo {
+    id: i64,
     name: String,
     doc: String,
     dimension: u8,
@@ -46,6 +47,7 @@ impl CharsetRegistry {
 
     fn init_standard_charsets(&mut self) {
         self.register(CharsetInfo {
+            id: 0,
             name: "ascii".to_string(),
             doc: "ASCII (ISO646 IRV)".to_string(),
             dimension: 1,
@@ -54,6 +56,7 @@ impl CharsetRegistry {
             plist: vec![],
         });
         self.register(CharsetInfo {
+            id: 2,
             name: "unicode".to_string(),
             doc: "Unicode (ISO10646)".to_string(),
             dimension: 3,
@@ -62,6 +65,7 @@ impl CharsetRegistry {
             plist: vec![],
         });
         self.register(CharsetInfo {
+            id: 144,
             name: "unicode-bmp".to_string(),
             doc: "Unicode Basic Multilingual Plane (BMP)".to_string(),
             dimension: 2,
@@ -70,6 +74,7 @@ impl CharsetRegistry {
             plist: vec![],
         });
         self.register(CharsetInfo {
+            id: 5,
             name: "latin-iso8859-1".to_string(),
             doc: "ISO/IEC 8859/1 (Latin-1)".to_string(),
             dimension: 1,
@@ -78,6 +83,7 @@ impl CharsetRegistry {
             plist: vec![],
         });
         self.register(CharsetInfo {
+            id: 3,
             name: "emacs".to_string(),
             doc: "Full Emacs character set (Unicode + eight-bit)".to_string(),
             dimension: 3,
@@ -86,6 +92,7 @@ impl CharsetRegistry {
             plist: vec![],
         });
         self.register(CharsetInfo {
+            id: 4,
             name: "eight-bit".to_string(),
             doc: "Raw bytes 0x80..0xFF".to_string(),
             dimension: 1,
@@ -148,6 +155,11 @@ impl CharsetRegistry {
     /// Return the plist for a charset, or None if not found.
     pub fn plist(&self, name: &str) -> Option<&[(String, Value)]> {
         self.charsets.get(name).map(|info| info.plist.as_slice())
+    }
+
+    /// Return the internal ID for a charset, if known.
+    pub fn id(&self, name: &str) -> Option<i64> {
+        self.charsets.get(name).map(|info| info.id)
     }
 }
 
@@ -327,10 +339,29 @@ pub(crate) fn builtin_charset_plist(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// `(charset-id-internal &optional CHARSET)` -- return 0 (stub).
+/// `(charset-id-internal &optional CHARSET)` -- return internal charset id.
 pub(crate) fn builtin_charset_id_internal(args: Vec<Value>) -> EvalResult {
     expect_max_args("charset-id-internal", &args, 1)?;
-    Ok(Value::Int(0))
+    let arg = args.first().cloned().unwrap_or(Value::Nil);
+    let name = match &arg {
+        Value::Symbol(name) => name,
+        _ => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("charsetp"), arg],
+            ))
+        }
+    };
+
+    let reg = global_registry().lock().expect("poisoned");
+    if let Some(id) = reg.id(name) {
+        Ok(Value::Int(id))
+    } else {
+        Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("charsetp"), Value::symbol(name.clone())],
+        ))
+    }
 }
 
 /// `(define-charset-internal &rest ARGS)` -- stub, return nil.
@@ -666,15 +697,42 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn charset_id_internal_returns_zero() {
-        let r = builtin_charset_id_internal(vec![]).unwrap();
+    fn charset_id_internal_requires_charset() {
+        let r = builtin_charset_id_internal(vec![]);
+        match r {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("charsetp"), Value::Nil]);
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn charset_id_internal_with_ascii() {
+        let r = builtin_charset_id_internal(vec![Value::symbol("ascii")]).unwrap();
         assert!(matches!(r, Value::Int(0)));
     }
 
     #[test]
-    fn charset_id_internal_with_arg() {
-        let r = builtin_charset_id_internal(vec![Value::symbol("ascii")]).unwrap();
-        assert!(matches!(r, Value::Int(0)));
+    fn charset_id_internal_with_unicode() {
+        let r = builtin_charset_id_internal(vec![Value::symbol("unicode")]).unwrap();
+        assert!(matches!(r, Value::Int(2)));
+    }
+
+    #[test]
+    fn charset_id_internal_unknown_is_type_error() {
+        let r = builtin_charset_id_internal(vec![Value::symbol("vm-no-such")]);
+        match r {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("charsetp"), Value::symbol("vm-no-such")]
+                );
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
     }
 
     #[test]
