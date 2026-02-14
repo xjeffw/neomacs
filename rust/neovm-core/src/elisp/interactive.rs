@@ -467,6 +467,72 @@ pub(crate) fn builtin_keyboard_quit(_eval: &mut Evaluator, args: Vec<Value>) -> 
     Err(signal("quit", vec![]))
 }
 
+/// `(find-file &optional FILENAME WILDCARDS)` -- visit FILENAME.
+///
+/// In batch mode interactive invocation without FILENAME signals EOF.
+pub(crate) fn builtin_find_file_command(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
+    if args.is_empty() || args[0].is_nil() {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("Error reading from stdin")],
+        ));
+    }
+    super::fileio::builtin_find_file_noselect(eval, vec![args[0].clone()])
+}
+
+/// `(save-buffer &optional ARG)` -- save current buffer.
+///
+/// In batch mode interactive invocation prompts for a file name and hits EOF.
+pub(crate) fn builtin_save_buffer_command(_eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
+    if args.is_empty() || args[0].is_nil() {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("Error reading from stdin")],
+        ));
+    }
+    Ok(Value::Nil)
+}
+
+/// `(set-mark-command ARG)` -- set mark and activate region.
+pub(crate) fn builtin_set_mark_command(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
+    let mut push_args = vec![Value::Nil, Value::Nil, Value::True];
+    if let Some(arg) = args.first() {
+        push_args[0] = arg.clone();
+    }
+    super::navigation::builtin_push_mark(eval, push_args)
+}
+
+/// `(quoted-insert &optional ARG)` -- read a character and insert it.
+///
+/// In batch mode interactive invocation hits EOF while reading input.
+pub(crate) fn builtin_quoted_insert_command(
+    _eval: &mut Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    if args.is_empty() || args[0].is_nil() {
+        return Err(signal(
+            "end-of-file",
+            vec![Value::string("Error reading from stdin")],
+        ));
+    }
+    if !matches!(&args[0], Value::Int(_)) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("fixnump"), args[0].clone()],
+        ));
+    }
+    Ok(Value::Nil)
+}
+
+/// `(universal-argument)` -- initialize a prefix argument command state.
+pub(crate) fn builtin_universal_argument_command(
+    _eval: &mut Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("universal-argument", &args, 0)?;
+    Ok(Value::symbol("universal-argument"))
+}
+
 /// `(execute-extended-command PREFIXARG &optional COMMAND-NAME TYPED)`
 /// Read a command name and execute it. This is the M-x equivalent.
 /// In our stub implementation, COMMAND-NAME must be provided.
@@ -2144,6 +2210,64 @@ mod tests {
         let result = builtin_command_execute(&mut ev, vec![Value::symbol("self-insert-command")])
             .expect("self-insert-command should execute");
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn command_execute_builtin_find_file_reads_stdin_in_batch() {
+        let mut ev = Evaluator::new();
+        let result = builtin_command_execute(&mut ev, vec![Value::symbol("find-file")])
+            .expect_err("command-execute find-file should signal end-of-file in batch");
+        match result {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "end-of-file");
+                assert_eq!(sig.data, vec![Value::string("Error reading from stdin")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_execute_builtin_save_buffer_reads_stdin_in_batch() {
+        let mut ev = Evaluator::new();
+        let result = builtin_command_execute(&mut ev, vec![Value::symbol("save-buffer")])
+            .expect_err("command-execute save-buffer should signal end-of-file in batch");
+        match result {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "end-of-file");
+                assert_eq!(sig.data, vec![Value::string("Error reading from stdin")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_execute_builtin_set_mark_command_returns_nil() {
+        let mut ev = Evaluator::new();
+        let result = builtin_command_execute(&mut ev, vec![Value::symbol("set-mark-command")])
+            .expect("set-mark-command should execute");
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn command_execute_builtin_quoted_insert_reads_stdin_in_batch() {
+        let mut ev = Evaluator::new();
+        let result = builtin_command_execute(&mut ev, vec![Value::symbol("quoted-insert")])
+            .expect_err("command-execute quoted-insert should signal end-of-file in batch");
+        match result {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "end-of-file");
+                assert_eq!(sig.data, vec![Value::string("Error reading from stdin")]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn command_execute_builtin_universal_argument_returns_symbol() {
+        let mut ev = Evaluator::new();
+        let result = builtin_command_execute(&mut ev, vec![Value::symbol("universal-argument")])
+            .expect("universal-argument should execute");
+        assert_eq!(result.as_symbol_name(), Some("universal-argument"));
     }
 
     #[test]

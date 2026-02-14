@@ -5733,11 +5733,18 @@ pub(crate) fn dispatch_builtin(
         }
         "commandp" => return Some(super::interactive::builtin_commandp_interactive(eval, args)),
         "command-execute" => return Some(super::interactive::builtin_command_execute(eval, args)),
+        "find-file" => return Some(super::interactive::builtin_find_file_command(eval, args)),
+        "save-buffer" => return Some(super::interactive::builtin_save_buffer_command(eval, args)),
+        "set-mark-command" => return Some(super::interactive::builtin_set_mark_command(eval, args)),
         "eval-expression" => return Some(super::interactive::builtin_eval_expression(eval, args)),
         "self-insert-command" => {
             return Some(super::interactive::builtin_self_insert_command(eval, args))
         }
         "keyboard-quit" => return Some(super::interactive::builtin_keyboard_quit(eval, args)),
+        "quoted-insert" => return Some(super::interactive::builtin_quoted_insert_command(eval, args)),
+        "universal-argument" => {
+            return Some(super::interactive::builtin_universal_argument_command(eval, args))
+        }
         "execute-extended-command" => {
             return Some(super::interactive::builtin_execute_extended_command(
                 eval, args,
