@@ -18,6 +18,7 @@ cases/functionp-callable-matrix
 cases/commandp-semantics
 cases/commandp-builtin-command-matrix
 cases/command-dispatch-semantics
+cases/called-interactively-p-semantics
 cases/command-dispatch-default-arg-semantics
 cases/transpose-words-semantics
 cases/transpose-sexps-semantics
