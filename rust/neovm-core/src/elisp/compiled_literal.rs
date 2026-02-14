@@ -126,6 +126,7 @@ fn compiled_literal_vector_to_bytecode(
 fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> {
     enum Pending {
         Op(Op),
+        Goto(usize),
         GotoIfNil(usize),
         GotoIfNotNil(usize),
         GotoIfNilElsePop(usize),
@@ -288,6 +289,12 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
             0o057 => {
                 let n = read_u16_operand(&bytes, pc + 1)?;
                 pending.push(Pending::Op(Op::Unbind(n)));
+                pc += 3;
+            }
+            // goto (16-bit bytecode stream offset)
+            0o202 => {
+                let target = read_u16_operand(&bytes, pc + 1)? as usize;
+                pending.push(Pending::Goto(target));
                 pc += 3;
             }
             // goto-if-nil (16-bit bytecode stream offset)
@@ -624,6 +631,7 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
     for item in pending {
         let op = match item {
             Pending::Op(op) => op,
+            Pending::Goto(target) => Op::Goto(*byte_to_op_index.get(&target)? as u32),
             Pending::GotoIfNil(target) => {
                 Op::GotoIfNil(*byte_to_op_index.get(&target)? as u32)
             }
@@ -883,6 +891,24 @@ mod tests {
                 Op::Constant(2),
                 Op::Return,
             ]
+        );
+    }
+
+    #[test]
+    fn decodes_goto_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::Nil,
+            Value::string("\u{C0}\u{82}\u{5}\u{0}\u{C1}\u{87}"),
+            Value::vector(vec![Value::Int(10), Value::Int(20)]),
+            Value::Int(1),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(
+            bc.ops,
+            vec![Op::Constant(0), Op::Goto(3), Op::Constant(1), Op::Return]
         );
     }
 
