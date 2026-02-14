@@ -21,3 +21,21 @@
 21	(funcall (car (read-from-string "#[(x) \"\\10\\206\\5\\0\\301\\207\" [x 2] 1]")) nil)	OK 2
 22	(funcall (car (read-from-string "#[(x) \"\\10\\204\\6\\0\\301\\207\\302\\207\" [x 1 2] 1]")) nil)	OK 1
 23	(funcall (car (read-from-string "#[(x) \"\\10\\204\\6\\0\\301\\207\\302\\207\" [x 1 2] 1]")) t)	OK 2
+24	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\127\\207\" [x y] 2]")) 1 2)	OK t
+25	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\127\\207\" [x y] 2]")) 2 1)	OK nil
+26	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\126\\207\" [x y] 2]")) 2 1)	OK t
+27	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\130\\207\" [x y] 2]")) 2 2)	OK t
+28	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\131\\207\" [x y] 2]")) 1 2)	OK nil
+29	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\135\\207\" [x y] 2]")) 7 2)	OK 7
+30	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\136\\207\" [x y] 2]")) 7 2)	OK 2
+31	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\102\\207\" [x y] 2]")) 1 2)	OK (1 . 2)
+32	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\104\\207\" [x y] 2]")) 1 2)	OK (1 2)
+33	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\75\\207\" [x y] 2]")) 'a 'a)	OK t
+34	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\232\\207\" [x y] 2]")) '(1 2) '(1 2))	OK t
+35	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\76\\207\" [x y] 2]")) 'b '(a b c))	OK (b c)
+36	(funcall (car (read-from-string "#[(x y) \"\\10\\11\\236\\207\" [x y] 2]")) 'b '((a . 1) (b . 2)))	OK (b . 2)
+37	(funcall (car (read-from-string "#[(x) \"\\10\\71\\207\" [x] 1]")) 'x)	OK t
+38	(funcall (car (read-from-string "#[(x) \"\\10\\72\\207\" [x] 1]")) '(1 . 2))	OK t
+39	(funcall (car (read-from-string "#[(x) \"\\10\\77\\207\" [x] 1]")) nil)	OK t
+40	(let ((c (cons 1 2))) (funcall (car (read-from-string "#[(x y) \"\\10\\11\\240\\207\" [x y] 2]")) c 9) c)	OK (9 . 2)
+41	(let ((c (cons 1 2))) (funcall (car (read-from-string "#[(x y) \"\\10\\11\\241\\207\" [x y] 2]")) c 9) c)	OK (1 . 9)
