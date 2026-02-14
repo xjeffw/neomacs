@@ -200,13 +200,13 @@ pub fn init_standard_errors(obarray: &mut Obarray) {
     register_simple(
         obarray,
         "void-function",
-        "Symbol\u{2019}s function definition is void",
+        "Symbol's function definition is void",
         &["error"],
     );
     register_simple(
         obarray,
         "void-variable",
-        "Symbol\u{2019}s value as variable is void",
+        "Symbol's value as variable is void",
         &["error"],
     );
     register_simple(
