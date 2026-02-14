@@ -18,6 +18,7 @@ cases/commandp-semantics
 cases/commandp-builtin-command-matrix
 cases/command-dispatch-semantics
 cases/command-dispatch-line-motion-semantics
+cases/keyboard-quit-command-semantics
 cases/execute-extended-command-name-validation
 cases/funcall-apply-non-callable-matrix
 cases/funcall-arity-function-object-payloads
