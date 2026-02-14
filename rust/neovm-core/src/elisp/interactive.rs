@@ -177,7 +177,7 @@ pub(crate) fn builtin_call_interactively(eval: &mut Evaluator, args: Vec<Value>)
     let Some((resolved_name, func)) = resolve_command_target(eval, func_val) else {
         return Err(signal("void-function", vec![func_val.clone()]));
     };
-    let call_args = default_command_invocation_args(&resolved_name);
+    let call_args = default_command_invocation_args(eval, &resolved_name)?;
 
     // Mark as interactive call
     eval.interactive.push_interactive_call(true);
@@ -389,7 +389,24 @@ fn command_designator_p(eval: &Evaluator, designator: &Value) -> bool {
     command_object_p(eval, None, designator)
 }
 
-fn default_command_invocation_args(name: &str) -> Vec<Value> {
+fn interactive_region_args(eval: &Evaluator) -> Result<Vec<Value>, Flow> {
+    let buf = eval
+        .buffers
+        .current_buffer()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    let mark = buf.mark().ok_or_else(|| {
+        signal(
+            "user-error",
+            vec![Value::string("The mark is not set now, so there is no region")],
+        )
+    })?;
+    let pt = buf.point();
+    let beg = pt.min(mark);
+    let end = pt.max(mark);
+    Ok(vec![Value::Int(beg as i64), Value::Int(end as i64)])
+}
+
+fn default_command_invocation_args(eval: &Evaluator, name: &str) -> Result<Vec<Value>, Flow> {
     match name {
         "self-insert-command"
         | "delete-char"
@@ -398,8 +415,9 @@ fn default_command_invocation_args(name: &str) -> Vec<Value> {
         | "downcase-word"
         | "upcase-word"
         | "capitalize-word"
-        | "transpose-lines" => vec![Value::Int(1)],
-        _ => Vec::new(),
+        | "transpose-lines" => Ok(vec![Value::Int(1)]),
+        "kill-region" | "kill-ring-save" => interactive_region_args(eval),
+        _ => Ok(Vec::new()),
     }
 }
 
@@ -436,7 +454,7 @@ pub(crate) fn builtin_command_execute(eval: &mut Evaluator, args: Vec<Value>) ->
     let Some((resolved_name, func)) = resolve_command_target(eval, cmd) else {
         return Err(signal("void-function", vec![cmd.clone()]));
     };
-    let call_args = default_command_invocation_args(&resolved_name);
+    let call_args = default_command_invocation_args(eval, &resolved_name)?;
 
     eval.interactive.push_interactive_call(true);
     let result = eval.apply(func, call_args);
@@ -2321,6 +2339,54 @@ mod tests {
                  (buffer-string))"#,
         );
         assert_eq!(results[0], "OK \"Abc def\"");
+    }
+
+    #[test]
+    fn command_execute_builtin_kill_region_uses_marked_region() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (set-mark 3)
+                 (command-execute 'kill-region)
+                 (buffer-string))"#,
+        );
+        assert_eq!(results[0], "OK \"c\"");
+    }
+
+    #[test]
+    fn call_interactively_builtin_kill_ring_save_uses_marked_region() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (set-mark 3)
+                 (call-interactively 'kill-ring-save)
+                 (current-kill 0 t))"#,
+        );
+        assert_eq!(results[0], "OK \"ab\"");
+    }
+
+    #[test]
+    fn command_execute_builtin_kill_region_without_mark_signals_user_error() {
+        let mut ev = Evaluator::new();
+        let results = eval_all_with(
+            &mut ev,
+            r#"(with-temp-buffer
+                 (insert "abc")
+                 (goto-char 1)
+                 (condition-case err
+                     (command-execute 'kill-region)
+                   (error err)))"#,
+        );
+        assert_eq!(
+            results[0],
+            "OK (user-error \"The mark is not set now, so there is no region\")"
+        );
     }
 
     #[test]
