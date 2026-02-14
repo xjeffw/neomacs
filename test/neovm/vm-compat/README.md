@@ -223,6 +223,8 @@ Post-freeze updates:
   - `cases/hash-rehash-copy-semantics`
 - Added dynamic-binding/unwind restoration compatibility case:
   - `cases/specpdl-dynamic-unwind-semantics`
+- Added function unbinding fallback-boundary compatibility case:
+  - `cases/fmakunbound-fallback-boundary`
 - Added bytecode literal reader compatibility case (legacy opt-in):
   - `cases/bytecode-literal-reader-semantics`
 - Added bytecode literal execution compatibility case (legacy opt-in):
