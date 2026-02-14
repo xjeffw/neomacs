@@ -289,9 +289,6 @@ pub(crate) fn builtin_charsetp(args: Vec<Value>) -> EvalResult {
     expect_args("charsetp", &args, 1)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.clone(),
-        Value::Nil => "nil".to_string(),
-        Value::True => "t".to_string(),
-        Value::Str(s) => (**s).clone(),
         _ => return Ok(Value::Nil),
     };
     let reg = global_registry().lock().expect("poisoned");
@@ -644,7 +641,7 @@ mod tests {
     #[test]
     fn charsetp_string_arg() {
         let r = builtin_charsetp(vec![Value::string("unicode")]).unwrap();
-        assert!(matches!(r, Value::True));
+        assert!(r.is_nil());
     }
 
     #[test]
