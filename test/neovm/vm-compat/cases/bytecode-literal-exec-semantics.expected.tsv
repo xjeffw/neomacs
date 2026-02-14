@@ -3,3 +3,5 @@
 3	(funcall (car (read-from-string "#[(x) \"\\10\\207\" [x] 1]")) 99)	OK 99
 4	(funcall (car (read-from-string "#[(x) \"\\10\\207\" [x] 1]")) 'sym)	OK sym
 5	(apply (car (read-from-string "#[(x) \"\\10\\207\" [x] 1]")) '(123))	OK 123
+6	(funcall (car (read-from-string "#[(x) \"\\bT\\207\" [x] 1]")) 77)	OK 78
+7	(condition-case err (funcall (car (read-from-string "#[(x) \"\\bT\\207\" [x] 1]")) 'sym) (error err))	OK (wrong-type-argument number-or-marker-p sym)

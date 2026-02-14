@@ -4,3 +4,8 @@
 (funcall (car (read-from-string "#[(x) \"\\10\\207\" [x] 1]")) 99)
 (funcall (car (read-from-string "#[(x) \"\\10\\207\" [x] 1]")) 'sym)
 (apply (car (read-from-string "#[(x) \"\\10\\207\" [x] 1]")) '(123))
+
+(funcall (car (read-from-string "#[(x) \"\\bT\\207\" [x] 1]")) 77)
+(condition-case err
+    (funcall (car (read-from-string "#[(x) \"\\bT\\207\" [x] 1]")) 'sym)
+  (error err))
