@@ -34,6 +34,11 @@
 34	(fboundp 'backward-kill-word)	OK t
 35	(fboundp 'kill-region)	OK t
 36	(fboundp 'kill-ring-save)	OK t
-37	(fboundp 'scroll-up-command)	OK t
-38	(fboundp 'scroll-down-command)	OK t
-39	(fboundp 'recenter-top-bottom)	OK t
+37	(fboundp 'kill-whole-line)	OK t
+38	(fboundp 'copy-region-as-kill)	OK t
+39	(fboundp 'delete-indentation)	OK t
+40	(fboundp 'indent-for-tab-command)	OK t
+41	(fboundp 'transpose-words)	OK t
+42	(fboundp 'scroll-up-command)	OK t
+43	(fboundp 'scroll-down-command)	OK t
+44	(fboundp 'recenter-top-bottom)	OK t
