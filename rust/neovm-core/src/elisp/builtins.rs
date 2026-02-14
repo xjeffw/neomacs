@@ -842,27 +842,32 @@ pub(crate) fn builtin_reverse(args: Vec<Value>) -> EvalResult {
 }
 
 pub(crate) fn builtin_nreverse(args: Vec<Value>) -> EvalResult {
+    fn dotted_list_prefix(list: &Value) -> Option<Value> {
+        let mut cursor = list.clone();
+        let mut prefix = Vec::new();
+        loop {
+            match cursor {
+                Value::Cons(cell) => {
+                    let pair = cell.lock().expect("poisoned");
+                    prefix.push(pair.car.clone());
+                    cursor = pair.cdr.clone();
+                }
+                Value::Nil => return None,
+                _ => return Some(Value::list(prefix)),
+            }
+        }
+    }
+
     expect_args("nreverse", &args, 1)?;
     match &args[0] {
         Value::Nil => Ok(Value::Nil),
         Value::Cons(_) => {
-            // Match Emacs list semantics: reject dotted lists, then reverse destructively.
-            if list_length(&args[0]).is_none() {
-                let mut cursor = args[0].clone();
-                loop {
-                    match cursor {
-                        Value::Cons(cell) => {
-                            cursor = cell.lock().expect("poisoned").cdr.clone();
-                        }
-                        Value::Nil => break,
-                        tail => {
-                            return Err(signal(
-                                "wrong-type-argument",
-                                vec![Value::symbol("listp"), tail],
-                            ))
-                        }
-                    }
-                }
+            // Match Emacs list semantics: reject dotted lists with proper-prefix payload.
+            if let Some(prefix) = dotted_list_prefix(&args[0]) {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("listp"), prefix],
+                ));
             }
 
             let mut prev = Value::Nil;
@@ -891,7 +896,7 @@ pub(crate) fn builtin_nreverse(args: Vec<Value>) -> EvalResult {
         Value::Str(_) => builtin_reverse(args),
         _ => Err(signal(
             "wrong-type-argument",
-            vec![Value::symbol("sequencep"), args[0].clone()],
+            vec![Value::symbol("arrayp"), args[0].clone()],
         )),
     }
 }
