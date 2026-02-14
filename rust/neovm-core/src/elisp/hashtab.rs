@@ -1,7 +1,7 @@
 //! Extended hash-table and obarray builtins.
 //!
 //! Supplements the basic hash-table operations in `builtins.rs` with:
-//! - `hash-table-keys`, `hash-table-values`, `maphash`
+//! - `maphash`
 //! - `hash-table-test`, `hash-table-size`, `hash-table-rehash-size`,
 //!   `hash-table-rehash-threshold`, `hash-table-weakness`
 //! - `copy-hash-table`
@@ -77,38 +77,6 @@ fn hash_key_to_value(key: &HashKey) -> Value {
 // ---------------------------------------------------------------------------
 // Pure builtins
 // ---------------------------------------------------------------------------
-
-/// (hash-table-keys TABLE) -> list of keys
-pub(crate) fn builtin_hash_table_keys(args: Vec<Value>) -> EvalResult {
-    expect_args("hash-table-keys", &args, 1)?;
-    match &args[0] {
-        Value::HashTable(ht) => {
-            let table = ht.lock().expect("poisoned");
-            let keys: Vec<Value> = table.data.keys().map(hash_key_to_value).collect();
-            Ok(Value::list(keys))
-        }
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("hash-table-p"), other.clone()],
-        )),
-    }
-}
-
-/// (hash-table-values TABLE) -> list of values
-pub(crate) fn builtin_hash_table_values(args: Vec<Value>) -> EvalResult {
-    expect_args("hash-table-values", &args, 1)?;
-    match &args[0] {
-        Value::HashTable(ht) => {
-            let table = ht.lock().expect("poisoned");
-            let vals: Vec<Value> = table.data.values().cloned().collect();
-            Ok(Value::list(vals))
-        }
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("hash-table-p"), other.clone()],
-        )),
-    }
-}
 
 /// (hash-table-test TABLE) -> symbol
 pub(crate) fn builtin_hash_table_test(args: Vec<Value>) -> EvalResult {
