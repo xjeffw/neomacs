@@ -2762,12 +2762,6 @@ pub(crate) fn builtin_prin1_eval(
 
 pub(crate) fn builtin_prin1_to_string(args: Vec<Value>) -> EvalResult {
     expect_min_args("prin1-to-string", &args, 1)?;
-    if args.len() > 2 {
-        return Err(signal(
-            "wrong-number-of-arguments",
-            vec![Value::symbol("prin1-to-string"), Value::Int(args.len() as i64)],
-        ));
-    }
     let noescape = args.get(1).is_some_and(|v| v.is_truthy());
     Ok(Value::string(prin1_to_string_value(&args[0], noescape)))
 }
@@ -2777,12 +2771,6 @@ pub(crate) fn builtin_prin1_to_string_eval(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("prin1-to-string", &args, 1)?;
-    if args.len() > 2 {
-        return Err(signal(
-            "wrong-number-of-arguments",
-            vec![Value::symbol("prin1-to-string"), Value::Int(args.len() as i64)],
-        ));
-    }
     let noescape = args.get(1).is_some_and(|v| v.is_truthy());
     Ok(Value::string(prin1_to_string_value_eval(
         eval, &args[0], noescape,
@@ -6716,15 +6704,16 @@ mod tests {
     }
 
     #[test]
-    fn prin1_to_string_rejects_too_many_args() {
+    fn prin1_to_string_ignores_extra_args_for_compat() {
         let mut eval = crate::elisp::eval::Evaluator::new();
         let result = dispatch_builtin(
             &mut eval,
             "prin1-to-string",
             vec![Value::Int(1), Value::Nil, Value::Nil],
         )
-        .expect("prin1-to-string should resolve with extra args");
-        assert!(result.is_err());
+        .expect("prin1-to-string should resolve with extra args")
+        .expect("prin1-to-string should evaluate with extra args");
+        assert_eq!(result, Value::string("1"));
     }
 
     #[test]
