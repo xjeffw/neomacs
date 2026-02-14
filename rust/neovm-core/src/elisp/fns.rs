@@ -6,10 +6,17 @@
 //! compare-strings, string-version-lessp, string-collate-lessp/equalp.
 
 use super::error::{signal, EvalResult, Flow};
-use super::string_escape::{bytes_to_unibyte_storage_string, storage_char_len, storage_substring};
+use super::string_escape::{
+    bytes_to_unibyte_storage_string, decode_storage_char_codes, encode_nonunicode_char_for_storage,
+    storage_char_len, storage_substring,
+};
 use super::value::*;
 use sha1::Sha1;
 use sha2::{Digest, Sha224, Sha256, Sha384, Sha512};
+
+const UNIBYTE_BYTE_SENTINEL_BASE: u32 = 0xE300;
+const UNIBYTE_BYTE_SENTINEL_MIN: u32 = 0xE300;
+const UNIBYTE_BYTE_SENTINEL_MAX: u32 = 0xE3FF;
 
 // ---------------------------------------------------------------------------
 // Argument helpers
@@ -925,11 +932,30 @@ pub(crate) fn builtin_string_to_unibyte(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// (string-make-multibyte STRING) -- return STRING.
+/// (string-make-multibyte STRING) -- convert unibyte storage bytes to multibyte chars.
 pub(crate) fn builtin_string_make_multibyte(args: Vec<Value>) -> EvalResult {
     expect_args("string-make-multibyte", &args, 1)?;
     match &args[0] {
-        Value::Str(_) => Ok(args[0].clone()),
+        Value::Str(s) => {
+            let mut out = String::with_capacity(s.len());
+            for ch in s.chars() {
+                let cp = ch as u32;
+                if (UNIBYTE_BYTE_SENTINEL_MIN..=UNIBYTE_BYTE_SENTINEL_MAX).contains(&cp) {
+                    let byte = cp - UNIBYTE_BYTE_SENTINEL_BASE;
+                    if byte <= 0x7F {
+                        out.push(char::from_u32(byte).expect("ascii scalar"));
+                    } else {
+                        let raw_code = 0x3FFF00 + byte;
+                        let encoded = encode_nonunicode_char_for_storage(raw_code)
+                            .expect("raw-byte code should be encodable");
+                        out.push_str(&encoded);
+                    }
+                    continue;
+                }
+                out.push(ch);
+            }
+            Ok(Value::string(out))
+        }
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("stringp"), other.clone()],
@@ -937,11 +963,17 @@ pub(crate) fn builtin_string_make_multibyte(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// (string-make-unibyte STRING) -- return STRING.
+/// (string-make-unibyte STRING) -- convert each character code to a single byte.
 pub(crate) fn builtin_string_make_unibyte(args: Vec<Value>) -> EvalResult {
     expect_args("string-make-unibyte", &args, 1)?;
     match &args[0] {
-        Value::Str(_) => Ok(args[0].clone()),
+        Value::Str(s) => {
+            let bytes: Vec<u8> = decode_storage_char_codes(s)
+                .into_iter()
+                .map(|cp| (cp & 0xFF) as u8)
+                .collect();
+            Ok(Value::string(bytes_to_unibyte_storage_string(&bytes)))
+        }
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("stringp"), other.clone()],
@@ -1725,15 +1757,30 @@ mod tests {
     }
 
     #[test]
-    fn string_make_multibyte_passthrough() {
+    fn string_make_multibyte_passthrough_ascii() {
         let r = builtin_string_make_multibyte(vec![Value::string("abc")]).unwrap();
         assert_eq!(r.as_str(), Some("abc"));
     }
 
     #[test]
-    fn string_make_unibyte_passthrough() {
+    fn string_make_multibyte_promotes_unibyte_byte() {
+        let r = builtin_string_make_multibyte(vec![Value::string(
+            bytes_to_unibyte_storage_string(&[0xFF]),
+        )])
+        .unwrap();
+        assert_eq!(string_escape::decode_storage_char_codes(r.as_str().unwrap()), vec![0x3FFFFF]);
+    }
+
+    #[test]
+    fn string_make_unibyte_passthrough_ascii() {
         let r = builtin_string_make_unibyte(vec![Value::string("abc")]).unwrap();
-        assert_eq!(r.as_str(), Some("abc"));
+        assert_eq!(string_escape::decode_storage_char_codes(r.as_str().unwrap()), vec![97, 98, 99]);
+    }
+
+    #[test]
+    fn string_make_unibyte_truncates_unicode_char_code() {
+        let r = builtin_string_make_unibyte(vec![Value::string("😀")]).unwrap();
+        assert_eq!(string_escape::decode_storage_char_codes(r.as_str().unwrap()), vec![0]);
     }
 
     // ---- compare-strings ----
