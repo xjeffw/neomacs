@@ -2046,17 +2046,14 @@ pub(crate) fn builtin_indirect_function(
     expect_min_args("indirect-function", &args, 1)?;
     let _noerror = args.get(1).is_some_and(|value| value.is_truthy());
 
-    match &args[0] {
-        Value::Symbol(name) => {
-            if let Some(function) = resolve_indirect_symbol(eval, name) {
-                return Ok(function);
-            }
-
-            Ok(Value::Nil)
+    if let Some(name) = args[0].as_symbol_name() {
+        if let Some(function) = resolve_indirect_symbol(eval, name) {
+            return Ok(function);
         }
-        Value::Nil => Ok(Value::Nil),
-        other => Ok(other.clone()),
+        return Ok(Value::Nil);
     }
+
+    Ok(args[0].clone())
 }
 
 fn resolve_indirect_symbol(eval: &super::eval::Evaluator, name: &str) -> Option<Value> {
@@ -7198,6 +7195,17 @@ mod tests {
         let nil_input = builtin_indirect_function(&mut eval, vec![Value::Nil])
             .expect("indirect-function should return nil for nil input");
         assert!(nil_input.is_nil());
+
+        let true_input = builtin_indirect_function(&mut eval, vec![Value::True])
+            .expect("indirect-function should treat t as a symbol and return nil");
+        assert!(true_input.is_nil());
+
+        let keyword_input = builtin_indirect_function(
+            &mut eval,
+            vec![Value::Keyword(":vm-indirect-keyword".to_string())],
+        )
+        .expect("indirect-function should treat keywords as symbols and return nil");
+        assert!(keyword_input.is_nil());
 
         let passthrough = builtin_indirect_function(&mut eval, vec![Value::Int(42)])
             .expect("non-symbol should be returned as-is");

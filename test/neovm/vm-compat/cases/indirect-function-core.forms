@@ -9,4 +9,6 @@
 (indirect-function 'read-char-exclusive)
 (indirect-function 'definitely-not-a-function t)
 (indirect-function 'definitely-not-a-function)
+(indirect-function t)
+(indirect-function :vm-indirect-keyword)
 (indirect-function 42)

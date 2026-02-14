@@ -8,4 +8,6 @@
 8	(indirect-function 'read-char-exclusive)	OK #<subr read-char-exclusive>
 9	(indirect-function 'definitely-not-a-function t)	OK nil
 10	(indirect-function 'definitely-not-a-function)	OK nil
-11	(indirect-function 42)	OK 42
+11	(indirect-function t)	OK nil
+12	(indirect-function :vm-indirect-keyword)	OK nil
+13	(indirect-function 42)	OK 42
