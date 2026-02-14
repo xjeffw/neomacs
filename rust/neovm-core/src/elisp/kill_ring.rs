@@ -222,6 +222,166 @@ fn collect_sentence_spans(buf: &Buffer) -> Vec<(usize, usize)> {
     spans
 }
 
+fn is_blank_paragraph_line(bytes: &[u8]) -> bool {
+    bytes
+        .iter()
+        .all(|b| matches!(*b, b' ' | b'\t' | b'\r' | 0x0b | 0x0c))
+}
+
+fn collect_paragraph_boundaries(buf: &Buffer) -> (Vec<usize>, Vec<usize>) {
+    let pmin = buf.point_min();
+    let pmax = buf.point_max();
+    if pmax <= pmin {
+        return (Vec::new(), Vec::new());
+    }
+
+    let text = buf.buffer_substring(pmin, pmax);
+    let bytes = text.as_bytes();
+
+    #[derive(Copy, Clone)]
+    struct LineInfo {
+        start: usize,
+        blank: bool,
+    }
+
+    let mut lines = Vec::new();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let line_start = i;
+        while i < bytes.len() && bytes[i] != b'\n' {
+            i += 1;
+        }
+        let line_end = i;
+        let blank = is_blank_paragraph_line(&bytes[line_start..line_end]);
+        if i < bytes.len() && bytes[i] == b'\n' {
+            i += 1;
+        }
+        lines.push(LineInfo {
+            start: pmin + line_start,
+            blank,
+        });
+    }
+
+    let mut forward = Vec::new();
+    let mut backward = Vec::new();
+    let mut idx = 0usize;
+    while idx < lines.len() {
+        if !lines[idx].blank {
+            idx += 1;
+            continue;
+        }
+
+        let run_start = idx;
+        while idx < lines.len() && lines[idx].blank {
+            idx += 1;
+        }
+        let run_end = idx; // exclusive
+
+        let has_nonblank_before = lines[..run_start].iter().any(|line| !line.blank);
+        let has_nonblank_after = lines[run_end..].iter().any(|line| !line.blank);
+
+        if has_nonblank_before {
+            forward.push(lines[run_start].start);
+        }
+        if has_nonblank_after {
+            backward.push(lines[run_end - 1].start);
+        }
+    }
+
+    (forward, backward)
+}
+
+fn move_paragraph_boundary(
+    mut pos: usize,
+    count: i64,
+    pmin: usize,
+    pmax: usize,
+    forward: &[usize],
+    backward: &[usize],
+) -> usize {
+    pos = pos.clamp(pmin, pmax);
+    if count == 0 {
+        return pos;
+    }
+
+    if count > 0 {
+        for _ in 0..(count as usize) {
+            let idx = forward.partition_point(|boundary| *boundary <= pos);
+            pos = if idx < forward.len() {
+                forward[idx]
+            } else {
+                pmax
+            };
+        }
+        return pos;
+    }
+
+    for _ in 0..(count.unsigned_abs() as usize) {
+        let idx = backward.partition_point(|boundary| *boundary < pos);
+        pos = if idx > 0 { backward[idx - 1] } else { pmin };
+    }
+    pos
+}
+
+fn paragraph_aux_position(
+    pos: usize,
+    step: i64,
+    pmin: usize,
+    pmax: usize,
+    forward: &[usize],
+    backward: &[usize],
+) -> ((usize, usize), usize) {
+    let first = move_paragraph_boundary(pos, step, pmin, pmax, forward, backward);
+    let second = move_paragraph_boundary(first, -step, pmin, pmax, forward, backward);
+    ((first, second), second)
+}
+
+fn transpose_subr_ranges(
+    eval: &mut super::eval::Evaluator,
+    mut pos1: (usize, usize),
+    mut pos2: (usize, usize),
+) -> EvalResult {
+    let two_thing_error =
+        || signal("error", vec![Value::string("Don\u{2019}t have two things to transpose")]);
+
+    if pos1.0 > pos1.1 {
+        pos1 = (pos1.1, pos1.0);
+    }
+    if pos2.0 > pos2.1 {
+        pos2 = (pos2.1, pos2.0);
+    }
+    if pos1.0 > pos2.0 {
+        std::mem::swap(&mut pos1, &mut pos2);
+    }
+    if pos1.1 > pos2.0 {
+        return Err(two_thing_error());
+    }
+
+    let (a, middle, b) = {
+        let buf_r = eval
+            .buffers
+            .current_buffer()
+            .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+        (
+            buf_r.buffer_substring(pos1.0, pos1.1),
+            buf_r.buffer_substring(pos1.1, pos2.0),
+            buf_r.buffer_substring(pos2.0, pos2.1),
+        )
+    };
+
+    let buf_m = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    buf_m.delete_region(pos1.0, pos2.1);
+    buf_m.goto_char(pos1.0);
+    buf_m.insert(&b);
+    buf_m.insert(&middle);
+    buf_m.insert(&a);
+
+    Ok(Value::Nil)
+}
+
 // ===========================================================================
 // KillRing data structure
 // ===========================================================================
@@ -1679,18 +1839,80 @@ pub(crate) fn builtin_transpose_sentences(
 }
 
 /// `(transpose-paragraphs ARG)` — interchange paragraphs around point.
-///
-/// TODO(neovm): implement paragraph boundary semantics compatible with Emacs.
 pub(crate) fn builtin_transpose_paragraphs(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("transpose-paragraphs", &args, 1)?;
-    let _n = expect_int(&args[0])?;
-    Err(signal(
-        "error",
-        vec![Value::string("Don\u{2019}t have two things to transpose")],
-    ))
+    let n = expect_int(&args[0])?;
+    if n == 0 {
+        return Ok(Value::Nil);
+    }
+
+    let (pmin, pmax, point, forward_boundaries, backward_boundaries) = {
+        let buf = eval
+            .buffers
+            .current_buffer()
+            .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+        if buf.read_only {
+            return Err(signal(
+                "buffer-read-only",
+                vec![Value::string(buf.name.clone())],
+            ));
+        }
+        let (forward, backward) = collect_paragraph_boundaries(buf);
+        (
+            buf.point_min(),
+            buf.point_max(),
+            buf.point(),
+            forward,
+            backward,
+        )
+    };
+
+    let mut cursor = point;
+    let (pos1, after_pos1) = paragraph_aux_position(
+        cursor,
+        -1,
+        pmin,
+        pmax,
+        &forward_boundaries,
+        &backward_boundaries,
+    );
+    cursor = after_pos1;
+
+    let target_point = if n > 0 {
+        let (pos2, _) = paragraph_aux_position(
+            cursor,
+            n,
+            pmin,
+            pmax,
+            &forward_boundaries,
+            &backward_boundaries,
+        );
+        transpose_subr_ranges(eval, pos1, pos2)?;
+        pos2.0
+    } else {
+        cursor = pos1.0;
+        let (pos2, _) = paragraph_aux_position(
+            cursor,
+            n,
+            pmin,
+            pmax,
+            &forward_boundaries,
+            &backward_boundaries,
+        );
+        let pos1_len = pos1.1 as isize - pos1.0 as isize;
+        transpose_subr_ranges(eval, pos1, pos2)?;
+        (pos2.0 as isize + pos1_len).max(pmin as isize) as usize
+    };
+
+    let buf_m = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    buf_m.goto_char(target_point);
+    Ok(Value::Nil)
 }
 
 /// `(transpose-lines ARG)` — interchange lines around point.
@@ -2894,14 +3116,27 @@ mod tests {
     // -- transpose-paragraphs tests --
 
     #[test]
-    fn transpose_paragraphs_reports_not_implemented_for_now() {
+    fn transpose_paragraphs_basic() {
         let result = eval_one(
             r#"(with-temp-buffer
                  (insert "A\n\nB")
                  (goto-char 1)
-                 (transpose-paragraphs 1))"#,
+                 (transpose-paragraphs 1)
+                 (list (buffer-string) (point)))"#,
         );
-        assert!(result.starts_with("ERR (error"));
+        assert_eq!(result, "OK (\"\\nBA\\n\" 5)");
+    }
+
+    #[test]
+    fn transpose_paragraphs_backward_from_eob() {
+        let result = eval_one(
+            r#"(with-temp-buffer
+                 (insert "A\n\nB\n\nC")
+                 (goto-char (point-max))
+                 (transpose-paragraphs -1)
+                 (list (buffer-string) (point)))"#,
+        );
+        assert_eq!(result, "OK (\"A\\n\\nC\\nB\\n\" 5)");
     }
 
     // -- indent-line-to tests --

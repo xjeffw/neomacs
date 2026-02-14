@@ -2480,18 +2480,17 @@ mod tests {
     }
 
     #[test]
-    fn command_execute_builtin_transpose_paragraphs_reports_error_for_now() {
+    fn command_execute_builtin_transpose_paragraphs_swaps_paragraphs() {
         let mut ev = Evaluator::new();
         let results = eval_all_with(
             &mut ev,
             r#"(with-temp-buffer
                  (insert "A\n\nB")
                  (goto-char 1)
-                 (condition-case e
-                     (progn (command-execute 'transpose-paragraphs) 'ok)
-                   (error (car e))))"#,
+                 (command-execute 'transpose-paragraphs)
+                 (buffer-string))"#,
         );
-        assert_eq!(results[0], "OK error");
+        assert_eq!(results[0], "OK \"\\nBA\\n\"");
     }
 
     #[test]
