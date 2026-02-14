@@ -12,6 +12,11 @@ use super::error::{signal, EvalResult, Flow};
 use super::value::*;
 use std::collections::{HashMap, HashSet};
 
+const RAW_BYTE_SENTINEL_MIN: u32 = 0xE080;
+const RAW_BYTE_SENTINEL_MAX: u32 = 0xE0FF;
+const UNIBYTE_BYTE_SENTINEL_MIN: u32 = 0xE300;
+const UNIBYTE_BYTE_SENTINEL_MAX: u32 = 0xE3FF;
+
 // ---------------------------------------------------------------------------
 // Charset data types
 // ---------------------------------------------------------------------------
@@ -379,11 +384,28 @@ pub(crate) fn builtin_find_charset_region(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(find-charset-string STR &optional TABLE)` -- stub, return list
-/// with 'ascii.
+/// of charsets present in STR.
 pub(crate) fn builtin_find_charset_string(args: Vec<Value>) -> EvalResult {
     expect_min_args("find-charset-string", &args, 1)?;
     expect_max_args("find-charset-string", &args, 2)?;
-    Ok(Value::list(vec![Value::symbol("ascii")]))
+    let s = match &args[0] {
+        Value::Str(s) => s.as_ref(),
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), other.clone()],
+            ))
+        }
+    };
+
+    let charsets = classify_string_charsets(s);
+    if charsets.is_empty() {
+        Ok(Value::Nil)
+    } else {
+        Ok(Value::list(
+            charsets.into_iter().map(Value::symbol).collect::<Vec<_>>(),
+        ))
+    }
 }
 
 /// `(decode-char CHARSET CODE-POINT)` -- for unicode/ascii, just return the
@@ -466,6 +488,52 @@ pub(crate) fn builtin_charset_after(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_unibyte_charset(args: Vec<Value>) -> EvalResult {
     expect_max_args("unibyte-charset", &args, 0)?;
     Ok(Value::symbol("latin-iso8859-1"))
+}
+
+fn classify_string_charsets(s: &str) -> Vec<&'static str> {
+    if s.is_empty() {
+        return Vec::new();
+    }
+
+    let mut has_ascii = false;
+    let mut has_unicode = false;
+    let mut has_eight_bit = false;
+    let mut has_unicode_bmp = false;
+
+    for ch in s.chars() {
+        let cp = ch as u32;
+        if (RAW_BYTE_SENTINEL_MIN..=RAW_BYTE_SENTINEL_MAX).contains(&cp)
+            || (UNIBYTE_BYTE_SENTINEL_MIN..=UNIBYTE_BYTE_SENTINEL_MAX).contains(&cp)
+        {
+            has_eight_bit = true;
+            continue;
+        }
+
+        if cp <= 0x7F {
+            has_ascii = true;
+        } else if cp <= 0xFFFF {
+            has_unicode_bmp = true;
+        } else {
+            has_unicode = true;
+        }
+    }
+
+    // Match Emacs ordering observed for find-charset-string:
+    // ascii, unicode, eight-bit, unicode-bmp.
+    let mut out = Vec::new();
+    if has_ascii {
+        out.push("ascii");
+    }
+    if has_unicode {
+        out.push("unicode");
+    }
+    if has_eight_bit {
+        out.push("eight-bit");
+    }
+    if has_unicode_bmp {
+        out.push("unicode-bmp");
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -792,7 +860,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn find_charset_string_stub() {
+    fn find_charset_string_ascii() {
         let r = builtin_find_charset_string(vec![Value::string("hello")]).unwrap();
         let items = list_to_vec(&r).unwrap();
         assert_eq!(items.len(), 1);
@@ -800,10 +868,57 @@ mod tests {
     }
 
     #[test]
+    fn find_charset_string_empty_is_nil() {
+        let r = builtin_find_charset_string(vec![Value::string("")]).unwrap();
+        assert!(r.is_nil());
+    }
+
+    #[test]
+    fn find_charset_string_bmp() {
+        let r = builtin_find_charset_string(vec![Value::string("é")]).unwrap();
+        let items = list_to_vec(&r).unwrap();
+        assert_eq!(items.len(), 1);
+        assert!(matches!(&items[0], Value::Symbol(s) if s == "unicode-bmp"));
+    }
+
+    #[test]
+    fn find_charset_string_unicode_supplementary() {
+        let r = builtin_find_charset_string(vec![Value::string("😀")]).unwrap();
+        let items = list_to_vec(&r).unwrap();
+        assert_eq!(items.len(), 1);
+        assert!(matches!(&items[0], Value::Symbol(s) if s == "unicode"));
+    }
+
+    #[test]
+    fn find_charset_string_mixed_order_matches_oracle() {
+        let mut s = String::from("a😀é");
+        s.push(char::from_u32(0xE3FF).expect("valid unibyte sentinel"));
+        let r = builtin_find_charset_string(vec![Value::string(s)]).unwrap();
+        let items = list_to_vec(&r).unwrap();
+        assert_eq!(items.len(), 4);
+        assert!(matches!(&items[0], Value::Symbol(v) if v == "ascii"));
+        assert!(matches!(&items[1], Value::Symbol(v) if v == "unicode"));
+        assert!(matches!(&items[2], Value::Symbol(v) if v == "eight-bit"));
+        assert!(matches!(&items[3], Value::Symbol(v) if v == "unicode-bmp"));
+    }
+
+    #[test]
     fn find_charset_string_with_table() {
         let r = builtin_find_charset_string(vec![Value::string("hello"), Value::Nil]).unwrap();
         let items = list_to_vec(&r).unwrap();
         assert_eq!(items.len(), 1);
+    }
+
+    #[test]
+    fn find_charset_string_wrong_type() {
+        let r = builtin_find_charset_string(vec![Value::Int(1)]);
+        match r {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("stringp"), Value::Int(1)]);
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
     }
 
     #[test]
