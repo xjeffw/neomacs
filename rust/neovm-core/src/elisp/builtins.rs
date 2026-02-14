@@ -1032,8 +1032,24 @@ pub(crate) fn builtin_copy_sequence(args: Vec<Value>) -> EvalResult {
     match &args[0] {
         Value::Nil => Ok(Value::Nil),
         Value::Cons(_) => {
-            let items =
-                list_to_vec(&args[0]).ok_or_else(|| signal("wrong-type-argument", vec![]))?;
+            let mut items = Vec::new();
+            let mut cursor = args[0].clone();
+            loop {
+                match cursor {
+                    Value::Nil => break,
+                    Value::Cons(cell) => {
+                        let pair = cell.lock().expect("poisoned");
+                        items.push(pair.car.clone());
+                        cursor = pair.cdr.clone();
+                    }
+                    tail => {
+                        return Err(signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("listp"), tail],
+                        ))
+                    }
+                }
+            }
             Ok(Value::list(items))
         }
         Value::Str(s) => Ok(Value::string((**s).clone())),
