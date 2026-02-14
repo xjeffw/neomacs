@@ -209,6 +209,19 @@ impl LayoutEngine {
         // Clear hit-test data for new frame
         self.hit_data.clear();
 
+        // Always populate face_id=0 (DEFAULT_FACE_ID) in the faces map.
+        // Many code paths use face_id=0 as a fallback: initial set_face(),
+        // divider stretches, overlay strings without explicit face, and
+        // the legacy menu/tool bar extraction.  Without this, glyphs with
+        // face_id=0 have no Face entry and fall back to generic monospace.
+        {
+            let mut default_face = FaceDataFFI::default();
+            let rc = neomacs_layout_default_face(frame, &mut default_face);
+            if rc >= 0 {
+                self.apply_face(&default_face, frame, frame_glyphs);
+            }
+        }
+
         // Get number of windows (direct Rust struct access, no FFI call)
         let window_count = super::emacs_types::frame_window_count(
             frame as *const std::ffi::c_void,

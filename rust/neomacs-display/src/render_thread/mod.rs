@@ -2001,6 +2001,7 @@ impl RenderApp {
         // Update faces: replace wholesale from frame data.
         // The layout engine builds complete Face objects per-frame in apply_face(),
         // so no incremental merge or stale-cache cleanup is needed.
+        let old_face_ids: std::collections::HashSet<u32> = self.faces.keys().copied().collect();
         if let Some(ref frame) = self.current_frame {
             self.faces = frame.faces.clone();
         }
@@ -2008,6 +2009,17 @@ impl RenderApp {
         for entry in self.child_frames.frames.values() {
             for (face_id, face) in &entry.frame.faces {
                 self.faces.entry(*face_id).or_insert_with(|| face.clone());
+            }
+        }
+        // If new face_ids appeared that weren't in the previous faces map,
+        // clear the glyph cache. Glyphs cached when their face was absent
+        // used generic monospace; they need re-rasterization with the actual font.
+        let has_new_faces = self.faces.keys().any(|id| !old_face_ids.contains(id));
+        if has_new_faces {
+            if let Some(ref mut atlas) = self.glyph_atlas {
+                log::info!("New face_ids detected (old={}, new={}), clearing glyph cache",
+                    old_face_ids.len(), self.faces.len());
+                atlas.clear();
             }
         }
 
