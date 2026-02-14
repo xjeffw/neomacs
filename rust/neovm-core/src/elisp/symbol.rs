@@ -9,7 +9,7 @@
 //! - A `special` flag (for dynamic binding in lexical scope)
 
 use super::value::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Per-symbol metadata stored in the obarray.
 #[derive(Clone, Debug)]
@@ -48,6 +48,7 @@ impl SymbolData {
 #[derive(Clone, Debug)]
 pub struct Obarray {
     symbols: HashMap<String, SymbolData>,
+    function_unbound: HashSet<String>,
     function_epoch: u64,
 }
 
@@ -61,6 +62,7 @@ impl Obarray {
     pub fn new() -> Self {
         let mut ob = Self {
             symbols: HashMap::new(),
+            function_unbound: HashSet::new(),
             function_epoch: 0,
         };
 
@@ -127,6 +129,9 @@ impl Obarray {
 
     /// Get the function cell of a symbol.
     pub fn symbol_function(&self, name: &str) -> Option<&Value> {
+        if self.function_unbound.contains(name) {
+            return None;
+        }
         self.symbols.get(name).and_then(|s| s.function.as_ref())
     }
 
@@ -134,13 +139,17 @@ impl Obarray {
     pub fn set_symbol_function(&mut self, name: &str, function: Value) {
         let sym = self.get_or_intern(name);
         sym.function = Some(function);
+        self.function_unbound.remove(name);
         self.function_epoch = self.function_epoch.wrapping_add(1);
     }
 
     /// Remove the function cell (fmakunbound).
     pub fn fmakunbound(&mut self, name: &str) {
+        let mut changed = self.function_unbound.insert(name.to_string());
         if let Some(sym) = self.symbols.get_mut(name) {
-            sym.function = None;
+            changed |= sym.function.take().is_some();
+        }
+        if changed {
             self.function_epoch = self.function_epoch.wrapping_add(1);
         }
     }
@@ -161,6 +170,9 @@ impl Obarray {
 
     /// Check if a symbol has a function cell.
     pub fn fboundp(&self, name: &str) -> bool {
+        if self.function_unbound.contains(name) {
+            return false;
+        }
         self.symbols.get(name).is_some_and(|s| s.function.is_some())
     }
 
@@ -241,16 +253,22 @@ impl Obarray {
 
     /// Remove a symbol from the obarray.  Returns `true` if it was present.
     pub fn unintern(&mut self, name: &str) -> bool {
-        let removed = self.symbols.remove(name).is_some();
-        if removed {
+        let removed_symbol = self.symbols.remove(name).is_some();
+        let removed_unbound = self.function_unbound.remove(name);
+        if removed_symbol || removed_unbound {
             self.function_epoch = self.function_epoch.wrapping_add(1);
         }
-        removed
+        removed_symbol
     }
 
     /// Monotonic epoch for function-cell mutations.
     pub fn function_epoch(&self) -> u64 {
         self.function_epoch
+    }
+
+    /// True when `fmakunbound` explicitly masked this symbol's fallback function definition.
+    pub fn is_function_unbound(&self, name: &str) -> bool {
+        self.function_unbound.contains(name)
     }
 }
 
@@ -287,6 +305,21 @@ mod tests {
         ob.fmakunbound("f");
         assert!(!ob.fboundp("f"));
         assert!(ob.function_epoch() > after_set_epoch);
+    }
+
+    #[test]
+    fn fmakunbound_masks_builtin_fallback_name() {
+        let mut ob = Obarray::new();
+        let start_epoch = ob.function_epoch();
+        ob.fmakunbound("car");
+        assert!(ob.is_function_unbound("car"));
+        assert!(!ob.fboundp("car"));
+        assert!(ob.symbol_function("car").is_none());
+        assert!(ob.function_epoch() > start_epoch);
+
+        ob.set_symbol_function("car", Value::Subr("car".to_string()));
+        assert!(!ob.is_function_unbound("car"));
+        assert!(ob.fboundp("car"));
     }
 
     #[test]

@@ -578,6 +578,8 @@ pub(crate) fn builtin_functionp_eval(
                 } else {
                     is_runtime_function_object(function)
                 }
+            } else if eval.obarray().is_function_unbound(name) {
+                false
             } else if super::subr_info::is_evaluator_macro_name(name) {
                 false
             } else if super::subr_info::is_evaluator_callable_name(name) {
@@ -2420,6 +2422,9 @@ pub(crate) fn builtin_fboundp(eval: &mut super::eval::Evaluator, args: Vec<Value
             vec![Value::symbol("symbolp"), args[0].clone()],
         )
     })?;
+    if eval.obarray().is_function_unbound(name) {
+        return Ok(Value::Nil);
+    }
     let macro_bound = super::subr_info::is_evaluator_macro_name(name);
     Ok(Value::bool(
         eval.obarray().fboundp(name)
@@ -2473,6 +2478,10 @@ pub(crate) fn builtin_symbol_function(
     })?;
     if let Some(function) = eval.obarray().symbol_function(name) {
         return Ok(function.clone());
+    }
+
+    if eval.obarray().is_function_unbound(name) {
+        return Ok(Value::Nil);
     }
 
     if let Some(function) = super::subr_info::fallback_macro_value(name) {
@@ -2681,6 +2690,10 @@ fn resolve_indirect_symbol(eval: &super::eval::Evaluator, name: &str) -> Option<
             return None;
         }
 
+        if eval.obarray().is_function_unbound(&current) {
+            return None;
+        }
+
         if let Some(function) = eval.obarray().symbol_function(&current) {
             match function {
                 Value::Symbol(next) => {
@@ -2716,6 +2729,9 @@ pub(crate) fn builtin_macrop_eval(
         Value::Symbol(name) => {
             if let Some(function) = eval.obarray().symbol_function(name) {
                 return super::subr_info::builtin_macrop(vec![function.clone()]);
+            }
+            if eval.obarray().is_function_unbound(name) {
+                return Ok(Value::Nil);
             }
             if let Some(function) = super::subr_info::fallback_macro_value(name) {
                 return super::subr_info::builtin_macrop(vec![function]);
@@ -8102,6 +8118,44 @@ mod tests {
         let t_symbol = builtin_symbol_function(&mut eval, vec![Value::symbol("t")])
             .expect("symbol-function should return nil for symbol t");
         assert!(t_symbol.is_nil());
+    }
+
+    #[test]
+    fn fmakunbound_masks_builtin_special_and_evaluator_callables() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+
+        builtin_fmakunbound(&mut eval, vec![Value::symbol("car")])
+            .expect("fmakunbound should accept builtin name");
+        let car_bound = builtin_fboundp(&mut eval, vec![Value::symbol("car")])
+            .expect("fboundp should accept builtin name");
+        assert!(car_bound.is_nil());
+        let car_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("car")])
+            .expect("symbol-function should return nil after fmakunbound");
+        assert!(car_fn.is_nil());
+        let car_functionp = builtin_functionp_eval(&mut eval, vec![Value::symbol("car")])
+            .expect("functionp should accept symbol");
+        assert!(car_functionp.is_nil());
+
+        builtin_fmakunbound(&mut eval, vec![Value::symbol("if")])
+            .expect("fmakunbound should accept special form name");
+        let if_bound = builtin_fboundp(&mut eval, vec![Value::symbol("if")])
+            .expect("fboundp should accept special form name");
+        assert!(if_bound.is_nil());
+        let if_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("if")])
+            .expect("symbol-function should return nil after fmakunbound special form");
+        assert!(if_fn.is_nil());
+
+        builtin_fmakunbound(&mut eval, vec![Value::symbol("throw")])
+            .expect("fmakunbound should accept evaluator callable name");
+        let throw_bound = builtin_fboundp(&mut eval, vec![Value::symbol("throw")])
+            .expect("fboundp should accept evaluator callable name");
+        assert!(throw_bound.is_nil());
+        let throw_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("throw")])
+            .expect("symbol-function should return nil after fmakunbound evaluator callable");
+        assert!(throw_fn.is_nil());
+        let throw_functionp = builtin_functionp_eval(&mut eval, vec![Value::symbol("throw")])
+            .expect("functionp should accept symbol");
+        assert!(throw_functionp.is_nil());
     }
 
     #[test]

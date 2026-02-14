@@ -415,8 +415,10 @@ impl Evaluator {
             }
 
             // Special forms
-            if let Some(result) = self.try_special_form(name, tail) {
-                return result;
+            if !self.obarray.is_function_unbound(name) {
+                if let Some(result) = self.try_special_form(name, tail) {
+                    return result;
+                }
             }
 
             // Regular function call — evaluate args then dispatch
@@ -1653,6 +1655,8 @@ impl Evaluator {
 
         let target = if let Some(func) = self.obarray.symbol_function(name).cloned() {
             NamedCallTarget::Obarray(func)
+        } else if self.obarray.is_function_unbound(name) {
+            NamedCallTarget::Void
         } else if super::subr_info::is_evaluator_callable_name(name) {
             NamedCallTarget::EvaluatorCallable
         } else if super::subr_info::is_special_form(name) {
@@ -2376,6 +2380,33 @@ mod tests {
             eval_one("(condition-case err (funcall 'throw) (error err))"),
             "OK (wrong-number-of-arguments #<subr throw> 0)"
         );
+    }
+
+    #[test]
+    fn fmakunbound_masks_builtin_special_and_evaluator_callable_fallbacks() {
+        let results = eval_all(
+            "(fmakunbound 'car)
+             (fboundp 'car)
+             (symbol-function 'car)
+             (condition-case err (car '(1 2)) (void-function 'void-function))
+             (fmakunbound 'if)
+             (fboundp 'if)
+             (symbol-function 'if)
+             (condition-case err (if t 1 2) (void-function 'void-function))
+             (fmakunbound 'throw)
+             (fboundp 'throw)
+             (symbol-function 'throw)
+             (condition-case err (throw 'tag 1) (void-function 'void-function))",
+        );
+        assert_eq!(results[1], "OK nil");
+        assert_eq!(results[2], "OK nil");
+        assert_eq!(results[3], "OK void-function");
+        assert_eq!(results[5], "OK nil");
+        assert_eq!(results[6], "OK nil");
+        assert_eq!(results[7], "OK void-function");
+        assert_eq!(results[9], "OK nil");
+        assert_eq!(results[10], "OK nil");
+        assert_eq!(results[11], "OK void-function");
     }
 
     #[test]
