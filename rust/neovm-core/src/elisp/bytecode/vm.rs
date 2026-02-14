@@ -644,6 +644,18 @@ impl<'a> Vm<'a> {
                 Op::PushConditionCase(target) => {
                     handlers.push(Handler::ConditionCase { target: *target });
                 }
+                Op::PushConditionCaseRaw(target) => {
+                    // GNU bytecode consumes the handler pattern operand from TOS.
+                    stack.pop();
+                    handlers.push(Handler::ConditionCase { target: *target });
+                }
+                Op::PushCatch(target) => {
+                    let tag = stack.pop().unwrap_or(Value::Nil);
+                    handlers.push(Handler::Catch {
+                        tag,
+                        target: *target,
+                    });
+                }
                 Op::PopHandler => {
                     handlers.pop();
                 }
@@ -653,6 +665,24 @@ impl<'a> Vm<'a> {
                 Op::Throw => {
                     let val = stack.pop().unwrap_or(Value::Nil);
                     let tag = stack.pop().unwrap_or(Value::Nil);
+                    let mut catch_target = None;
+                    while let Some(handler) = handlers.pop() {
+                        if let Handler::Catch {
+                            tag: catch_tag,
+                            target,
+                        } = handler
+                        {
+                            if eq_value(&catch_tag, &tag) {
+                                catch_target = Some(target);
+                                break;
+                            }
+                        }
+                    }
+                    if let Some(target) = catch_target {
+                        stack.push(val);
+                        *pc = target as usize;
+                        continue;
+                    }
                     return Err(Flow::Throw { tag, value: val });
                 }
 

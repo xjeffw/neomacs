@@ -127,7 +127,8 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
     enum Pending {
         Op(Op),
         Goto(usize),
-        PushConditionCase(usize),
+        PushConditionCaseRaw(usize),
+        PushCatch(usize),
         GotoIfNil(usize),
         GotoIfNotNil(usize),
         GotoIfNilElsePop(usize),
@@ -300,15 +301,13 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
             // pushconditioncase (16-bit bytecode stream offset)
             0o061 => {
                 let target = read_u16_operand(&bytes, pc + 1)? as usize;
-                pending.push(Pending::PushConditionCase(target));
+                pending.push(Pending::PushConditionCaseRaw(target));
                 pc += 3;
             }
             // pushcatch (16-bit bytecode stream offset)
-            // In the current compatibility subset this shares the same handler
-            // representation as condition-case.
             0o062 => {
                 let target = read_u16_operand(&bytes, pc + 1)? as usize;
-                pending.push(Pending::PushConditionCase(target));
+                pending.push(Pending::PushCatch(target));
                 pc += 3;
             }
             // goto (16-bit bytecode stream offset)
@@ -652,8 +651,11 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
         let op = match item {
             Pending::Op(op) => op,
             Pending::Goto(target) => Op::Goto(*byte_to_op_index.get(&target)? as u32),
-            Pending::PushConditionCase(target) => {
-                Op::PushConditionCase(*byte_to_op_index.get(&target)? as u32)
+            Pending::PushConditionCaseRaw(target) => {
+                Op::PushConditionCaseRaw(*byte_to_op_index.get(&target)? as u32)
+            }
+            Pending::PushCatch(target) => {
+                Op::PushCatch(*byte_to_op_index.get(&target)? as u32)
             }
             Pending::GotoIfNil(target) => {
                 Op::GotoIfNil(*byte_to_op_index.get(&target)? as u32)
@@ -951,7 +953,7 @@ mod tests {
             bc.ops,
             vec![
                 Op::Constant(0),
-                Op::PushConditionCase(4),
+                Op::PushConditionCaseRaw(4),
                 Op::Constant(1),
                 Op::PopHandler,
                 Op::Return,
@@ -975,7 +977,7 @@ mod tests {
             bc.ops,
             vec![
                 Op::Constant(0),
-                Op::PushConditionCase(4),
+                Op::PushCatch(4),
                 Op::Constant(1),
                 Op::PopHandler,
                 Op::Return,

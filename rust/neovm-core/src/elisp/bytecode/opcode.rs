@@ -139,6 +139,11 @@ pub enum Op {
     /// Push a condition-case handler.
     /// Operand = jump target (instruction index) for handler body.
     PushConditionCase(u32),
+    /// GNU bytecode `pushconditioncase`: pops handler pattern object and records
+    /// handler target for this frame.
+    PushConditionCaseRaw(u32),
+    /// GNU bytecode `pushcatch`: pops catch tag and records handler target.
+    PushCatch(u32),
     /// Pop the most recent condition-case handler.
     PopHandler,
     /// Push an unwind-protect cleanup form marker.
@@ -252,6 +257,8 @@ impl Op {
             Op::Get => "get".to_string(),
             Op::Put => "put".to_string(),
             Op::PushConditionCase(addr) => format!("push-condition-case {}", addr),
+            Op::PushConditionCaseRaw(addr) => format!("push-condition-case-raw {}", addr),
+            Op::PushCatch(addr) => format!("push-catch {}", addr),
             Op::PopHandler => "pop-handler".to_string(),
             Op::UnwindProtect(addr) => format!("unwind-protect {}", addr),
             Op::Throw => "throw".to_string(),
