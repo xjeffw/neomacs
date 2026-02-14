@@ -458,6 +458,12 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
                 pending.push(Pending::Op(Op::Concat(n)));
                 pc += 1;
             }
+            // concat N (wide form, 8-bit immediate arity)
+            0o260 => {
+                let n = *bytes.get(pc + 1)? as u16;
+                pending.push(Pending::Op(Op::Concat(n)));
+                pc += 2;
+            }
             // -
             0o132 => {
                 pending.push(Pending::Op(Op::Sub));
@@ -916,6 +922,44 @@ mod tests {
         assert_eq!(
             bc.ops,
             vec![Op::VarRef(0), Op::VarRef(1), Op::Concat(2), Op::Return]
+        );
+    }
+
+    #[test]
+    fn decodes_wide_concat_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::list(vec![
+                Value::symbol("a"),
+                Value::symbol("b"),
+                Value::symbol("c"),
+                Value::symbol("d"),
+                Value::symbol("e"),
+            ]),
+            Value::string("\u{8}\u{9}\u{A}\u{B}\u{C}\u{B0}\u{5}\u{87}"),
+            Value::vector(vec![
+                Value::symbol("a"),
+                Value::symbol("b"),
+                Value::symbol("c"),
+                Value::symbol("d"),
+                Value::symbol("e"),
+            ]),
+            Value::Int(5),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(
+            bc.ops,
+            vec![
+                Op::VarRef(0),
+                Op::VarRef(1),
+                Op::VarRef(2),
+                Op::VarRef(3),
+                Op::VarRef(4),
+                Op::Concat(5),
+                Op::Return,
+            ]
         );
     }
 
