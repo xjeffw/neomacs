@@ -1,0 +1,8 @@
+1	(concat (list 1114112))	OK "ô€€"
+2	(concat (list 4194303))	OK "Á¿"
+3	(string-to-list (concat (list 1114112)))	OK (1114112)
+4	(string-to-list (concat (list 4194303)))	OK (255)
+5	(concat [1114112])	OK "ô€€"
+6	(concat [4194303])	OK "Á¿"
+7	(string-to-list (concat [1114112]))	OK (1114112)
+8	(string-to-list (concat [4194303]))	OK (255)
