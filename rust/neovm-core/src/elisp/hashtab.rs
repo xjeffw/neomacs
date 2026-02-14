@@ -36,6 +36,29 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_optional_obarray_arg(args: &[Value]) -> Result<(), Flow> {
+    if let Some(obarray) = args.get(1) {
+        if !obarray.is_nil() && !matches!(obarray, Value::Vector(_)) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("obarrayp"), obarray.clone()],
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Convert a `HashKey` back into a `Value`.
 fn hash_key_to_value(key: &HashKey) -> Value {
     match key {
@@ -209,6 +232,8 @@ pub(crate) fn builtin_maphash(eval: &mut super::eval::Evaluator, args: Vec<Value
 /// (mapatoms FUNCTION &optional OBARRAY) — call FUNCTION with each interned symbol.
 pub(crate) fn builtin_mapatoms(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("mapatoms", &args, 1)?;
+    expect_max_args("mapatoms", &args, 2)?;
+    validate_optional_obarray_arg(&args)?;
     let func = args[0].clone();
     // Collect symbol names to avoid borrowing obarray during eval
     let symbols: Vec<String> = eval
@@ -226,6 +251,8 @@ pub(crate) fn builtin_mapatoms(eval: &mut super::eval::Evaluator, args: Vec<Valu
 /// (unintern NAME &optional OBARRAY) — remove symbol from obarray.
 pub(crate) fn builtin_unintern(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("unintern", &args, 1)?;
+    expect_max_args("unintern", &args, 2)?;
+    validate_optional_obarray_arg(&args)?;
     let name = match &args[0] {
         Value::Symbol(s) => s.clone(),
         Value::Str(s) => (**s).clone(),
