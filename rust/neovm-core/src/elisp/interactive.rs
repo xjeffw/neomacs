@@ -9,7 +9,7 @@
 //!   `global-key-binding`, `minor-mode-key-binding`, `where-is-internal`,
 //!   `substitute-command-keys`, `describe-key-briefly`, `this-command-keys`,
 //!   `this-command-keys-vector`, `thing-at-point`, `bounds-of-thing-at-point`,
-//!   `word-at-point`, `symbol-at-point`.
+//!   `symbol-at-point`.
 //! - Special forms: `define-minor-mode`, `define-derived-mode`,
 //!   `define-generic-mode`.
 
@@ -985,11 +985,6 @@ pub(crate) fn builtin_bounds_of_thing_at_point(
         }
         None => Ok(Value::Nil),
     }
-}
-
-/// `(word-at-point &optional NO-PROPERTIES)` -> word at point or nil.
-pub(crate) fn builtin_word_at_point(eval: &mut Evaluator, _args: Vec<Value>) -> EvalResult {
-    builtin_thing_at_point(eval, vec![Value::symbol("word")])
 }
 
 /// `(symbol-at-point)` -> symbol at point or nil.
@@ -2329,20 +2324,6 @@ mod tests {
     // -------------------------------------------------------------------
     // word-at-point / symbol-at-point
     // -------------------------------------------------------------------
-
-    #[test]
-    fn word_at_point_basic() {
-        let mut ev = Evaluator::new();
-        eval_all_with(
-            &mut ev,
-            r#"(get-buffer-create "wap")
-               (set-buffer "wap")
-               (insert "testing words")
-               (goto-char 3)"#,
-        );
-        let result = builtin_word_at_point(&mut ev, vec![]).unwrap();
-        assert_eq!(result.as_str(), Some("testing"));
-    }
 
     #[test]
     fn symbol_at_point_basic() {
