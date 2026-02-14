@@ -62,6 +62,21 @@ fn expect_symbol_name(value: &Value) -> Result<String, Flow> {
     }
 }
 
+fn terminal_designator_p(value: &Value) -> bool {
+    matches!(value, Value::Nil | Value::Str(_))
+}
+
+fn expect_terminal_designator(value: &Value) -> Result<(), Flow> {
+    if terminal_designator_p(value) {
+        Ok(())
+    } else {
+        Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("terminal-live-p"), value.clone()],
+        ))
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Helper: build an alist (association list) from key-value pairs
 // ---------------------------------------------------------------------------
@@ -209,12 +224,13 @@ pub(crate) fn builtin_frame_terminal(args: Vec<Value>) -> EvalResult {
 /// (terminal-live-p TERMINAL) -> t
 pub(crate) fn builtin_terminal_live_p(args: Vec<Value>) -> EvalResult {
     expect_range_args("terminal-live-p", &args, 1, 1)?;
-    Ok(Value::True)
+    Ok(Value::bool(terminal_designator_p(&args[0])))
 }
 
 /// (terminal-parameter TERMINAL PARAMETER) -> nil (stub)
 pub(crate) fn builtin_terminal_parameter(args: Vec<Value>) -> EvalResult {
     expect_args("terminal-parameter", &args, 2)?;
+    expect_terminal_designator(&args[0])?;
     let key = HashKey::Symbol(expect_symbol_name(&args[1])?);
     TERMINAL_PARAMS.with(|slot| {
         Ok(slot
@@ -228,6 +244,7 @@ pub(crate) fn builtin_terminal_parameter(args: Vec<Value>) -> EvalResult {
 /// (set-terminal-parameter TERMINAL PARAMETER VALUE) -> nil
 pub(crate) fn builtin_set_terminal_parameter(args: Vec<Value>) -> EvalResult {
     expect_args("set-terminal-parameter", &args, 3)?;
+    expect_terminal_designator(&args[0])?;
     if let Ok(name) = expect_symbol_name(&args[1]) {
         let key = HashKey::Symbol(name);
         TERMINAL_PARAMS.with(|slot| {
@@ -387,5 +404,30 @@ mod tests {
 
         let get_result = builtin_terminal_parameter(vec![Value::Nil, Value::symbol("k")]).unwrap();
         assert!(get_result.is_nil());
+    }
+
+    #[test]
+    fn terminal_parameter_rejects_non_terminal_designator() {
+        clear_terminal_parameters();
+        let result = builtin_terminal_parameter(vec![Value::Int(1), Value::symbol("k")]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn set_terminal_parameter_rejects_non_terminal_designator() {
+        clear_terminal_parameters();
+        let result =
+            builtin_set_terminal_parameter(vec![Value::Int(1), Value::symbol("k"), Value::Int(1)]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn terminal_live_p_reflects_designator_shape() {
+        let live_nil = builtin_terminal_live_p(vec![Value::Nil]).unwrap();
+        let live_string = builtin_terminal_live_p(vec![Value::string("neomacs")]).unwrap();
+        let live_int = builtin_terminal_live_p(vec![Value::Int(1)]).unwrap();
+        assert_eq!(live_nil, Value::True);
+        assert_eq!(live_string, Value::True);
+        assert!(live_int.is_nil());
     }
 }
