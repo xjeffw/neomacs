@@ -173,35 +173,77 @@ pub(crate) fn builtin_custom_set_variables(
     args: Vec<Value>,
 ) -> EvalResult {
     for arg in &args {
-        if let Some(items) = list_to_vec(arg) {
-            if items.len() >= 2 {
-                let name = match &items[0] {
-                    Value::Symbol(s) => s.clone(),
-                    _ => continue,
-                };
-                // The second element is the value (already evaluated by caller
-                // since this is a regular function, not a special form).
-                let value = items[1].clone();
+        let items = list_to_vec(arg).ok_or_else(|| {
+            signal(
+                "wrong-type-argument",
+                vec![Value::symbol("listp"), arg.clone()],
+            )
+        })?;
+        if items.is_empty() {
+            continue;
+        }
 
-                // If the custom variable has a :set function, call it.
-                let set_fn = eval
-                    .custom
-                    .get_variable(&name)
-                    .and_then(|cv| cv.set_function.clone());
-                if let Some(func) = set_fn {
-                    eval.apply(func, vec![Value::symbol(name.clone()), value.clone()])?;
-                } else {
-                    eval.obarray.set_symbol_value(&name, value);
-                }
+        let name = match &items[0] {
+            Value::Symbol(s) => s.clone(),
+            Value::Nil => "nil".to_string(),
+            Value::True => "t".to_string(),
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("symbolp"), other.clone()],
+                ))
             }
+        };
+        if items.len() < 2 {
+            continue;
+        }
+
+        // Emacs ignores entries for unknown/unbound variables.
+        let should_set = eval.obarray.symbol_value(&name).is_some() || eval.custom.is_custom_variable(&name);
+        if !should_set {
+            continue;
+        }
+
+        // The second element is the value (already evaluated by caller
+        // since this is a regular function, not a special form).
+        let value = items[1].clone();
+
+        // If the custom variable has a :set function, call it.
+        let set_fn = eval
+            .custom
+            .get_variable(&name)
+            .and_then(|cv| cv.set_function.clone());
+        if let Some(func) = set_fn {
+            eval.apply(func, vec![Value::symbol(name.clone()), value.clone()])?;
+        } else {
+            eval.obarray.set_symbol_value(&name, value);
         }
     }
     Ok(Value::Nil)
 }
 
-/// `(custom-set-faces &rest ARGS)` -- stub, returns nil.
+/// `(custom-set-faces &rest ARGS)` -- validates custom theme spec shape.
 pub(crate) fn builtin_custom_set_faces(args: Vec<Value>) -> EvalResult {
-    let _ = args;
+    for arg in &args {
+        let items = list_to_vec(arg).ok_or_else(|| {
+            signal(
+                "error",
+                vec![Value::string("Incompatible Custom theme spec")],
+            )
+        })?;
+        if items.is_empty() {
+            continue;
+        }
+        match &items[0] {
+            Value::Symbol(_) | Value::Nil | Value::True => {}
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("symbolp"), other.clone()],
+                ))
+            }
+        }
+    }
     Ok(Value::Nil)
 }
 
@@ -971,18 +1013,52 @@ mod tests {
     #[test]
     fn custom_set_variables_basic() {
         let results = eval_all(
-            r#"(custom-set-variables '(my-var 42))
+            r#"(defvar my-var 1)
+               (custom-set-variables '(my-var 42))
                (default-value 'my-var)"#,
         );
-        assert_eq!(results[1], "OK 42");
+        assert_eq!(results[2], "OK 42");
     }
 
-    // -- custom-set-faces stub --------------------------------------------
+    #[test]
+    fn custom_set_variables_ignores_unknown_variable() {
+        let results = eval_all(
+            r#"(custom-set-variables '(my-var 42))
+               (condition-case err (default-value 'my-var) (error err))"#,
+        );
+        assert_eq!(results[1], "OK (void-variable my-var)");
+    }
+
+    // -- custom-set-faces --------------------------------------------------
 
     #[test]
     fn custom_set_faces_returns_nil() {
         let results = eval_all(r#"(custom-set-faces '(default ((t (:height 120)))))"#);
         assert_eq!(results[0], "OK nil");
+    }
+
+    #[test]
+    fn custom_set_faces_non_list_spec_errors() {
+        let results = eval_all(r#"(condition-case err (custom-set-faces 1) (error err))"#);
+        assert_eq!(results[0], r#"OK (error "Incompatible Custom theme spec")"#);
+    }
+
+    #[test]
+    fn custom_set_faces_requires_symbol_face_name() {
+        let results = eval_all(r#"(condition-case err (custom-set-faces '(1 2)) (error err))"#);
+        assert_eq!(results[0], "OK (wrong-type-argument symbolp 1)");
+    }
+
+    #[test]
+    fn custom_set_variables_errors_for_non_list_spec() {
+        let results = eval_all(r#"(condition-case err (custom-set-variables 1) (error err))"#);
+        assert_eq!(results[0], "OK (wrong-type-argument listp 1)");
+    }
+
+    #[test]
+    fn custom_set_variables_errors_for_non_symbol_variable_name() {
+        let results = eval_all(r#"(condition-case err (custom-set-variables '(1 2)) (error err))"#);
+        assert_eq!(results[0], "OK (wrong-type-argument symbolp 1)");
     }
 
     // -- Integration tests -------------------------------------------------
