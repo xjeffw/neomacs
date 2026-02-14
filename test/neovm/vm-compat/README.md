@@ -187,6 +187,8 @@ Post-freeze updates:
   - `cases/copy-sequence-semantics`
 - Added list membership/alist lookup compatibility case:
   - `cases/member-assoc-semantics`
+- Added `alist-get` traversal compatibility case:
+  - `cases/alist-get-semantics`
 - Added higher-order map primitive compatibility case:
   - `cases/map-family-semantics`
 - Added `ignore` callable compatibility case:
