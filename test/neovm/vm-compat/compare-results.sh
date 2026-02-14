@@ -18,7 +18,7 @@ if [[ ! -f "$neovm_tsv" ]]; then
   exit 2
 fi
 
-awk -F '\t' '
+LC_ALL=C awk -F '\t' '
 function normalize_result(raw, ok_pos, err_pos, pos) {
   ok_pos = index(raw, "OK ");
   err_pos = index(raw, "ERR ");
