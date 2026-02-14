@@ -96,12 +96,14 @@ DISPLAY is the name of the display Emacs should connect to."
 		     ;; Exit Emacs with fatal error if this fails.
 		     t)
 
-  ;; Create the default faces - use black on white (standard Emacs default)
-  (let ((color-map '((foreground-color . "black")
-                     (background-color . "white")
-                     (cursor-color . "black"))))
-    (dolist (param color-map)
-      (add-to-list 'default-frame-alist param)))
+  ;; Set default frame colors only if not already configured by the user
+  ;; (e.g., via set-face-attribute in early-init.el).
+  ;; Use assq to check by key, not add-to-list which compares the whole cons.
+  (dolist (param '((foreground-color . "black")
+                   (background-color . "white")
+                   (cursor-color . "black")))
+    (unless (assq (car param) default-frame-alist)
+      (push param default-frame-alist)))
 
   (add-hook 'suspend-hook #'neomacs-suspend-error)
 
