@@ -2495,17 +2495,23 @@ mod tests {
     fn calling_simple_compiled_literal_executes() {
         let results = eval_all(
             "(funcall (car (read-from-string \"#[nil \\\"\\\\300\\\\207\\\" [42] 1]\")))
-             (funcall (car (read-from-string \"#[(x) \\\"\\\\10\\\\207\\\" [x] 1]\")) 'vm-x)",
+             (funcall (car (read-from-string \"#[(x) \\\"\\\\10\\\\207\\\" [x] 1]\")) 'vm-x)
+             (funcall (car (read-from-string \"#[(x) \\\"\\\\bT\\\\207\\\" [x] 1]\")) 77)
+             (condition-case err
+                 (funcall (car (read-from-string \"#[(x) \\\"\\\\bT\\\\207\\\" [x] 1]\")) 'vm-x)
+               (error err))",
         );
         assert_eq!(results[0], "OK 42");
         assert_eq!(results[1], "OK vm-x");
+        assert_eq!(results[2], "OK 78");
+        assert_eq!(results[3], "OK (wrong-type-argument number-or-marker-p vm-x)");
     }
 
     #[test]
     fn calling_compiled_literal_placeholder_signals_error() {
         let result = eval_one(
             "(progn
-               (defalias 'vm-elc-placeholder #[(x) \"\\bT\\207\" [x] 1 (#$ . 83)])
+               (defalias 'vm-elc-placeholder #[(x) \"\\377\\207\" [x] 1 (#$ . 83)])
                (condition-case err
                    (vm-elc-placeholder 1)
                  (error (car err))))",

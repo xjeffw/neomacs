@@ -142,6 +142,8 @@ fn decode_opcode_subset(byte_stream: &str, const_len: usize) -> Option<Vec<Op>> 
                 }
                 ops.push(Op::VarRef(idx as u16));
             }
+            // 1+ (add1)
+            0o124 => ops.push(Op::Add1),
             // return
             0o207 => ops.push(Op::Return),
             _ => return None,
@@ -237,7 +239,7 @@ mod tests {
                 Value::symbol("&rest"),
                 Value::symbol("rest"),
             ]),
-            Value::string("\u{8}T\u{87}"),
+            Value::string("\u{FF}\u{87}"),
             Value::vector(vec![Value::symbol("x"), Value::Int(7)]),
             Value::Int(3),
             Value::string("doc"),
@@ -294,6 +296,21 @@ mod tests {
             panic!("expected Value::ByteCode");
         };
         assert_eq!(bc.ops, vec![Op::VarRef(0), Op::Return]);
+    }
+
+    #[test]
+    fn decodes_varref_add1_return_opcode_subset() {
+        let literal = Value::vector(vec![
+            Value::list(vec![Value::symbol("x")]),
+            Value::string("\u{8}T\u{87}"),
+            Value::vector(vec![Value::symbol("x")]),
+            Value::Int(1),
+        ]);
+        let coerced = maybe_coerce_compiled_literal_function(literal);
+        let Value::ByteCode(bc) = coerced else {
+            panic!("expected Value::ByteCode");
+        };
+        assert_eq!(bc.ops, vec![Op::VarRef(0), Op::Add1, Op::Return]);
     }
 
     #[test]
