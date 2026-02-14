@@ -191,6 +191,8 @@ Post-freeze updates:
   - `cases/alist-get-semantics`
 - Added property-list mutation/error compatibility case:
   - `cases/plist-semantics`
+- Added hash-table option parsing/accessor compatibility case:
+  - `cases/hash-make-table-options-semantics`
 - Added higher-order map primitive compatibility case:
   - `cases/map-family-semantics`
 - Added `ignore` callable compatibility case:
