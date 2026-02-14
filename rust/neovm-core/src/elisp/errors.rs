@@ -200,13 +200,13 @@ pub fn init_standard_errors(obarray: &mut Obarray) {
     register_simple(
         obarray,
         "void-function",
-        "Symbol's function definition is void",
+        "Symbol\u{2019}s function definition is void",
         &["error"],
     );
     register_simple(
         obarray,
         "void-variable",
-        "Symbol's value as variable is void",
+        "Symbol\u{2019}s value as variable is void",
         &["error"],
     );
     register_simple(
@@ -994,7 +994,7 @@ mod tests {
         let mut ob = Obarray::new();
         init_standard_errors(&mut ob);
         let msg = ob.get_property("void-variable", "error-message").unwrap();
-        assert_eq!(msg.as_str(), Some("Symbol's value as variable is void"));
+        assert_eq!(msg.as_str(), Some("Symbol’s value as variable is void"));
     }
 
     #[test]
