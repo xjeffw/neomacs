@@ -19,6 +19,29 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented additional syntax helper builtins and default-table parity lock-ins:
+  - updated:
+    - `rust/neovm-core/src/elisp/syntax.rs`
+      - aligned standard syntax defaults for `%`, `&`, `*`, `+`, `/`, `<`, `=`, `>`, `|`, and `$` to match oracle `char-syntax` behavior.
+      - implemented `syntax-class-to-char` with Emacs-compatible class mapping and `args-out-of-range` payload shape.
+      - implemented `matching-paren` with character type checks and bracket-pair mapping behavior.
+      - added focused unit tests for new builtins and updated default-table expectations.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired pure dispatch for `syntax-class-to-char` and `matching-paren`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - registered `syntax-class-to-char` and `matching-paren` for callable introspection parity.
+    - `test/neovm/vm-compat/cases/char-syntax-ascii-map-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/syntax-class-paren-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/default.list`
+      - included both new corpora in default compatibility runs.
+  - verified:
+    - targeted `cargo test` slices:
+      - `standard_table_word_chars`, `standard_table_punctuation`, `standard_table_symbol_constituents`, `syntax_class_to_char_basics_and_errors`, `matching_paren_basics_and_errors` (pass)
+    - targeted vm-compat checks:
+      - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/char-syntax-ascii-map-semantics` (pass)
+      - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/syntax-class-paren-semantics` (pass)
+      - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Re-ran full NeoVM compatibility gate after syntax-descriptor parity slices:
   - verified:
     - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
