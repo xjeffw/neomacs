@@ -26,8 +26,14 @@
     (display-monitor-attributes-list 999999)
   (error (car err)))
 (condition-case err
+    (display-monitor-attributes-list 999999)
+  (error (not (null (string-match-p "999999" (cadr err))))))
+(condition-case err
     (frame-monitor-attributes 999999)
   (error (car err)))
+(condition-case err
+    (frame-monitor-attributes 999999)
+  (error (not (null (string-match-p "999999" (cadr err))))))
 (let* ((attrs (frame-monitor-attributes (car (terminal-list))))
        (g (cdr (assq 'geometry attrs))))
   g)
