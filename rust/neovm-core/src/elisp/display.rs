@@ -387,31 +387,52 @@ pub(crate) fn builtin_set_terminal_parameter(args: Vec<Value>) -> EvalResult {
 /// (tty-type &optional TERMINAL) -> nil
 pub(crate) fn builtin_tty_type(args: Vec<Value>) -> EvalResult {
     expect_max_args("tty-type", &args, 1)?;
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator(terminal)?;
+    }
     Ok(Value::Nil)
 }
 
 /// (tty-top-frame &optional TERMINAL) -> nil
 pub(crate) fn builtin_tty_top_frame(args: Vec<Value>) -> EvalResult {
     expect_max_args("tty-top-frame", &args, 1)?;
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator(terminal)?;
+    }
     Ok(Value::Nil)
 }
 
 /// (controlling-tty-p &optional TERMINAL) -> nil
 pub(crate) fn builtin_controlling_tty_p(args: Vec<Value>) -> EvalResult {
     expect_max_args("controlling-tty-p", &args, 1)?;
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator(terminal)?;
+    }
     Ok(Value::Nil)
 }
 
-/// (suspend-tty &optional TTY) -> nil
+/// (suspend-tty &optional TTY) -> error in GUI/non-text terminal context.
 pub(crate) fn builtin_suspend_tty(args: Vec<Value>) -> EvalResult {
     expect_max_args("suspend-tty", &args, 1)?;
-    Ok(Value::Nil)
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator(terminal)?;
+    }
+    Err(signal(
+        "error",
+        vec![Value::string("Attempt to suspend a non-text terminal device")],
+    ))
 }
 
-/// (resume-tty &optional TTY) -> nil
+/// (resume-tty &optional TTY) -> error in GUI/non-text terminal context.
 pub(crate) fn builtin_resume_tty(args: Vec<Value>) -> EvalResult {
     expect_max_args("resume-tty", &args, 1)?;
-    Ok(Value::Nil)
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator(terminal)?;
+    }
+    Err(signal(
+        "error",
+        vec![Value::string("Attempt to resume a non-text terminal device")],
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -697,6 +718,50 @@ mod tests {
     fn internal_show_cursor_rejects_non_window_designator() {
         let result = builtin_internal_show_cursor(vec![Value::Int(1), Value::Nil]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn tty_queries_reject_invalid_terminal_designator() {
+        let tty_type = builtin_tty_type(vec![Value::Int(1)]);
+        let tty_top_frame = builtin_tty_top_frame(vec![Value::Int(1)]);
+        let controlling = builtin_controlling_tty_p(vec![Value::Int(1)]);
+        assert!(tty_type.is_err());
+        assert!(tty_top_frame.is_err());
+        assert!(controlling.is_err());
+    }
+
+    #[test]
+    fn suspend_tty_signals_non_text_terminal_error() {
+        for args in [vec![], vec![Value::Nil], vec![terminal_handle_value()]] {
+            let result = builtin_suspend_tty(args);
+            match result {
+                Err(Flow::Signal(sig)) => {
+                    assert_eq!(sig.symbol, "error");
+                    assert_eq!(
+                        sig.data,
+                        vec![Value::string("Attempt to suspend a non-text terminal device")]
+                    );
+                }
+                other => panic!("expected error signal, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn resume_tty_signals_non_text_terminal_error() {
+        for args in [vec![], vec![Value::Nil], vec![terminal_handle_value()]] {
+            let result = builtin_resume_tty(args);
+            match result {
+                Err(Flow::Signal(sig)) => {
+                    assert_eq!(sig.symbol, "error");
+                    assert_eq!(
+                        sig.data,
+                        vec![Value::string("Attempt to resume a non-text terminal device")]
+                    );
+                }
+                other => panic!("expected error signal, got {other:?}"),
+            }
+        }
     }
 
     #[test]
