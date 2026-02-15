@@ -46,6 +46,19 @@ Last updated: 2026-02-15
   - verified:
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-regexp-backref-semantics.forms EXPECTED=cases/replace-regexp-backref-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Aligned `string-match` / `string-match-p` default case-fold semantics and oracle lock-in:
+  - updated matching paths:
+    - `rust/neovm-core/src/elisp/regex.rs` (`string_match_full` now uses default case-fold regex compilation)
+    - `rust/neovm-core/src/elisp/search.rs` (`string-match-p` compile path now uses default case-fold)
+  - added unit coverage for case-fold defaults in `rust/neovm-core/src/elisp/search.rs`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/string-match-case-fold-semantics.forms`
+    - `test/neovm/vm-compat/cases/string-match-case-fold-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml search::tests::string_match_ -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/string-match-case-fold-semantics.forms EXPECTED=cases/string-match-case-fold-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
 - Implemented and locked search-stack evaluator subsets with oracle corpus:
   - `replace-regexp`:
