@@ -4,6 +4,25 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `undo` result/payload compatibility slice:
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/undo-result-semantics.forms`
+    - `test/neovm/vm-compat/cases/undo-result-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - fixed `undo-boundary` evaluator dispatch so boundaries are recorded in live buffer undo state
+  - aligned grouped undo traversal with oracle for lists with/without trailing boundaries
+  - aligned `undo` return/error payload behavior across:
+    - `"Undo"`
+    - `user-error "No further undo information"`
+    - `user-error "No undo information in this buffer"`
+  - verified:
+    - `cargo test undo::tests:: -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/undo-result-semantics.forms EXPECTED=cases/undo-result-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/undo-basics.forms EXPECTED=cases/undo-basics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/undo-arity-semantics.forms EXPECTED=cases/undo-arity-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/undo-buffer-arg.forms EXPECTED=cases/undo-buffer-arg.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Implemented `undo` arity compatibility slice:
   - added oracle corpus:
     - `test/neovm/vm-compat/cases/undo-arity-semantics.forms`
