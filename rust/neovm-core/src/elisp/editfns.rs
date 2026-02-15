@@ -76,6 +76,35 @@ fn byte_to_lisp_pos(buf: &crate::buffer::Buffer, byte: usize) -> i64 {
     (buf.text.byte_to_char(byte) + 1) as i64
 }
 
+fn buffer_read_only_active(eval: &super::eval::Evaluator, buf: &crate::buffer::Buffer) -> bool {
+    if buf.read_only {
+        return true;
+    }
+
+    for frame in eval.dynamic.iter().rev() {
+        if let Some(value) = frame.get("buffer-read-only") {
+            return value.is_truthy();
+        }
+    }
+
+    if let Some(value) = buf.get_buffer_local("buffer-read-only") {
+        return value.is_truthy();
+    }
+
+    eval.obarray
+        .symbol_value("buffer-read-only")
+        .is_some_and(|value| value.is_truthy())
+}
+
+fn ensure_current_buffer_writable(eval: &super::eval::Evaluator) -> Result<(), Flow> {
+    if let Some(buf) = eval.buffers.current_buffer() {
+        if buffer_read_only_active(eval, buf) {
+            return Err(signal("buffer-read-only", vec![Value::string(&buf.name)]));
+        }
+    }
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Eval-dependent builtins (need &mut Evaluator for buffer access)
 // ---------------------------------------------------------------------------
@@ -199,10 +228,8 @@ fn collect_insert_text(_name: &str, args: &[Value]) -> Result<String, Flow> {
 /// `(insert &rest ARGS)` — insert strings or characters at point.
 pub(crate) fn builtin_insert(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     let text = collect_insert_text("insert", &args)?;
+    ensure_current_buffer_writable(eval)?;
     if let Some(buf) = eval.buffers.current_buffer_mut() {
-        if buf.read_only {
-            return Err(signal("buffer-read-only", vec![Value::string(&buf.name)]));
-        }
         buf.insert(&text);
     }
     Ok(Value::Nil)
@@ -228,10 +255,8 @@ pub(crate) fn builtin_delete_region(
     expect_args("delete-region", &args, 2)?;
     let start_pos = expect_integer("delete-region", &args[0])?;
     let end_pos = expect_integer("delete-region", &args[1])?;
+    ensure_current_buffer_writable(eval)?;
     if let Some(buf) = eval.buffers.current_buffer_mut() {
-        if buf.read_only {
-            return Err(signal("buffer-read-only", vec![Value::string(&buf.name)]));
-        }
         let start_byte = lisp_pos_to_byte(buf, start_pos);
         let end_byte = lisp_pos_to_byte(buf, end_pos);
         let (lo, hi) = if start_byte <= end_byte {
@@ -252,10 +277,8 @@ pub(crate) fn builtin_delete_char(
     expect_min_args("delete-char", &args, 1)?;
     expect_max_args("delete-char", &args, 2)?;
     let n = expect_integer("delete-char", &args[0])?;
+    ensure_current_buffer_writable(eval)?;
     if let Some(buf) = eval.buffers.current_buffer_mut() {
-        if buf.read_only {
-            return Err(signal("buffer-read-only", vec![Value::string(&buf.name)]));
-        }
         let pt = buf.pt;
         if n > 0 {
             // Delete N characters forward from point.

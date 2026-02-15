@@ -3863,6 +3863,26 @@ fn dynamic_or_global_symbol_value(eval: &super::eval::Evaluator, name: &str) -> 
     eval.obarray.symbol_value(name).cloned()
 }
 
+fn buffer_read_only_active(eval: &super::eval::Evaluator, buf: &crate::buffer::Buffer) -> bool {
+    if buf.read_only {
+        return true;
+    }
+
+    for frame in eval.dynamic.iter().rev() {
+        if let Some(value) = frame.get("buffer-read-only") {
+            return value.is_truthy();
+        }
+    }
+
+    if let Some(value) = buf.get_buffer_local("buffer-read-only") {
+        return value.is_truthy();
+    }
+
+    eval.obarray
+        .symbol_value("buffer-read-only")
+        .is_some_and(|value| value.is_truthy())
+}
+
 fn resolve_print_target(eval: &super::eval::Evaluator, printcharfun: Option<&Value>) -> Value {
     match printcharfun {
         Some(dest) if !dest.is_nil() => dest.clone(),
@@ -4369,6 +4389,17 @@ pub(crate) fn builtin_goto_char(eval: &mut super::eval::Evaluator, args: Vec<Val
 
 /// (insert &rest ARGS) → nil
 pub(crate) fn builtin_insert(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    let read_only_buffer_name = eval.buffers.current_buffer().and_then(|buf| {
+        if buffer_read_only_active(eval, buf) {
+            Some(buf.name.clone())
+        } else {
+            None
+        }
+    });
+    if let Some(name) = read_only_buffer_name {
+        return Err(signal("buffer-read-only", vec![Value::string(name)]));
+    }
+
     let buf = eval
         .buffers
         .current_buffer_mut()
@@ -4405,6 +4436,17 @@ pub(crate) fn builtin_delete_region(
     expect_args("delete-region", &args, 2)?;
     let start = expect_int(&args[0])? as usize;
     let end = expect_int(&args[1])? as usize;
+    let read_only_buffer_name = eval.buffers.current_buffer().and_then(|buf| {
+        if buffer_read_only_active(eval, buf) {
+            Some(buf.name.clone())
+        } else {
+            None
+        }
+    });
+    if let Some(name) = read_only_buffer_name {
+        return Err(signal("buffer-read-only", vec![Value::string(name)]));
+    }
+
     let buf = eval
         .buffers
         .current_buffer_mut()
@@ -4424,6 +4466,17 @@ pub(crate) fn builtin_erase_buffer(
     args: Vec<Value>,
 ) -> EvalResult {
     let _ = args;
+    let read_only_buffer_name = eval.buffers.current_buffer().and_then(|buf| {
+        if buffer_read_only_active(eval, buf) {
+            Some(buf.name.clone())
+        } else {
+            None
+        }
+    });
+    if let Some(name) = read_only_buffer_name {
+        return Err(signal("buffer-read-only", vec![Value::string(name)]));
+    }
+
     let buf = eval
         .buffers
         .current_buffer_mut()
