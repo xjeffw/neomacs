@@ -1397,7 +1397,7 @@ fn replace_string_eval_impl(
         return Ok(Value::Nil);
     }
 
-    let case_fold = resolve_case_fold(None, &from);
+    let case_fold = case_fold_for_pattern(eval, &from);
     let mut out = String::with_capacity(source.len());
     let mut cursor = 0usize;
     let mut replaced = 0usize;
@@ -1520,7 +1520,7 @@ fn replace_regexp_eval_impl(
         )
     };
 
-    let case_fold = resolve_case_fold(None, &from);
+    let case_fold = case_fold_for_pattern(eval, &from);
     let pattern = build_regex_pattern(&from, case_fold);
     let re = Regex::new(&pattern)
         .map_err(|e| signal("invalid-regexp", vec![Value::string(format!("Invalid regexp: {e}"))]))?;
