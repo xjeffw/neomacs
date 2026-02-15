@@ -10,45 +10,12 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::error::{signal, EvalResult, Flow};
 use super::print::print_value;
 use super::value::Value;
 
 // ---------------------------------------------------------------------------
 // Argument validation helpers (local to this module)
 // ---------------------------------------------------------------------------
-
-fn expect_args(name: &str, args: &[Value], n: usize) -> Result<(), Flow> {
-    if args.len() != n {
-        Err(signal(
-            "wrong-number-of-arguments",
-            vec![Value::symbol(name), Value::Int(args.len() as i64)],
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
-    if args.len() < min {
-        Err(signal(
-            "wrong-number-of-arguments",
-            vec![Value::symbol(name), Value::Int(args.len() as i64)],
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn expect_symbol_name(value: &Value) -> Result<String, Flow> {
-    match value.as_symbol_name() {
-        Some(s) => Ok(s.to_string()),
-        None => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("symbolp"), value.clone()],
-        )),
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Backtrace
@@ -594,84 +561,9 @@ fn format_param_list(params: &super::value::LambdaParams) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Built-in functions
+// Built-in helper function
 // ---------------------------------------------------------------------------
 
-/// `(backtrace)` -- return a formatted backtrace string.
-///
-/// In a real integration this reads from the evaluator's debug state;
-/// here it returns a placeholder since we don't have access to the evaluator.
-pub(crate) fn builtin_backtrace(args: Vec<Value>) -> EvalResult {
-    // Accept 0 args
-    if !args.is_empty() {
-        expect_args("backtrace", &args, 0)?;
-    }
-    // Without evaluator access, return a stub message.
-    // In practice, the evaluator calls this with its own debug state.
-    Ok(Value::string(
-        "Backtrace not available outside debugger context.",
-    ))
-}
-
-/// `(describe-function SYMBOL)` -- return a description string for a function.
-///
-/// Without evaluator context, returns a stub.  The evaluator supplies the
-/// actual function value and docstring.
-pub(crate) fn builtin_describe_function(args: Vec<Value>) -> EvalResult {
-    expect_args("describe-function", &args, 1)?;
-    let name = expect_symbol_name(&args[0])?;
-    // Minimal stub -- the evaluator enriches this
-    Ok(Value::string(format!("{} is a function.", name)))
-}
-
-/// `(describe-variable SYMBOL)` -- return a description string for a variable.
-pub(crate) fn builtin_describe_variable(args: Vec<Value>) -> EvalResult {
-    expect_args("describe-variable", &args, 1)?;
-    let name = expect_symbol_name(&args[0])?;
-    Ok(Value::string(format!("{} is a variable.", name)))
-}
-
-/// `(documentation FUNCTION &optional RAW)` -- return the docstring for FUNCTION.
-pub(crate) fn builtin_documentation(args: Vec<Value>) -> EvalResult {
-    expect_min_args("documentation", &args, 1)?;
-    // Extract docstring from lambda/macro if the value is one
-    match &args[0] {
-        Value::Lambda(lam) | Value::Macro(lam) => match &lam.docstring {
-            Some(doc) => Ok(Value::string(doc.as_str())),
-            None => Ok(Value::Nil),
-        },
-        Value::Symbol(name) => {
-            // When given a symbol, we can't look up the function cell without
-            // the evaluator.  Return nil as a stub.
-            let _ = name;
-            Ok(Value::Nil)
-        }
-        _ => Ok(Value::Nil),
-    }
-}
-
-/// `(documentation-property SYMBOL PROP &optional RAW)` -- return a plist doc.
-///
-/// In Emacs, this looks up PROP on SYMBOL's plist (usually `variable-documentation`
-/// or `function-documentation`).  Stub: always returns nil.
-pub(crate) fn builtin_documentation_property(args: Vec<Value>) -> EvalResult {
-    expect_min_args("documentation-property", &args, 2)?;
-    // Stub -- the evaluator can override via plist lookup
-    Ok(Value::Nil)
-}
-
-/// `(commandp OBJECT &optional FOR-CALL-INTERACTIVELY)` -- return t if OBJECT is a command.
-///
-/// A command is an interactive function.  In our simplified VM, we check if the
-/// value is a function (lambda, subr, bytecode).  Full Emacs also checks for
-/// `interactive` declaration.
-pub(crate) fn builtin_commandp(args: Vec<Value>) -> EvalResult {
-    expect_min_args("commandp", &args, 1)?;
-    let val = &args[0];
-    Ok(Value::bool(val.is_function()))
-}
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1122,115 +1014,6 @@ mod tests {
     fn help_format_apropos_empty() {
         let output = HelpFormatter::format_apropos(&[]);
         assert!(output.contains("No matches."));
-    }
-
-    // -- Builtin function tests --
-
-    #[test]
-    fn builtin_backtrace_returns_string() {
-        let result = builtin_backtrace(vec![]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_string());
-    }
-
-    #[test]
-    fn builtin_backtrace_rejects_args() {
-        let result = builtin_backtrace(vec![Value::Int(1)]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn builtin_describe_function_stub() {
-        let result = builtin_describe_function(vec![Value::symbol("car")]);
-        assert!(result.is_ok());
-        let s = result.unwrap();
-        assert!(s.as_str().unwrap().contains("car"));
-    }
-
-    #[test]
-    fn builtin_describe_variable_stub() {
-        let result = builtin_describe_variable(vec![Value::symbol("load-path")]);
-        assert!(result.is_ok());
-        let s = result.unwrap();
-        assert!(s.as_str().unwrap().contains("load-path"));
-    }
-
-    #[test]
-    fn builtin_documentation_from_lambda() {
-        let lam = Value::Lambda(Arc::new(LambdaData {
-            params: LambdaParams::simple(vec![]),
-            body: vec![],
-            env: None,
-            docstring: Some("My docstring.".to_string()),
-        }));
-        let result = builtin_documentation(vec![lam]);
-        assert!(result.is_ok());
-        let val = result.unwrap();
-        assert_eq!(val.as_str(), Some("My docstring."));
-    }
-
-    #[test]
-    fn builtin_documentation_nil_for_symbol() {
-        let result = builtin_documentation(vec![Value::symbol("car")]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
-    }
-
-    #[test]
-    fn builtin_documentation_nil_for_no_doc() {
-        let lam = Value::Lambda(Arc::new(LambdaData {
-            params: LambdaParams::simple(vec![]),
-            body: vec![],
-            env: None,
-            docstring: None,
-        }));
-        let result = builtin_documentation(vec![lam]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
-    }
-
-    #[test]
-    fn builtin_documentation_property_stub() {
-        let result = builtin_documentation_property(vec![
-            Value::symbol("car"),
-            Value::symbol("function-documentation"),
-        ]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
-    }
-
-    #[test]
-    fn builtin_commandp_function() {
-        let lam = Value::Lambda(Arc::new(LambdaData {
-            params: LambdaParams::simple(vec![]),
-            body: vec![],
-            env: None,
-            docstring: None,
-        }));
-        let result = builtin_commandp(vec![lam]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_truthy());
-    }
-
-    #[test]
-    fn builtin_commandp_subr() {
-        let result = builtin_commandp(vec![Value::Subr("car".into())]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_truthy());
-    }
-
-    #[test]
-    fn builtin_commandp_non_function() {
-        let result = builtin_commandp(vec![Value::Int(42)]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
-    }
-
-    #[test]
-    fn builtin_commandp_nil() {
-        let result = builtin_commandp(vec![Value::Nil]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
     }
 
     // -- DebugAction clone/debug --

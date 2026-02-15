@@ -18,6 +18,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed additional dead `debug` module wrapper surface:
+  - updated:
+    - `rust/neovm-core/src/elisp/debug.rs`
+      - deleted unregistered wrappers shadowed by active dispatch in other modules: `backtrace`, `describe-function`, `describe-variable`, `documentation`, `documentation-property`, `commandp`.
+      - removed local arg-helper wrappers and stale unit tests tied only to that dead surface.
+  - verified:
+    - `cargo test 'elisp::debug::tests::' -- --nocapture` (pass, 37 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/documentation-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/commandp-semantics` (pass, 12/12)
+
 - Removed dead unregistered `cl-*` wrapper surface from `cl_lib`:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
