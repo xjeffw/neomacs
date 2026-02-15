@@ -33,6 +33,17 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn expect_int(value: &Value) -> Result<i64, Flow> {
     match value {
         Value::Int(n) => Ok(*n),
@@ -498,6 +509,7 @@ pub(crate) fn builtin_make_overlay(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("make-overlay", &args, 2)?;
+    expect_max_args("make-overlay", &args, 5)?;
     let beg = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
     let buf_id = resolve_buffer_id(eval, args.get(2))?;
@@ -606,6 +618,7 @@ pub(crate) fn builtin_overlays_at(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("overlays-at", &args, 1)?;
+    expect_max_args("overlays-at", &args, 2)?;
     let pos = expect_int(&args[0])?;
 
     let buf_id = eval
@@ -664,6 +677,7 @@ pub(crate) fn builtin_move_overlay(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("move-overlay", &args, 3)?;
+    expect_max_args("move-overlay", &args, 4)?;
     let (ov_id, buf_id) = expect_overlay(&args[0])?;
     let beg = expect_int(&args[1])?;
     let end = expect_int(&args[2])?;
@@ -1466,6 +1480,46 @@ mod tests {
     fn make_overlay_wrong_args() {
         let mut eval = eval_with_text("hello");
         let result = builtin_make_overlay(&mut eval, vec![Value::Int(1)]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn make_overlay_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_make_overlay(
+            &mut eval,
+            vec![
+                Value::Int(1),
+                Value::Int(2),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn overlays_at_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_overlays_at(&mut eval, vec![Value::Int(1), Value::Nil, Value::Nil]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn move_overlay_rejects_too_many_args() {
+        let mut eval = eval_with_text("hello");
+        let result = builtin_move_overlay(
+            &mut eval,
+            vec![
+                Value::Nil,
+                Value::Int(1),
+                Value::Int(2),
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
         assert!(result.is_err());
     }
 

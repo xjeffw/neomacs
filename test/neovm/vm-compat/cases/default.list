@@ -179,6 +179,7 @@ cases/map-family-semantics
 cases/ignore-semantics
 cases/take
 cases/match-data
+cases/overlay-arity-semantics
 cases/search-buffer
 cases/looking-at-p-semantics
 cases/search-count
