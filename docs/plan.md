@@ -18,6 +18,49 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead duplicate wrapper surface from `editfns`:
+  - updated:
+    - `rust/neovm-core/src/elisp/editfns.rs`
+      - deleted unreferenced wrappers shadowed by active dispatch paths:
+        `point`/`point-min`/`point-max`, `goto-char`, `delete-region`,
+        `char-after`/`char-before`, region and line-position wrappers, and
+        duplicate user identity wrappers.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/chars` (pass, 11/11)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/mark-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/region-beginning-end-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/system-users-groups-semantics` (pass, 10/10)
+- Removed dead duplicate reader-internals wrapper surface from `lread`:
+  - updated:
+    - `rust/neovm-core/src/elisp/lread.rs`
+      - deleted unreferenced wrappers shadowed by active dispatch:
+        `load`, `intern`, `intern-soft`, `read-char`, `read`, `read-from-string`,
+        and associated private helper code/tests bound only to those wrappers.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/load-flags` (pass, 19/19)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/load-require` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/load-relative` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/intern-obarray-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/obarray-arg-semantics` (pass, 9/9)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-from-string-edges` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-stream-semantics` (pass, 14/14)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-batch-readers` (pass, 70/70)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+- Removed dead duplicate wrapper surface from `fileio` and `indent`:
+  - updated:
+    - `rust/neovm-core/src/elisp/fileio.rs`
+      - deleted unreferenced `builtin_file_attributes` wrapper shadowed by `dired`.
+    - `rust/neovm-core/src/elisp/indent.rs`
+      - deleted unreferenced wrappers shadowed by active `kill_ring` implementations:
+        `indent-line-to`, `indent-rigidly`, `newline-and-indent`,
+        `tab-to-tab-stop`, `delete-indentation`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/file-attributes` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/directory-files` (pass, 15/15)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/indent-region-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/indent-rigidly-read-only-variable-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
 - Re-ran the full NeoVM vm-compat gate after dead-module cleanup batch:
   - verified:
     - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only enabled corpus)
