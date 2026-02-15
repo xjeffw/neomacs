@@ -5,17 +5,29 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit `kill-ring-yank-pointer` and cross-command rotation state interactions (`current-kill` <-> `yank`/`yank-pop`).
+- Audit remaining edge paths for `kill-ring-yank-pointer` when pointer/list shapes are invalid.
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Expand oracle corpus for explicit `kill-ring-yank-pointer` mutation and validation paths.
+- Expand oracle corpus for malformed/non-tail `kill-ring-yank-pointer` values and fallback behavior.
 - Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Aligned explicit `kill-ring-yank-pointer` variable semantics with internal ring pointer state:
+  - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
+    - sync now imports pointer state from dynamic/global `kill-ring-yank-pointer` tail into in-memory `yank_pointer`
+    - sync now exports both `kill-ring` and `kill-ring-yank-pointer` after pointer-rotating operations
+    - `current-kill`/`yank`/`yank-pop` rotation paths now publish pointer updates back into bindings
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/kill-ring-yank-pointer-semantics.forms`
+    - `test/neovm/vm-compat/cases/kill-ring-yank-pointer-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-yank-pointer-semantics` (pass, 16/16)
+    - `cargo test current_kill -- --nocapture` in `rust/neovm-core` (pass)
 - Added `setq`/pointer-oriented kill-ring oracle corpus coverage:
   - added and enabled:
     - `test/neovm/vm-compat/cases/kill-ring-setq-pointer-semantics.forms`
