@@ -18,6 +18,18 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead legacy `callproc` module subtree that was no longer compiled or referenced:
+  - deleted:
+    - `rust/neovm-core/src/elisp/callproc.rs`
+    - `rust/neovm-core/src/elisp/callproc/args.rs`
+    - `rust/neovm-core/src/elisp/callproc/env.rs`
+    - `rust/neovm-core/src/elisp/callproc/process.rs`
+    - `rust/neovm-core/src/elisp/callproc/tests.rs`
+  - active process builtins continue to come from `rust/neovm-core/src/elisp/process.rs`
+  - verified:
+    - `cargo test 'elisp::process::tests::' -- --nocapture` (pass, 47 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/process-basics` (pass, 29/29)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/process-error-conditions` (pass, 2/2)
 - Removed dead, unexposed CL set-operation helper surface from core `cl-lib` module:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
