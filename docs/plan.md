@@ -37,6 +37,8 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-pointer-improper-semantics` (pass, 14/14)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-yank-pointer-invalid-semantics` (pass, 20/20)
     - `cargo test current_kill -- --nocapture` in `rust/neovm-core` (pass)
+    - `cargo test current_kill_improper_pointer_errors -- --nocapture` in `rust/neovm-core` (pass)
+    - `cargo test current_kill_non_string_pointer_cycles_by_length -- --nocapture` in `rust/neovm-core` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Promoted additional passing corpora into the default vm-compat suite:
   - added to `test/neovm/vm-compat/cases/default.list`:
