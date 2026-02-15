@@ -11,6 +11,21 @@
 (condition-case err
     (with-syntax-table (progn (signal 'error '("boom"))) 1)
   (error (car err)))
+(let ((orig (syntax-table))
+      (tmp (make-syntax-table)))
+  (list (with-syntax-table tmp
+          (eq (syntax-table) tmp))
+        (eq (syntax-table) orig)))
+(let ((orig (syntax-table))
+      (tmp (make-syntax-table)))
+  (list (condition-case err
+            (with-syntax-table tmp
+              (signal 'error '("boom")))
+          (error (car err)))
+        (eq (syntax-table) orig)))
+(condition-case err
+    (with-syntax-table 1 :ok)
+  (error (list (car err) (cadr err))))
 
 (fboundp 'track-mouse)
 (special-form-p 'track-mouse)
