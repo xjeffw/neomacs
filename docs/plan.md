@@ -19,6 +19,17 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Fixed evaluator-side `case-table` identity drift across vm-compat runs:
+  - updated:
+    - `rust/neovm-core/src/elisp/casetab.rs`
+      - evaluator paths for `standard-case-table` and `current-case-table` now use evaluator-owned standard object state (obarray symbol storage) instead of thread-local fallback.
+      - evaluator `set-standard-case-table` now updates evaluator-owned standard state directly.
+      - removed the cross-thread identity drift that caused `(eq (current-case-table) (standard-case-table))` to intermittently return `nil`.
+  - verified:
+    - `cargo test casetab::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/case-table-object-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Aligned `find-composition-internal` position lower-bound error semantics:
   - updated:
     - `rust/neovm-core/src/elisp/composite.rs`
