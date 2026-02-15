@@ -18,6 +18,35 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented syntax-table family builtins for compatibility:
+  - updated:
+    - `rust/neovm-core/src/elisp/syntax.rs`
+      - upgraded `make-syntax-table` to return a syntax-table char-table and support optional parent validation.
+      - added `standard-syntax-table` and evaluator-backed `syntax-table`.
+      - added unit tests for return shapes and error paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `syntax-table` in eval dispatch and `standard-syntax-table` in pure dispatch maps.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - registered `syntax-table` and `standard-syntax-table` so `fboundp`/introspection resolve.
+  - verified:
+    - `cargo test 'elisp::syntax::tests::make_syntax_table_returns_syntax_char_table' -- --nocapture` (pass)
+    - `cargo test 'elisp::syntax::tests::make_syntax_table_parent_must_be_char_table' -- --nocapture` (pass)
+    - `cargo test 'elisp::syntax::tests::standard_syntax_table_returns_char_table' -- --nocapture` (pass)
+    - `cargo test 'elisp::syntax::tests::syntax_table_eval_returns_char_table' -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/misc-special-forms-semantics` (pass, 13/13)
+
+- Added oracle-locked syntax-table compatibility corpus:
+  - updated:
+    - `test/neovm/vm-compat/cases/syntax-table-semantics.forms`
+      - added runtime checks for `make-syntax-table`, `standard-syntax-table`, and `syntax-table` values, subtype, parent wiring, and arity/type errors.
+    - `test/neovm/vm-compat/cases/syntax-table-semantics.expected.tsv`
+      - recorded with `NEOVM_ORACLE_EMACS=/nix/store/2lzapcylxkad2r63h144mp9nnin4vb5n-user-environment/bin/emacs`.
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/syntax-table-semantics` in default corpus runs.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/syntax-table-semantics` (pass, 14/14)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Added oracle-locked runtime semantics corpus for misc special forms:
   - updated:
     - `test/neovm/vm-compat/cases/misc-special-forms-semantics.forms`
