@@ -18,6 +18,13 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead `misc` decode/encode-char delegate wrappers:
+  - updated:
+    - `rust/neovm-core/src/elisp/misc.rs`
+      - deleted unreferenced `builtin_decode_char` / `builtin_encode_char` wrappers and stale local tests bound only to those delegates
+  - verified:
+    - `cargo test 'elisp::misc::tests::' -- --nocapture` (pass, 52 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/chars` (pass, 11/11)
 - Removed dead `misc` duplicate `nconc` wrapper surface:
   - updated:
     - `rust/neovm-core/src/elisp/misc.rs`
