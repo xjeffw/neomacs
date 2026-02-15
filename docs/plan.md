@@ -19,6 +19,21 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned `clear-image-cache` batch semantics with oracle behavior:
+  - updated:
+    - `rust/neovm-core/src/elisp/image.rs`
+      - `clear-image-cache` now signals `(error "Window system frame should be used")` for no args, nil filter, or over-arity.
+      - keeps nil return for non-nil single FILTER values (e.g. `t`, numeric, symbol).
+      - updated image unit coverage accordingly.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/image-clear-cache-semantics`.
+    - added oracle corpus:
+      - `test/neovm/vm-compat/cases/image-clear-cache-semantics.{forms,expected.tsv}`
+  - verified:
+    - `cargo test image::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/image-clear-cache-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Expanded vm-compat coverage for font/face helper stubs and aligned runtime semantics:
   - updated:
     - `rust/neovm-core/src/elisp/font.rs`
