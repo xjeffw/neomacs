@@ -33,6 +33,7 @@ Last updated: 2026-02-14
   - removed unexposed `downcase-char` helper
   - removed unexposed `find-coding-system` helper
   - removed unexposed `word-at-point` helper
+  - removed stale, unreferenced `elisp/terminal` shim module files
 - Implemented `terminal-parameter` / `set-terminal-parameter` compatibility semantics:
   - persisted terminal parameter values for symbol keys
   - `terminal-parameter` enforces `symbolp` for PARAMETER
