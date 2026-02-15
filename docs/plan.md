@@ -18,6 +18,15 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Tightened `builtins_extra` sequence docs/tests for `seq-length`:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins_extra.rs`
+      - fixed stale docstring on `builtin_seq_length` (was mislabeled as `seq-count`).
+      - added unit tests for `seq-length` success paths and wrong-type error signaling.
+  - verified:
+    - `cargo test 'elisp::builtins_extra::tests::' -- --nocapture` (pass, 16 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/seq-more` (pass, 16/16)
+
 - Re-ran full NeoVM compatibility gate after warning-cleanup slices:
   - verified:
     - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)

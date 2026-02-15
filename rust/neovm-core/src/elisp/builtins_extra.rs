@@ -217,7 +217,7 @@ pub(crate) fn builtin_seq_uniq(args: Vec<Value>) -> EvalResult {
     Ok(Value::list(result))
 }
 
-/// `(seq-count PRED SEQ)` — stub: count non-nil elements.
+/// `(seq-length SEQ)` — length of a strict sequence (list/vector/string).
 pub(crate) fn builtin_seq_length(args: Vec<Value>) -> EvalResult {
     expect_args("seq-length", &args, 1)?;
     let elements = collect_sequence_strict(&args[0])?;
@@ -608,6 +608,24 @@ mod tests {
         let result = builtin_seq_uniq(vec![list]).unwrap();
         let items = super::super::value::list_to_vec(&result).unwrap();
         assert_eq!(items.len(), 3);
+    }
+
+    #[test]
+    fn seq_length_list_and_string() {
+        let list = Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+        let list_len = builtin_seq_length(vec![list]).unwrap();
+        assert_eq!(list_len.as_int(), Some(3));
+
+        let string_len = builtin_seq_length(vec![Value::string("hello")]).unwrap();
+        assert_eq!(string_len.as_int(), Some(5));
+    }
+
+    #[test]
+    fn seq_length_wrong_type_errors() {
+        match builtin_seq_length(vec![Value::Int(42)]) {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {other:?}"),
+        }
     }
 
     #[test]
