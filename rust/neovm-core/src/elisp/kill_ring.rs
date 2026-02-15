@@ -14,7 +14,7 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::syntax::{backward_word, forward_word, scan_sexps, SyntaxClass, SyntaxTable};
-use super::value::Value;
+use super::value::{list_to_vec, Value};
 use crate::buffer::Buffer;
 
 // ===========================================================================
@@ -630,18 +630,34 @@ fn kill_ring_pointer_index(
         };
     }
 
-    let pointer_entries = if let Some(v) = kill_ring_entries_from_value(pointer_value) {
+    let pointer_values = if let Some(v) = list_to_vec(pointer_value) {
         v
     } else {
-        return Ok(kill_ring_entries.len().saturating_sub(1));
+        return if strict_non_list {
+            Err(signal("wrong-type-argument", vec![]))
+        } else {
+            Ok(0)
+        };
     };
 
-    for idx in 0..kill_ring_entries.len() {
-        if kill_ring_entries[idx..] == pointer_entries[..] {
-            return Ok(idx);
+    let pointer_len = pointer_values.len();
+
+    let pointer_entries: Option<Vec<String>> = pointer_values
+        .iter()
+        .map(|v| v.as_str().map(|s| s.to_string()))
+        .collect();
+    if let Some(pointer_entries) = pointer_entries {
+        for idx in 0..kill_ring_entries.len() {
+            if kill_ring_entries[idx..] == pointer_entries[..] {
+                return Ok(idx);
+            }
         }
     }
-    Ok(kill_ring_entries.len().saturating_sub(1))
+
+    if kill_ring_entries.is_empty() {
+        return Ok(0);
+    }
+    Ok((kill_ring_entries.len() - (pointer_len % kill_ring_entries.len())) % kill_ring_entries.len())
 }
 
 fn list_tail_at(list: &Value, index: usize) -> Value {
