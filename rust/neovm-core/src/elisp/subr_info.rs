@@ -331,12 +331,6 @@ fn autoload_macro_marker(value: &Value) -> Option<Value> {
 // Pure builtins (no evaluator access)
 // ---------------------------------------------------------------------------
 
-/// `(subrp OBJECT)` -- return t if OBJECT is a built-in function (Value::Subr).
-pub(crate) fn builtin_subrp(args: Vec<Value>) -> EvalResult {
-    expect_args("subrp", &args, 1)?;
-    Ok(Value::bool(matches!(&args[0], Value::Subr(_))))
-}
-
 /// `(subr-name SUBR)` -- return the name of a subroutine as a string.
 pub(crate) fn builtin_subr_name(args: Vec<Value>) -> EvalResult {
     expect_args("subr-name", &args, 1)?;
@@ -379,33 +373,6 @@ pub(crate) fn builtin_subr_native_elisp_p(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_subr_primitive_p(args: Vec<Value>) -> EvalResult {
     expect_args("subr-primitive-p", &args, 1)?;
     Ok(Value::bool(matches!(&args[0], Value::Subr(_))))
-}
-
-/// `(functionp OBJECT)` -- return t if OBJECT is a function.
-///
-/// A function is one of: lambda, subr, or byte-compiled function.
-pub(crate) fn builtin_functionp(args: Vec<Value>) -> EvalResult {
-    expect_args("functionp", &args, 1)?;
-    Ok(Value::bool(args[0].is_function()))
-}
-
-/// `(byte-code-function-p OBJECT)` -- return t if OBJECT is a byte-compiled
-/// function.
-pub(crate) fn builtin_byte_code_function_p(args: Vec<Value>) -> EvalResult {
-    expect_args("byte-code-function-p", &args, 1)?;
-    Ok(Value::bool(matches!(&args[0], Value::ByteCode(_))))
-}
-
-/// `(closurep OBJECT)` -- return t if OBJECT is a closure.
-///
-/// A closure is a Lambda with a captured lexical environment.
-pub(crate) fn builtin_closurep(args: Vec<Value>) -> EvalResult {
-    expect_args("closurep", &args, 1)?;
-    let is_closure = match &args[0] {
-        Value::Lambda(l) => l.env.is_some(),
-        _ => false,
-    };
-    Ok(Value::bool(is_closure))
 }
 
 /// `(interpreted-function-p OBJECT)` -- return t if OBJECT is an interpreted
@@ -481,50 +448,6 @@ pub(crate) fn builtin_func_arity(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// Eval-dependent builtins
-// ---------------------------------------------------------------------------
-
-/// `(indirect-function OBJECT &optional NOERROR)` -- follow symbol function
-/// indirection.
-///
-/// If OBJECT is a symbol, look up its function cell and follow any chain of
-/// symbol aliases (defalias).  If OBJECT is not a symbol, return it as-is.
-/// When the function cell is void and NOERROR is nil (the default), signal
-/// a `void-function` error.
-pub(crate) fn builtin_indirect_function(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_min_args("indirect-function", &args, 1)?;
-    let noerror = args.get(1).map_or(false, |v| v.is_truthy());
-
-    match &args[0] {
-        Value::Symbol(name) => {
-            if let Some(func) = eval.obarray.indirect_function(name) {
-                Ok(func)
-            } else if let Some(func) = eval.obarray.symbol_function(name) {
-                // Direct function cell exists but is not a symbol chain.
-                Ok(func.clone())
-            } else if noerror {
-                Ok(Value::Nil)
-            } else {
-                Err(signal("void-function", vec![Value::symbol(name.clone())]))
-            }
-        }
-        // nil as a symbol
-        Value::Nil => {
-            if noerror {
-                Ok(Value::Nil)
-            } else {
-                Err(signal("void-function", vec![Value::symbol("nil")]))
-            }
-        }
-        // Non-symbol: return as-is (identity).
-        other => Ok(other.clone()),
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -547,16 +470,6 @@ mod tests {
         }))
     }
 
-    fn make_closure(required: Vec<&str>) -> Value {
-        use std::collections::HashMap;
-        Value::Lambda(Arc::new(LambdaData {
-            params: LambdaParams::simple(required.into_iter().map(String::from).collect()),
-            body: vec![],
-            env: Some(vec![HashMap::new()]),
-            docstring: None,
-        }))
-    }
-
     fn make_macro(required: Vec<&str>) -> Value {
         Value::Macro(Arc::new(LambdaData {
             params: LambdaParams::simple(required.into_iter().map(String::from).collect()),
@@ -574,27 +487,6 @@ mod tests {
             rest: rest.map(String::from),
         };
         Value::ByteCode(Arc::new(ByteCodeFunction::new(params)))
-    }
-
-    // -- subrp --
-
-    #[test]
-    fn subrp_true_for_subr() {
-        let result = builtin_subrp(vec![Value::Subr("car".into())]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    #[test]
-    fn subrp_false_for_lambda() {
-        let lam = make_lambda(vec![], vec![], None);
-        let result = builtin_subrp(vec![lam]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn subrp_false_for_int() {
-        let result = builtin_subrp(vec![Value::Int(42)]).unwrap();
-        assert!(result.is_nil());
     }
 
     // -- subr-name --
@@ -695,79 +587,6 @@ mod tests {
 
         let native = builtin_subr_native_elisp_p(vec![Value::Subr("car".into())]).unwrap();
         assert!(native.is_nil());
-    }
-
-    // -- functionp --
-
-    #[test]
-    fn functionp_true_for_lambda() {
-        let lam = make_lambda(vec!["x"], vec![], None);
-        let result = builtin_functionp(vec![lam]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    #[test]
-    fn functionp_true_for_subr() {
-        let result = builtin_functionp(vec![Value::Subr("car".into())]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    #[test]
-    fn functionp_true_for_bytecode() {
-        let bc = make_bytecode(vec![], None);
-        let result = builtin_functionp(vec![bc]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    #[test]
-    fn functionp_false_for_macro() {
-        let m = make_macro(vec!["form"]);
-        let result = builtin_functionp(vec![m]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn functionp_false_for_int() {
-        let result = builtin_functionp(vec![Value::Int(5)]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    // -- byte-code-function-p --
-
-    #[test]
-    fn byte_code_function_p_true() {
-        let bc = make_bytecode(vec!["a"], None);
-        let result = builtin_byte_code_function_p(vec![bc]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    #[test]
-    fn byte_code_function_p_false_for_lambda() {
-        let lam = make_lambda(vec!["a"], vec![], None);
-        let result = builtin_byte_code_function_p(vec![lam]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    // -- closurep --
-
-    #[test]
-    fn closurep_true_for_closure() {
-        let cl = make_closure(vec!["x"]);
-        let result = builtin_closurep(vec![cl]).unwrap();
-        assert!(result.is_truthy());
-    }
-
-    #[test]
-    fn closurep_false_for_plain_lambda() {
-        let lam = make_lambda(vec!["x"], vec![], None);
-        let result = builtin_closurep(vec![lam]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn closurep_false_for_subr() {
-        let result = builtin_closurep(vec![Value::Subr("car".into())]).unwrap();
-        assert!(result.is_nil());
     }
 
     // -- interpreted-function-p --
@@ -1046,57 +865,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // -- indirect-function --
-
-    #[test]
-    fn indirect_function_non_symbol_passthrough() {
-        let mut eval = crate::elisp::eval::Evaluator::new();
-        let lam = make_lambda(vec![], vec![], None);
-        let result = builtin_indirect_function(&mut eval, vec![lam.clone()]).unwrap();
-        // Non-symbol returns as-is.
-        assert!(matches!(result, Value::Lambda(_)));
-    }
-
-    #[test]
-    fn indirect_function_resolves_symbol() {
-        let mut eval = crate::elisp::eval::Evaluator::new();
-        eval.set_function("my-fn", Value::Subr("+".into()));
-        let result = builtin_indirect_function(&mut eval, vec![Value::symbol("my-fn")]).unwrap();
-        assert!(matches!(result, Value::Subr(ref n) if n == "+"));
-    }
-
-    #[test]
-    fn indirect_function_follows_chain() {
-        let mut eval = crate::elisp::eval::Evaluator::new();
-        eval.set_function("real-fn", Value::Subr("+".into()));
-        eval.set_function("alias", Value::Symbol("real-fn".into()));
-        let result = builtin_indirect_function(&mut eval, vec![Value::symbol("alias")]).unwrap();
-        assert!(matches!(result, Value::Subr(ref n) if n == "+"));
-    }
-
-    #[test]
-    fn indirect_function_void_with_noerror() {
-        let mut eval = crate::elisp::eval::Evaluator::new();
-        let result =
-            builtin_indirect_function(&mut eval, vec![Value::symbol("nonexistent"), Value::True])
-                .unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn indirect_function_void_signals_error() {
-        let mut eval = crate::elisp::eval::Evaluator::new();
-        let result = builtin_indirect_function(&mut eval, vec![Value::symbol("nonexistent")]);
-        assert!(result.is_err());
-    }
-
     // -- wrong arg count --
-
-    #[test]
-    fn subrp_wrong_args() {
-        let result = builtin_subrp(vec![]);
-        assert!(result.is_err());
-    }
 
     #[test]
     fn subr_name_wrong_args() {
