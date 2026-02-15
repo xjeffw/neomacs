@@ -2237,17 +2237,21 @@ pub(crate) fn builtin_newline(eval: &mut super::eval::Evaluator, args: Vec<Value
         expect_int(&args[0])?.max(0) as usize
     };
 
+    let read_only_buffer_name = eval.buffers.current_buffer().and_then(|buf| {
+        if region_case_read_only(eval, buf) {
+            Some(buf.name.clone())
+        } else {
+            None
+        }
+    });
+    if let Some(name) = read_only_buffer_name {
+        return Err(signal("buffer-read-only", vec![Value::string(name)]));
+    }
+
     let buf = eval
         .buffers
         .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-
-    if buf.read_only {
-        return Err(signal(
-            "buffer-read-only",
-            vec![Value::string(buf.name.clone())],
-        ));
-    }
 
     let newlines: String = "\n".repeat(n);
     buf.insert(&newlines);
@@ -2320,17 +2324,21 @@ pub(crate) fn builtin_open_line(eval: &mut super::eval::Evaluator, args: Vec<Val
         ));
     }
 
+    let read_only_buffer_name = eval.buffers.current_buffer().and_then(|buf| {
+        if region_case_read_only(eval, buf) {
+            Some(buf.name.clone())
+        } else {
+            None
+        }
+    });
+    if let Some(name) = read_only_buffer_name {
+        return Err(signal("buffer-read-only", vec![Value::string(name)]));
+    }
+
     let buf = eval
         .buffers
         .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-
-    if buf.read_only {
-        return Err(signal(
-            "buffer-read-only",
-            vec![Value::string(buf.name.clone())],
-        ));
-    }
 
     let pt = buf.point();
     if n > 0 {
