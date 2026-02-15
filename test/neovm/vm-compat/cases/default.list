@@ -114,6 +114,7 @@ cases/yank-pop-semantics
 cases/yank-pop-wrap-empty-entry-semantics
 cases/yank-pop-pointer-seed-semantics
 cases/yank-pop-pointer-normalize-error-semantics
+cases/yank-pop-region-tracking-semantics
 cases/yank-improper-pointer-semantics
 cases/buffer-local-value
 cases/buffer-local-variables-semantics
