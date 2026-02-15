@@ -1,6 +1,7 @@
 (fboundp 'terminal-parameter)
 (fboundp 'set-terminal-parameter)
 (stringp (terminal-name (frame-terminal nil)))
+(let ((f (selected-frame))) (terminal-live-p (frame-terminal f)))
 (let ((term (frame-terminal nil))) (terminal-live-p term))
 (let ((lst (terminal-list))) (and (consp lst) (terminal-live-p (car lst))))
 (terminal-live-p "initial_terminal")
@@ -29,7 +30,7 @@
 (condition-case err
     (set-terminal-parameter 1 'neovm-vmcompat-terminal-param 1)
   (wrong-type-argument (car err)))
-(condition-case err (frame-terminal 1) (wrong-type-argument (car err)))
+(condition-case err (frame-terminal 999999) (wrong-type-argument (car err)))
 (condition-case err (terminal-name 1) (wrong-type-argument (car err)))
 (condition-case err (terminal-name "initial_terminal") (wrong-type-argument (car err)))
 (condition-case err (terminal-parameter nil) (wrong-number-of-arguments (car err)))

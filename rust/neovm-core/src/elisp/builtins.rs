@@ -6475,6 +6475,7 @@ pub(crate) fn dispatch_builtin(
                 eval, args,
             ))
         }
+        "frame-terminal" => return Some(super::display::builtin_frame_terminal_eval(eval, args)),
         "display-monitor-attributes-list" => {
             return Some(super::display::builtin_display_monitor_attributes_list_eval(eval, args))
         }

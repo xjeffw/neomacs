@@ -667,6 +667,25 @@ pub(crate) fn builtin_frame_terminal(args: Vec<Value>) -> EvalResult {
     Ok(terminal_handle_value())
 }
 
+/// Evaluator-aware variant of `frame-terminal`.
+///
+/// Accepts live frame designators in addition to nil.
+pub(crate) fn builtin_frame_terminal_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("frame-terminal", &args, 1)?;
+    if let Some(frame) = args.first() {
+        if !frame.is_nil() && !live_frame_designator_p(eval, frame) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("frame-live-p"), frame.clone()],
+            ));
+        }
+    }
+    Ok(terminal_handle_value())
+}
+
 /// (terminal-live-p TERMINAL) -> t
 pub(crate) fn builtin_terminal_live_p(args: Vec<Value>) -> EvalResult {
     expect_range_args("terminal-live-p", &args, 1, 1)?;
@@ -962,6 +981,15 @@ mod tests {
     #[test]
     fn frame_terminal_returns_live_terminal_handle() {
         let handle = builtin_frame_terminal(vec![Value::Nil]).unwrap();
+        let live = builtin_terminal_live_p(vec![handle]).unwrap();
+        assert_eq!(live, Value::True);
+    }
+
+    #[test]
+    fn eval_frame_terminal_accepts_live_frame_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let frame_id = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval).0 as i64;
+        let handle = builtin_frame_terminal_eval(&mut eval, vec![Value::Int(frame_id)]).unwrap();
         let live = builtin_terminal_live_p(vec![handle]).unwrap();
         assert_eq!(live, Value::True);
     }
