@@ -1,6 +1,26 @@
 ; where-is-internal evaluator-backed semantics.
 
 (condition-case err
+    (keymapp (make-keymap))
+  (error (car err)))
+(condition-case err
+    (keymapp (make-keymap nil))
+  (error (car err)))
+(condition-case err
+    (make-keymap nil nil)
+  (error (car err)))
+
+(condition-case err
+    (keymapp (make-sparse-keymap))
+  (error (car err)))
+(condition-case err
+    (keymapp (make-sparse-keymap 1))
+  (error (car err)))
+(condition-case err
+    (make-sparse-keymap nil nil)
+  (error (car err)))
+
+(condition-case err
     (where-is-internal 'ignore 'not-a-map)
   (error err))
 

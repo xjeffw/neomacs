@@ -5208,23 +5208,19 @@ fn define_key_in_map(
 
 /// (make-keymap) -> keymap-id
 fn builtin_make_keymap(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    let _ = &args;
+    expect_max_args("make-keymap", &args, 1)?;
     let id = eval.keymaps.make_keymap();
     Ok(Value::Int(id as i64))
 }
 
 /// (make-sparse-keymap &optional NAME) -> keymap-id
 fn builtin_make_sparse_keymap(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_max_args("make-sparse-keymap", &args, 1)?;
     let name = if !args.is_empty() {
         match &args[0] {
             Value::Str(s) => Some((**s).clone()),
             Value::Nil => None,
-            other => {
-                return Err(signal(
-                    "wrong-type-argument",
-                    vec![Value::symbol("stringp"), other.clone()],
-                ));
-            }
+            _ => None,
         }
     } else {
         None
