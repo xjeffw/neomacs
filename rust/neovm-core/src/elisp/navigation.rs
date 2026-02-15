@@ -457,11 +457,11 @@ pub(crate) fn builtin_forward_char(
     buf.goto_char(new_byte);
     // Signal if we couldn't move the full distance
     let desired = cur_char as i64 + n;
-    if desired < 0 || desired > total_chars as i64 {
-        return Err(signal(
-            "beginning-of-buffer",
-            if n < 0 { vec![] } else { vec![] },
-        ));
+    if desired < 0 {
+        return Err(signal("beginning-of-buffer", vec![]));
+    }
+    if desired > total_chars as i64 {
+        return Err(signal("end-of-buffer", vec![]));
     }
     Ok(Value::Nil)
 }
