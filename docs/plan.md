@@ -12,12 +12,25 @@ Last updated: 2026-02-15
 
 ## Next
 
-- Add one focused corpus for `call-interactively`/`command-execute` `set-mark-command` prefix handling.
+- Add one focused corpus for another `call-interactively` prefix-arg path to keep `command-execute`/`call-interactively` separation explicit.
 - Continue promoting already-green non-default corpora to `default.list` one-by-one with targeted checks.
 - Keep validating list hygiene and merged-case dedupe as list membership changes.
 
 ## Done
 
+- Aligned `call-interactively` prefix plumbing for `set-mark-command`:
+  - updated:
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - `call-interactively` now passes dynamic/global `current-prefix-arg` to `set-mark-command`
+      - `command-execute` behavior remains unchanged (`nil` arg path)
+  - added corpus:
+    - `test/neovm/vm-compat/cases/call-interactively-set-mark-command-prefix-semantics.forms`
+    - `test/neovm/vm-compat/cases/call-interactively-set-mark-command-prefix-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/call-interactively-set-mark-command-prefix-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned `set-mark-command`/`activate-mark` semantics with oracle behavior:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
