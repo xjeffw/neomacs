@@ -1854,6 +1854,17 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/query-replace-batch-semantics.forms EXPECTED=cases/query-replace-batch-semantics.expected.tsv` (pass, 10/10)
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-query-case-fold-variable-semantics.forms EXPECTED=cases/replace-query-case-fold-variable-semantics.expected.tsv` (pass, 10/10)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Fixed `capitalize-word` multi-word range semantics and locked word-case command behavior:
+  - `capitalize-word` now capitalizes each word across the selected range (including negative ARG ranges), matching oracle behavior
+  - refactored shared word-capitalization logic for consistency with `capitalize-region`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/case-word-semantics.forms`
+    - `test/neovm/vm-compat/cases/case-word-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml kill_ring::tests::capitalize_ -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/case-word-semantics.forms EXPECTED=cases/case-word-semantics.expected.tsv` (pass, 10/10)
+    - `make -C test/neovm/vm-compat CASES='cases/case-region-optional-arg-semantics cases/command-dispatch-default-arg-semantics cases/case-word-semantics' check-neovm` (pass, 15/15)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
