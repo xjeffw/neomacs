@@ -4,6 +4,22 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned region-taking case builtins with Emacs character-position semantics and optional noncontiguous behavior:
+  - switched `kill-region`, `kill-ring-save`, `copy-region-as-kill`, `downcase-region`, `upcase-region`, `capitalize-region`, `upcase-initials-region`, and `indent-rigidly` shared bounds resolution to Emacs-style 1-based character positions
+  - `interactive` default region argument synthesis now passes 1-based character positions (not raw byte offsets)
+  - updated `upcase-region` / `downcase-region` / `capitalize-region` arity to `2..3` and aligned `REGION-NONCONTIGUOUS-P` behavior:
+    - non-nil arg requires a live mark
+    - non-nil arg uses active point/mark region (ignores explicit `BEG`/`END`)
+  - updated affected `kill_ring` unit tests to use character positions and added coverage for noncontiguous-mark behavior
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/case-region-optional-arg-semantics.forms`
+    - `test/neovm/vm-compat/cases/case-region-optional-arg-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test kill_ring::tests:: -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/case-region-optional-arg-semantics.forms EXPECTED=cases/case-region-optional-arg-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/command-dispatch-default-arg-semantics.forms EXPECTED=cases/command-dispatch-default-arg-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented `backtrace-frame` compatibility slice:
   - replaced misc stub with evaluator-backed compatibility behavior:
     - enforces `wholenump` argument validation and 1..=2 arity
