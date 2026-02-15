@@ -115,6 +115,14 @@ Last updated: 2026-02-15
   - `test/neovm/vm-compat/cases/terminal-handle-printing.forms`
   - `test/neovm/vm-compat/cases/terminal-handle-printing.expected.tsv`
   - wired into `test/neovm/vm-compat/cases/default.list`
+- Aligned monitor attribute builtins with batch-style oracle semantics:
+  - `display-monitor-attributes-list` / `frame-monitor-attributes` now return batch-size geometry/workarea `(0 0 80 25)`, `mm-size` as `(nil nil)`, and stable key shape (`geometry`, `workarea`, `mm-size`, `frames`)
+  - invalid non-`nil` monitor designators now signal `error` (oracle-aligned class for `get-device-terminal` argument failures)
+  - `frame-monitor-attributes` accepts terminal handles for terminal-associated monitor lookup semantics
+- Added and enabled new oracle corpus:
+  - `test/neovm/vm-compat/cases/display-monitor-semantics.forms`
+  - `test/neovm/vm-compat/cases/display-monitor-semantics.expected.tsv`
+  - wired into `test/neovm/vm-compat/cases/default.list`
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
