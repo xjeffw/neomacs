@@ -60,10 +60,9 @@ fn expect_integer_or_marker(arg: &Value) -> Result<(), Flow> {
 
 /// (format-mode-line &optional FORMAT FACE WINDOW BUFFER) -> string
 ///
-/// Formats a mode line string. Stub implementation returns empty string.
+/// Batch-compatible behavior: accepts 1..4 args and returns an empty string.
 pub(crate) fn builtin_format_mode_line(args: Vec<Value>) -> EvalResult {
-    expect_args_range("format-mode-line", &args, 0, 4)?;
-    // Stub: return empty string
+    expect_args_range("format-mode-line", &args, 1, 4)?;
     Ok(Value::string(""))
 }
 
@@ -116,21 +115,18 @@ pub(crate) fn builtin_window_text_pixel_size(args: Vec<Value>) -> EvalResult {
 
 /// (pos-visible-in-window-p &optional POS WINDOW PARTIALLY) -> boolean
 ///
-/// Check if a position is visible in a window. Stub implementation
-/// always returns t.
+/// Batch-compatible behavior: no window visibility is reported, so this
+/// returns nil.
 pub(crate) fn builtin_pos_visible_in_window_p(args: Vec<Value>) -> EvalResult {
     expect_args_range("pos-visible-in-window-p", &args, 0, 3)?;
-    // Stub: always return t
-    Ok(Value::True)
+    Ok(Value::Nil)
 }
 
 /// (move-point-visually DIRECTION) -> boolean
 ///
-/// Move point in visual order (left/right). Stub implementation
-/// always returns nil.
+/// Stub implementation always returns nil.
 pub(crate) fn builtin_move_point_visually(args: Vec<Value>) -> EvalResult {
     expect_args("move-point-visually", &args, 1)?;
-    // Stub: return nil
     Ok(Value::Nil)
 }
 
@@ -155,11 +151,9 @@ pub(crate) fn builtin_current_bidi_paragraph_direction(args: Vec<Value>) -> Eval
 
 /// (move-to-window-line ARG) -> integer or nil
 ///
-/// Move to a specific line in the window. Stub implementation
-/// always returns nil.
+/// Stub implementation always returns nil.
 pub(crate) fn builtin_move_to_window_line(args: Vec<Value>) -> EvalResult {
     expect_args("move-to-window-line", &args, 1)?;
-    // Stub: return nil
     Ok(Value::Nil)
 }
 
@@ -209,13 +203,12 @@ mod tests {
 
     #[test]
     fn test_format_mode_line() {
-        let result = builtin_format_mode_line(vec![]).unwrap();
-        assert_eq!(result, Value::string(""));
-
         let result =
             builtin_format_mode_line(vec![Value::string("test"), Value::symbol("default")])
                 .unwrap();
         assert_eq!(result, Value::string(""));
+
+        assert!(builtin_format_mode_line(vec![]).is_err());
     }
 
     #[test]
@@ -283,12 +276,12 @@ mod tests {
     #[test]
     fn test_pos_visible_in_window_p() {
         let result = builtin_pos_visible_in_window_p(vec![]).unwrap();
-        assert!(result.is_truthy());
+        assert!(result.is_nil());
 
         let result =
             builtin_pos_visible_in_window_p(vec![Value::Int(100), Value::symbol("window")])
                 .unwrap();
-        assert!(result.is_truthy());
+        assert!(result.is_nil());
     }
 
     #[test]
@@ -373,8 +366,8 @@ mod tests {
     // Test optional args
     #[test]
     fn test_optional_args() {
-        // format-mode-line allows 0-4 args
-        assert!(builtin_format_mode_line(vec![]).is_ok());
+        // format-mode-line allows 1-4 args
+        assert!(builtin_format_mode_line(vec![]).is_err());
         assert!(builtin_format_mode_line(vec![Value::string("fmt")]).is_ok());
         assert!(builtin_format_mode_line(vec![
             Value::string("fmt"),
@@ -383,6 +376,14 @@ mod tests {
             Value::symbol("buffer"),
         ])
         .is_ok());
+        assert!(builtin_format_mode_line(vec![
+            Value::string("fmt"),
+            Value::symbol("face"),
+            Value::symbol("window"),
+            Value::symbol("buffer"),
+            Value::symbol("extra"),
+        ])
+        .is_err());
 
         // window-text-pixel-size allows 0-7 args
         assert!(builtin_window_text_pixel_size(vec![]).is_ok());

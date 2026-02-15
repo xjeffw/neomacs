@@ -4,6 +4,21 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `format-mode-line` / `pos-visible-in-window-p` batch compatibility slice:
+  - updated `rust/neovm-core/src/elisp/xdisp.rs`:
+    - `format-mode-line` arity aligned to `1..4` (no 0-arg path)
+    - preserved batch return shape of empty string for accepted calls
+    - `pos-visible-in-window-p` now returns oracle-aligned `nil` in batch mode
+  - expanded xdisp unit coverage for arity and nil-return behavior
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/xdisp-navigation-semantics.forms`
+    - `test/neovm/vm-compat/cases/xdisp-navigation-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml xdisp::tests::test_format_mode_line -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml xdisp::tests::test_pos_visible_in_window_p -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/xdisp-navigation-semantics.forms EXPECTED=cases/xdisp-navigation-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented `line-pixel-height` / `window-text-pixel-size` batch compatibility slice:
   - updated `rust/neovm-core/src/elisp/xdisp.rs`:
     - `line-pixel-height` now returns oracle-aligned batch value `1`
