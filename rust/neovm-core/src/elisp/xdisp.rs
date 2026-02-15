@@ -44,6 +44,16 @@ fn expect_args_range(name: &str, args: &[Value], min: usize, max: usize) -> Resu
     }
 }
 
+fn expect_integer_or_marker(arg: &Value) -> Result<(), Flow> {
+    match arg {
+        Value::Int(_) | Value::Char(_) => Ok(()),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integer-or-marker-p"), other.clone()],
+        )),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Pure builtins
 // ---------------------------------------------------------------------------
@@ -69,22 +79,39 @@ pub(crate) fn builtin_invisible_p(args: Vec<Value>) -> EvalResult {
 
 /// (line-pixel-height) -> integer
 ///
-/// Get the height of the current line in pixels. Stub implementation
-/// returns 16 (typical line height).
+/// Batch-compatible behavior returns 1.
 pub(crate) fn builtin_line_pixel_height(args: Vec<Value>) -> EvalResult {
     expect_args("line-pixel-height", &args, 0)?;
-    // Stub: return 16 pixels
-    Ok(Value::Int(16))
+    Ok(Value::Int(1))
 }
 
 /// (window-text-pixel-size &optional WINDOW FROM TO X-LIMIT Y-LIMIT MODE) -> (WIDTH . HEIGHT)
 ///
-/// Calculate the pixel size of window text. Stub implementation
-/// returns a fixed size.
+/// Batch-compatible behavior returns `(0 . 0)` and enforces argument
+/// validation for WINDOW / FROM / TO.
 pub(crate) fn builtin_window_text_pixel_size(args: Vec<Value>) -> EvalResult {
-    expect_args_range("window-text-pixel-size", &args, 0, 6)?;
-    // Stub: return (100 . 16)
-    Ok(Value::cons(Value::Int(100), Value::Int(16)))
+    expect_args_range("window-text-pixel-size", &args, 0, 7)?;
+
+    if let Some(window) = args.first() {
+        if !window.is_nil() {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("window-live-p"), window.clone()],
+            ));
+        }
+    }
+    if let Some(from) = args.get(1) {
+        if !from.is_nil() {
+            expect_integer_or_marker(from)?;
+        }
+    }
+    if let Some(to) = args.get(2) {
+        if !to.is_nil() {
+            expect_integer_or_marker(to)?;
+        }
+    }
+
+    Ok(Value::cons(Value::Int(0), Value::Int(0)))
 }
 
 /// (pos-visible-in-window-p &optional POS WINDOW PARTIALLY) -> boolean
@@ -203,7 +230,7 @@ mod tests {
     #[test]
     fn test_line_pixel_height() {
         let result = builtin_line_pixel_height(vec![]).unwrap();
-        assert_eq!(result, Value::Int(16));
+        assert_eq!(result, Value::Int(1));
     }
 
     #[test]
@@ -211,11 +238,46 @@ mod tests {
         let result = builtin_window_text_pixel_size(vec![]).unwrap();
         if let Value::Cons(cell) = result {
             let pair = cell.lock().unwrap();
-            assert_eq!(pair.car, Value::Int(100));
-            assert_eq!(pair.cdr, Value::Int(16));
+            assert_eq!(pair.car, Value::Int(0));
+            assert_eq!(pair.cdr, Value::Int(0));
         } else {
             panic!("expected cons");
         }
+    }
+
+    #[test]
+    fn test_window_text_pixel_size_arg_validation() {
+        let err = builtin_window_text_pixel_size(vec![Value::Int(1)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
+
+        let err = builtin_window_text_pixel_size(vec![Value::Nil, Value::symbol("x")]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
+
+        let err =
+            builtin_window_text_pixel_size(vec![Value::Nil, Value::Nil, Value::symbol("x")])
+                .unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
+
+        // X-LIMIT / Y-LIMIT / MODE / PIXELWISE are accepted without strict type checks.
+        assert!(builtin_window_text_pixel_size(vec![
+            Value::Nil,
+            Value::Nil,
+            Value::Nil,
+            Value::symbol("x"),
+            Value::symbol("y"),
+            Value::symbol("z"),
+            Value::symbol("m"),
+        ])
+        .is_ok());
     }
 
     #[test]
@@ -322,16 +384,18 @@ mod tests {
         ])
         .is_ok());
 
-        // window-text-pixel-size allows 0-6 args
+        // window-text-pixel-size allows 0-7 args
         assert!(builtin_window_text_pixel_size(vec![]).is_ok());
         assert!(builtin_window_text_pixel_size(vec![
-            Value::symbol("window"),
+            Value::Nil,
             Value::Int(1),
             Value::Int(100),
             Value::Int(500),
             Value::Int(300),
             Value::symbol("mode"),
+            Value::symbol("pixelwise"),
         ])
         .is_ok());
+        assert!(builtin_window_text_pixel_size(vec![Value::Int(1); 8]).is_err());
     }
 }

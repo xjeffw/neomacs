@@ -91,6 +91,7 @@ cases/read-batch-error-payloads
 cases/read-coding-system-semantics
 cases/timer-semantics
 cases/display-stub-semantics
+cases/xdisp-pixel-metrics-semantics
 cases/display-batch-semantics
 cases/display-query-designator-semantics
 cases/display-frame-designator-semantics

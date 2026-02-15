@@ -4,6 +4,24 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `line-pixel-height` / `window-text-pixel-size` batch compatibility slice:
+  - updated `rust/neovm-core/src/elisp/xdisp.rs`:
+    - `line-pixel-height` now returns oracle-aligned batch value `1`
+    - `window-text-pixel-size` now:
+      - accepts arity `0..7`
+      - validates `WINDOW` as `nil`-only in batch (`wrong-type-argument window-live-p ...` for non-`nil`)
+      - validates `FROM` / `TO` with `integer-or-marker-p` payloads
+      - returns oracle-aligned batch value `(0 . 0)`
+  - expanded unit coverage for new return values, arity, and argument validation
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/xdisp-pixel-metrics-semantics.forms`
+    - `test/neovm/vm-compat/cases/xdisp-pixel-metrics-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml xdisp::tests::test_line_pixel_height -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml xdisp::tests::test_window_text_pixel_size -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/xdisp-pixel-metrics-semantics.forms EXPECTED=cases/xdisp-pixel-metrics-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented `string-pixel-width` batch compatibility slice:
   - updated `rust/neovm-core/src/elisp/format.rs`:
     - replaced fixed `len * 8` stub with column-accurate width computation
