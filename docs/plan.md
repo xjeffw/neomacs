@@ -19,6 +19,25 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Expanded evaluator-backed frame-designator support across font batch stubs:
+  - updated:
+    - `rust/neovm-core/src/elisp/font.rs`
+      - added evaluator variants:
+        - `list-fonts`
+        - `find-font`
+        - `font-family-list`
+      - evaluator variants now accept `nil` and live frame designators in optional FRAME slots.
+      - added font unit coverage for live-frame paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed the three font builtins through evaluator dispatch.
+    - `test/neovm/vm-compat/cases/font-batch-semantics.{forms,expected.tsv}`
+      - added selected-frame lock-ins for `list-fonts`, `find-font`, and `font-family-list`.
+      - switched stale frame probes from `1` to `999999`.
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test font::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/font-batch-semantics` (pass, 21/21)
+
 - Ran recurring full vm-compat gate after xdisp/window/keymap compatibility slices:
   - verified:
     - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
