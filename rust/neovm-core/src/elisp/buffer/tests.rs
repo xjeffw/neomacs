@@ -513,22 +513,6 @@ fn kill_buffer_already_dead() {
     assert!(result.is_nil());
 }
 
-// ----- bury-buffer -----
-
-#[test]
-fn bury_buffer_returns_nil() {
-    let mut eval = new_eval();
-    let result = builtin_bury_buffer(&mut eval, vec![]).unwrap();
-    assert!(result.is_nil());
-}
-
-#[test]
-fn bury_buffer_with_arg() {
-    let mut eval = new_eval();
-    let result = builtin_bury_buffer(&mut eval, vec![Value::string("*scratch*")]).unwrap();
-    assert!(result.is_nil());
-}
-
 // ----- erase-buffer -----
 
 #[test]
@@ -549,39 +533,6 @@ fn erase_buffer_empty_buffer() {
     let mut eval = new_eval();
     let result = builtin_erase_buffer(&mut eval, vec![]).unwrap();
     assert!(result.is_nil());
-}
-
-// ----- buffer-swap-text -----
-
-#[test]
-fn buffer_swap_text_stub() {
-    let mut eval = new_eval();
-    let id = eval.buffers.create_buffer("other");
-    let result = builtin_buffer_swap_text(&mut eval, vec![Value::Buffer(id)]).unwrap();
-    assert!(result.is_nil());
-}
-
-#[test]
-fn buffer_swap_text_dead_buffer_errors() {
-    let mut eval = new_eval();
-    let id = eval.buffers.create_buffer("doomed");
-    eval.buffers.kill_buffer(id);
-    let result = builtin_buffer_swap_text(&mut eval, vec![Value::Buffer(id)]);
-    assert!(result.is_err());
-}
-
-#[test]
-fn buffer_swap_text_wrong_type() {
-    let mut eval = new_eval();
-    let result = builtin_buffer_swap_text(&mut eval, vec![Value::Int(42)]);
-    assert!(result.is_err());
-}
-
-#[test]
-fn buffer_swap_text_wrong_args() {
-    let mut eval = new_eval();
-    let result = builtin_buffer_swap_text(&mut eval, vec![]);
-    assert!(result.is_err());
 }
 
 // ----- buffer-size -----

@@ -312,18 +312,6 @@ pub(crate) fn builtin_kill_buffer(eval: &mut Evaluator, args: Vec<Value>) -> Eva
     }
 }
 
-/// (bury-buffer &optional BUFFER-OR-NAME) -> nil
-///
-/// Put BUFFER-OR-NAME at the end of the buffer list.
-/// Stub: currently a no-op since the buffer list order is unordered
-/// (HashMap-based).  Returns nil.
-pub(crate) fn builtin_bury_buffer(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_max_args("bury-buffer", &args, 1)?;
-    // Validate the argument if provided.
-    let _ = resolve_buffer_or_name_opt(&eval, args.first());
-    Ok(Value::Nil)
-}
-
 /// (erase-buffer) -> nil
 ///
 /// Delete the entire contents of the current buffer.
@@ -336,21 +324,6 @@ pub(crate) fn builtin_erase_buffer(eval: &mut Evaluator, args: Vec<Value>) -> Ev
     let len = buf.text.len();
     buf.delete_region(0, len);
     buf.widen();
-    Ok(Value::Nil)
-}
-
-/// (buffer-swap-text BUFFER) -> nil
-///
-/// Swap text between the current buffer and BUFFER.
-/// Stub: not implemented, returns nil.
-pub(crate) fn builtin_buffer_swap_text(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_args("buffer-swap-text", &args, 1)?;
-    let _id = expect_buffer_id(&args[0])?;
-    // Verify target is live.
-    if eval.buffers.get(_id).is_none() {
-        return Err(signal("error", vec![Value::string("No such live buffer")]));
-    }
-    // Stub: no-op
     Ok(Value::Nil)
 }
 

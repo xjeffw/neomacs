@@ -17,9 +17,7 @@
 //! - `rename-buffer` -- rename a buffer
 //! - `other-buffer` -- return another buffer
 //! - `kill-buffer` -- remove a buffer
-//! - `bury-buffer` -- move buffer to end of list
 //! - `erase-buffer` -- clear buffer content
-//! - `buffer-swap-text` -- swap text with another buffer (stub)
 //! - `buffer-enable-undo` -- enable undo recording (stub)
 //! - `buffer-disable-undo` -- disable undo recording (stub)
 //! - `buffer-size` -- return content length
