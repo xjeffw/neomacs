@@ -109,33 +109,6 @@ fn ensure_current_buffer_writable(eval: &super::eval::Evaluator) -> Result<(), F
 // Eval-dependent builtins (need &mut Evaluator for buffer access)
 // ---------------------------------------------------------------------------
 
-/// `(point)` — return current point as a 1-based character position.
-pub(crate) fn builtin_point(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_args("point", &args, 0)?;
-    match eval.buffers.current_buffer() {
-        Some(buf) => Ok(Value::Int(byte_to_lisp_pos(buf, buf.pt))),
-        None => Ok(Value::Int(1)),
-    }
-}
-
-/// `(point-min)` — return minimum accessible position (1-based).
-pub(crate) fn builtin_point_min(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_args("point-min", &args, 0)?;
-    match eval.buffers.current_buffer() {
-        Some(buf) => Ok(Value::Int(byte_to_lisp_pos(buf, buf.begv))),
-        None => Ok(Value::Int(1)),
-    }
-}
-
-/// `(point-max)` — return maximum accessible position (1-based).
-pub(crate) fn builtin_point_max(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_args("point-max", &args, 0)?;
-    match eval.buffers.current_buffer() {
-        Some(buf) => Ok(Value::Int(byte_to_lisp_pos(buf, buf.zv))),
-        None => Ok(Value::Int(1)),
-    }
-}
-
 /// `(goto-char POSITION)` — set point to POSITION, return POSITION.
 pub(crate) fn builtin_goto_char(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("goto-char", &args, 1)?;
