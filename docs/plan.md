@@ -4,6 +4,24 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `eval-buffer` / `eval-region` compatibility slice:
+  - replaced `lread` stubs with real evaluator-backed behavior:
+    - `eval-buffer` now resolves source buffer (`nil`/current, buffer object, buffer name), evaluates all parsed forms, and preserves Emacs-compatible return shape (`nil`)
+    - `eval-region` now enforces Emacs-compatible arity/type/range payloads, supports `nil` bounds via current point, evaluates region forms, and preserves `nil` return shape
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/eval-buffer-region-semantics.forms`
+    - `test/neovm/vm-compat/cases/eval-buffer-region-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - expanded `rust/neovm-core/src/elisp/lread.rs` unit coverage for:
+    - successful evaluation paths
+    - source-buffer designator semantics
+    - no-op bounds and point stability
+    - type/range/arity error payloads
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml lread::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/eval-buffer-region-semantics.forms EXPECTED=cases/eval-buffer-region-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Implemented `transient-mark-mode` compatibility slice:
   - aligned evaluator behavior with oracle semantics for:
     - optional-argument handling (`nil`/missing, numeric, non-numeric non-nil)
