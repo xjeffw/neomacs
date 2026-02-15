@@ -316,6 +316,15 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-lisp-face-comparators.forms EXPECTED=cases/internal-lisp-face-comparators.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; expected allowlisted drift only)
+- Added deep matrix oracle lock-in for `internal-get-lisp-face-attribute`:
+  - new corpus covers full core-face x attribute matrix in selected-frame mode plus defaults-frame (`FRAME=t`) sampling and error/arity payloads
+  - added:
+    - `test/neovm/vm-compat/cases/internal-get-lisp-face-attribute-matrix.forms`
+    - `test/neovm/vm-compat/cases/internal-get-lisp-face-attribute-matrix.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-get-lisp-face-attribute-matrix.forms EXPECTED=cases/internal-get-lisp-face-attribute-matrix.expected.tsv` (pass, 271/271)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
