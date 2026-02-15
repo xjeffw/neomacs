@@ -627,13 +627,13 @@ impl LayoutEngine {
             - params.mode_line_height;
 
         // Apply vertical scroll: shift content up by vscroll pixels.
-        // In Emacs, w->vscroll shifts the first row upward, hiding the
-        // top portion of the window content.  We achieve this by reducing
-        // text_height — content that would render above the window top
-        // is simply not laid out, producing an empty visible area when
-        // vscroll >= text_height (used by vertico-posframe to hide the
-        // minibuffer).
-        let vscroll = params.vscroll.max(0) as f32;
+        // In Emacs, w->vscroll is stored as a NEGATIVE number (or 0):
+        //   set-window-vscroll(100) → w->vscroll = -100
+        // We take the absolute value and reduce text_height, so content
+        // that would render above the window top is not laid out.
+        // When |vscroll| >= text_height the window renders empty
+        // (used by vertico-posframe to hide the minibuffer).
+        let vscroll = (params.vscroll.abs()) as f32;
         let text_height = (text_height - vscroll).max(0.0);
 
         // Guard against zero/negative dimensions from FFI
