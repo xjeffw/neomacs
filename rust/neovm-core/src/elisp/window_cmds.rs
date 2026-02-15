@@ -155,9 +155,10 @@ pub(crate) fn builtin_selected_window(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("selected-window", &args, 0)?;
+    let fid = ensure_selected_frame_id(eval);
     let frame = eval
         .frames
-        .selected_frame()
+        .get(fid)
         .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
     Ok(Value::Int(frame.selected_window.0 as i64))
 }
@@ -1028,6 +1029,18 @@ mod tests {
         assert!(r.starts_with("OK "), "expected OK, got: {r}");
         let val: i64 = r.strip_prefix("OK ").unwrap().trim().parse().unwrap();
         assert!(val > 0);
+    }
+
+    #[test]
+    fn selected_window_bootstraps_initial_frame() {
+        let forms = parse_forms("(window-live-p (selected-window))").expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK t");
     }
 
     #[test]

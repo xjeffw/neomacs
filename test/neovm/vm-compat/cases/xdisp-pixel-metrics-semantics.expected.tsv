@@ -8,6 +8,7 @@
 8	(window-text-pixel-size nil nil nil)	OK (0 . 0)
 9	(window-text-pixel-size nil nil nil nil nil nil nil)	OK (0 . 0)
 10	(window-text-pixel-size nil nil nil 'x 'y 'z 'm)	OK (0 . 0)
-11	(condition-case err (window-text-pixel-size nil nil nil nil nil nil nil nil) (error (car err)))	OK wrong-number-of-arguments
-12	(condition-case err (window-text-pixel-size 1) (error err))	OK (wrong-type-argument window-live-p 1)
-13	(condition-case err (window-text-pixel-size nil 'x) (error err))	OK (wrong-type-argument integer-or-marker-p x)
+11	(window-text-pixel-size (selected-window))	OK (0 . 0)
+12	(condition-case err (window-text-pixel-size nil nil nil nil nil nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+13	(condition-case err (window-text-pixel-size 999999) (error err))	OK (wrong-type-argument window-live-p 999999)
+14	(condition-case err (window-text-pixel-size nil 'x) (error err))	OK (wrong-type-argument integer-or-marker-p x)

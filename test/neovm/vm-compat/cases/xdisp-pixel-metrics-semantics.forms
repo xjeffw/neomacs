@@ -10,6 +10,7 @@
 (window-text-pixel-size nil nil nil)
 (window-text-pixel-size nil nil nil nil nil nil nil)
 (window-text-pixel-size nil nil nil 'x 'y 'z 'm)
+(window-text-pixel-size (selected-window))
 (condition-case err (window-text-pixel-size nil nil nil nil nil nil nil nil) (error (car err)))
-(condition-case err (window-text-pixel-size 1) (error err))
+(condition-case err (window-text-pixel-size 999999) (error err))
 (condition-case err (window-text-pixel-size nil 'x) (error err))

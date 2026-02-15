@@ -127,6 +127,29 @@ pub(crate) fn builtin_window_text_pixel_size(args: Vec<Value>) -> EvalResult {
     Ok(Value::cons(Value::Int(0), Value::Int(0)))
 }
 
+/// `(window-text-pixel-size &optional WINDOW FROM TO X-LIMIT Y-LIMIT MODE)` evaluator-backed variant.
+///
+/// Batch mode returns `(0 . 0)` and validates optional WINDOW / FROM / TO
+/// designators against evaluator state.
+pub(crate) fn builtin_window_text_pixel_size_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args_range("window-text-pixel-size", &args, 0, 7)?;
+    validate_optional_window_designator(eval, args.first(), "window-live-p")?;
+    if let Some(from) = args.get(1) {
+        if !from.is_nil() {
+            expect_integer_or_marker(from)?;
+        }
+    }
+    if let Some(to) = args.get(2) {
+        if !to.is_nil() {
+            expect_integer_or_marker(to)?;
+        }
+    }
+    Ok(Value::cons(Value::Int(0), Value::Int(0)))
+}
+
 /// (pos-visible-in-window-p &optional POS WINDOW PARTIALLY) -> boolean
 ///
 /// Batch-compatible behavior: no window visibility is reported, so this
@@ -463,6 +486,34 @@ mod tests {
             Value::symbol("m"),
         ])
         .is_ok());
+    }
+
+    #[test]
+    fn test_window_text_pixel_size_eval_window_validation() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let buf_id = eval.buffers.current_buffer().expect("current buffer").id;
+        let frame_id = eval.frames.create_frame("xdisp-test", 80, 24, buf_id);
+        let selected_window = eval
+            .frames
+            .get(frame_id)
+            .expect("frame")
+            .selected_window
+            .0 as i64;
+
+        let ok =
+            builtin_window_text_pixel_size_eval(&mut eval, vec![Value::Int(selected_window)])
+                .unwrap();
+        match ok {
+            Value::Cons(_) => {}
+            other => panic!("expected cons return, got {other:?}"),
+        }
+
+        let err =
+            builtin_window_text_pixel_size_eval(&mut eval, vec![Value::Int(999_999)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
     }
 
     #[test]

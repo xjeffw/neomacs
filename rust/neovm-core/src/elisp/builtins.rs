@@ -5971,6 +5971,11 @@ pub(crate) fn dispatch_builtin(
         }
         // xdisp (evaluator-dependent)
         "format-mode-line" => return Some(super::xdisp::builtin_format_mode_line_eval(eval, args)),
+        "window-text-pixel-size" => {
+            return Some(super::xdisp::builtin_window_text_pixel_size_eval(
+                eval, args,
+            ))
+        }
         "pos-visible-in-window-p" => {
             return Some(super::xdisp::builtin_pos_visible_in_window_p_eval(eval, args))
         }
