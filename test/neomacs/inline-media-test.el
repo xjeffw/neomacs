@@ -65,8 +65,8 @@
 
   (let ((media-width 320)
         (media-height 180)  ; 16:9 aspect, smaller to fit all 3
-        (webkit-width 800)
-        (webkit-height 500)
+        (webkit-width 320)
+        (webkit-height 180)
         (success-count 0)
         (total-count 3))
 
