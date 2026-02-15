@@ -3,7 +3,10 @@
     (list-fonts nil)
   (error (car err)))
 (condition-case err
-    (list-fonts 1)
+    (list-fonts (font-spec :family "x") (selected-frame))
+  (error (car err)))
+(condition-case err
+    (list-fonts (font-spec :family "x") 999999)
   (error (car err)))
 (condition-case err
     (list-fonts (font-spec :family "x"))
@@ -17,7 +20,10 @@
     (find-font nil)
   (error (car err)))
 (condition-case err
-    (find-font 1)
+    (find-font (font-spec :family "x") (selected-frame))
+  (error (car err)))
+(condition-case err
+    (find-font (font-spec :family "x") 999999)
   (error (car err)))
 (condition-case err
     (find-font (font-spec :family "x"))
@@ -42,7 +48,10 @@
     (font-family-list nil)
   (error (car err)))
 (condition-case err
-    (font-family-list 1)
+    (font-family-list (selected-frame))
+  (error (car err)))
+(condition-case err
+    (font-family-list 999999)
   (error (car err)))
 (condition-case err
     (font-family-list nil nil)

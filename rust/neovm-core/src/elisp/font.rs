@@ -19,6 +19,7 @@ use std::sync::{Mutex, OnceLock};
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
+use crate::window::FrameId;
 
 // ---------------------------------------------------------------------------
 // Argument helpers (local to this module)
@@ -55,6 +56,28 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
     } else {
         Ok(())
     }
+}
+
+fn live_frame_designator_p(eval: &mut super::eval::Evaluator, value: &Value) -> bool {
+    match value {
+        Value::Int(id) if *id >= 0 => eval.frames.get(FrameId(*id as u64)).is_some(),
+        _ => false,
+    }
+}
+
+fn expect_optional_frame_designator_eval(
+    eval: &mut super::eval::Evaluator,
+    value: Option<&Value>,
+) -> Result<(), Flow> {
+    if let Some(frame) = value {
+        if !frame.is_nil() && !live_frame_designator_p(eval, frame) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("frame-live-p"), frame.clone()],
+            ));
+        }
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +255,25 @@ pub(crate) fn builtin_list_fonts(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
+/// Evaluator-aware variant of `list-fonts`.
+///
+/// Accepts live frame designators in the optional FRAME slot.
+pub(crate) fn builtin_list_fonts_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("list-fonts", &args, 1)?;
+    expect_max_args("list-fonts", &args, 4)?;
+    if !is_font_spec(&args[0]) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("font-spec"), args[0].clone()],
+        ));
+    }
+    expect_optional_frame_designator_eval(eval, args.get(1))?;
+    Ok(Value::Nil)
+}
+
 /// `(find-font FONT-SPEC &optional FRAME)` -- batch stub.
 pub(crate) fn builtin_find_font(args: Vec<Value>) -> EvalResult {
     expect_min_args("find-font", &args, 1)?;
@@ -242,6 +284,25 @@ pub(crate) fn builtin_find_font(args: Vec<Value>) -> EvalResult {
             vec![Value::symbol("font-spec"), args[0].clone()],
         ));
     }
+    Ok(Value::Nil)
+}
+
+/// Evaluator-aware variant of `find-font`.
+///
+/// Accepts live frame designators in the optional FRAME slot.
+pub(crate) fn builtin_find_font_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("find-font", &args, 1)?;
+    expect_max_args("find-font", &args, 2)?;
+    if !is_font_spec(&args[0]) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("font-spec"), args[0].clone()],
+        ));
+    }
+    expect_optional_frame_designator_eval(eval, args.get(1))?;
     Ok(Value::Nil)
 }
 
@@ -262,6 +323,18 @@ pub(crate) fn builtin_font_family_list(args: Vec<Value>) -> EvalResult {
             ));
         }
     }
+    Ok(Value::Nil)
+}
+
+/// Evaluator-aware variant of `font-family-list`.
+///
+/// Accepts live frame designators in the optional FRAME slot.
+pub(crate) fn builtin_font_family_list_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("font-family-list", &args, 1)?;
+    expect_optional_frame_designator_eval(eval, args.first())?;
     Ok(Value::Nil)
 }
 
@@ -1652,6 +1725,21 @@ mod tests {
     }
 
     #[test]
+    fn eval_list_fonts_accepts_live_frame_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let frame_id = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval).0 as i64;
+        let result = builtin_list_fonts_eval(
+            &mut eval,
+            vec![
+                Value::vector(vec![Value::Keyword(FONT_SPEC_TAG.to_string())]),
+                Value::Int(frame_id),
+            ],
+        )
+        .unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
     fn find_font_stub() {
         let result = builtin_find_font(vec![Value::vector(vec![Value::Keyword(
             FONT_SPEC_TAG.to_string(),
@@ -1664,6 +1752,21 @@ mod tests {
     fn find_font_rejects_non_font_spec() {
         let result = builtin_find_font(vec![Value::Nil]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn eval_find_font_accepts_live_frame_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let frame_id = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval).0 as i64;
+        let result = builtin_find_font_eval(
+            &mut eval,
+            vec![
+                Value::vector(vec![Value::Keyword(FONT_SPEC_TAG.to_string())]),
+                Value::Int(frame_id),
+            ],
+        )
+        .unwrap();
+        assert!(result.is_nil());
     }
 
     #[test]
@@ -1681,6 +1784,14 @@ mod tests {
     fn font_family_list_rejects_non_nil_frame_designator() {
         let result = builtin_font_family_list(vec![Value::Int(1)]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn eval_font_family_list_accepts_live_frame_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let frame_id = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval).0 as i64;
+        let result = builtin_font_family_list_eval(&mut eval, vec![Value::Int(frame_id)]).unwrap();
+        assert!(result.is_nil());
     }
 
     #[test]

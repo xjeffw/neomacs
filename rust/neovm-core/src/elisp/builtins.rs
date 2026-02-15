@@ -5981,6 +5981,12 @@ pub(crate) fn dispatch_builtin(
         }
         "tool-bar-height" => return Some(super::xdisp::builtin_tool_bar_height_eval(eval, args)),
         "tab-bar-height" => return Some(super::xdisp::builtin_tab_bar_height_eval(eval, args)),
+
+        // Font (evaluator-dependent — frame designator validation)
+        "list-fonts" => return Some(super::font::builtin_list_fonts_eval(eval, args)),
+        "find-font" => return Some(super::font::builtin_find_font_eval(eval, args)),
+        "font-family-list" => return Some(super::font::builtin_font_family_list_eval(eval, args)),
+
         // File I/O (evaluator-dependent)
         "expand-file-name" => {
             return Some(super::fileio::builtin_expand_file_name_eval(eval, args))
