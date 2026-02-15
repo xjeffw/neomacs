@@ -226,6 +226,7 @@ cases/elt-semantics
 cases/map-family-semantics
 cases/ignore-semantics
 cases/take
+cases/garbage-collect-semantics
 cases/match-data
 cases/overlay-arity-semantics
 cases/textprop-arity-semantics

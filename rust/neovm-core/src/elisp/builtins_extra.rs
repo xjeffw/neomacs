@@ -689,10 +689,27 @@ pub(crate) fn builtin_emacs_pid(args: Vec<Value>) -> EvalResult {
     Ok(Value::Int(std::process::id() as i64))
 }
 
-/// `(garbage-collect)` -> nil (stub).
+fn gc_bucket(name: &str, counts: &[i64]) -> Value {
+    let mut items = Vec::with_capacity(counts.len() + 1);
+    items.push(Value::symbol(name));
+    items.extend(counts.iter().copied().map(Value::Int));
+    Value::list(items)
+}
+
+/// `(garbage-collect)` -> GC stats list.
 pub(crate) fn builtin_garbage_collect(args: Vec<Value>) -> EvalResult {
-    let _ = args;
-    Ok(Value::Nil)
+    expect_args("garbage-collect", &args, 0)?;
+    Ok(Value::list(vec![
+        gc_bucket("conses", &[0, 0, 0]),
+        gc_bucket("symbols", &[0, 0, 0]),
+        gc_bucket("strings", &[0, 0, 0]),
+        gc_bucket("string-bytes", &[0, 0]),
+        gc_bucket("vectors", &[0, 0]),
+        gc_bucket("vector-slots", &[0, 0, 0]),
+        gc_bucket("floats", &[0, 0, 0]),
+        gc_bucket("intervals", &[0, 0, 0]),
+        gc_bucket("buffers", &[0, 0]),
+    ]))
 }
 
 /// `(memory-use-counts)` -> list of integers (stub).
@@ -888,6 +905,43 @@ mod tests {
     fn emacs_pid() {
         let pid = builtin_emacs_pid(vec![]).unwrap();
         assert!(matches!(pid, Value::Int(n) if n > 0));
+    }
+
+    #[test]
+    fn garbage_collect_shape_and_arity() {
+        let gc = builtin_garbage_collect(vec![]).unwrap();
+        let buckets = super::super::value::list_to_vec(&gc).expect("gc list");
+        assert_eq!(buckets.len(), 9);
+        let names = buckets
+            .iter()
+            .map(|bucket| {
+                let bucket_items = super::super::value::list_to_vec(bucket).expect("bucket list");
+                match bucket_items.first() {
+                    Some(Value::Symbol(name)) => name.clone(),
+                    other => panic!("expected bucket symbol, got {other:?}"),
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            names,
+            vec![
+                "conses".to_string(),
+                "symbols".to_string(),
+                "strings".to_string(),
+                "string-bytes".to_string(),
+                "vectors".to_string(),
+                "vector-slots".to_string(),
+                "floats".to_string(),
+                "intervals".to_string(),
+                "buffers".to_string(),
+            ]
+        );
+
+        let err = builtin_garbage_collect(vec![Value::Int(1)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected signal, got {other:?}"),
+        }
     }
 
     #[test]
