@@ -5,17 +5,36 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit kill-ring state semantics around dynamic/local `kill-ring` bindings vs internal ring state.
+- Audit `kill-ring`/`kill-ring-yank-pointer` variable interaction coverage beyond `let` + core kill builtins.
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Add focused oracle corpus for dynamic/local `kill-ring` variable semantics (`let`, `setq`, buffer-local).
+- Expand oracle corpus for `setq`/global mutation of `kill-ring` and pointer-sensitive flows (`current-kill`, `yank`, `yank-pop`).
 - Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Aligned dynamic `kill-ring` binding behavior and added related corpus lock-in:
+  - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
+    - added sync bridge between dynamic/global `kill-ring` bindings and internal `KillRing` state
+    - kill-ring mutators now publish updated list state back through variable assignment (`eval.assign`)
+    - preserved in-memory yank pointer across no-op syncs so repeated `current-kill` rotation semantics remain stable
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/kill-ring-dynamic-binding-semantics.forms`
+    - `test/neovm/vm-compat/cases/kill-ring-dynamic-binding-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/yank-pop-read-only-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/yank-pop-read-only-variable-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test current_kill -- --nocapture` in `rust/neovm-core` (pass)
+    - `cargo test kill_new -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-dynamic-binding-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-command-context-semantics` (pass, 17/17)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-pop-read-only-variable-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/command-dispatch-default-arg-semantics` (pass, 46/46)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned core kill-ring command-context behavior with oracle semantics:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - `current-kill` now honors `N` in `DO-NOT-MOVE` mode (peek offset without rotating pointer)
