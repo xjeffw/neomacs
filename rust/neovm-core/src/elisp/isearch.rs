@@ -180,7 +180,20 @@ fn replace_lax_whitespace_enabled(eval: &super::eval::Evaluator) -> bool {
         .unwrap_or(false)
 }
 
-fn build_lax_whitespace_pattern(pattern: &str, case_fold: bool) -> String {
+fn resolve_search_whitespace_regexp(eval: &super::eval::Evaluator) -> Option<String> {
+    let raw = match dynamic_or_global_symbol_value(eval, "search-whitespace-regexp") {
+        Some(Value::Str(s)) => (*s).to_string(),
+        Some(Value::Nil) | None => "[ \t\n\r]+".to_string(),
+        Some(_) => return None,
+    };
+    Some(super::regex::translate_emacs_regex(&raw))
+}
+
+fn build_lax_whitespace_pattern(
+    pattern: &str,
+    whitespace_regex: &str,
+    case_fold: bool,
+) -> String {
     let mut raw = String::new();
     let mut literal = String::new();
     let mut in_space_run = false;
@@ -192,7 +205,9 @@ fn build_lax_whitespace_pattern(pattern: &str, case_fold: bool) -> String {
                 literal.clear();
             }
             if !in_space_run {
-                raw.push_str("[ \t\n\r]+");
+                raw.push_str("(?:");
+                raw.push_str(whitespace_regex);
+                raw.push(')');
                 in_space_run = true;
             }
         } else {
@@ -1451,14 +1466,19 @@ fn replace_string_eval_impl(
 
     let case_fold = case_fold_for_pattern(eval, &from);
     let preserve_match_case = case_fold && case_replace_enabled(eval);
-    let lax_whitespace = replace_lax_whitespace_enabled(eval) && from.contains(' ');
+    let lax_whitespace_regex =
+        if replace_lax_whitespace_enabled(eval) && from.contains(' ') {
+            resolve_search_whitespace_regexp(eval)
+        } else {
+            None
+        };
     let mut out = String::with_capacity(source.len());
     let mut replaced = 0usize;
     let mut backward_point = None;
     let mut query_forward_point = None;
 
-    if lax_whitespace {
-        let pattern = build_lax_whitespace_pattern(&from, case_fold);
+    if let Some(whitespace_regex) = lax_whitespace_regex {
+        let pattern = build_lax_whitespace_pattern(&from, &whitespace_regex, case_fold);
         let re = Regex::new(&pattern).map_err(|e| {
             signal(
                 "invalid-regexp",
