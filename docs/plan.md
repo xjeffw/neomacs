@@ -19,6 +19,19 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Fixed `completing-read` initial-input type validation in batch reader stubs:
+  - updated:
+    - `rust/neovm-core/src/elisp/reader.rs`
+      - `completing-read` now validates optional INITIAL-INPUT arg as string-like (`nil`, string, or cons).
+      - non-string-like INITIAL-INPUT now signals `wrong-type-argument (stringp ...)` before EOF signaling.
+      - added reader unit coverage for invalid INITIAL-INPUT.
+    - `test/neovm/vm-compat/cases/minibuffer-batch.{forms,expected.tsv}`
+      - added oracle lock-in: `(completing-read \"\" '(\"a\" \"b\") nil nil 1)` => `wrong-type-argument`.
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test reader::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minibuffer-batch` (pass, 33/33)
+
 - Fixed minibuffer reader initial-input type validation in batch stubs:
   - updated:
     - `rust/neovm-core/src/elisp/reader.rs`
