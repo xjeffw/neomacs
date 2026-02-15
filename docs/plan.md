@@ -18,6 +18,9 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Re-ran the full NeoVM vm-compat gate after dead-module cleanup batch:
+  - verified:
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only enabled corpus)
 - Removed dead legacy `elisp/buffer` module subtree that was not compiled/referenced:
   - deleted:
     - `rust/neovm-core/src/elisp/buffer.rs`
