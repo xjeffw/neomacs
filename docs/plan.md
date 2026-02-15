@@ -18,6 +18,26 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `syntax-after` and added oracle-locked descriptor corpus:
+  - updated:
+    - `rust/neovm-core/src/elisp/syntax.rs`
+      - added evaluator-backed `syntax-after` with Emacs-compatible arity/type checks, 1-based POS handling, and descriptor return shape.
+      - added unit test for descriptor values and out-of-range nil behavior.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `syntax-after` in eval dispatch.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - registered `syntax-after` for `fboundp`/introspection parity.
+    - `test/neovm/vm-compat/cases/syntax-after-semantics.forms`
+      - added runtime checks for descriptor shape, out-of-range nil, and arity/type errors.
+    - `test/neovm/vm-compat/cases/syntax-after-semantics.expected.tsv`
+      - recorded with `NEOVM_ORACLE_EMACS=/nix/store/2lzapcylxkad2r63h144mp9nnin4vb5n-user-environment/bin/emacs`.
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/syntax-after-semantics` in default corpus runs.
+  - verified:
+    - `cargo test 'elisp::syntax::tests::syntax_after_returns_descriptor_and_nil_out_of_range' -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/syntax-after-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented `scan-lists` baseline and locked depth-0 compatibility corpus:
   - updated:
     - `rust/neovm-core/src/elisp/syntax.rs`
