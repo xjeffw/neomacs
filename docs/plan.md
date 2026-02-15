@@ -18,6 +18,33 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead, unexposed CL set-operation helper surface from core `cl-lib` module:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - deleted unreferenced `builtin_cl_intersection` / `builtin_cl_union` /
+        `builtin_cl_set_difference` / `builtin_cl_subsetp` /
+        `builtin_cl_adjoin` / `builtin_cl_remove_duplicates`
+      - removed local tests bound only to those deleted dead wrappers
+  - verified:
+    - `cargo test 'elisp::cl_lib::tests::' -- --nocapture` (pass, 22 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+- Silenced a recurring bool-vector warning with no behavior change:
+  - updated:
+    - `rust/neovm-core/src/elisp/chartable.rs`
+      - renamed an unused intersection tuple binding to `_len`
+  - verified:
+    - `cargo test 'elisp::chartable::tests::' -- --nocapture` (pass, 40 tests)
+- Silenced recurring helper warnings in format/keyboard paths (no behavior change):
+  - updated:
+    - `rust/neovm-core/src/elisp/format.rs`
+      - renamed unused helper parameters to `_name`
+      - removed unnecessary `mut` from `unix_to_broken_down` local
+    - `rust/neovm-core/src/keyboard.rs`
+      - removed unnecessary `mut` in `lookup_key`
+  - verified:
+    - `cargo test 'elisp::format::tests::' -- --nocapture` (pass, 63 tests)
+    - `cargo test 'keyboard::tests::' -- --nocapture` (pass, 10 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-batch-readers` (pass, 70/70)
 - Re-ran full NeoVM compatibility gate to keep drift bounded between slices:
   - verified:
     - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default corpus)
