@@ -2018,9 +2018,31 @@ pub(crate) fn builtin_make_symbolic_link_eval(eval: &Evaluator, args: Vec<Value>
 
 /// (rename-file FROM TO) -> nil
 pub(crate) fn builtin_rename_file(args: Vec<Value>) -> EvalResult {
-    expect_args("rename-file", &args, 2)?;
+    expect_min_args("rename-file", &args, 2)?;
+    if args.len() > 3 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("rename-file"), Value::Int(args.len() as i64)],
+        ));
+    }
     let from = expect_string_strict(&args[0])?;
     let to = expect_string_strict(&args[1])?;
+    let ok_if_exists = args.get(2).is_some_and(|value| value.is_truthy());
+    if fs::symlink_metadata(&to).is_ok() {
+        if ok_if_exists {
+            fs::remove_file(&to).map_err(|e| signal_file_io_path(e, "Removing old name", &to))?;
+        } else {
+            return Err(signal(
+                "file-already-exists",
+                vec![
+                    Value::string("Renaming"),
+                    Value::string(format!("File exists: {to}")),
+                    Value::string(&from),
+                    Value::string(&to),
+                ],
+            ));
+        }
+    }
     rename_file(&from, &to).map_err(|e| signal_file_io_paths(e, "Renaming", &from, &to))?;
     Ok(Value::Nil)
 }
@@ -2028,9 +2050,31 @@ pub(crate) fn builtin_rename_file(args: Vec<Value>) -> EvalResult {
 /// Evaluator-aware variant of `rename-file` that resolves relative paths
 /// against dynamic/default `default-directory`.
 pub(crate) fn builtin_rename_file_eval(eval: &Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_args("rename-file", &args, 2)?;
+    expect_min_args("rename-file", &args, 2)?;
+    if args.len() > 3 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("rename-file"), Value::Int(args.len() as i64)],
+        ));
+    }
     let from = resolve_filename_for_eval(eval, &expect_string_strict(&args[0])?);
     let to = resolve_filename_for_eval(eval, &expect_string_strict(&args[1])?);
+    let ok_if_exists = args.get(2).is_some_and(|value| value.is_truthy());
+    if fs::symlink_metadata(&to).is_ok() {
+        if ok_if_exists {
+            fs::remove_file(&to).map_err(|e| signal_file_io_path(e, "Removing old name", &to))?;
+        } else {
+            return Err(signal(
+                "file-already-exists",
+                vec![
+                    Value::string("Renaming"),
+                    Value::string(format!("File exists: {to}")),
+                    Value::string(&from),
+                    Value::string(&to),
+                ],
+            ));
+        }
+    }
     rename_file(&from, &to).map_err(|e| signal_file_io_paths(e, "Renaming", &from, &to))?;
     Ok(Value::Nil)
 }
@@ -2972,6 +3016,48 @@ mod tests {
     }
 
     #[test]
+    fn test_builtin_rename_file_overwrite_semantics() {
+        let dir = std::env::temp_dir().join("neovm_builtin_rename_overwrite");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+
+        let src = dir.join("src.txt");
+        let dst = dir.join("dst.txt");
+        fs::write(&src, b"x").unwrap();
+        fs::write(&dst, b"y").unwrap();
+        let src_s = src.to_string_lossy().to_string();
+        let dst_s = dst.to_string_lossy().to_string();
+
+        let err = builtin_rename_file(vec![Value::string(&src_s), Value::string(&dst_s)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "file-already-exists"),
+            other => panic!("expected signal, got {:?}", other),
+        }
+
+        assert_eq!(
+            builtin_rename_file(vec![Value::string(&src_s), Value::string(&dst_s), Value::True])
+                .unwrap(),
+            Value::Nil
+        );
+        assert!(!src.exists());
+        assert!(dst.exists());
+
+        let err = builtin_rename_file(vec![
+            Value::string("a"),
+            Value::string("b"),
+            Value::Nil,
+            Value::Nil,
+        ])
+        .unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected wrong-number-of-arguments, got {:?}", other),
+        }
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn test_builtin_add_name_to_file_semantics() {
         let dir = std::env::temp_dir().join("neovm_add_name_to_file_test");
         let _ = fs::remove_dir_all(&dir);
@@ -3541,6 +3627,43 @@ mod tests {
             &base.join("delta.txt").to_string_lossy(),
         ));
         builtin_delete_file_eval(&eval, vec![Value::string("delta.txt")]).unwrap();
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_builtin_rename_file_eval_overwrite_semantics() {
+        let base = std::env::temp_dir().join("neovm_rename_eval_overwrite");
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join("src.txt"), "x").unwrap();
+        fs::write(base.join("dst.txt"), "y").unwrap();
+
+        let mut eval = Evaluator::new();
+        let base_str = format!("{}/", base.to_string_lossy());
+        eval.obarray
+            .set_symbol_value("default-directory", Value::string(&base_str));
+
+        let err = builtin_rename_file_eval(
+            &eval,
+            vec![Value::string("src.txt"), Value::string("dst.txt")],
+        )
+        .unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "file-already-exists"),
+            other => panic!("expected signal, got {:?}", other),
+        }
+
+        assert_eq!(
+            builtin_rename_file_eval(
+                &eval,
+                vec![Value::string("src.txt"), Value::string("dst.txt"), Value::True],
+            )
+            .unwrap(),
+            Value::Nil
+        );
+        assert!(!base.join("src.txt").exists());
+        assert!(base.join("dst.txt").exists());
 
         let _ = fs::remove_dir_all(&base);
     }

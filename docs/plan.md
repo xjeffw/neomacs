@@ -4,6 +4,24 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `rename-file` overwrite-guard compatibility slice:
+  - updated pure + evaluator-aware builtins in `rust/neovm-core/src/elisp/fileio.rs`:
+    - `builtin_rename_file`
+    - `builtin_rename_file_eval`
+  - semantics aligned with oracle subset:
+    - arity `2..3`
+    - strict `stringp` validation for `FROM` and `TO`
+    - destination pre-existence signals `file-already-exists` when `OK-IF-ALREADY-EXISTS` is `nil`
+    - destination replacement allowed when `OK-IF-ALREADY-EXISTS` is non-`nil`
+    - evaluator path resolves relative names against dynamic/default `default-directory`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/rename-file-semantics.forms`
+    - `test/neovm/vm-compat/cases/rename-file-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml rename_file_overwrite -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/rename-file-semantics.forms EXPECTED=cases/rename-file-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented `add-name-to-file` compatibility slice:
   - added pure + evaluator-aware builtins in `rust/neovm-core/src/elisp/fileio.rs`:
     - `builtin_add_name_to_file`
