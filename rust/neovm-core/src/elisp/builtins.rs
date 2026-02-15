@@ -6454,6 +6454,11 @@ pub(crate) fn dispatch_builtin(
         "internal-get-lisp-face-attribute" => {
             super::font::builtin_internal_get_lisp_face_attribute(args)
         }
+        "internal-lisp-face-attribute-values" => {
+            super::font::builtin_internal_lisp_face_attribute_values(args)
+        }
+        "internal-lisp-face-equal-p" => super::font::builtin_internal_lisp_face_equal_p(args),
+        "internal-lisp-face-empty-p" => super::font::builtin_internal_lisp_face_empty_p(args),
         "internal-merge-in-global-face" => super::font::builtin_internal_merge_in_global_face(args),
         "face-attribute-relative-p" => super::font::builtin_face_attribute_relative_p(args),
         "merge-face-attribute" => super::font::builtin_merge_face_attribute(args),
