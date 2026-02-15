@@ -1653,6 +1653,7 @@ fn destructure_pattern(
 // ---- cl-incf / cl-decf ----
 
 /// `(cl-incf PLACE &optional DELTA)`
+#[cfg(test)]
 pub(crate) fn sf_cl_incf(eval: &mut Evaluator, tail: &[Expr]) -> EvalResult {
     if tail.is_empty() {
         return Err(signal(
@@ -1673,6 +1674,7 @@ pub(crate) fn sf_cl_incf(eval: &mut Evaluator, tail: &[Expr]) -> EvalResult {
 }
 
 /// `(cl-decf PLACE &optional DELTA)`
+#[cfg(test)]
 pub(crate) fn sf_cl_decf(eval: &mut Evaluator, tail: &[Expr]) -> EvalResult {
     if tail.is_empty() {
         return Err(signal(

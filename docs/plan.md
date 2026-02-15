@@ -18,6 +18,15 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Test-gated dead duplicate `cl-incf`/`cl-decf` handlers in `cl_extra`:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_extra.rs`
+      - marked local duplicate `sf_cl_incf`/`sf_cl_decf` implementations as `#[cfg(test)]` because production dispatch uses `setf` special forms.
+      - kept `cl_extra` unit-test harness behavior intact.
+  - verified:
+    - `cargo test 'elisp::cl_extra::tests::' -- --nocapture` (pass, 60 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+
 - Pruned dead duplicate exponential/log wrappers from `floatfns`:
   - updated:
     - `rust/neovm-core/src/elisp/floatfns.rs`
