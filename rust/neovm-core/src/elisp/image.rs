@@ -90,8 +90,52 @@ fn plist_get(plist: &Value, key: &Value) -> Value {
 fn is_supported_image_type(name: &str) -> bool {
     matches!(
         name,
-        "png" | "jpeg" | "jpg" | "gif" | "svg" | "webp" | "xpm" | "xbm" | "pbm" | "tiff" | "bmp"
+        "png"
+            | "jpeg"
+            | "jpg"
+            | "gif"
+            | "svg"
+            | "webp"
+            | "xpm"
+            | "xbm"
+            | "pbm"
+            | "tiff"
+            | "bmp"
+            | "neomacs"
     )
+}
+
+fn normalize_image_type_name(name: &str) -> Option<&'static str> {
+    let lower = name.to_ascii_lowercase();
+    match lower.as_str() {
+        "jpg" => Some("jpeg"),
+        "jpeg" => Some("jpeg"),
+        "png" => Some("png"),
+        "gif" => Some("gif"),
+        "svg" => Some("svg"),
+        "webp" => Some("webp"),
+        "xpm" => Some("xpm"),
+        "xbm" => Some("xbm"),
+        "pbm" => Some("pbm"),
+        "tif" | "tiff" => Some("tiff"),
+        "bmp" => Some("bmp"),
+        "neomacs" => Some("neomacs"),
+        _ => None,
+    }
+}
+
+fn infer_image_type_from_filename(path: &str) -> Option<&'static str> {
+    let ext = path.rsplit('.').next()?;
+    normalize_image_type_name(ext)
+}
+
+fn infer_image_type_from_data_hint(hint: &Value) -> Option<&'static str> {
+    let name = hint.as_symbol_name()?;
+    if !name.starts_with("image/") {
+        return None;
+    }
+    let suffix = &name["image/".len()..];
+    normalize_image_type_name(suffix)
 }
 
 /// Validate that a value looks like an image spec.
@@ -421,32 +465,71 @@ pub(crate) fn builtin_clear_image_cache(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
-/// (image-type SPEC) -> symbol
+/// (image-type SOURCE &optional TYPE DATA-P) -> symbol
 ///
-/// Return the image type of image spec SPEC (e.g. `png`, `jpeg`).
-/// Extracts the `:type` property from the image spec.
+/// Compatibility behavior:
+/// - If SOURCE is an image spec and TYPE/DATA-P are omitted, return SOURCE's `:type`.
+/// - Otherwise, resolve TYPE (or infer from SOURCE filename / DATA-P hint) and return a type symbol.
+/// - Falls back to `neomacs` when no specific available type can be inferred.
 pub(crate) fn builtin_image_type(args: Vec<Value>) -> EvalResult {
-    expect_args("image-type", &args, 1)?;
+    expect_min_args("image-type", &args, 1)?;
+    expect_max_args("image-type", &args, 3)?;
 
-    if !is_image_spec(&args[0]) {
+    // Backward-compatible path for image descriptors.
+    if args.len() == 1 && is_image_spec(&args[0]) {
+        let plist = image_spec_plist(&args[0]);
+        let type_val = plist_get(&plist, &Value::Keyword("type".into()));
+        if type_val.is_nil() {
+            return Err(signal(
+                "error",
+                vec![Value::string("Invalid image spec: missing :type")],
+            ));
+        }
+        return Ok(type_val);
+    }
+
+    let source = &args[0];
+    let explicit_type = args.get(1).cloned().unwrap_or(Value::Nil);
+    let data_p = args.get(2).cloned().unwrap_or(Value::Nil);
+
+    if !data_p.is_truthy() && source.as_str().is_none() {
+        let rendered = super::print::print_value(source);
         return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("imagep"), args[0].clone()],
+            "error",
+            vec![Value::string(format!("Invalid image file name `{rendered}`"))],
         ));
     }
 
-    let plist = image_spec_plist(&args[0]);
-    let type_val = plist_get(&plist, &Value::Keyword("type".into()));
-
-    if type_val.is_nil() {
-        // No :type found — signal error.
-        Err(signal(
-            "error",
-            vec![Value::string("Invalid image spec: missing :type")],
-        ))
+    let mut resolved = if explicit_type.is_nil() {
+        if data_p.is_truthy() {
+            infer_image_type_from_data_hint(&data_p).map(str::to_string)
+        } else {
+            source
+                .as_str()
+                .and_then(infer_image_type_from_filename)
+                .map(str::to_string)
+        }
     } else {
-        Ok(type_val)
+        let rendered = super::print::print_value(&explicit_type);
+        let sym_name = explicit_type
+            .as_symbol_name()
+            .ok_or_else(|| signal("error", vec![Value::string(format!("Invalid image type `{rendered}`"))]))?;
+        normalize_image_type_name(sym_name).map(str::to_string)
+    };
+
+    if resolved.is_none() {
+        resolved = Some("neomacs".to_string());
     }
+    let mut resolved = resolved.unwrap();
+
+    if resolved != "image-convert"
+        && resolved != "neomacs"
+        && !is_supported_image_type(&resolved)
+    {
+        resolved = "neomacs".to_string();
+    }
+
+    Ok(Value::symbol(resolved))
 }
 
 /// (image-transforms-p &optional FRAME) -> t
@@ -501,6 +584,13 @@ mod tests {
     #[test]
     fn type_available_webp() {
         let result = builtin_image_type_available_p(vec![Value::symbol("webp")]);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_truthy());
+    }
+
+    #[test]
+    fn type_available_neomacs() {
+        let result = builtin_image_type_available_p(vec![Value::symbol("neomacs")]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_truthy());
     }
@@ -954,6 +1044,31 @@ mod tests {
     fn image_type_wrong_arity() {
         let result = builtin_image_type(vec![]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn image_type_from_filename_extension() {
+        let result = builtin_image_type(vec![Value::string("foo.JPG")]);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().as_symbol_name(), Some("jpeg"));
+    }
+
+    #[test]
+    fn image_type_explicit_type() {
+        let result = builtin_image_type(vec![
+            Value::string("no-extension"),
+            Value::symbol("png"),
+            Value::Nil,
+        ]);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().as_symbol_name(), Some("png"));
+    }
+
+    #[test]
+    fn image_type_unknown_falls_back_to_neomacs() {
+        let result = builtin_image_type(vec![Value::string("unknown.bin")]);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().as_symbol_name(), Some("neomacs"));
     }
 
     // -----------------------------------------------------------------------

@@ -1,0 +1,21 @@
+(fboundp 'image-type)
+(fboundp 'image-type-available-p)
+
+(image-type-available-p 'neomacs)
+
+(image-type (create-image "x" 'pbm t))
+(image-type "foo.jpg")
+(image-type "foo.unknown")
+(image-type "noext" 'png nil)
+(image-type "raw" nil 'image/jpeg)
+
+(condition-case err
+    (image-type 42)
+  (error err))
+(condition-case err
+    (image-type "x" 42 nil)
+  (error err))
+
+(condition-case err
+    (image-type)
+  (error (car err)))
