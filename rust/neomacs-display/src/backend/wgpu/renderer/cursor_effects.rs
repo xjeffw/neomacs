@@ -2399,6 +2399,8 @@ mod tests {
             buffer_size: 200,
             bounds: Rect::new(x, y, w, h),
             mode_line_height: 20.0,
+            header_line_height: 0.0,
+            tab_line_height: 0.0,
             selected: true,
             is_minibuffer: false,
             char_height: 16.0,

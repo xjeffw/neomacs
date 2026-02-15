@@ -1104,6 +1104,8 @@ neomacs_extract_window_glyphs (struct window *w, void *user_data)
         (float) win_x, (float) win_y,
         (float) win_w, (float) win_h,
         (float) WINDOW_MODE_LINE_HEIGHT (w),
+        (float) WINDOW_HEADER_LINE_HEIGHT (w),
+        (float) WINDOW_TAB_LINE_HEIGHT (w),
         selected, is_mini, w_char_height,
         buf_fname, buf_modified);
   }

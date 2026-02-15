@@ -24,6 +24,9 @@ pub(super) struct ScrollTransition {
     pub(super) duration: std::time::Duration,
     pub(super) bounds: Rect,
     pub(super) direction: i32, // +1 = scroll down (content up), -1 = scroll up
+    /// Pixel distance to slide (clamped to bounds.height).
+    /// For a 1-line scroll this equals char_height, not the full window.
+    pub(super) scroll_distance: f32,
     pub(super) effect: crate::core::scroll_animation::ScrollEffect,
     pub(super) easing: crate::core::scroll_animation::ScrollEasing,
     pub(super) old_texture: wgpu::Texture,
@@ -238,8 +241,10 @@ impl RenderApp {
                                 renderer.trigger_scroll_velocity_fade(info.window_id, info.bounds, delta, now);
                             }
                         }
-                        // Scroll → slide (content area only, excluding mode-line)
-                        let content_height = info.bounds.height - info.mode_line_height;
+                        // Scroll → slide (text content area only, excluding
+                        // tab-line, header-line, and mode-line)
+                        let top_chrome = info.tab_line_height + info.header_line_height;
+                        let content_height = info.bounds.height - info.mode_line_height - top_chrome;
                         if self.transitions.scroll_enabled && content_height >= 50.0 {
                             // Cancel existing transition for this window
                             self.transitions.crossfades.remove(&info.window_id);
@@ -247,20 +252,30 @@ impl RenderApp {
 
                             let dir = if info.window_start > prev.window_start { 1 } else { -1 };
 
-                            // Use content-only bounds (exclude mode-line at bottom)
+                            // Content bounds: skip tab-line and header-line at top,
+                            // and mode-line at bottom
                             let content_bounds = Rect::new(
-                                info.bounds.x, info.bounds.y,
+                                info.bounds.x, info.bounds.y + top_chrome,
                                 info.bounds.width, content_height,
                             );
 
+                            // Compute scroll distance proportional to lines scrolled,
+                            // clamped to the content area height.  Estimate line count
+                            // from window_start delta and average line width (cols).
+                            let cols = (info.bounds.width / info.char_height).max(1.0);
+                            let char_delta = (info.window_start - prev.window_start).unsigned_abs() as f32;
+                            let est_lines = (char_delta / cols).max(1.0);
+                            let scroll_px = (est_lines * info.char_height).min(content_height);
+
                             if let Some((tex, view, bg)) = self.snapshot_prev_texture() {
-                                log::debug!("Starting scroll slide for window {} (dir={}, effect={:?}, content_h={})",
-                                    info.window_id, dir, self.transitions.scroll_effect, content_height);
+                                log::debug!("Starting scroll slide for window {} (dir={}, effect={:?}, content_h={}, scroll_px={})",
+                                    info.window_id, dir, self.transitions.scroll_effect, content_height, scroll_px);
                                 self.transitions.scroll_slides.insert(info.window_id, ScrollTransition {
                                     started: now,
                                     duration: self.transitions.scroll_duration,
                                     bounds: content_bounds,
                                     direction: dir,
+                                    scroll_distance: scroll_px,
                                     effect: self.transitions.scroll_effect,
                                     easing: self.transitions.scroll_easing,
                                     old_texture: tex,
@@ -485,6 +500,7 @@ impl RenderApp {
                 elapsed_secs,
                 1, // direction: forward
                 &transition.bounds,
+                transition.bounds.height, // crossfade uses full bounds as slide distance
                 transition.effect,
                 transition.easing,
                 self.width,
@@ -514,6 +530,7 @@ impl RenderApp {
                 elapsed_secs,
                 transition.direction,
                 &transition.bounds,
+                transition.scroll_distance,
                 transition.effect,
                 transition.easing,
                 self.width,
@@ -559,6 +576,8 @@ mod tests {
             buffer_size: 10000,
             bounds,
             mode_line_height: 20.0,
+            header_line_height: 0.0,
+            tab_line_height: 0.0,
             selected: false,
             is_minibuffer: false,
             char_height: 16.0,

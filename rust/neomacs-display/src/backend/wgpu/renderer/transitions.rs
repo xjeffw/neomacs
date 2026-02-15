@@ -134,12 +134,13 @@ impl WgpuRenderer {
         t: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
         // Ease-out quadratic
         let eased_t = 1.0 - (1.0 - t).powi(2);
-        let offset = bounds.height * eased_t;
+        let offset = scroll_distance * eased_t;
 
         // Scissor rects operate in physical framebuffer pixels; bounds from Emacs are logical
         let sf = self.scale_factor;
@@ -167,7 +168,7 @@ impl WgpuRenderer {
         // Old texture slides out by offset in direction
         let old_y_offset = -dir * offset;
         // New texture slides in from opposite side
-        let new_y_offset = dir * (bounds.height - offset);
+        let new_y_offset = dir * (scroll_distance - offset);
 
         // Build a content-region quad: position covers the content bounds shifted
         // by y_off, UV maps to exactly the content region in the full-frame texture.
@@ -252,6 +253,7 @@ impl WgpuRenderer {
         elapsed_secs: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         effect: crate::core::scroll_animation::ScrollEffect,
         easing: crate::core::scroll_animation::ScrollEasing,
         surface_width: u32,
@@ -266,98 +268,98 @@ impl WgpuRenderer {
                 // Use existing slide renderer (it has its own easing, pass raw_t)
                 self.render_scroll_slide(
                     surface_view, old_bind_group, new_bind_group,
-                    raw_t, direction, bounds, surface_width, surface_height,
+                    raw_t, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::Crossfade => {
                 self.render_scroll_crossfade(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, bounds, surface_width, surface_height,
+                    eased_t, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::ScaleZoom => {
                 self.render_scroll_scale_zoom(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, bounds, surface_width, surface_height,
+                    eased_t, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::FadeEdges => {
                 self.render_scroll_fade_edges(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, direction, bounds, surface_width, surface_height,
+                    eased_t, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::Cascade => {
                 self.render_scroll_cascade(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, elapsed_secs, direction, bounds, surface_width, surface_height,
+                    eased_t, elapsed_secs, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::Parallax => {
                 self.render_scroll_parallax(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, direction, bounds, surface_width, surface_height,
+                    eased_t, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::Tilt => {
                 self.render_scroll_tilt(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, direction, bounds, surface_width, surface_height,
+                    eased_t, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::PageCurl => {
                 self.render_scroll_page_curl(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, direction, bounds, surface_width, surface_height,
+                    eased_t, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::CardFlip => {
                 self.render_scroll_card_flip(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, direction, bounds, surface_width, surface_height,
+                    eased_t, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::CylinderRoll => {
                 self.render_scroll_cylinder_roll(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, direction, bounds, surface_width, surface_height,
+                    eased_t, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::Wobbly => {
                 self.render_scroll_wobbly(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, elapsed_secs, direction, bounds, surface_width, surface_height,
+                    eased_t, elapsed_secs, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::Wave => {
                 self.render_scroll_wave(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, elapsed_secs, direction, bounds, surface_width, surface_height,
+                    eased_t, elapsed_secs, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::PerLineSpring => {
                 self.render_scroll_per_line_spring(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, elapsed_secs, direction, bounds, surface_width, surface_height,
+                    eased_t, elapsed_secs, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::Liquid => {
                 self.render_scroll_liquid(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, elapsed_secs, direction, bounds, surface_width, surface_height,
+                    eased_t, elapsed_secs, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
 
@@ -371,14 +373,14 @@ impl WgpuRenderer {
                 self.render_scroll_with_post_process(
                     surface_view, old_bind_group, new_bind_group,
                     raw_t, eased_t, elapsed_secs, direction, bounds,
-                    effect, surface_width, surface_height,
+                    scroll_distance, effect, surface_width, surface_height,
                 );
             }
 
             ScrollEffect::TypewriterReveal => {
                 self.render_scroll_typewriter(
                     surface_view, old_bind_group, new_bind_group,
-                    eased_t, elapsed_secs, direction, bounds, surface_width, surface_height,
+                    eased_t, elapsed_secs, direction, bounds, scroll_distance, surface_width, surface_height,
                 );
             }
         }
@@ -473,6 +475,7 @@ impl WgpuRenderer {
         new_bind_group: &wgpu::BindGroup,
         t: f32,
         bounds: &crate::core::types::Rect,
+        _scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -517,6 +520,7 @@ impl WgpuRenderer {
         new_bind_group: &wgpu::BindGroup,
         t: f32,
         bounds: &crate::core::types::Rect,
+        _scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -571,6 +575,7 @@ impl WgpuRenderer {
         t: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -581,7 +586,7 @@ impl WgpuRenderer {
             };
 
         let dir = direction as f32;
-        let offset = bounds.height * t;
+        let offset = scroll_distance * t;
         let num_strips = 16;
         let strip_h = bounds.height / num_strips as f32;
         let uv_strip_h = (uv_b - uv_t) / num_strips as f32;
@@ -622,7 +627,7 @@ impl WgpuRenderer {
         };
 
         let old_y_off = -dir * offset;
-        let new_y_off = dir * (bounds.height - offset);
+        let new_y_off = dir * (scroll_distance - offset);
         let old_verts = make_strips(old_y_off, true);
         let new_verts = make_strips(new_y_off, false);
         self.submit_scroll_two_quad_pass(
@@ -641,6 +646,7 @@ impl WgpuRenderer {
         elapsed_secs: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -668,9 +674,9 @@ impl WgpuRenderer {
                 let u1 = uv_t + (i + 1) as f32 * uv_strip_h;
 
                 let (y_off, alpha) = if is_new {
-                    (dir * (bounds.height * (1.0 - eased)), eased)
+                    (dir * (scroll_distance * (1.0 - eased)), eased)
                 } else {
-                    (-dir * (bounds.height * eased), 1.0 - eased)
+                    (-dir * (scroll_distance * eased), 1.0 - eased)
                 };
 
                 let y0 = base_y + y_off;
@@ -706,6 +712,7 @@ impl WgpuRenderer {
         t: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -719,8 +726,8 @@ impl WgpuRenderer {
         // Foreground scrolls at normal speed, "background" slower
         // We simulate by having old content move slower (0.7x) and new content normal
         let slow_t = t * 0.7;
-        let slow_offset = bounds.height * slow_t;
-        let fast_offset = bounds.height * t;
+        let slow_offset = scroll_distance * slow_t;
+        let fast_offset = scroll_distance * t;
 
         let make_quad = |y_off: f32, alpha: f32| -> [GlyphVertex; 6] {
             let x0 = bounds.x;
@@ -738,7 +745,7 @@ impl WgpuRenderer {
         };
 
         let old_verts = make_quad(-dir * slow_offset, 1.0 - t);
-        let new_verts = make_quad(dir * (bounds.height - fast_offset), t);
+        let new_verts = make_quad(dir * (scroll_distance - fast_offset), t);
         self.submit_scroll_two_quad_pass(
             surface_view, old_bind_group, new_bind_group,
             &old_verts, &new_verts, sx, sy, sw, sh,
@@ -754,6 +761,7 @@ impl WgpuRenderer {
         t: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -764,7 +772,7 @@ impl WgpuRenderer {
             };
 
         let dir = direction as f32;
-        let offset = bounds.height * t;
+        let offset = scroll_distance * t;
         let tilt_strength = (1.0 - t) * dir; // Tilt decays as animation settles
         let max_tilt = bounds.height * 0.03; // 3% of height
         let num_strips = 12;
@@ -805,7 +813,7 @@ impl WgpuRenderer {
         };
 
         let old_verts = make_tilted(-dir * offset);
-        let new_verts = make_tilted(dir * (bounds.height - offset));
+        let new_verts = make_tilted(dir * (scroll_distance - offset));
         self.submit_scroll_two_quad_pass(
             surface_view, old_bind_group, new_bind_group,
             &old_verts, &new_verts, sx, sy, sw, sh,
@@ -821,6 +829,7 @@ impl WgpuRenderer {
         t: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        _scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -895,6 +904,7 @@ impl WgpuRenderer {
         t: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        _scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -945,6 +955,7 @@ impl WgpuRenderer {
         t: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -958,7 +969,7 @@ impl WgpuRenderer {
         let strip_h = bounds.height / num_strips as f32;
         let uv_strip_h = (uv_b - uv_t) / num_strips as f32;
         let dir = direction as f32;
-        let offset = bounds.height * t;
+        let offset = scroll_distance * t;
         let pi = std::f32::consts::PI;
 
         let make_cylinder = |y_base_off: f32, is_old: bool| -> Vec<GlyphVertex> {
@@ -995,7 +1006,7 @@ impl WgpuRenderer {
         };
 
         let old_verts = make_cylinder(-dir * offset, true);
-        let new_verts = make_cylinder(dir * (bounds.height - offset), false);
+        let new_verts = make_cylinder(dir * (scroll_distance - offset), false);
         self.submit_scroll_two_quad_pass(
             surface_view, old_bind_group, new_bind_group,
             &old_verts, &new_verts, sx, sy, sw, sh,
@@ -1012,6 +1023,7 @@ impl WgpuRenderer {
         elapsed_secs: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -1023,7 +1035,7 @@ impl WgpuRenderer {
             };
 
         let dir = direction as f32;
-        let offset = bounds.height * t;
+        let offset = scroll_distance * t;
         let num_strips = 20;
         let strip_h = bounds.height / num_strips as f32;
         let uv_strip_h = (uv_b - uv_t) / num_strips as f32;
@@ -1053,7 +1065,7 @@ impl WgpuRenderer {
         };
 
         let old_verts = make_wobbly(-dir * offset);
-        let new_verts = make_wobbly(dir * (bounds.height - offset));
+        let new_verts = make_wobbly(dir * (scroll_distance - offset));
         self.submit_scroll_two_quad_pass(
             surface_view, old_bind_group, new_bind_group,
             &old_verts, &new_verts, sx, sy, sw, sh,
@@ -1070,6 +1082,7 @@ impl WgpuRenderer {
         elapsed_secs: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -1080,7 +1093,7 @@ impl WgpuRenderer {
             };
 
         let dir = direction as f32;
-        let offset = bounds.height * t;
+        let offset = scroll_distance * t;
         let num_strips = 20;
         let strip_h = bounds.height / num_strips as f32;
         let uv_strip_h = (uv_b - uv_t) / num_strips as f32;
@@ -1112,7 +1125,7 @@ impl WgpuRenderer {
         };
 
         let old_verts = make_wave(-dir * offset);
-        let new_verts = make_wave(dir * (bounds.height - offset));
+        let new_verts = make_wave(dir * (scroll_distance - offset));
         self.submit_scroll_two_quad_pass(
             surface_view, old_bind_group, new_bind_group,
             &old_verts, &new_verts, sx, sy, sw, sh,
@@ -1129,6 +1142,7 @@ impl WgpuRenderer {
         elapsed_secs: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -1159,9 +1173,9 @@ impl WgpuRenderer {
                     1.0 - (1.0 + omega * line_t) * et
                 };
 
-                let line_offset = bounds.height * spring_t;
+                let line_offset = scroll_distance * spring_t;
                 let y_off = if is_new {
-                    dir * (bounds.height - line_offset)
+                    dir * (scroll_distance - line_offset)
                 } else {
                     -dir * line_offset
                 };
@@ -1201,6 +1215,7 @@ impl WgpuRenderer {
         elapsed_secs: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {
@@ -1212,7 +1227,7 @@ impl WgpuRenderer {
             };
 
         let dir = direction as f32;
-        let offset = bounds.height * t;
+        let offset = scroll_distance * t;
         let num_strips = 20;
         let strip_h = bounds.height / num_strips as f32;
         let uv_strip_h = (uv_b - uv_t) / num_strips as f32;
@@ -1242,7 +1257,7 @@ impl WgpuRenderer {
         };
 
         let old_verts = make_liquid(-dir * offset);
-        let new_verts = make_liquid(dir * (bounds.height - offset));
+        let new_verts = make_liquid(dir * (scroll_distance - offset));
         self.submit_scroll_two_quad_pass(
             surface_view, old_bind_group, new_bind_group,
             &old_verts, &new_verts, sx, sy, sw, sh,
@@ -1263,6 +1278,7 @@ impl WgpuRenderer {
         elapsed_secs: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        scroll_distance: f32,
         effect: crate::core::scroll_animation::ScrollEffect,
         surface_width: u32,
         surface_height: u32,
@@ -1276,7 +1292,7 @@ impl WgpuRenderer {
             };
 
         let dir = direction as f32;
-        let offset = bounds.height * eased_t;
+        let offset = scroll_distance * eased_t;
         let speed = (1.0 - eased_t); // High at start, low at end
         let num_strips = 20;
         let strip_h = bounds.height / num_strips as f32;
@@ -1356,7 +1372,7 @@ impl WgpuRenderer {
         };
 
         let old_verts = make_postprocess(-dir * offset, true);
-        let new_verts = make_postprocess(dir * (bounds.height - offset), false);
+        let new_verts = make_postprocess(dir * (scroll_distance - offset), false);
         self.submit_scroll_two_quad_pass(
             surface_view, old_bind_group, new_bind_group,
             &old_verts, &new_verts, sx, sy, sw, sh,
@@ -1373,6 +1389,7 @@ impl WgpuRenderer {
         elapsed_secs: f32,
         direction: i32,
         bounds: &crate::core::types::Rect,
+        _scroll_distance: f32,
         surface_width: u32,
         surface_height: u32,
     ) {

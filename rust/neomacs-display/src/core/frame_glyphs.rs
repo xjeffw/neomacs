@@ -248,6 +248,10 @@ pub struct WindowInfo {
     pub bounds: Rect,
     /// Height of the mode-line in pixels (0 if no mode-line)
     pub mode_line_height: f32,
+    /// Height of the header-line in pixels (0 if no header-line)
+    pub header_line_height: f32,
+    /// Height of the tab-line in pixels (0 if no tab-line)
+    pub tab_line_height: f32,
     /// Whether this is the selected (active) window
     pub selected: bool,
     /// Whether this is the minibuffer window
@@ -627,7 +631,8 @@ impl FrameGlyphBuffer {
     pub fn add_window_info(&mut self, window_id: i64, buffer_id: u64,
                            window_start: i64, window_end: i64, buffer_size: i64,
                            x: f32, y: f32, width: f32, height: f32,
-                           mode_line_height: f32, selected: bool,
+                           mode_line_height: f32, header_line_height: f32,
+                           tab_line_height: f32, selected: bool,
                            is_minibuffer: bool, char_height: f32,
                            buffer_file_name: String, modified: bool) {
         self.window_infos.push(WindowInfo {
@@ -638,6 +643,8 @@ impl FrameGlyphBuffer {
             buffer_size,
             bounds: Rect::new(x, y, width, height),
             mode_line_height,
+            header_line_height,
+            tab_line_height,
             selected,
             is_minibuffer,
             char_height,
@@ -771,7 +778,7 @@ mod tests {
         buf.add_window_info(
             1, 100, 0, 500, 1000,
             0.0, 0.0, 800.0, 600.0,
-            20.0, true, false, 16.0,
+            20.0, 0.0, 0.0, true, false, 16.0,
             "test.rs".to_string(), false,
         );
         buf.set_cursor_inverse(10.0, 20.0, 8.0, 16.0, Color::WHITE, Color::BLACK);
@@ -868,7 +875,7 @@ mod tests {
         buf.add_window_info(
             1, 100, 0, 100, 200,
             0.0, 0.0, 800.0, 600.0,
-            20.0, true, false, 16.0,
+            20.0, 0.0, 0.0, true, false, 16.0,
             String::new(), false,
         );
         assert_eq!(buf.len(), 4);
@@ -1132,7 +1139,7 @@ mod tests {
         buf.add_window_info(
             0x1234, 0xABCD, 1, 500, 1000,
             10.0, 20.0, 780.0, 560.0,
-            22.0, true, false, 16.0,
+            22.0, 0.0, 0.0, true, false, 16.0,
             "main.rs".to_string(), true,
         );
 
@@ -1160,13 +1167,13 @@ mod tests {
         buf.add_window_info(
             1, 100, 0, 200, 500,
             0.0, 0.0, 400.0, 600.0,
-            20.0, true, false, 16.0,
+            20.0, 0.0, 0.0, true, false, 16.0,
             "left.rs".to_string(), false,
         );
         buf.add_window_info(
             2, 200, 0, 300, 800,
             400.0, 0.0, 400.0, 600.0,
-            20.0, false, false, 16.0,
+            20.0, 0.0, 0.0, false, false, 16.0,
             "right.rs".to_string(), true,
         );
 
@@ -1183,7 +1190,7 @@ mod tests {
         buf.add_window_info(
             99, 50, 0, 0, 0,
             0.0, 580.0, 800.0, 20.0,
-            0.0, false, true, 16.0,
+            0.0, 0.0, 0.0, false, true, 16.0,
             String::new(), false,
         );
 
@@ -1645,13 +1652,13 @@ mod tests {
         buf.add_window_info(
             1, 100, 0, 500, 1000,
             0.0, 0.0, 960.0, 1060.0,
-            20.0, true, false, 16.0,
+            20.0, 0.0, 0.0, true, false, 16.0,
             "left.rs".to_string(), false,
         );
         buf.add_window_info(
             2, 200, 0, 300, 800,
             961.0, 0.0, 959.0, 1060.0,
-            20.0, false, false, 16.0,
+            20.0, 0.0, 0.0, false, false, 16.0,
             "right.rs".to_string(), true,
         );
 

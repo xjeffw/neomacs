@@ -2408,6 +2408,8 @@ mod tests {
             buffer_size: 100,
             bounds,
             mode_line_height,
+            header_line_height: 0.0,
+            tab_line_height: 0.0,
             selected,
             is_minibuffer,
             char_height: 20.0,

@@ -369,6 +369,8 @@ impl LayoutEngine {
                 params.bounds.width,
                 params.bounds.height,
                 params.mode_line_height,
+                params.header_line_height,
+                params.tab_line_height,
                 params.selected,
                 params.is_minibuffer,
                 params.char_height,
