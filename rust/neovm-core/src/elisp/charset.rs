@@ -4,7 +4,7 @@
 //! For neovm we primarily support Unicode; other charsets are registered
 //! for compatibility but map through to the Unicode code-point space.
 //!
-//! The `CharsetRegistry` stores known charset names and basic properties.
+//! The `CharsetRegistry` stores known charset names, IDs, and plists.
 //! It is initialized with the standard charsets: ascii, unicode,
 //! unicode-bmp, latin-iso8859-1, emacs, and eight-bit.
 
@@ -25,10 +25,6 @@ const UNIBYTE_BYTE_SENTINEL_MAX: u32 = 0xE3FF;
 struct CharsetInfo {
     id: i64,
     name: String,
-    doc: String,
-    dimension: u8,
-    min_code: u32,
-    max_code: u32,
     plist: Vec<(String, Value)>,
 }
 
@@ -54,55 +50,31 @@ impl CharsetRegistry {
         self.register(CharsetInfo {
             id: 0,
             name: "ascii".to_string(),
-            doc: "ASCII (ISO646 IRV)".to_string(),
-            dimension: 1,
-            min_code: 0,
-            max_code: 127,
             plist: vec![],
         });
         self.register(CharsetInfo {
             id: 2,
             name: "unicode".to_string(),
-            doc: "Unicode (ISO10646)".to_string(),
-            dimension: 3,
-            min_code: 0,
-            max_code: 0x10FFFF,
             plist: vec![],
         });
         self.register(CharsetInfo {
             id: 144,
             name: "unicode-bmp".to_string(),
-            doc: "Unicode Basic Multilingual Plane (BMP)".to_string(),
-            dimension: 2,
-            min_code: 0,
-            max_code: 0xFFFF,
             plist: vec![],
         });
         self.register(CharsetInfo {
             id: 5,
             name: "latin-iso8859-1".to_string(),
-            doc: "ISO/IEC 8859/1 (Latin-1)".to_string(),
-            dimension: 1,
-            min_code: 0,
-            max_code: 255,
             plist: vec![],
         });
         self.register(CharsetInfo {
             id: 3,
             name: "emacs".to_string(),
-            doc: "Full Emacs character set (Unicode + eight-bit)".to_string(),
-            dimension: 3,
-            min_code: 0,
-            max_code: 0x3FFFFF,
             plist: vec![],
         });
         self.register(CharsetInfo {
             id: 4,
             name: "eight-bit".to_string(),
-            doc: "Raw bytes 0x80..0xFF".to_string(),
-            dimension: 1,
-            min_code: 0x80,
-            max_code: 0xFF,
             plist: vec![],
         });
 
@@ -127,6 +99,7 @@ impl CharsetRegistry {
     }
 
     /// Return the list of all charset names (unordered).
+    #[cfg(test)]
     pub fn names(&self) -> Vec<String> {
         self.charsets.keys().cloned().collect()
     }

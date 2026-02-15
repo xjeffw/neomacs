@@ -18,6 +18,25 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead `Evaluator` network manager field:
+  - updated:
+    - `rust/neovm-core/src/elisp/eval.rs`
+      - removed unused `network: NetworkManager` storage and initialization from evaluator state.
+      - retained existing runtime behavior (no call sites referenced this field).
+  - verified:
+    - `cargo test 'elisp::eval::tests::' -- --nocapture` (pass, 78 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+
+- Removed unused charset metadata fields from registry internals:
+  - updated:
+    - `rust/neovm-core/src/elisp/charset.rs`
+      - dropped unreferenced `CharsetInfo` metadata fields (`doc`, `dimension`, `min_code`, `max_code`) and associated initialization noise.
+      - test-gated `CharsetRegistry::names()` helper used only by charset unit tests.
+      - kept charset IDs/plists/priority behavior unchanged.
+  - verified:
+    - `cargo test 'elisp::charset::tests::' -- --nocapture` (pass, 65 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/chars` (pass, 11/11)
+
 - Test-gated minibuffer stack-entry internals that are not in production dispatch:
   - updated:
     - `rust/neovm-core/src/elisp/minibuffer.rs`

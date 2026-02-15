@@ -17,7 +17,6 @@ use super::keymap::KeymapManager;
 use super::kill_ring::KillRing;
 use super::kmacro::KmacroManager;
 use super::mode::ModeRegistry;
-use super::network::NetworkManager;
 use super::process::ProcessManager;
 use super::rect::RectangleState;
 use super::regex::MatchData;
@@ -67,7 +66,6 @@ pub struct Evaluator {
     /// Process manager — owns all tracked processes.
     pub(crate) processes: ProcessManager,
     /// Network manager — owns network connections, filters, and sentinels.
-    pub(crate) network: NetworkManager,
     /// Timer manager — owns all timers.
     pub(crate) timers: TimerManager,
     /// Advice manager — function advice (before/after/around/etc.).
@@ -194,7 +192,6 @@ impl Evaluator {
             match_data: None,
             keymaps: KeymapManager::new(),
             processes: ProcessManager::new(),
-            network: NetworkManager::new(),
             timers: TimerManager::new(),
             advice: AdviceManager::new(),
             watchers: VariableWatcherList::new(),
