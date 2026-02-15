@@ -5,18 +5,26 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Expand oracle corpus coverage for remaining interactive transpose/editing edge paths.
+- Audit `transpose-lines` command-context/error-ordering edge cases (no-op and boundary paths).
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Add focused read-only variable corpus for `transpose-chars`.
-- Audit `transpose-lines` command-context/error-ordering edge cases (no-op and boundary paths).
+- Add focused command-context corpus for `transpose-lines` boundary/no-op paths.
 - Audit adjacent kill-ring command-context paths (`kill-new`, rotation, point updates) for batch-oracle deltas.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Added dedicated `transpose-chars` read-only variable oracle corpus and list wiring:
+  - added:
+    - `test/neovm/vm-compat/cases/transpose-chars-read-only-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/transpose-chars-read-only-variable-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/transpose-chars-read-only-variable-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned `transpose-lines` read-only variable behavior and newline normalization with oracle semantics:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - `transpose-lines` now honors dynamic/buffer-local/global `buffer-read-only`
