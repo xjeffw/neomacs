@@ -294,15 +294,6 @@ pub(crate) fn builtin_string_blank_p(args: Vec<Value>) -> EvalResult {
     Ok(Value::bool(s.trim().is_empty()))
 }
 
-/// `(string-chop-newline STRING)` -> string without trailing newline.
-pub(crate) fn builtin_string_chop_newline(args: Vec<Value>) -> EvalResult {
-    expect_args("string-chop-newline", &args, 1)?;
-    let s = expect_string(&args[0])?;
-    let trimmed = s.strip_suffix('\n').unwrap_or(&s);
-    let trimmed = trimmed.strip_suffix('\r').unwrap_or(trimmed);
-    Ok(Value::string(trimmed))
-}
-
 /// `(string-replace FROM TO IN)` — replace all occurrences.
 pub(crate) fn builtin_string_replace(args: Vec<Value>) -> EvalResult {
     expect_args("string-replace", &args, 3)?;
@@ -704,12 +695,6 @@ mod tests {
             Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
             other => panic!("expected signal, got {other:?}"),
         }
-    }
-
-    #[test]
-    fn string_chop_newline() {
-        let result = builtin_string_chop_newline(vec![Value::string("hello\n")]).unwrap();
-        assert_eq!(result.as_str(), Some("hello"));
     }
 
     #[test]
