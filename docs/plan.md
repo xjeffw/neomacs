@@ -23,6 +23,8 @@ Last updated: 2026-02-15
     `make -C test/neovm/vm-compat check-legacy-elc-neovm`
   - verified:
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-legacy-elc-neovm` (pass:
+      reader 9/9, exec 102/102, edge-opcodes 5/5)
 - Added length-cycle fallback oracle corpus for proper-list pointer seeds:
   - added and enabled:
     - `test/neovm/vm-compat/cases/kill-ring-pointer-length-cycle-semantics.forms`
