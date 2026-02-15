@@ -97,6 +97,19 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-backward-semantics.forms EXPECTED=cases/replace-backward-semantics.expected.tsv` (pass, 9/9)
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-delimited-semantics.forms EXPECTED=cases/replace-delimited-semantics.expected.tsv` (pass, 12/12)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Aligned `BACKWARD` empty-pattern and explicit-range edge behavior in replacement builtins:
+  - updated `rust/neovm-core/src/elisp/isearch.rs`:
+    - fixed empty-string/empty-regexp backward insertion direction to match oracle (`after` each character, including end boundary)
+    - fixed backward point placement to track first replacement location within region
+    - preserved no-replacement point stability for explicit start/end backward paths
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/replace-backward-edge-semantics.forms`
+    - `test/neovm/vm-compat/cases/replace-backward-edge-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-backward-edge-semantics.forms EXPECTED=cases/replace-backward-edge-semantics.expected.tsv` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/replace-backward-semantics.forms EXPECTED=cases/replace-backward-semantics.expected.tsv` (pass, 9/9)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
 - Implemented and locked search-stack evaluator subsets with oracle corpus:
   - `replace-regexp`:
