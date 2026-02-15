@@ -18,6 +18,37 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead legacy `dispnew` module subtree that was not compiled/referenced:
+  - deleted:
+    - `rust/neovm-core/src/elisp/dispnew.rs`
+    - `rust/neovm-core/src/elisp/dispnew/args.rs`
+    - `rust/neovm-core/src/elisp/dispnew/pure.rs`
+    - `rust/neovm-core/src/elisp/dispnew/tests.rs`
+    - `rust/neovm-core/src/elisp/dispnew/timing.rs`
+  - verified:
+    - `cargo test 'elisp::display::tests::' -- --nocapture` (pass, 27 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-batch-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-stub-semantics` (pass, 30/30)
+- Removed dead legacy `elisp/keyboard` module subtree that was not compiled/referenced:
+  - deleted:
+    - `rust/neovm-core/src/elisp/keyboard.rs`
+    - `rust/neovm-core/src/elisp/keyboard/args.rs`
+    - `rust/neovm-core/src/elisp/keyboard/eval_stateful.rs`
+    - `rust/neovm-core/src/elisp/keyboard/pure.rs`
+    - `rust/neovm-core/src/elisp/keyboard/tests.rs`
+  - verified:
+    - `cargo test 'keyboard::tests::' -- --nocapture` (pass, 10 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-batch-readers` (pass, 70/70)
+- Removed dead legacy `xfaces` module subtree that was not compiled/referenced:
+  - deleted:
+    - `rust/neovm-core/src/elisp/xfaces.rs`
+    - `rust/neovm-core/src/elisp/xfaces/args.rs`
+    - `rust/neovm-core/src/elisp/xfaces/builtins.rs`
+    - `rust/neovm-core/src/elisp/xfaces/tests.rs`
+  - verified:
+    - `cargo test 'elisp::font::tests::' -- --nocapture` (pass, 79 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/face-batch-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/internal-lisp-face-semantics` (pass, 34/34)
 - Removed dead legacy `callproc` module subtree that was no longer compiled or referenced:
   - deleted:
     - `rust/neovm-core/src/elisp/callproc.rs`
