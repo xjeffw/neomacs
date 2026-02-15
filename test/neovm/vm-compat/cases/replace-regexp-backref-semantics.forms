@@ -1,0 +1,22 @@
+(with-temp-buffer
+  (insert "abc123 def456")
+  (goto-char (point-min))
+  (replace-regexp "\\([a-z]+\\)\\([0-9]+\\)" "\\2-\\1")
+  (buffer-string))
+(with-temp-buffer
+  (insert "foo")
+  (goto-char (point-min))
+  (replace-regexp "\\(foo\\)" "[\\&|\\1]")
+  (buffer-string))
+(with-temp-buffer
+  (insert "abc123 def456")
+  (goto-char (point-min))
+  (let ((unread-command-events (list ?!)))
+    (query-replace-regexp "\\([a-z]+\\)\\([0-9]+\\)" "\\2-\\1"))
+  (buffer-string))
+(with-temp-buffer
+  (insert "foo")
+  (goto-char (point-min))
+  (let ((unread-command-events (list ?!)))
+    (query-replace-regexp "\\(foo\\)" "[\\&|\\1]"))
+  (buffer-string))

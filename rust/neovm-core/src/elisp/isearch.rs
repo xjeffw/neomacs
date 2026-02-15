@@ -1203,6 +1203,41 @@ fn preserve_case(replacement: &str, matched: &str) -> String {
     replacement.to_string()
 }
 
+fn expand_emacs_replacement(rep: &str, caps: &regex::Captures<'_>) -> String {
+    let mut out = String::with_capacity(rep.len());
+    let mut chars = rep.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            out.push(ch);
+            continue;
+        }
+
+        let Some(next) = chars.next() else {
+            out.push('\\');
+            break;
+        };
+
+        match next {
+            '&' => {
+                if let Some(m) = caps.get(0) {
+                    out.push_str(m.as_str());
+                }
+            }
+            '1'..='9' => {
+                let idx = next.to_digit(10).unwrap() as usize;
+                if let Some(m) = caps.get(idx) {
+                    out.push_str(m.as_str());
+                }
+            }
+            '\\' => out.push('\\'),
+            other => out.push(other),
+        }
+    }
+
+    out
+}
+
 // ---------------------------------------------------------------------------
 // Builtin functions (stubs for evaluator dispatch)
 // ---------------------------------------------------------------------------
@@ -1328,21 +1363,26 @@ pub(crate) fn builtin_replace_regexp_eval(
     let mut out = String::with_capacity(source.len());
     let mut last = 0usize;
     let mut replaced = 0usize;
-    for m in re.find_iter(&source) {
+    for caps in re.captures_iter(&source) {
+        let Some(m) = caps.get(0) else {
+            continue;
+        };
         if m.start() == m.end() {
             // Emacs inserts on empty regexp matches before each character, not at end.
             if m.start() >= source.len() {
                 continue;
             }
             out.push_str(&source[last..m.start()]);
-            out.push_str(&to);
+            let expanded = expand_emacs_replacement(&to, &caps);
+            out.push_str(&preserve_case(&expanded, m.as_str()));
             last = m.start();
             replaced += 1;
             continue;
         }
 
         out.push_str(&source[last..m.start()]);
-        out.push_str(&preserve_case(&to, m.as_str()));
+        let expanded = expand_emacs_replacement(&to, &caps);
+        out.push_str(&preserve_case(&expanded, m.as_str()));
         last = m.end();
         replaced += 1;
     }
