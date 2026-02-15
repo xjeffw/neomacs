@@ -18,6 +18,36 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead legacy `elisp/buffer` module subtree that was not compiled/referenced:
+  - deleted:
+    - `rust/neovm-core/src/elisp/buffer.rs`
+    - `rust/neovm-core/src/elisp/buffer/args.rs`
+    - `rust/neovm-core/src/elisp/buffer/stateful.rs`
+    - `rust/neovm-core/src/elisp/buffer/tests.rs`
+  - verified:
+    - `cargo test --lib --no-run`
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-locals` (pass, 9/9)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-local-value` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/defvar-local` (pass, 7/7)
+- Removed dead legacy `elisp/character` module subtree that was not compiled/referenced:
+  - deleted:
+    - `rust/neovm-core/src/elisp/character.rs`
+    - `rust/neovm-core/src/elisp/character/builtins.rs`
+    - `rust/neovm-core/src/elisp/character/helpers.rs`
+    - `rust/neovm-core/src/elisp/character/tests.rs`
+  - verified:
+    - `cargo test --lib --no-run`
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/chars` (pass, 11/11)
+- Removed dead legacy `elisp/data` module subtree that was not compiled/referenced:
+  - deleted:
+    - `rust/neovm-core/src/elisp/data.rs`
+    - `rust/neovm-core/src/elisp/data/eval_stateful.rs`
+    - `rust/neovm-core/src/elisp/data/helpers.rs`
+    - `rust/neovm-core/src/elisp/data/pure.rs`
+    - `rust/neovm-core/src/elisp/data/tests.rs`
+  - verified:
+    - `cargo test --lib --no-run`
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
 - Removed dead legacy `dispnew` module subtree that was not compiled/referenced:
   - deleted:
     - `rust/neovm-core/src/elisp/dispnew.rs`
