@@ -19,6 +19,20 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Enforced `font-xlfd-name` max arity parity:
+  - updated:
+    - `rust/neovm-core/src/elisp/font.rs`
+      - `font-xlfd-name` now enforces max arity `3` (signals `wrong-number-of-arguments` on 4+ args).
+      - added unit coverage for over-arity path.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/font-xlfd-arity-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/neovm-only.list`
+      - added `cases/font-xlfd-arity-semantics`.
+  - verified:
+    - `cargo test font::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/font-xlfd-arity-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Improved `create-image` default TYPE resolution for compatibility:
   - updated:
     - `rust/neovm-core/src/elisp/image.rs`
