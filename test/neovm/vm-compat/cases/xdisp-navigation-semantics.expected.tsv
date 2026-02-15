@@ -5,4 +5,6 @@
 5	(pos-visible-in-window-p)	OK nil
 6	(pos-visible-in-window-p 1)	OK nil
 7	(pos-visible-in-window-p nil nil t)	OK nil
-8	(condition-case err (pos-visible-in-window-p nil nil t nil) (error (car err)))	OK wrong-number-of-arguments
+8	(condition-case err (pos-visible-in-window-p nil "x") (error err))	OK (wrong-type-argument window-live-p "x")
+9	(condition-case err (pos-visible-in-window-p nil 1) (error err))	OK (wrong-type-argument window-live-p 1)
+10	(condition-case err (pos-visible-in-window-p nil nil t nil) (error (car err)))	OK wrong-number-of-arguments
