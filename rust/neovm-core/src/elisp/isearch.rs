@@ -1154,6 +1154,24 @@ fn find_match(
     }
 }
 
+fn is_delimited_word_char(ch: char) -> bool {
+    ch.is_alphanumeric()
+}
+
+fn is_delimited_match(text: &str, start: usize, end: usize) -> bool {
+    let left = text.get(..start).and_then(|s| s.chars().next_back());
+    let right = text.get(end..).and_then(|s| s.chars().next());
+    let left_ok = match left {
+        Some(ch) => !is_delimited_word_char(ch),
+        None => true,
+    };
+    let right_ok = match right {
+        Some(ch) => !is_delimited_word_char(ch),
+        None => true,
+    };
+    left_ok && right_ok
+}
+
 // ---------------------------------------------------------------------------
 // Helper: case-preserving replacement
 // ---------------------------------------------------------------------------
@@ -1251,6 +1269,7 @@ pub(crate) fn builtin_replace_string_eval(
     expect_min_max_args("replace-string", &args, 2, 7)?;
     let from = expect_sequence_string(&args[0])?;
     let to = expect_string(&args[1])?;
+    let delimited = args.get(2).is_some_and(|v| !v.is_nil());
     let (start, end, source, read_only, buffer_name) = {
         let buf = eval
             .buffers
@@ -1300,6 +1319,11 @@ pub(crate) fn builtin_replace_string_eval(
     let mut cursor = 0usize;
     let mut replaced = 0usize;
     while let Some((m_start, m_end)) = find_match(&source, &from, cursor, true, false, case_fold) {
+        if delimited && !is_delimited_match(&source, m_start, m_end) {
+            out.push_str(&source[cursor..m_end]);
+            cursor = m_end;
+            continue;
+        }
         out.push_str(&source[cursor..m_start]);
         let matched = &source[m_start..m_end];
         out.push_str(&preserve_case(&to, matched));
@@ -1339,6 +1363,7 @@ pub(crate) fn builtin_replace_regexp_eval(
     expect_min_max_args("replace-regexp", &args, 2, 7)?;
     let from = expect_sequence_string(&args[0])?;
     let to = expect_string(&args[1])?;
+    let delimited = args.get(2).is_some_and(|v| !v.is_nil());
 
     let (start, end, source, read_only, buffer_name) = {
         let buf = eval
@@ -1367,6 +1392,9 @@ pub(crate) fn builtin_replace_regexp_eval(
         let Some(m) = caps.get(0) else {
             continue;
         };
+        if delimited && !is_delimited_match(&source, m.start(), m.end()) {
+            continue;
+        }
         if m.start() == m.end() {
             // Emacs inserts on empty regexp matches before each character, not at end.
             if m.start() >= source.len() {
@@ -2649,6 +2677,21 @@ mod tests {
         let text = "abcdef";
         let result = find_match(text, "def", 3, true, false, false);
         assert_eq!(result, Some((3, 6)));
+    }
+
+    #[test]
+    fn delimited_match_rejects_embedded_word() {
+        let text = "foo1 1foo foo";
+        assert!(!is_delimited_match(text, 0, 3));
+        assert!(!is_delimited_match(text, 5, 8));
+        assert!(is_delimited_match(text, 10, 13));
+    }
+
+    #[test]
+    fn delimited_match_treats_underscore_as_delimiter() {
+        let text = "foo_foo";
+        assert!(is_delimited_match(text, 0, 3));
+        assert!(is_delimited_match(text, 4, 7));
     }
 
     // -----------------------------------------------------------------------
