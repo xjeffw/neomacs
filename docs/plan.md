@@ -19,6 +19,14 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Locked monitor-query designator message-detail parity:
+  - updated:
+    - `test/neovm/vm-compat/cases/display-monitor-semantics.{forms,expected.tsv}`
+      - added assertions that invalid numeric designator payloads mention the offending value (`999999`) for both `display-monitor-attributes-list` and `frame-monitor-attributes`.
+      - refreshed oracle baseline.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-monitor-semantics` (pass, 13/13)
+
 - Locked display designator message-detail parity in a second oracle corpus:
   - updated:
     - `test/neovm/vm-compat/cases/display-query-designator-semantics.{forms,expected.tsv}`
