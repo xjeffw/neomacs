@@ -614,6 +614,15 @@ fn kill_ring_entries_from_value(value: &Value) -> Option<Vec<String>> {
     }
 }
 
+fn pointer_length_fallback_index(ring_len: usize, pointer_len: usize) -> usize {
+    if ring_len == 0 {
+        return 0;
+    }
+    // Emacs maps unmatched proper-list pointers by cycling from the end of
+    // the kill ring using pointer-list length modulo ring length.
+    (ring_len - (pointer_len % ring_len)) % ring_len
+}
+
 fn kill_ring_pointer_index(
     kill_ring_entries: &[String],
     pointer_value: &Value,
@@ -653,11 +662,10 @@ fn kill_ring_pointer_index(
             }
         }
     }
-
-    if kill_ring_entries.is_empty() {
-        return Ok(0);
-    }
-    Ok((kill_ring_entries.len() - (pointer_len % kill_ring_entries.len())) % kill_ring_entries.len())
+    Ok(pointer_length_fallback_index(
+        kill_ring_entries.len(),
+        pointer_len,
+    ))
 }
 
 fn list_tail_at(list: &Value, index: usize) -> Value {
