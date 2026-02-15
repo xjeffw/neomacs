@@ -79,6 +79,7 @@ cases/face-batch-semantics
 cases/internal-lisp-face-semantics
 cases/internal-lisp-face-comparators
 cases/internal-get-lisp-face-attribute-matrix
+cases/internal-make-copy-lisp-face-semantics
 cases/terminal-parameter-semantics
 cases/terminal-handle-printing
 cases/frame-batch-semantics
