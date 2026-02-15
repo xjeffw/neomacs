@@ -18,6 +18,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed dead debug helper wrapper surface:
+  - updated:
+    - `rust/neovm-core/src/elisp/debug.rs`
+      - deleted unreferenced wrappers `debug`, `debug-on-entry`, `cancel-debug-on-entry`, `debug-on-error-p`, and `apropos`.
+      - removed stale unit tests tied only to those unregistered wrappers.
+  - verified:
+    - `cargo test 'elisp::debug::tests::' -- --nocapture` (pass, 49 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/documentation-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/commandp-semantics` (pass, 12/12)
+
 - Removed dead duplicate image wrapper surface:
   - updated:
     - `rust/neovm-core/src/elisp/image.rs`

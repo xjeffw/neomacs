@@ -40,19 +40,6 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
-fn expect_string(value: &Value) -> Result<String, Flow> {
-    match value {
-        Value::Str(s) => Ok((**s).clone()),
-        Value::Symbol(s) => Ok(s.clone()),
-        Value::Nil => Ok("nil".to_string()),
-        Value::True => Ok("t".to_string()),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("stringp"), other.clone()],
-        )),
-    }
-}
-
 fn expect_symbol_name(value: &Value) -> Result<String, Flow> {
     match value.as_symbol_name() {
         Some(s) => Ok(s.to_string()),
@@ -626,48 +613,6 @@ pub(crate) fn builtin_backtrace(args: Vec<Value>) -> EvalResult {
     ))
 }
 
-/// `(debug &rest ARGS)` -- enter the debugger.
-///
-/// In a full implementation this would suspend evaluation and present
-/// the debugger UI.  Here it signals `debug` so callers can catch it.
-pub(crate) fn builtin_debug(args: Vec<Value>) -> EvalResult {
-    let message = if args.is_empty() {
-        "Entering debugger".to_string()
-    } else {
-        args.iter()
-            .map(|v| print_value(v))
-            .collect::<Vec<_>>()
-            .join(" ")
-    };
-    Ok(Value::string(message))
-}
-
-/// `(debug-on-entry FUNCTION)` -- mark FUNCTION for debug-on-entry.
-///
-/// Returns the function name symbol.  The evaluator hooks this to its DebugState.
-pub(crate) fn builtin_debug_on_entry(args: Vec<Value>) -> EvalResult {
-    expect_args("debug-on-entry", &args, 1)?;
-    let name = expect_symbol_name(&args[0])?;
-    // Return the name so the evaluator can wire it up
-    Ok(Value::symbol(name))
-}
-
-/// `(cancel-debug-on-entry FUNCTION)` -- remove debug-on-entry for FUNCTION.
-pub(crate) fn builtin_cancel_debug_on_entry(args: Vec<Value>) -> EvalResult {
-    expect_args("cancel-debug-on-entry", &args, 1)?;
-    let name = expect_symbol_name(&args[0])?;
-    Ok(Value::symbol(name))
-}
-
-/// `(debug-on-error-p)` -- return t if debug-on-error is enabled, nil otherwise.
-///
-/// The evaluator overrides this to consult its own DebugState.
-pub(crate) fn builtin_debug_on_error_p(args: Vec<Value>) -> EvalResult {
-    expect_args("debug-on-error-p", &args, 0)?;
-    // Default: nil (disabled).  Evaluator replaces at dispatch time.
-    Ok(Value::Nil)
-}
-
 /// `(describe-function SYMBOL)` -- return a description string for a function.
 ///
 /// Without evaluator context, returns a stub.  The evaluator supplies the
@@ -712,17 +657,6 @@ pub(crate) fn builtin_documentation(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_documentation_property(args: Vec<Value>) -> EvalResult {
     expect_min_args("documentation-property", &args, 2)?;
     // Stub -- the evaluator can override via plist lookup
-    Ok(Value::Nil)
-}
-
-/// `(apropos PATTERN)` -- search for symbols matching PATTERN.
-///
-/// Returns a list of matching symbol names.  Without evaluator context
-/// this is a stub; the evaluator supplies the full obarray.
-pub(crate) fn builtin_apropos(args: Vec<Value>) -> EvalResult {
-    expect_min_args("apropos", &args, 1)?;
-    let _pattern = expect_string(&args[0])?;
-    // Stub -- evaluator fills in real results from obarray + docstore
     Ok(Value::Nil)
 }
 
@@ -1206,53 +1140,6 @@ mod tests {
     }
 
     #[test]
-    fn builtin_debug_returns_string() {
-        let result = builtin_debug(vec![]);
-        assert!(result.is_ok());
-        let val = result.unwrap();
-        assert!(val.is_string());
-        assert!(val.as_str().unwrap().contains("Entering debugger"));
-    }
-
-    #[test]
-    fn builtin_debug_with_args() {
-        let result = builtin_debug(vec![Value::string("error occurred"), Value::Int(42)]);
-        assert!(result.is_ok());
-        let val = result.unwrap();
-        let s = val.as_str().unwrap();
-        assert!(s.contains("error occurred"));
-        assert!(s.contains("42"));
-    }
-
-    #[test]
-    fn builtin_debug_on_entry_returns_symbol() {
-        let result = builtin_debug_on_entry(vec![Value::symbol("my-fn")]);
-        assert!(result.is_ok());
-        let val = result.unwrap();
-        assert_eq!(val.as_symbol_name(), Some("my-fn"));
-    }
-
-    #[test]
-    fn builtin_debug_on_entry_wrong_type() {
-        let result = builtin_debug_on_entry(vec![Value::Int(42)]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn builtin_cancel_debug_on_entry_returns_symbol() {
-        let result = builtin_cancel_debug_on_entry(vec![Value::symbol("my-fn")]);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().as_symbol_name(), Some("my-fn"));
-    }
-
-    #[test]
-    fn builtin_debug_on_error_p_default() {
-        let result = builtin_debug_on_error_p(vec![]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
-    }
-
-    #[test]
     fn builtin_describe_function_stub() {
         let result = builtin_describe_function(vec![Value::symbol("car")]);
         assert!(result.is_ok());
@@ -1310,20 +1197,6 @@ mod tests {
         ]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
-    }
-
-    #[test]
-    fn builtin_apropos_stub() {
-        let result = builtin_apropos(vec![Value::string("car")]);
-        assert!(result.is_ok());
-        // Stub returns nil
-        assert!(result.unwrap().is_nil());
-    }
-
-    #[test]
-    fn builtin_apropos_wrong_args() {
-        let result = builtin_apropos(vec![]);
-        assert!(result.is_err());
     }
 
     #[test]
