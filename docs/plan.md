@@ -2515,6 +2515,17 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/cxr-semantics.forms EXPECTED=cases/cxr-semantics.expected.tsv` (pass, 11/11)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/fboundp-core` (pass, 4/4)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/member-assoc-semantics` (pass, 16/16)
+- Extended `cxr` coverage with 3-level accessors and oracle lock-in:
+  - implemented pure builtins: `caaar`, `caadr`, `cadar`, `caddr`, `cdaar`, `cdadr`, `cddar`, `cdddr`
+  - refactored `cxr` execution through a shared `apply_cxr` helper to keep `car`/`cdr` error semantics consistent
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/cxr-3level-semantics.forms`
+    - `test/neovm/vm-compat/cases/cxr-3level-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/cxr-3level-semantics.forms EXPECTED=cases/cxr-3level-semantics.expected.tsv` (pass, 11/11)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cxr-semantics` (pass, 11/11)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
 ## Doing
 
