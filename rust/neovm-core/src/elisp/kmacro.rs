@@ -53,19 +53,6 @@ fn expect_int(value: &Value) -> Result<i64, Flow> {
     }
 }
 
-fn expect_string(value: &Value) -> Result<String, Flow> {
-    match value {
-        Value::Str(s) => Ok((**s).clone()),
-        Value::Symbol(s) => Ok(s.clone()),
-        Value::Nil => Ok("nil".to_string()),
-        Value::True => Ok("t".to_string()),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("stringp"), other.clone()],
-        )),
-    }
-}
-
 // ---------------------------------------------------------------------------
 // KmacroManager
 // ---------------------------------------------------------------------------
@@ -434,61 +421,6 @@ pub(crate) fn builtin_store_kbd_macro_event(
     Ok(Value::Nil)
 }
 
-/// (kmacro-set-counter VALUE) -> nil
-///
-/// Set the keyboard macro counter to VALUE (an integer).
-pub(crate) fn builtin_kmacro_set_counter(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_args("kmacro-set-counter", &args, 1)?;
-    let val = expect_int(&args[0])?;
-    eval.kmacro.counter = val;
-    Ok(Value::Nil)
-}
-
-/// (kmacro-add-counter INCREMENT) -> nil
-///
-/// Add INCREMENT to the keyboard macro counter.
-pub(crate) fn builtin_kmacro_add_counter(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_args("kmacro-add-counter", &args, 1)?;
-    let inc = expect_int(&args[0])?;
-    eval.kmacro.counter = eval.kmacro.counter.wrapping_add(inc);
-    Ok(Value::Nil)
-}
-
-/// (kmacro-set-format FORMAT-STRING) -> nil
-///
-/// Set the keyboard macro counter format string.
-pub(crate) fn builtin_kmacro_set_format(
-    eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_args("kmacro-set-format", &args, 1)?;
-    let fmt = expect_string(&args[0])?;
-    eval.kmacro.counter_format = fmt;
-    Ok(Value::Nil)
-}
-
-// ===========================================================================
-// Pure builtins (no evaluator needed)
-// ===========================================================================
-
-/// (executing-kbd-macro-p) -> nil
-///
-/// Return non-nil if a keyboard macro is currently being executed.
-/// Stub implementation -- always returns nil since the VM does not
-/// track execution state separately from `call-last-kbd-macro`.
-pub(crate) fn builtin_executing_kbd_macro_p(args: Vec<Value>) -> EvalResult {
-    let _ = args;
-    // In a full implementation, this would check an `executing` flag
-    // on the KmacroManager.  For now, return nil.
-    Ok(Value::Nil)
-}
-
 // ===========================================================================
 // Internal helpers
 // ===========================================================================
@@ -764,54 +696,6 @@ mod tests {
     }
 
     #[test]
-    fn test_kmacro_counter_operations() {
-        use super::super::eval::Evaluator;
-
-        let mut eval = Evaluator::new();
-
-        // Initial counter is 0
-        assert_eq!(eval.kmacro.counter, 0);
-
-        // Set counter to 10
-        let result = builtin_kmacro_set_counter(&mut eval, vec![Value::Int(10)]);
-        assert!(result.is_ok());
-        assert_eq!(eval.kmacro.counter, 10);
-
-        // Add 5 to counter
-        let result = builtin_kmacro_add_counter(&mut eval, vec![Value::Int(5)]);
-        assert!(result.is_ok());
-        assert_eq!(eval.kmacro.counter, 15);
-
-        // Add negative
-        let result = builtin_kmacro_add_counter(&mut eval, vec![Value::Int(-3)]);
-        assert!(result.is_ok());
-        assert_eq!(eval.kmacro.counter, 12);
-    }
-
-    #[test]
-    fn test_kmacro_set_format() {
-        use super::super::eval::Evaluator;
-
-        let mut eval = Evaluator::new();
-
-        assert_eq!(eval.kmacro.counter_format, "%d");
-
-        let result = builtin_kmacro_set_format(&mut eval, vec![Value::string("%03d")]);
-        assert!(result.is_ok());
-        assert_eq!(eval.kmacro.counter_format, "%03d");
-    }
-
-    #[test]
-    fn test_kmacro_set_counter_wrong_type() {
-        use super::super::eval::Evaluator;
-
-        let mut eval = Evaluator::new();
-
-        let result = builtin_kmacro_set_counter(&mut eval, vec![Value::string("not a number")]);
-        assert!(result.is_err());
-    }
-
-    #[test]
     fn test_name_last_kbd_macro() {
         use super::super::eval::Evaluator;
 
@@ -851,14 +735,6 @@ mod tests {
 
         let result = builtin_name_last_kbd_macro(&mut eval, vec![Value::Int(42)]);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_executing_kbd_macro_p() {
-        // Stub: always nil
-        let result = builtin_executing_kbd_macro_p(vec![]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
     }
 
     #[test]
