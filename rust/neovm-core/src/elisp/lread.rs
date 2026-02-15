@@ -562,18 +562,45 @@ pub(crate) fn builtin_locate_file_internal(args: Vec<Value>) -> EvalResult {
 
 /// `(read-coding-system PROMPT &optional DEFAULT-CODING-SYSTEM)`
 ///
-/// Stub: returns the symbol `utf-8`.
+/// In batch mode, this prompts for input and signals end-of-file.
 pub(crate) fn builtin_read_coding_system(args: Vec<Value>) -> EvalResult {
     expect_min_args("read-coding-system", &args, 1)?;
-    Ok(Value::symbol("utf-8"))
+    expect_max_args("read-coding-system", &args, 2)?;
+    if !matches!(args[0], Value::Str(_)) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), args[0].clone()],
+        ));
+    }
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 /// `(read-non-nil-coding-system PROMPT)`
 ///
-/// Stub: returns the symbol `utf-8`.
+/// In batch mode, this prompts for input and signals end-of-file.
 pub(crate) fn builtin_read_non_nil_coding_system(args: Vec<Value>) -> EvalResult {
-    expect_min_args("read-non-nil-coding-system", &args, 1)?;
-    Ok(Value::symbol("utf-8"))
+    if args.len() != 1 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![
+                Value::symbol("read-non-nil-coding-system"),
+                Value::Int(args.len() as i64),
+            ],
+        ));
+    }
+    if !matches!(args[0], Value::Str(_)) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), args[0].clone()],
+        ));
+    }
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -1604,15 +1631,63 @@ mod tests {
     }
 
     #[test]
-    fn read_coding_system_returns_utf8() {
-        let result = builtin_read_coding_system(vec![Value::string("Coding system: ")]).unwrap();
-        assert!(matches!(result, Value::Symbol(ref s) if s == "utf-8"));
+    fn read_coding_system_signals_batch_eof() {
+        let result = builtin_read_coding_system(vec![Value::string("")]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "end-of-file"
+                    && sig.data == vec![Value::string("Error reading from stdin")]
+        ));
     }
 
     #[test]
-    fn read_non_nil_coding_system_returns_utf8() {
-        let result =
-            builtin_read_non_nil_coding_system(vec![Value::string("Coding system: ")]).unwrap();
-        assert!(matches!(result, Value::Symbol(ref s) if s == "utf-8"));
+    fn read_coding_system_validates_prompt_type_and_arity() {
+        let bad_prompt = builtin_read_coding_system(vec![Value::Int(1)]);
+        assert!(matches!(
+            bad_prompt,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "wrong-type-argument"
+                    && sig.data == vec![Value::symbol("stringp"), Value::Int(1)]
+        ));
+
+        let arity = builtin_read_coding_system(vec![Value::string(""), Value::Nil, Value::Nil]);
+        assert!(matches!(
+            arity,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "wrong-number-of-arguments"
+                    && sig.data == vec![Value::symbol("read-coding-system"), Value::Int(3)]
+        ));
+    }
+
+    #[test]
+    fn read_non_nil_coding_system_signals_batch_eof() {
+        let result = builtin_read_non_nil_coding_system(vec![Value::string("")]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "end-of-file"
+                    && sig.data == vec![Value::string("Error reading from stdin")]
+        ));
+    }
+
+    #[test]
+    fn read_non_nil_coding_system_validates_prompt_type_and_arity() {
+        let bad_prompt = builtin_read_non_nil_coding_system(vec![Value::Int(1)]);
+        assert!(matches!(
+            bad_prompt,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "wrong-type-argument"
+                    && sig.data == vec![Value::symbol("stringp"), Value::Int(1)]
+        ));
+
+        let arity = builtin_read_non_nil_coding_system(vec![Value::string(""), Value::Nil]);
+        assert!(matches!(
+            arity,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "wrong-number-of-arguments"
+                    && sig.data
+                        == vec![Value::symbol("read-non-nil-coding-system"), Value::Int(2)]
+        ));
     }
 }
