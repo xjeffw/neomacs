@@ -82,13 +82,16 @@ fn replacement_region_bounds(
     buf: &crate::buffer::Buffer,
     start_arg: Option<&Value>,
     end_arg: Option<&Value>,
+    backward: bool,
 ) -> Result<(usize, usize), Flow> {
     let start = match start_arg {
         Some(v) if !v.is_nil() => lisp_pos_to_byte(buf, expect_integer_or_marker(v)?),
+        _ if backward => buf.point_min(),
         _ => buf.point(),
     };
     let end = match end_arg {
         Some(v) if !v.is_nil() => lisp_pos_to_byte(buf, expect_integer_or_marker(v)?),
+        _ if backward => buf.point(),
         _ => buf.point_max(),
     };
     if start <= end {
@@ -1270,12 +1273,13 @@ pub(crate) fn builtin_replace_string_eval(
     let from = expect_sequence_string(&args[0])?;
     let to = expect_string(&args[1])?;
     let delimited = args.get(2).is_some_and(|v| !v.is_nil());
+    let backward = args.get(5).is_some_and(|v| !v.is_nil());
     let (start, end, source, read_only, buffer_name) = {
         let buf = eval
             .buffers
             .current_buffer()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-        let (start, end) = replacement_region_bounds(buf, args.get(3), args.get(4))?;
+        let (start, end) = replacement_region_bounds(buf, args.get(3), args.get(4), backward)?;
         (
             start,
             end,
@@ -1310,7 +1314,11 @@ pub(crate) fn builtin_replace_string_eval(
         buf.delete_region(start, end);
         buf.goto_char(start);
         buf.insert(&out);
-        buf.goto_char(start + out.len());
+        if backward {
+            buf.goto_char(start);
+        } else {
+            buf.goto_char(start + out.len());
+        }
         return Ok(Value::Nil);
     }
 
@@ -1349,7 +1357,11 @@ pub(crate) fn builtin_replace_string_eval(
     buf.delete_region(start, end);
     buf.goto_char(start);
     buf.insert(&out);
-    buf.goto_char(start + out.len());
+    if backward {
+        buf.goto_char(start);
+    } else {
+        buf.goto_char(start + out.len());
+    }
 
     Ok(Value::Nil)
 }
@@ -1364,13 +1376,14 @@ pub(crate) fn builtin_replace_regexp_eval(
     let from = expect_sequence_string(&args[0])?;
     let to = expect_string(&args[1])?;
     let delimited = args.get(2).is_some_and(|v| !v.is_nil());
+    let backward = args.get(5).is_some_and(|v| !v.is_nil());
 
     let (start, end, source, read_only, buffer_name) = {
         let buf = eval
             .buffers
             .current_buffer()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-        let (start, end) = replacement_region_bounds(buf, args.get(3), args.get(4))?;
+        let (start, end) = replacement_region_bounds(buf, args.get(3), args.get(4), backward)?;
         (
             start,
             end,
@@ -1433,7 +1446,11 @@ pub(crate) fn builtin_replace_regexp_eval(
     buf.delete_region(start, end);
     buf.goto_char(start);
     buf.insert(&out);
-    buf.goto_char(start + out.len());
+    if backward {
+        buf.goto_char(start);
+    } else {
+        buf.goto_char(start + out.len());
+    }
 
     Ok(Value::Nil)
 }
