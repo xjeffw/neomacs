@@ -4,6 +4,20 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented batch prompt-reader compatibility slice:
+  - aligned `read-file-name` / `read-directory-name` with oracle:
+    - `end-of-file` now includes payload `"Error reading from stdin"`
+    - validates `DIR` / `DEFAULT` / `INITIAL` string designators when provided
+  - aligned `read-buffer` / `read-command` / `read-variable` batch `end-of-file` payloads to oracle
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/read-batch-input-semantics.forms`
+    - `test/neovm/vm-compat/cases/read-batch-input-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test builtin_read_file_name -- --nocapture` (pass)
+    - `cargo test builtin_read_directory_name -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/read-batch-input-semantics.forms EXPECTED=cases/read-batch-input-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Full vm-compat verification rerun after latest minibuffer/search slices:
   - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Implemented `minibufferp` compatibility slice:
