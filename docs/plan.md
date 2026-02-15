@@ -19,6 +19,28 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Added evaluator-backed live-window designator support for cursor visibility display APIs:
+  - updated:
+    - `rust/neovm-core/src/elisp/display.rs`
+      - added evaluator variants:
+        - `internal-show-cursor`
+        - `internal-show-cursor-p`
+      - evaluator variants now accept `nil` and live window ids.
+      - added unit coverage for selected-window designators.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed `internal-show-cursor` / `internal-show-cursor-p` through evaluator dispatch.
+    - `test/neovm/vm-compat/cases/display-stub-semantics.{forms,expected.tsv}`
+      - added selected-window lock-ins.
+      - switched stale window probes from `1` to `999999`.
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test display::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-stub-semantics` (pass, 34/34)
+
+- Ran recurring full vm-compat gate after display/terminal compatibility batch:
+  - verified:
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Expanded evaluator-backed terminal/tty designator compatibility for live frame ids:
   - updated:
     - `rust/neovm-core/src/elisp/display.rs`
