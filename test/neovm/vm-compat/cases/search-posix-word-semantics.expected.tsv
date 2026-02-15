@@ -14,3 +14,11 @@
 14	(with-temp-buffer (insert "alpha beta alpha") (goto-char (point-max)) (word-search-backward "beta"))	OK 7
 15	(with-temp-buffer (insert "alpha beta alpha") (goto-char (point-max)) (word-search-backward "gamma" nil t))	OK nil
 16	(with-temp-buffer (insert "alpha beta alpha") (goto-char (point-max)) (condition-case err (word-search-backward "gamma") (error (car err))))	OK search-failed
+17	(with-temp-buffer (insert "alpha beta") (goto-char (point-min)) (condition-case err (posix-search-forward 1) (error (car err))))	OK wrong-type-argument
+18	(with-temp-buffer (insert "alpha beta") (goto-char (point-min)) (condition-case err (word-search-forward 1) (error (car err))))	OK wrong-type-argument
+19	(with-temp-buffer (insert "alpha beta") (goto-char (point-min)) (posix-search-forward "beta" nil t 0))	OK 1
+20	(with-temp-buffer (insert "alpha beta") (goto-char (point-min)) (word-search-forward "beta" nil t 0))	OK 1
+21	(with-temp-buffer (insert "alpha beta") (goto-char (point-max)) (posix-search-backward "beta" nil t 0))	OK 11
+22	(with-temp-buffer (insert "alpha beta") (goto-char (point-max)) (word-search-backward "beta" nil t 0))	OK 11
+23	(with-temp-buffer (insert "alpha beta") (goto-char (point-min)) (condition-case err (posix-search-forward "beta" nil t -1) (error (car err))))	OK nil
+24	(with-temp-buffer (insert "alpha beta") (goto-char (point-min)) (condition-case err (word-search-forward "beta" nil t -1) (error (car err))))	OK nil
