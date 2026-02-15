@@ -18,6 +18,15 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed duplicate recursive-edit behavior drift in keyboard pure wrappers:
+  - updated:
+    - `rust/neovm-core/src/elisp/keyboard/pure.rs`
+      - `top-level`, `exit-recursive-edit`, and `abort-recursive-edit` now delegate to minibuffer implementations
+    - `rust/neovm-core/src/elisp/keyboard/tests.rs`
+      - adjusted local expectations to match delegated `user-error` behavior for non-active recursive-edit exits
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/exit-recursive-edit-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minibuffer-batch` (pass, 27/27)
 - Reduced `cxr` dispatch overhead without behavior changes:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
