@@ -3,7 +3,7 @@
 //! get-load-suffixes, locate-file, locate-file-internal, read-coding-system,
 //! read-non-nil-coding-system.
 
-use super::error::{signal, EvalResult, Flow, SignalData};
+use super::error::{signal, EvalResult, Flow};
 use super::value::*;
 use std::path::Path;
 
@@ -470,51 +470,6 @@ pub(crate) fn builtin_read_char_exclusive(
     Ok(Value::Nil)
 }
 
-/// `(load FILE &optional NOERROR NOMESSAGE NOSUFFIX MUST-SUFFIX)`
-///
-/// Load a file of Lisp code.  Delegates to the existing load module when
-/// possible; otherwise signals an error or returns nil based on NOERROR.
-pub(crate) fn builtin_load(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_min_args("load", &args, 1)?;
-    let file = match &args[0] {
-        Value::Str(s) => (**s).clone(),
-        other => {
-            return Err(signal(
-                "wrong-type-argument",
-                vec![Value::symbol("stringp"), other.clone()],
-            ))
-        }
-    };
-    let noerror = args.get(1).is_some_and(|v| v.is_truthy());
-    let nosuffix = args.get(3).is_some_and(|v| v.is_truthy());
-    let must_suffix = args.get(4).is_some_and(|v| v.is_truthy());
-    let prefer_newer = eval
-        .obarray
-        .symbol_value("load-prefer-newer")
-        .is_some_and(|v| v.is_truthy());
-
-    let load_path = super::load::get_load_path(&eval.obarray);
-    match super::load::find_file_in_load_path_with_flags(
-        &file,
-        &load_path,
-        nosuffix,
-        must_suffix,
-        prefer_newer,
-    ) {
-        Some(path) => super::load::load_file(eval, &path).map_err(eval_error_to_flow),
-        None => {
-            if noerror {
-                Ok(Value::Nil)
-            } else {
-                Err(signal(
-                    "file-missing",
-                    vec![Value::string(format!("Cannot open load file: {}", file))],
-                ))
-            }
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Pure builtins
 // ---------------------------------------------------------------------------
@@ -601,24 +556,6 @@ pub(crate) fn builtin_read_non_nil_coding_system(args: Vec<Value>) -> EvalResult
         "end-of-file",
         vec![Value::string("Error reading from stdin")],
     ))
-}
-
-// ---------------------------------------------------------------------------
-// Error conversion helper
-// ---------------------------------------------------------------------------
-
-/// Convert an `EvalError` back to a `Flow` for builtins that call `load_file`.
-fn eval_error_to_flow(e: super::error::EvalError) -> Flow {
-    match e {
-        super::error::EvalError::Signal { symbol, data } => {
-            Flow::Signal(SignalData {
-                symbol,
-                data,
-                raw_data: None,
-            })
-        }
-        super::error::EvalError::UncaughtThrow { tag, value } => Flow::Throw { tag, value },
-    }
 }
 
 // ---------------------------------------------------------------------------
