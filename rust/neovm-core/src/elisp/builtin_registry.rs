@@ -592,6 +592,8 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "put",
     "put-image",
     "put-text-property",
+    "query-replace",
+    "query-replace-regexp",
     "quoted-insert",
     "rassoc",
     "rassq",

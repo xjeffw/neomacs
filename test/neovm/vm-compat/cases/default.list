@@ -244,6 +244,7 @@ cases/keep-lines-semantics
 cases/replace-regexp-semantics
 cases/replace-regexp-in-string-semantics
 cases/replace-string-semantics
+cases/query-replace-batch-semantics
 cases/looking-at-p-semantics
 cases/search-count
 cases/search-posix-word-semantics

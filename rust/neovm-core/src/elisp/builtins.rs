@@ -5590,6 +5590,10 @@ pub(crate) fn dispatch_builtin(
         "match-data" => return Some(builtin_match_data_eval(eval, args)),
         "set-match-data" => return Some(builtin_set_match_data_eval(eval, args)),
         "replace-match" => return Some(builtin_replace_match(eval, args)),
+        "query-replace" => return Some(super::isearch::builtin_query_replace_eval(eval, args)),
+        "query-replace-regexp" => {
+            return Some(super::isearch::builtin_query_replace_regexp_eval(eval, args))
+        }
         "replace-string" => return Some(super::isearch::builtin_replace_string_eval(eval, args)),
         "replace-regexp" => return Some(super::isearch::builtin_replace_regexp_eval(eval, args)),
         "how-many" => return Some(super::isearch::builtin_how_many_eval(eval, args)),

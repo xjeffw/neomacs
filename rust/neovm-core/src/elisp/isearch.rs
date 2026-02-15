@@ -1370,6 +1370,32 @@ pub(crate) fn builtin_replace_regexp_eval(
     Ok(Value::Nil)
 }
 
+/// `(query-replace FROM TO &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS-P)` —
+/// evaluator-backed batch-safe subset.
+///
+/// Current subset behavior performs unconditional replacement across the target
+/// region, matching batch automation use-cases.
+pub(crate) fn builtin_query_replace_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_max_args("query-replace", &args, 2, 7)?;
+    builtin_replace_string_eval(eval, args)
+}
+
+/// `(query-replace-regexp FROM TO &optional DELIMITED START END BACKWARD REGION-NONCONTIGUOUS-P)` —
+/// evaluator-backed batch-safe subset.
+///
+/// Current subset behavior performs unconditional regexp replacement across the
+/// target region, matching batch automation use-cases.
+pub(crate) fn builtin_query_replace_regexp_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_max_args("query-replace-regexp", &args, 2, 7)?;
+    builtin_replace_regexp_eval(eval, args)
+}
+
 /// `(keep-lines REGEXP &optional RSTART REND INTERACTIVE)` —
 /// evaluator-backed non-interactive line filtering subset.
 pub(crate) fn builtin_keep_lines_eval(
