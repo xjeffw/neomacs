@@ -4,3 +4,7 @@
 (condition-case err (isearch-backward) (error err))
 (condition-case err (isearch-forward 1) (error err))
 (condition-case err (isearch-backward 1) (error err))
+(condition-case err (isearch-forward nil nil) (error (car err)))
+(condition-case err (isearch-backward nil nil) (error (car err)))
+(condition-case err (isearch-forward nil nil nil) (error (car err)))
+(condition-case err (isearch-backward nil nil nil) (error (car err)))

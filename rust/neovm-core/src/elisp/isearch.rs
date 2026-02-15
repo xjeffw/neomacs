@@ -2010,7 +2010,7 @@ pub(crate) fn builtin_count_matches_eval(
 
 /// `(isearch-forward)` — stub: initiates forward incremental search.
 pub(crate) fn builtin_isearch_forward(args: Vec<Value>) -> EvalResult {
-    let _ = &args;
+    expect_min_max_args("isearch-forward", &args, 0, 2)?;
     Err(signal(
         "error",
         vec![Value::string(
@@ -2021,7 +2021,7 @@ pub(crate) fn builtin_isearch_forward(args: Vec<Value>) -> EvalResult {
 
 /// `(isearch-backward)` — stub: initiates backward incremental search.
 pub(crate) fn builtin_isearch_backward(args: Vec<Value>) -> EvalResult {
-    let _ = &args;
+    expect_min_max_args("isearch-backward", &args, 0, 2)?;
     Err(signal(
         "error",
         vec![Value::string(
@@ -2940,6 +2940,26 @@ mod tests {
             Err(Flow::Signal(sig))
                 if sig.symbol == "error"
                     && sig.data == vec![Value::string("move-to-window-line called from unrelated buffer")]
+        ));
+    }
+
+    #[test]
+    fn builtin_isearch_forward_rejects_too_many_args() {
+        let result = builtin_isearch_forward(vec![Value::Nil, Value::Nil, Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn builtin_isearch_backward_rejects_too_many_args() {
+        let result = builtin_isearch_backward(vec![Value::Nil, Value::Nil, Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "wrong-number-of-arguments"
         ));
     }
 
