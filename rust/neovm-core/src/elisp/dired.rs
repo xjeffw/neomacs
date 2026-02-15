@@ -161,6 +161,7 @@ fn time_to_emacs_tuple(secs: i64, nanos: i64) -> Value {
 }
 
 /// Get UNIX seconds + nanoseconds from SystemTime.
+#[cfg(not(unix))]
 fn system_time_to_secs_nanos(time: std::time::SystemTime) -> Option<(i64, i64)> {
     let d = time.duration_since(std::time::UNIX_EPOCH).ok()?;
     Some((d.as_secs() as i64, d.subsec_nanos() as i64))
