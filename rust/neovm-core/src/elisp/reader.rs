@@ -72,6 +72,32 @@ fn expect_initial_input_stringish(value: &Value) -> Result<(), Flow> {
     }
 }
 
+fn expect_completing_read_initial_input(value: &Value) -> Result<(), Flow> {
+    match value {
+        Value::Nil | Value::Str(_) => Ok(()),
+        Value::Cons(cell) => {
+            let pair = cell.lock().expect("poisoned");
+            if !matches!(pair.car, Value::Str(_)) {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("stringp"), pair.car.clone()],
+                ));
+            }
+            if !matches!(pair.cdr, Value::Int(_) | Value::Char(_)) {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("number-or-marker-p"), pair.cdr.clone()],
+                ));
+            }
+            Ok(())
+        }
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), other.clone()],
+        )),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // 1. read-from-string
 // ---------------------------------------------------------------------------
@@ -752,7 +778,7 @@ pub(crate) fn builtin_completing_read(
     expect_max_args("completing-read", &args, 8)?;
     let _prompt = expect_string(&args[0])?;
     if let Some(initial) = args.get(4) {
-        expect_initial_input_stringish(initial)?;
+        expect_completing_read_initial_input(initial)?;
     }
     Err(signal(
         "end-of-file",
@@ -1464,6 +1490,66 @@ mod tests {
                 Value::Nil,
                 Value::Nil,
                 Value::Int(1),
+            ],
+        );
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
+    }
+
+    #[test]
+    fn completing_read_accepts_cons_initial_with_string_and_position() {
+        let mut ev = Evaluator::new();
+        let cons_initial = Value::cons(Value::string("x"), Value::Int(1));
+        let result = builtin_completing_read(
+            &mut ev,
+            vec![
+                Value::string("Choose: "),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                cons_initial,
+            ],
+        );
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"
+        ));
+    }
+
+    #[test]
+    fn completing_read_rejects_cons_initial_with_non_string_car() {
+        let mut ev = Evaluator::new();
+        let cons_initial = Value::cons(Value::Int(1), Value::Int(1));
+        let result = builtin_completing_read(
+            &mut ev,
+            vec![
+                Value::string("Choose: "),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                cons_initial,
+            ],
+        );
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
+    }
+
+    #[test]
+    fn completing_read_rejects_cons_initial_with_non_numeric_position() {
+        let mut ev = Evaluator::new();
+        let cons_initial = Value::cons(Value::string("x"), Value::Nil);
+        let result = builtin_completing_read(
+            &mut ev,
+            vec![
+                Value::string("Choose: "),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                cons_initial,
             ],
         );
         assert!(matches!(
