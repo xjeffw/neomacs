@@ -154,6 +154,14 @@ pub(crate) fn builtin_lookup_image_map(args: Vec<Value>) -> EvalResult {
 /// Get the bidi paragraph direction. Returns the symbol 'left-to-right.
 pub(crate) fn builtin_current_bidi_paragraph_direction(args: Vec<Value>) -> EvalResult {
     expect_args_range("current-bidi-paragraph-direction", &args, 0, 1)?;
+    if let Some(bufferish) = args.first() {
+        if !bufferish.is_nil() && !matches!(bufferish, Value::Buffer(_)) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("bufferp"), bufferish.clone()],
+            ));
+        }
+    }
     // Return 'left-to-right
     Ok(Value::symbol("left-to-right"))
 }
@@ -324,9 +332,18 @@ mod tests {
         let result = builtin_current_bidi_paragraph_direction(vec![]).unwrap();
         assert_eq!(result, Value::symbol("left-to-right"));
 
-        let result =
-            builtin_current_bidi_paragraph_direction(vec![Value::symbol("buffer")]).unwrap();
+        let result = builtin_current_bidi_paragraph_direction(vec![Value::Buffer(
+            crate::buffer::BufferId(1),
+        )])
+        .unwrap();
         assert_eq!(result, Value::symbol("left-to-right"));
+
+        let err =
+            builtin_current_bidi_paragraph_direction(vec![Value::symbol("buffer")]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
     }
 
     #[test]
