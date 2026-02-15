@@ -1417,7 +1417,54 @@ pub(crate) fn builtin_internal_face_x_get_resource(args: Vec<Value>) -> EvalResu
 /// `(internal-set-font-selection-order ORDER)` -- stub, return nil.
 pub(crate) fn builtin_internal_set_font_selection_order(args: Vec<Value>) -> EvalResult {
     expect_args("internal-set-font-selection-order", &args, 1)?;
-    Ok(Value::Nil)
+    let order = &args[0];
+    if !order.is_nil() && !matches!(order, Value::Cons(_)) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("listp"), order.clone()],
+        ));
+    }
+
+    let valid_keywords = [":width", ":height", ":weight", ":slant"];
+    let valid = if let Some(values) = list_to_vec(order) {
+        if values.len() == valid_keywords.len() {
+            let mut seen = HashSet::new();
+            values.iter().all(|value| {
+                if let Value::Keyword(name) = value {
+                    let key = if name.starts_with(':') {
+                        name.clone()
+                    } else {
+                        format!(":{name}")
+                    };
+                    valid_keywords.contains(&key.as_str()) && seen.insert(key)
+                } else {
+                    false
+                }
+            })
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    if valid {
+        return Ok(Value::Nil);
+    }
+
+    if let Some(values) = list_to_vec(order) {
+        if values.is_empty() {
+            return Err(signal("error", vec![Value::string("Invalid font sort order")]));
+        }
+        let mut payload = vec![Value::string("Invalid font sort order")];
+        payload.extend(values);
+        return Err(signal("error", payload));
+    }
+
+    Err(signal(
+        "error",
+        vec![Value::string("Invalid font sort order"), order.clone()],
+    ))
 }
 
 /// `(internal-set-alternative-font-family-alist ALIST)` -- stub, return nil.
@@ -2034,8 +2081,21 @@ mod tests {
 
     #[test]
     fn internal_set_font_selection_order_stub() {
-        let result = builtin_internal_set_font_selection_order(vec![Value::Nil]).unwrap();
+        let result = builtin_internal_set_font_selection_order(vec![Value::list(vec![
+            Value::Keyword(":width".to_string()),
+            Value::Keyword(":height".to_string()),
+            Value::Keyword(":weight".to_string()),
+            Value::Keyword(":slant".to_string()),
+        ])])
+        .unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn internal_set_font_selection_order_rejects_invalid_order() {
+        let result =
+            builtin_internal_set_font_selection_order(vec![Value::list(vec![Value::symbol("x")])]);
+        assert!(result.is_err());
     }
 
     #[test]
