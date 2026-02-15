@@ -630,7 +630,7 @@ pub(crate) fn builtin_kill_region(
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
+    if region_case_read_only(eval, buf) {
         return Err(signal(
             "buffer-read-only",
             vec![Value::string(buf.name.clone())],
@@ -690,7 +690,7 @@ pub(crate) fn builtin_kill_line(eval: &mut super::eval::Evaluator, args: Vec<Val
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
+    if region_case_read_only(eval, buf) {
         return Err(signal(
             "buffer-read-only",
             vec![Value::string(buf.name.clone())],
@@ -810,7 +810,7 @@ pub(crate) fn builtin_kill_whole_line(
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
+    if region_case_read_only(eval, buf) {
         return Err(signal(
             "buffer-read-only",
             vec![Value::string(buf.name.clone())],
@@ -1106,7 +1106,7 @@ pub(crate) fn builtin_downcase_region(
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
+    if region_case_read_only(eval, buf) {
         return Err(signal(
             "buffer-read-only",
             vec![Value::string(buf.name.clone())],
@@ -1149,7 +1149,7 @@ pub(crate) fn builtin_upcase_region(
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
+    if region_case_read_only(eval, buf) {
         return Err(signal(
             "buffer-read-only",
             vec![Value::string(buf.name.clone())],
@@ -1192,7 +1192,7 @@ pub(crate) fn builtin_capitalize_region(
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
+    if region_case_read_only(eval, buf) {
         return Err(signal(
             "buffer-read-only",
             vec![Value::string(buf.name.clone())],
@@ -1243,6 +1243,29 @@ fn capitalize_words_preserving_boundaries(text: &str) -> String {
     result
 }
 
+fn dynamic_or_global_symbol_value(eval: &super::eval::Evaluator, name: &str) -> Option<Value> {
+    for frame in eval.dynamic.iter().rev() {
+        if let Some(value) = frame.get(name) {
+            return Some(value.clone());
+        }
+    }
+    if let Some(buf) = eval.buffers.current_buffer() {
+        if let Some(value) = buf.get_buffer_local(name) {
+            return Some(value.clone());
+        }
+    }
+    eval.obarray.symbol_value(name).cloned()
+}
+
+fn region_case_read_only(eval: &super::eval::Evaluator, buf: &Buffer) -> bool {
+    if buf.read_only {
+        return true;
+    }
+    dynamic_or_global_symbol_value(eval, "buffer-read-only")
+        .map(|v| !v.is_nil())
+        .unwrap_or(false)
+}
+
 /// `(upcase-initials-region BEG END)` — uppercase first char of each word in region.
 pub(crate) fn builtin_upcase_initials_region(
     eval: &mut super::eval::Evaluator,
@@ -1257,7 +1280,7 @@ pub(crate) fn builtin_upcase_initials_region(
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
+    if region_case_read_only(eval, buf) {
         return Err(signal(
             "buffer-read-only",
             vec![Value::string(buf.name.clone())],
