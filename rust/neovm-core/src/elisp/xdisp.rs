@@ -68,12 +68,11 @@ pub(crate) fn builtin_format_mode_line(args: Vec<Value>) -> EvalResult {
 
 /// (invisible-p POS-OR-PROP) -> boolean
 ///
-/// Check if a position or property is invisible. Stub implementation
-/// always returns nil (nothing is invisible).
+/// Batch semantics: symbols are considered invisible properties, while
+/// numeric positions are not invisible by default.
 pub(crate) fn builtin_invisible_p(args: Vec<Value>) -> EvalResult {
     expect_args("invisible-p", &args, 1)?;
-    // Stub: always return nil
-    Ok(Value::Nil)
+    Ok(Value::bool(matches!(&args[0], Value::Symbol(_) | Value::True)))
 }
 
 /// (line-pixel-height) -> integer
@@ -124,10 +123,20 @@ pub(crate) fn builtin_pos_visible_in_window_p(args: Vec<Value>) -> EvalResult {
 
 /// (move-point-visually DIRECTION) -> boolean
 ///
-/// Stub implementation always returns nil.
+/// Batch semantics: direction is validated as a fixnum and currently always
+/// reports out-of-range movement from the unrelated batch window.
 pub(crate) fn builtin_move_point_visually(args: Vec<Value>) -> EvalResult {
     expect_args("move-point-visually", &args, 1)?;
-    Ok(Value::Nil)
+    match &args[0] {
+        Value::Int(_) | Value::Char(_) => Err(signal(
+            "args-out-of-range",
+            vec![Value::Int(224), Value::Int(224)],
+        )),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("fixnump"), other.clone()],
+        )),
+    }
 }
 
 /// (lookup-image-map MAP X Y) -> symbol or nil
@@ -151,10 +160,13 @@ pub(crate) fn builtin_current_bidi_paragraph_direction(args: Vec<Value>) -> Eval
 
 /// (move-to-window-line ARG) -> integer or nil
 ///
-/// Stub implementation always returns nil.
+/// Batch semantics: no related live window is available.
 pub(crate) fn builtin_move_to_window_line(args: Vec<Value>) -> EvalResult {
     expect_args("move-to-window-line", &args, 1)?;
-    Ok(Value::Nil)
+    Err(signal(
+        "error",
+        vec![Value::string("move-to-window-line called from unrelated buffer")],
+    ))
 }
 
 /// (tool-bar-height &optional FRAME PIXELWISE) -> integer
@@ -217,7 +229,7 @@ mod tests {
         assert!(result.is_nil());
 
         let result = builtin_invisible_p(vec![Value::symbol("invisible")]).unwrap();
-        assert!(result.is_nil());
+        assert!(result.is_truthy());
     }
 
     #[test]
@@ -286,11 +298,17 @@ mod tests {
 
     #[test]
     fn test_move_point_visually() {
-        let result = builtin_move_point_visually(vec![Value::Int(1)]).unwrap();
-        assert!(result.is_nil());
+        let err = builtin_move_point_visually(vec![Value::Int(1)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "args-out-of-range"),
+            other => panic!("expected args-out-of-range, got {:?}", other),
+        }
 
-        let result = builtin_move_point_visually(vec![Value::Int(-1)]).unwrap();
-        assert!(result.is_nil());
+        let err = builtin_move_point_visually(vec![Value::symbol("left")]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
     }
 
     #[test]
@@ -313,11 +331,17 @@ mod tests {
 
     #[test]
     fn test_move_to_window_line() {
-        let result = builtin_move_to_window_line(vec![Value::Int(0)]).unwrap();
-        assert!(result.is_nil());
+        let err = builtin_move_to_window_line(vec![Value::Int(0)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "error"),
+            other => panic!("expected error signal, got {:?}", other),
+        }
 
-        let result = builtin_move_to_window_line(vec![Value::Int(5)]).unwrap();
-        assert!(result.is_nil());
+        let err = builtin_move_to_window_line(vec![Value::Int(5)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "error"),
+            other => panic!("expected error signal, got {:?}", other),
+        }
     }
 
     #[test]
