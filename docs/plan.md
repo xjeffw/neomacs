@@ -4,6 +4,18 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Added `minibuffer-contents-no-properties` builtin compatibility slice:
+  - implemented evaluator-aware builtin in `neovm-core` with batch behavior matching `minibuffer-contents`
+  - wired builtin dispatch and registry exposure (`fboundp`/dispatch parity)
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/minibuffer-contents-no-properties-semantics.forms`
+    - `test/neovm/vm-compat/cases/minibuffer-contents-no-properties-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test minibuffer_contents_no_properties -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/minibuffer-contents-no-properties-semantics.forms EXPECTED=cases/minibuffer-contents-no-properties-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Fixed vm-compat raw-byte string rendering in worker execution path:
   - added byte-preserving evaluator-aware helpers in `neovm-core` (`print_value_bytes_with_eval`, `format_eval_result_bytes_with_eval`)
   - switched `neovm-core` compat runner output to buffered byte writes
