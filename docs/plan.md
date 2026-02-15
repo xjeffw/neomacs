@@ -19,6 +19,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Expanded posix/word search oracle corpus for type and COUNT edge paths:
+  - updated:
+    - `test/neovm/vm-compat/cases/search-posix-word-semantics.{forms,expected.tsv}`
+      - added non-string pattern type checks for `posix-search-forward` and `word-search-forward`.
+      - added `COUNT=0` lock-ins (forward/backward) returning current point.
+      - added negative `COUNT` edge checks under `NOERROR=t`.
+      - refreshed oracle baseline.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/search-posix-word-semantics` (pass, 24/24)
+
 - Refined evaluator X-display error payload parity for live frame designators:
   - updated:
     - `rust/neovm-core/src/elisp/display.rs`
