@@ -714,7 +714,7 @@ pub(crate) fn builtin_garbage_collect(args: Vec<Value>) -> EvalResult {
 
 /// `(memory-use-counts)` -> list of integers (stub).
 pub(crate) fn builtin_memory_use_counts(args: Vec<Value>) -> EvalResult {
-    let _ = args;
+    expect_args("memory-use-counts", &args, 0)?;
     Ok(Value::list(vec![Value::Int(0); 7]))
 }
 
@@ -938,6 +938,20 @@ mod tests {
         );
 
         let err = builtin_garbage_collect(vec![Value::Int(1)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn memory_use_counts_shape_and_arity() {
+        let counts = builtin_memory_use_counts(vec![]).unwrap();
+        let items = super::super::value::list_to_vec(&counts).expect("counts list");
+        assert_eq!(items.len(), 7);
+        assert!(items.iter().all(|item| matches!(item, Value::Int(_))));
+
+        let err = builtin_memory_use_counts(vec![Value::Int(1)]).unwrap_err();
         match err {
             Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
             other => panic!("expected signal, got {other:?}"),

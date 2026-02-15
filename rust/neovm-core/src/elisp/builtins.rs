@@ -6715,6 +6715,7 @@ pub(crate) fn dispatch_builtin(
         "emacs-version" => super::builtins_extra::builtin_emacs_version(args),
         "emacs-pid" => super::builtins_extra::builtin_emacs_pid(args),
         "garbage-collect" => super::builtins_extra::builtin_garbage_collect(args),
+        "memory-use-counts" => super::builtins_extra::builtin_memory_use_counts(args),
         // Note: overlayp is in the eval-dependent section above
 
         // Autoload (pure)

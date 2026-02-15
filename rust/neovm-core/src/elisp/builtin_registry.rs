@@ -499,6 +499,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "max-char",
     "md5",
     "member",
+    "memory-use-counts",
     "memq",
     "merge-face-attribute",
     "message",
