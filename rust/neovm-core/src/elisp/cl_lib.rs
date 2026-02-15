@@ -159,41 +159,6 @@ fn seq_collect_concat_arg(arg: &Value) -> Result<Vec<Value>, Flow> {
 // CL-lib pure list operations
 // ===========================================================================
 
-/// `(cl-find ITEM SEQ)` — find item in sequence using `equal`.
-pub(crate) fn builtin_cl_find(args: Vec<Value>) -> EvalResult {
-    expect_args("cl-find", &args, 2)?;
-    let item = &args[0];
-    let elems = collect_sequence(&args[1]);
-    for e in &elems {
-        if equal_value(item, e, 0) {
-            return Ok(e.clone());
-        }
-    }
-    Ok(Value::Nil)
-}
-
-/// `(cl-position ITEM SEQ)` — position of item in sequence using `equal`.
-pub(crate) fn builtin_cl_position(args: Vec<Value>) -> EvalResult {
-    expect_args("cl-position", &args, 2)?;
-    let item = &args[0];
-    let elems = collect_sequence(&args[1]);
-    for (i, e) in elems.iter().enumerate() {
-        if equal_value(item, e, 0) {
-            return Ok(Value::Int(i as i64));
-        }
-    }
-    Ok(Value::Nil)
-}
-
-/// `(cl-count ITEM SEQ)` — count occurrences of item using `equal`.
-pub(crate) fn builtin_cl_count(args: Vec<Value>) -> EvalResult {
-    expect_args("cl-count", &args, 2)?;
-    let item = &args[0];
-    let elems = collect_sequence(&args[1]);
-    let count = elems.iter().filter(|e| equal_value(item, e, 0)).count();
-    Ok(Value::Int(count as i64))
-}
-
 /// `(cl-remove ITEM SEQ)` — remove all occurrences of item using `equal`.
 pub(crate) fn builtin_cl_remove(args: Vec<Value>) -> EvalResult {
     expect_args("cl-remove", &args, 2)?;
@@ -1066,46 +1031,6 @@ mod tests {
     use super::*;
 
     // --- CL-lib pure operations ---
-
-    #[test]
-    fn cl_find_in_list() {
-        let list = Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
-        let result = builtin_cl_find(vec![Value::Int(2), list]).unwrap();
-        assert_eq!(result.as_int(), Some(2));
-    }
-
-    #[test]
-    fn cl_find_not_found() {
-        let list = Value::list(vec![Value::Int(1), Value::Int(2)]);
-        let result = builtin_cl_find(vec![Value::Int(99), list]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn cl_position_found() {
-        let list = Value::list(vec![Value::Int(10), Value::Int(20), Value::Int(30)]);
-        let result = builtin_cl_position(vec![Value::Int(20), list]).unwrap();
-        assert_eq!(result.as_int(), Some(1));
-    }
-
-    #[test]
-    fn cl_position_not_found() {
-        let list = Value::list(vec![Value::Int(10)]);
-        let result = builtin_cl_position(vec![Value::Int(99), list]).unwrap();
-        assert!(result.is_nil());
-    }
-
-    #[test]
-    fn cl_count_occurrences() {
-        let list = Value::list(vec![
-            Value::Int(1),
-            Value::Int(2),
-            Value::Int(1),
-            Value::Int(1),
-        ]);
-        let result = builtin_cl_count(vec![Value::Int(1), list]).unwrap();
-        assert_eq!(result.as_int(), Some(3));
-    }
 
     #[test]
     fn cl_remove_items() {
