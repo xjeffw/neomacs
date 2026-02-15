@@ -1,8 +1,7 @@
 //! Case conversion and character builtins.
 //!
 //! Implements `upcase`, `downcase`, `capitalize`, `upcase-initials`,
-//! `characterp`, `unibyte-char-to-multibyte`,
-//! `multibyte-char-to-unibyte`, `char-resolve-modifiers`, and `get-byte`.
+//! `characterp`, and `char-resolve-modifiers`.
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
@@ -37,8 +36,6 @@ fn expect_min_max_args(name: &str, args: &[Value], min: usize, max: usize) -> Re
 // Character helpers
 // ---------------------------------------------------------------------------
 
-/// Maximum Emacs internal character code (includes raw bytes).
-const MAX_CHAR: i64 = 0x3FFFFF;
 /// Maximum Unicode code point.
 const MAX_UNICODE: i64 = 0x10FFFF;
 
@@ -50,20 +47,6 @@ const CHAR_SUPER: i64 = 0x0800000;
 const CHAR_ALT: i64 = 0x0400000;
 const CHAR_MODIFIER_MASK: i64 =
     CHAR_META | CHAR_CTL | CHAR_SHIFT | CHAR_HYPER | CHAR_SUPER | CHAR_ALT;
-
-/// Return true if `code` is a valid Emacs character code.
-fn is_valid_char(code: i64) -> bool {
-    (0..=MAX_CHAR).contains(&code)
-}
-
-/// Extract a character code from a Value, accepting both Char and Int.
-fn extract_char_code(val: &Value) -> Option<i64> {
-    match val {
-        Value::Char(c) => Some(*c as i64),
-        Value::Int(n) => Some(*n),
-        _ => None,
-    }
-}
 
 /// Convert a character code to a Rust char (if it's a valid Unicode scalar value).
 fn code_to_char(code: i64) -> Option<char> {
@@ -249,54 +232,6 @@ pub(crate) fn builtin_characterp(args: Vec<Value>) -> EvalResult {
     Ok(Value::bool(is_char))
 }
 
-/// `(unibyte-char-to-multibyte CH)` -- convert unibyte char to multibyte.
-/// For chars < 128, identity.  For 128..=255, map to Emacs raw byte range.
-pub(crate) fn builtin_unibyte_char_to_multibyte(args: Vec<Value>) -> EvalResult {
-    expect_args("unibyte-char-to-multibyte", &args, 1)?;
-    let code = extract_char_code(&args[0]).ok_or_else(|| {
-        signal(
-            "wrong-type-argument",
-            vec![Value::symbol("characterp"), args[0].clone()],
-        )
-    })?;
-    if code < 0 || code > 255 {
-        return Err(signal(
-            "args-out-of-range",
-            vec![args[0].clone(), Value::Int(0), Value::Int(255)],
-        ));
-    }
-    if code < 128 {
-        Ok(Value::Int(code))
-    } else {
-        // Emacs maps unibyte 128-255 to raw-byte range 0x3FFF80-0x3FFFFF
-        Ok(Value::Int(code + 0x3FFF00))
-    }
-}
-
-/// `(multibyte-char-to-unibyte CH)` -- convert multibyte char to unibyte.
-/// Returns the character masked to 0xFF.
-pub(crate) fn builtin_multibyte_char_to_unibyte(args: Vec<Value>) -> EvalResult {
-    expect_args("multibyte-char-to-unibyte", &args, 1)?;
-    let code = extract_char_code(&args[0]).ok_or_else(|| {
-        signal(
-            "wrong-type-argument",
-            vec![Value::symbol("characterp"), args[0].clone()],
-        )
-    })?;
-    if !is_valid_char(code) {
-        return Err(signal(
-            "args-out-of-range",
-            vec![args[0].clone(), Value::Int(0), Value::Int(MAX_CHAR)],
-        ));
-    }
-    // Raw byte range 0x3FFF80..=0x3FFFFF maps back to 128..255
-    if code >= 0x3FFF80 {
-        Ok(Value::Int(code - 0x3FFF00))
-    } else {
-        Ok(Value::Int(code & 0xFF))
-    }
-}
-
 /// `(char-resolve-modifiers CHAR)` -- resolve modifier bits in character.
 /// Resolve shift/control modifiers into the base character where possible.
 pub(crate) fn builtin_char_resolve_modifiers(args: Vec<Value>) -> EvalResult {
@@ -340,13 +275,6 @@ pub(crate) fn builtin_char_resolve_modifiers(args: Vec<Value>) -> EvalResult {
     }
 
     Ok(Value::Int(base | remaining_mods))
-}
-
-/// `(get-byte &optional POSITION STRING)` -- return byte at position in string.
-/// Stub: return 0.
-pub(crate) fn builtin_get_byte(args: Vec<Value>) -> EvalResult {
-    expect_min_max_args("get-byte", &args, 0, 2)?;
-    Ok(Value::Int(0))
 }
 
 // ---------------------------------------------------------------------------
@@ -511,51 +439,6 @@ mod tests {
     }
 
     // =======================================================================
-    // unibyte-char-to-multibyte
-    // =======================================================================
-
-    #[test]
-    fn unibyte_to_multibyte_ascii() {
-        let result = builtin_unibyte_char_to_multibyte(vec![Value::Int(65)]).unwrap();
-        assert_eq!(result.as_int(), Some(65));
-    }
-
-    #[test]
-    fn unibyte_to_multibyte_high() {
-        let result = builtin_unibyte_char_to_multibyte(vec![Value::Int(200)]).unwrap();
-        assert_eq!(result.as_int(), Some(200 + 0x3FFF00));
-    }
-
-    #[test]
-    fn unibyte_to_multibyte_out_of_range() {
-        let result = builtin_unibyte_char_to_multibyte(vec![Value::Int(256)]);
-        assert!(result.is_err());
-    }
-
-    // =======================================================================
-    // multibyte-char-to-unibyte
-    // =======================================================================
-
-    #[test]
-    fn multibyte_to_unibyte_ascii() {
-        let result = builtin_multibyte_char_to_unibyte(vec![Value::Int(65)]).unwrap();
-        assert_eq!(result.as_int(), Some(65));
-    }
-
-    #[test]
-    fn multibyte_to_unibyte_raw_byte() {
-        let result = builtin_multibyte_char_to_unibyte(vec![Value::Int(0x3FFF80 + 50)]).unwrap();
-        assert_eq!(result.as_int(), Some(128 + 50));
-    }
-
-    #[test]
-    fn multibyte_to_unibyte_mask() {
-        // Non-raw multibyte: mask to 0xFF
-        let result = builtin_multibyte_char_to_unibyte(vec![Value::Int(0x100)]).unwrap();
-        assert_eq!(result.as_int(), Some(0));
-    }
-
-    // =======================================================================
     // char-resolve-modifiers
     // =======================================================================
 
@@ -583,22 +466,6 @@ mod tests {
             }
             other => panic!("expected signal flow, got {other:?}"),
         }
-    }
-
-    // =======================================================================
-    // get-byte
-    // =======================================================================
-
-    #[test]
-    fn get_byte_stub() {
-        let result = builtin_get_byte(vec![]).unwrap();
-        assert_eq!(result.as_int(), Some(0));
-    }
-
-    #[test]
-    fn get_byte_with_args() {
-        let result = builtin_get_byte(vec![Value::Int(0), Value::string("hello")]).unwrap();
-        assert_eq!(result.as_int(), Some(0));
     }
 
     // =======================================================================
