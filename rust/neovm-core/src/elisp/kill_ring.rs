@@ -1234,14 +1234,14 @@ pub(crate) fn builtin_yank(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
 /// `(yank-pop &optional ARG)` — replace yanked text with an older kill.
 pub(crate) fn builtin_yank_pop(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     sync_kill_ring_from_binding_strict(eval)?;
-    // Emacs normalizes/publishes `kill-ring-yank-pointer` before command-context
-    // gating, including paths that later signal `end-of-file`.
-    sync_kill_ring_binding(eval);
     let yank_command_in_progress = matches!(
         dynamic_or_global_symbol_value(eval, "last-command"),
         Some(Value::Symbol(ref name)) if name == "yank"
     );
     if !yank_command_in_progress {
+        // Emacs publishes normalized pointer state before signaling the
+        // non-yank command-context errors.
+        sync_kill_ring_binding(eval);
         if eval.kill_ring.is_empty() {
             return Err(signal("error", vec![Value::string("Kill ring is empty")]));
         }
@@ -1257,13 +1257,14 @@ pub(crate) fn builtin_yank_pop(eval: &mut super::eval::Evaluator, args: Vec<Valu
         expect_int(&args[0])?
     };
 
+    if eval.kill_ring.last_yank_region.is_none() {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::Symbol("number-or-marker-p".to_string()), Value::Nil],
+        ));
+    }
+
     let (old_start, old_end) = {
-        if eval.kill_ring.last_yank_region.is_none() {
-            return Err(signal(
-                "wrong-type-argument",
-                vec![Value::Symbol("number-or-marker-p".to_string()), Value::Nil],
-            ));
-        }
         let buf = eval
             .buffers
             .current_buffer()
@@ -1291,7 +1292,7 @@ pub(crate) fn builtin_yank_pop(eval: &mut super::eval::Evaluator, args: Vec<Valu
         (a, b)
     };
 
-    // Rotate to get new text.
+    // Rotate once region bounds are known and publish pointer before mutation.
     let new_text = eval
         .kill_ring
         .rotate(n)
