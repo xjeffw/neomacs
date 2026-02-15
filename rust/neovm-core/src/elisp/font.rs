@@ -1303,14 +1303,18 @@ pub(crate) fn builtin_internal_merge_in_global_face(args: Vec<Value>) -> EvalRes
 }
 
 /// `(face-attribute-relative-p ATTRIBUTE VALUE)` -- return t if VALUE is the
-/// symbol `unspecified` or the symbol `relative`.
+/// value is a relative form for ATTRIBUTE.
 pub(crate) fn builtin_face_attribute_relative_p(args: Vec<Value>) -> EvalResult {
     expect_args("face-attribute-relative-p", &args, 2)?;
-    let is_relative = match &args[1] {
-        Value::Symbol(s) => s == "unspecified" || s == "relative",
+    let height_attr = match &args[0] {
+        Value::Keyword(name) | Value::Symbol(name) => name == "height" || name == ":height",
         _ => false,
     };
-    Ok(Value::bool(is_relative))
+    if !height_attr {
+        return Ok(Value::Nil);
+    }
+
+    Ok(Value::bool(!matches!(&args[1], Value::Int(_) | Value::Char(_))))
 }
 
 /// `(merge-face-attribute ATTRIBUTE VALUE1 VALUE2)` -- return VALUE1 unless it
@@ -1532,7 +1536,16 @@ pub(crate) fn builtin_face_font(args: Vec<Value>) -> EvalResult {
 
 /// `(internal-face-x-get-resource RESOURCE CLASS FRAME)` -- stub, return nil.
 pub(crate) fn builtin_internal_face_x_get_resource(args: Vec<Value>) -> EvalResult {
-    expect_args("internal-face-x-get-resource", &args, 3)?;
+    expect_min_args("internal-face-x-get-resource", &args, 2)?;
+    expect_max_args("internal-face-x-get-resource", &args, 3)?;
+    for arg in args.iter().take(2) {
+        if !arg.is_string() {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("stringp"), arg.clone()],
+            ));
+        }
+    }
     Ok(Value::Nil)
 }
 
@@ -2089,20 +2102,30 @@ mod tests {
     }
 
     #[test]
-    fn face_attribute_relative_p_unspecified() {
+    fn face_attribute_relative_p_height_non_fixnum_is_relative() {
         let result = builtin_face_attribute_relative_p(vec![
-            Value::Keyword("foreground".to_string()),
-            Value::symbol("unspecified"),
+            Value::Keyword("height".to_string()),
+            Value::Nil,
         ])
         .unwrap();
         assert!(result.is_truthy());
     }
 
     #[test]
-    fn face_attribute_relative_p_concrete() {
+    fn face_attribute_relative_p_height_fixnum_is_not_relative() {
         let result = builtin_face_attribute_relative_p(vec![
-            Value::Keyword("foreground".to_string()),
-            Value::string("white"),
+            Value::Keyword("height".to_string()),
+            Value::Int(1),
+        ])
+        .unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn face_attribute_relative_p_non_height_attribute_is_nil() {
+        let result = builtin_face_attribute_relative_p(vec![
+            Value::Keyword("weight".to_string()),
+            Value::symbol("foo"),
         ])
         .unwrap();
         assert!(result.is_nil());
@@ -2294,6 +2317,18 @@ mod tests {
         ])
         .unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn internal_face_x_get_resource_validates_string_args_and_arity() {
+        assert!(builtin_internal_face_x_get_resource(vec![]).is_err());
+        assert!(builtin_internal_face_x_get_resource(vec![Value::Nil]).is_err());
+        assert!(
+            builtin_internal_face_x_get_resource(vec![Value::Nil, Value::string("Font")]).is_err()
+        );
+        assert!(
+            builtin_internal_face_x_get_resource(vec![Value::string("font"), Value::Nil]).is_err()
+        );
     }
 
     #[test]
