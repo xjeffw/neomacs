@@ -27,6 +27,7 @@ cases/where-is-internal-semantics
 cases/command-dispatch-default-arg-semantics
 cases/call-interactively-prefix-numeric-arg-semantics
 cases/call-interactively-word-prefix-arg-semantics
+cases/call-interactively-line-motion-prefix-boundary-semantics
 cases/case-region-optional-arg-semantics
 cases/case-region-read-only-semantics
 cases/case-word-semantics
