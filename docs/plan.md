@@ -19,6 +19,14 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Locked display designator message-detail parity in a second oracle corpus:
+  - updated:
+    - `test/neovm/vm-compat/cases/display-query-designator-semantics.{forms,expected.tsv}`
+      - added assertion that invalid numeric designator error messages include the offending value (`999999`) for display query builtins.
+      - refreshed oracle baseline.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-query-designator-semantics` (pass, 12/12)
+
 - Added argument-value detail to `get-device-terminal` display error payloads:
   - updated:
     - `rust/neovm-core/src/elisp/display.rs`
