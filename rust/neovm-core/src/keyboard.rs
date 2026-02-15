@@ -526,7 +526,7 @@ impl CommandLoop {
 
     /// Look up a key sequence in a keymap.
     pub fn lookup_key(&self, keymap: &Keymap, sequence: &KeySequence) -> KeyLookupResult {
-        let mut current_map = keymap.clone();
+        let current_map = keymap.clone();
 
         for (i, event) in sequence.events.iter().enumerate() {
             let key_str = event.to_description();
