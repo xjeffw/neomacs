@@ -142,6 +142,15 @@ pub(crate) fn builtin_compose_string_internal(args: Vec<Value>) -> EvalResult {
     }
     expect_integerp(&args[1])?;
     expect_integerp(&args[2])?;
+    let start = integer_value(&args[1]);
+    let end = integer_value(&args[2]);
+    let len = args[0].as_str().expect("validated string").chars().count() as i64;
+    if start < 0 || end < 0 || start > end || end > len {
+        return Err(signal(
+            "args-out-of-range",
+            vec![args[0].clone(), Value::Int(start), Value::Int(end)],
+        ));
+    }
     // Return the string argument unchanged.
     Ok(args[0].clone())
 }
@@ -408,6 +417,24 @@ mod tests {
         let bad_end =
             builtin_compose_string_internal(vec![Value::string("abc"), Value::Int(0), Value::symbol("y")]);
         assert!(bad_end.is_err());
+    }
+
+    #[test]
+    fn compose_string_internal_range_checks() {
+        let ok = builtin_compose_string_internal(vec![Value::string("abc"), Value::Int(0), Value::Int(0)]);
+        assert!(ok.is_ok());
+
+        let start_gt_end =
+            builtin_compose_string_internal(vec![Value::string("abc"), Value::Int(2), Value::Int(1)]);
+        assert!(start_gt_end.is_err());
+
+        let end_oob =
+            builtin_compose_string_internal(vec![Value::string("abc"), Value::Int(0), Value::Int(4)]);
+        assert!(end_oob.is_err());
+
+        let start_neg =
+            builtin_compose_string_internal(vec![Value::string("abc"), Value::Int(-1), Value::Int(1)]);
+        assert!(start_neg.is_err());
     }
 
     #[test]
