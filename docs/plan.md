@@ -18,6 +18,18 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Added oracle-locked runtime semantics corpus for misc special forms:
+  - updated:
+    - `test/neovm/vm-compat/cases/misc-special-forms-semantics.forms`
+      - added runtime behavior checks for `with-syntax-table` and `track-mouse` (evaluation order, return values, arity, and error propagation).
+    - `test/neovm/vm-compat/cases/misc-special-forms-semantics.expected.tsv`
+      - recorded with `NEOVM_ORACLE_EMACS=/nix/store/2lzapcylxkad2r63h144mp9nnin4vb5n-user-environment/bin/emacs`.
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/misc-special-forms-semantics` in default corpus runs.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/misc-special-forms-semantics` (pass, 13/13)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Removed dead pure `buffer-hash` stub path and kept runtime on evaluator-backed implementation:
   - updated:
     - `rust/neovm-core/src/elisp/fns.rs`
