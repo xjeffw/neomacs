@@ -11,6 +11,8 @@
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
 use regex::Regex;
+use std::ffi::{CStr, OsString};
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // ---------------------------------------------------------------------------
@@ -331,6 +333,169 @@ const MONTH_NAMES: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+#[derive(Clone, Debug)]
+enum ZoneRule {
+    Local,
+    Utc,
+    FixedOffset(i64),
+    FixedNamedOffset(i64, String),
+    TzString(String),
+}
+
+fn time_zone_rule_cell() -> &'static Mutex<ZoneRule> {
+    static CELL: OnceLock<Mutex<ZoneRule>> = OnceLock::new();
+    CELL.get_or_init(|| Mutex::new(ZoneRule::Local))
+}
+
+fn tz_env_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn invalid_time_zone_spec(spec: &Value) -> Flow {
+    signal(
+        "error",
+        vec![
+            Value::string("Invalid time zone specification"),
+            spec.clone(),
+        ],
+    )
+}
+
+fn format_fixed_offset_name(offset_secs: i64) -> String {
+    if offset_secs == 0 {
+        return "GMT".to_string();
+    }
+    let sign = if offset_secs < 0 { '-' } else { '+' };
+    let abs_secs = offset_secs.abs();
+    if abs_secs % 3600 == 0 {
+        format!("{}{abs_hours:02}", sign, abs_hours = abs_secs / 3600)
+    } else if abs_secs % 60 == 0 {
+        let total_minutes = abs_secs / 60;
+        format!(
+            "{}{hours:02}{mins:02}",
+            sign,
+            hours = total_minutes / 60,
+            mins = total_minutes % 60
+        )
+    } else {
+        format!(
+            "{}{hours:02}{mins:02}{secs:02}",
+            sign,
+            hours = abs_secs / 3600,
+            mins = (abs_secs % 3600) / 60,
+            secs = abs_secs % 60
+        )
+    }
+}
+
+#[cfg(unix)]
+fn local_offset_name_at_epoch(epoch_secs: i64) -> (i64, String) {
+    let mut time_val: libc::time_t = epoch_secs as libc::time_t;
+    let mut tm: libc::tm = unsafe { std::mem::zeroed() };
+    let tm_ptr = unsafe { libc::localtime_r(&mut time_val as *mut _, &mut tm as *mut _) };
+    if tm_ptr.is_null() {
+        return (0, "UTC".to_string());
+    }
+    let offset = tm.tm_gmtoff as i64;
+    let name = if tm.tm_zone.is_null() {
+        format_fixed_offset_name(offset)
+    } else {
+        unsafe { CStr::from_ptr(tm.tm_zone) }
+            .to_string_lossy()
+            .into_owned()
+    };
+    (offset, name)
+}
+
+#[cfg(not(unix))]
+fn local_offset_name_at_epoch(_epoch_secs: i64) -> (i64, String) {
+    (0, "UTC".to_string())
+}
+
+#[cfg(unix)]
+fn refresh_tz_env() {
+    unsafe extern "C" {
+        fn tzset();
+    }
+    unsafe {
+        tzset();
+    }
+}
+
+#[cfg(not(unix))]
+fn refresh_tz_env() {}
+
+struct ScopedTzEnv {
+    previous: Option<OsString>,
+}
+
+impl ScopedTzEnv {
+    fn new(spec: Option<&str>) -> Self {
+        let previous = std::env::var_os("TZ");
+        match spec {
+            Some(v) => std::env::set_var("TZ", v),
+            None => std::env::remove_var("TZ"),
+        }
+        refresh_tz_env();
+        Self { previous }
+    }
+}
+
+impl Drop for ScopedTzEnv {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(v) => std::env::set_var("TZ", v),
+            None => std::env::remove_var("TZ"),
+        }
+        refresh_tz_env();
+    }
+}
+
+fn with_tz_env<T>(spec: Option<&str>, f: impl FnOnce() -> T) -> T {
+    let _lock = tz_env_lock().lock().expect("time zone env lock poisoned");
+    let _guard = ScopedTzEnv::new(spec);
+    f()
+}
+
+fn parse_zone_rule(zone: &Value) -> Result<ZoneRule, Flow> {
+    match zone {
+        Value::Nil => Ok(ZoneRule::Local),
+        Value::True => Ok(ZoneRule::Utc),
+        Value::Symbol(s) if s == "wall" => Ok(ZoneRule::Local),
+        Value::Int(n) => Ok(ZoneRule::FixedOffset(*n)),
+        Value::Str(s) => Ok(ZoneRule::TzString((**s).clone())),
+        Value::Cons(_) => {
+            let items = list_to_vec(zone).ok_or_else(|| invalid_time_zone_spec(zone))?;
+            if items.len() != 2 {
+                return Err(invalid_time_zone_spec(zone));
+            }
+            let Some(offset) = items[0].as_int() else {
+                return Err(invalid_time_zone_spec(zone));
+            };
+            let name = match &items[1] {
+                Value::Str(s) => (**s).clone(),
+                Value::Symbol(s) => s.clone(),
+                _ => return Err(invalid_time_zone_spec(zone)),
+            };
+            Ok(ZoneRule::FixedNamedOffset(offset, name))
+        }
+        _ => Err(invalid_time_zone_spec(zone)),
+    }
+}
+
+fn zone_rule_to_offset_name(rule: &ZoneRule, epoch_secs: i64) -> (i64, String) {
+    match rule {
+        ZoneRule::Local => local_offset_name_at_epoch(epoch_secs),
+        ZoneRule::Utc => (0, "GMT".to_string()),
+        ZoneRule::FixedOffset(offset) => (*offset, format_fixed_offset_name(*offset)),
+        ZoneRule::FixedNamedOffset(offset, name) => (*offset, name.clone()),
+        ZoneRule::TzString(spec) => {
+            with_tz_env(Some(spec), || local_offset_name_at_epoch(epoch_secs))
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Pure builtins
 // ---------------------------------------------------------------------------
@@ -413,12 +578,25 @@ pub(crate) fn builtin_current_time_string(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(current-time-zone &optional TIME ZONE)` -> `(OFFSET NAME)`.
-///
-/// Stub: always returns UTC (offset 0, name "UTC").
 pub(crate) fn builtin_current_time_zone(args: Vec<Value>) -> EvalResult {
     expect_min_max_args("current-time-zone", &args, 0, 2)?;
-    // Always UTC.
-    Ok(Value::list(vec![Value::Int(0), Value::string("UTC")]))
+    let tm = if args.is_empty() || args[0].is_nil() {
+        TimeMicros::now()
+    } else {
+        parse_time(&args[0])?
+    };
+
+    let rule = if args.len() > 1 {
+        parse_zone_rule(&args[1])?
+    } else {
+        time_zone_rule_cell()
+            .lock()
+            .expect("time zone rule lock poisoned")
+            .clone()
+    };
+
+    let (offset, name) = zone_rule_to_offset_name(&rule, tm.secs);
+    Ok(Value::list(vec![Value::Int(offset), Value::string(name)]))
 }
 
 /// `(encode-time SECONDS MINUTES HOURS DAY MONTH YEAR &optional ZONE)`
@@ -528,9 +706,13 @@ pub(crate) fn builtin_time_convert(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// `(set-time-zone-rule ZONE)` -> nil (stub).
+/// `(set-time-zone-rule ZONE)` -> nil.
 pub(crate) fn builtin_set_time_zone_rule(args: Vec<Value>) -> EvalResult {
     expect_args("set-time-zone-rule", &args, 1)?;
+    let rule = parse_zone_rule(&args[0])?;
+    *time_zone_rule_cell()
+        .lock()
+        .expect("time zone rule lock poisoned") = rule;
     Ok(Value::Nil)
 }
 
@@ -663,6 +845,18 @@ pub(crate) fn builtin_safe_date_to_time(args: Vec<Value>) -> EvalResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    fn tz_test_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("tz test lock poisoned")
+    }
+
+    fn reset_tz_rule() {
+        let _ = builtin_set_time_zone_rule(vec![Value::Nil]);
+    }
 
     // -----------------------------------------------------------------------
     // Internal helpers
@@ -1009,11 +1203,13 @@ mod tests {
 
     #[test]
     fn builtin_current_time_zone_default() {
+        let _guard = tz_test_lock();
+        reset_tz_rule();
         let result = builtin_current_time_zone(vec![]).unwrap();
         let items = list_to_vec(&result).unwrap();
         assert_eq!(items.len(), 2);
-        assert_eq!(items[0].as_int(), Some(0));
-        assert_eq!(items[1].as_str(), Some("UTC"));
+        assert!(items[0].is_integer());
+        assert!(items[1].is_string());
     }
 
     #[test]
@@ -1139,9 +1335,106 @@ mod tests {
     }
 
     #[test]
-    fn builtin_set_time_zone_rule_stub() {
-        let result = builtin_set_time_zone_rule(vec![Value::string("UTC")]).unwrap();
+    fn builtin_set_time_zone_rule_t() {
+        let _guard = tz_test_lock();
+        reset_tz_rule();
+
+        let result = builtin_set_time_zone_rule(vec![Value::True]).unwrap();
         assert!(result.is_nil());
+        let tz = builtin_current_time_zone(vec![]).unwrap();
+        assert_eq!(tz, Value::list(vec![Value::Int(0), Value::string("GMT")]));
+        reset_tz_rule();
+    }
+
+    #[test]
+    fn builtin_set_time_zone_rule_fixed_offsets() {
+        let _guard = tz_test_lock();
+        reset_tz_rule();
+
+        builtin_set_time_zone_rule(vec![Value::Int(3600)]).unwrap();
+        let plus = builtin_current_time_zone(vec![]).unwrap();
+        assert_eq!(
+            plus,
+            Value::list(vec![Value::Int(3600), Value::string("+01")])
+        );
+
+        builtin_set_time_zone_rule(vec![Value::Int(-3600)]).unwrap();
+        let minus = builtin_current_time_zone(vec![]).unwrap();
+        assert_eq!(
+            minus,
+            Value::list(vec![Value::Int(-3600), Value::string("-01")])
+        );
+
+        builtin_set_time_zone_rule(vec![Value::Int(1)]).unwrap();
+        let one = builtin_current_time_zone(vec![]).unwrap();
+        assert_eq!(
+            one,
+            Value::list(vec![Value::Int(1), Value::string("+000001")])
+        );
+        reset_tz_rule();
+    }
+
+    #[test]
+    fn builtin_set_time_zone_rule_string_specs() {
+        let _guard = tz_test_lock();
+        reset_tz_rule();
+
+        builtin_set_time_zone_rule(vec![Value::string("UTC")]).unwrap();
+        let utc = builtin_current_time_zone(vec![]).unwrap();
+        assert_eq!(utc, Value::list(vec![Value::Int(0), Value::string("UTC")]));
+
+        builtin_set_time_zone_rule(vec![Value::string("JST-9")]).unwrap();
+        let jst = builtin_current_time_zone(vec![]).unwrap();
+        assert_eq!(
+            jst,
+            Value::list(vec![Value::Int(32400), Value::string("JST")])
+        );
+        reset_tz_rule();
+    }
+
+    #[test]
+    fn builtin_set_time_zone_rule_invalid_spec() {
+        let _guard = tz_test_lock();
+        reset_tz_rule();
+
+        match builtin_set_time_zone_rule(vec![Value::Keyword(":x".to_string())]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data.first().and_then(|v| v.as_str()),
+                    Some("Invalid time zone specification")
+                );
+            }
+            other => panic!("expected invalid time zone specification error, got {other:?}"),
+        }
+        reset_tz_rule();
+    }
+
+    #[test]
+    fn builtin_current_time_zone_with_zone_arg() {
+        let _guard = tz_test_lock();
+        reset_tz_rule();
+
+        let gmt = builtin_current_time_zone(vec![Value::Nil, Value::True]).unwrap();
+        assert_eq!(gmt, Value::list(vec![Value::Int(0), Value::string("GMT")]));
+
+        let plus = builtin_current_time_zone(vec![Value::Nil, Value::Int(3600)]).unwrap();
+        assert_eq!(
+            plus,
+            Value::list(vec![Value::Int(3600), Value::string("+01")])
+        );
+
+        match builtin_current_time_zone(vec![Value::Nil, Value::Keyword(":x".to_string())]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "error");
+                assert_eq!(
+                    sig.data.first().and_then(|v| v.as_str()),
+                    Some("Invalid time zone specification")
+                );
+            }
+            other => panic!("expected invalid time zone specification error, got {other:?}"),
+        }
+        reset_tz_rule();
     }
 
     #[test]
@@ -1153,10 +1446,9 @@ mod tests {
 
     #[test]
     fn builtin_safe_date_to_time_rfc_utc() {
-        let result = builtin_safe_date_to_time(vec![Value::string(
-            "Thu, 01 Jan 1970 00:00:00 +0000",
-        )])
-        .unwrap();
+        let result =
+            builtin_safe_date_to_time(vec![Value::string("Thu, 01 Jan 1970 00:00:00 +0000")])
+                .unwrap();
         assert_eq!(result, Value::list(vec![Value::Int(0), Value::Int(0)]));
     }
 

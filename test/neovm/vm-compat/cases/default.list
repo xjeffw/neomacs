@@ -106,6 +106,7 @@ cases/md5-semantics
 cases/md5-coding-semantics
 cases/coding-system-runtime-semantics
 cases/safe-date-to-time-semantics
+cases/time-zone-rule-semantics
 cases/charsetp-semantics
 cases/charset-api-availability
 cases/charset-plist-error-semantics
