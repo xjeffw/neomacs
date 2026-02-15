@@ -5,18 +5,30 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue the `buffer-read-only` variable-compat sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Lock remaining raw `buf.read_only` mutators (`transpose-*`) with mutation-aware checks.
+- Lock remaining raw `buf.read_only` mutators (`transpose-sexps`, `transpose-sentences`, `transpose-paragraphs`, `transpose-lines`) with mutation-aware checks.
 - Expand command-context compatibility corpus around interactive editing commands.
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Finish `transpose-*` read-only variable checks and add dedicated oracle corpus.
+- Finish the rest of `transpose-*` read-only variable checks and add dedicated oracle corpora.
+- Add a focused `transpose-chars` read-only variable corpus to lock the latest runtime alignment.
 - Audit adjacent kill-ring command-context paths (`kill-new`, rotation, point updates) for batch-oracle deltas.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Aligned `transpose-words` read-only variable behavior (and `transpose-chars` runtime gate) with oracle semantics:
+  - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
+    - `transpose-words` now honors dynamic/buffer-local/global `buffer-read-only`
+    - `transpose-chars` now honors dynamic/buffer-local/global `buffer-read-only`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/transpose-words-read-only-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/transpose-words-read-only-variable-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test transpose_words -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/transpose-words-read-only-variable-semantics` (pass, 4/4)
 - Aligned `yank-pop` command-context/error semantics with oracle and locked a dedicated corpus:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - `yank-pop` now gates on `last-command == 'yank` in batch-compatible paths
