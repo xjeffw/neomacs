@@ -744,6 +744,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "setcar",
     "setcdr",
     "setenv",
+    "scan-lists",
     "self-insert-command",
     "shell-command-to-string",
     "signal",

@@ -6102,6 +6102,7 @@ pub(crate) fn dispatch_builtin(
         "backward-word" => return Some(super::syntax::builtin_backward_word(eval, args)),
         "forward-sexp" => return Some(super::syntax::builtin_forward_sexp(eval, args)),
         "backward-sexp" => return Some(super::syntax::builtin_backward_sexp(eval, args)),
+        "scan-lists" => return Some(super::syntax::builtin_scan_lists(eval, args)),
         "skip-syntax-forward" => {
             return Some(super::syntax::builtin_skip_syntax_forward(eval, args))
         }
