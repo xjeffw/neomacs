@@ -4,6 +4,41 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Expanded legacy bytecode vm-compat corpus for `.elc` literal execution edges:
+  - added:
+    - `test/neovm/vm-compat/cases/bytecode-literal-edge-opcodes-semantics.forms`
+    - `test/neovm/vm-compat/cases/bytecode-literal-edge-opcodes-semantics.expected.tsv`
+  - enabled in:
+    - `test/neovm/vm-compat/cases/legacy-elc-literal.list`
+  - locked parity for edge opcodes:
+    - `varbind` / `unbind`
+    - `stack-ref` narrow/wide paths
+    - wide operand bind/unbind path
+  - verified:
+    - `NEOVM_WORKER_CARGO_FEATURES=legacy-elc-literal make -C test/neovm/vm-compat check-neovm FORMS=cases/bytecode-literal-edge-opcodes-semantics.forms EXPECTED=cases/bytecode-literal-edge-opcodes-semantics.expected.tsv` (pass, 5/5)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Implemented `where-is-internal` compatibility slice (stub -> evaluator-backed):
+  - implemented in `rust/neovm-core/src/elisp/interactive.rs`:
+    - arity validation (`1..5`)
+    - keymap designator validation with `wrong-type-argument keymapp ...`
+    - explicit/default global-map resolution
+    - prefix-map and parent-map traversal
+    - `FIRSTONLY` return-shape semantics (vector vs list of vectors)
+    - `nil` when no binding matches
+  - added unit coverage in `interactive.rs` for:
+    - explicit keymap match
+    - `FIRSTONLY` vector shape
+    - keymap type error payload
+    - non-definition no-match path
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/where-is-internal-semantics.forms`
+    - `test/neovm/vm-compat/cases/where-is-internal-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml where_is_internal -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/where-is-internal-semantics.forms EXPECTED=cases/where-is-internal-semantics.expected.tsv` (pass, 6/6)
+    - targeted list gate:
+      - `NEOVM_WORKER_CARGO_FEATURES=legacy-elc-literal make -C test/neovm/vm-compat check-neovm-list LIST=/tmp/neovm-targeted.list` (pass)
 - Aligned region-taking case builtins with Emacs character-position semantics and optional noncontiguous behavior:
   - switched `kill-region`, `kill-ring-save`, `copy-region-as-kill`, `downcase-region`, `upcase-region`, `capitalize-region`, `upcase-initials-region`, and `indent-rigidly` shared bounds resolution to Emacs-style 1-based character positions
   - `interactive` default region argument synthesis now passes 1-based character positions (not raw byte offsets)
@@ -756,6 +791,7 @@ Last updated: 2026-02-15
   - keep builtin surface and registry in lock-step
   - run oracle/parity checks after each behavior-affecting change
   - remove dead helper code that is not part of exposed compatibility surface
+- Identify the next high-impact builtin still stubbed in NeoVM core and land it as a small implementation + oracle-corpus lock-in slice.
 - Reduce vm-compat operator friction for large case sets (small Makefile UX improvements).
   - added list-driven targets: `record-list`, `check-list`, `check-neovm-list` with `LIST=cases/<name>.list`
 
