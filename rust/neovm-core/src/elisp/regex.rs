@@ -476,14 +476,14 @@ pub fn looking_at(
 /// Returns the byte position of the start of the match (relative to the
 /// whole string, not `start`), or `None` if no match.
 /// Updates match data with capture groups; stores the searched string.
-pub fn string_match_full(
+pub fn string_match_full_with_case_fold(
     pattern: &str,
     string: &str,
     start: usize,
+    case_fold: bool,
     match_data: &mut Option<MatchData>,
 ) -> Result<Option<usize>, String> {
-    // Emacs defaults `case-fold-search` to non-nil for string matching.
-    let re = compile_emacs_regex_case_fold(pattern, true)?;
+    let re = compile_emacs_regex_case_fold(pattern, case_fold)?;
 
     if start > string.len() {
         return Ok(None);
@@ -500,6 +500,16 @@ pub fn string_match_full(
     } else {
         Ok(None)
     }
+}
+
+/// Match a regex against a string using Emacs default case-fold behavior.
+pub fn string_match_full(
+    pattern: &str,
+    string: &str,
+    start: usize,
+    match_data: &mut Option<MatchData>,
+) -> Result<Option<usize>, String> {
+    string_match_full_with_case_fold(pattern, string, start, true, match_data)
 }
 
 /// Replace the last match in a buffer and return `nil`-style success.

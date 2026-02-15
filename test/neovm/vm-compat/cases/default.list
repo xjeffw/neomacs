@@ -231,6 +231,7 @@ cases/garbage-collect-semantics
 cases/memory-use-counts-semantics
 cases/match-data
 cases/string-match-case-fold-semantics
+cases/string-match-case-fold-variable-semantics
 cases/overlay-arity-semantics
 cases/textprop-arity-semantics
 cases/propertize-semantics

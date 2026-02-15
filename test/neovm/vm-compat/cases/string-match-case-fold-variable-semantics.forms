@@ -1,0 +1,7 @@
+(let ((case-fold-search nil)) (string-match "a" "A"))
+(let ((case-fold-search nil)) (string-match-p "a" "A"))
+(let ((case-fold-search nil)) (string-match "A" "a"))
+(let ((case-fold-search nil)) (string-match-p "A" "a"))
+
+(let ((case-fold-search t)) (string-match "a" "A"))
+(let ((case-fold-search t)) (string-match-p "a" "A"))

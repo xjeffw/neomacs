@@ -5584,6 +5584,7 @@ pub(crate) fn dispatch_builtin(
         "looking-at" => return Some(builtin_looking_at(eval, args)),
         "looking-at-p" => return Some(builtin_looking_at_p(eval, args)),
         "string-match" => return Some(builtin_string_match_eval(eval, args)),
+        "string-match-p" => return Some(builtin_string_match_p_eval(eval, args)),
         "match-string" => return Some(builtin_match_string(eval, args)),
         "match-beginning" => return Some(builtin_match_beginning(eval, args)),
         "match-end" => return Some(builtin_match_end(eval, args)),
@@ -7608,8 +7609,43 @@ pub(crate) fn builtin_string_match_eval(
     let pattern = expect_string(&args[0])?;
     let s = expect_string(&args[1])?;
     let start = normalize_string_start_arg(&s, args.get(2))?;
+    let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
+        .map(|v| !v.is_nil())
+        .unwrap_or(true);
 
-    match super::regex::string_match_full(&pattern, &s, start, &mut eval.match_data) {
+    match super::regex::string_match_full_with_case_fold(
+        &pattern,
+        &s,
+        start,
+        case_fold,
+        &mut eval.match_data,
+    ) {
+        Ok(Some(pos)) => Ok(Value::Int(pos as i64)),
+        Ok(None) => Ok(Value::Nil),
+        Err(msg) => Err(signal("invalid-regexp", vec![Value::string(msg)])),
+    }
+}
+
+pub(crate) fn builtin_string_match_p_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("string-match-p", &args, 2)?;
+    let pattern = expect_string(&args[0])?;
+    let s = expect_string(&args[1])?;
+    let start = normalize_string_start_arg(&s, args.get(2))?;
+    let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
+        .map(|v| !v.is_nil())
+        .unwrap_or(true);
+    let mut throwaway = None;
+
+    match super::regex::string_match_full_with_case_fold(
+        &pattern,
+        &s,
+        start,
+        case_fold,
+        &mut throwaway,
+    ) {
         Ok(Some(pos)) => Ok(Value::Int(pos as i64)),
         Ok(None) => Ok(Value::Nil),
         Err(msg) => Err(signal("invalid-regexp", vec![Value::string(msg)])),
