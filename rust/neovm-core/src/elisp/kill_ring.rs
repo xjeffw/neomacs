@@ -2078,7 +2078,7 @@ pub(crate) fn builtin_transpose_lines(
         .current_buffer()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    if buf.read_only {
+    if region_case_read_only(eval, buf) {
         return Err(signal(
             "buffer-read-only",
             vec![Value::string(buf.name.clone())],
@@ -2151,17 +2151,19 @@ pub(crate) fn builtin_transpose_lines(
 
     let prev_line_text = buf.buffer_substring(prev_line_start, cur_line_start);
     let cur_line_text = buf.buffer_substring(cur_line_start, cur_line_end);
+    let prev_no_nl = prev_line_text.strip_suffix('\n').unwrap_or(&prev_line_text);
+    let cur_no_nl = cur_line_text.strip_suffix('\n').unwrap_or(&cur_line_text);
+    let replacement = format!("{cur_no_nl}\n{prev_no_nl}\n");
 
     let buf = eval
         .buffers
         .current_buffer_mut()
         .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
 
-    // Replace [prev_line_start, cur_line_end) with cur_line + prev_line.
+    // Replace [prev_line_start, cur_line_end) with normalized swapped lines.
     buf.delete_region(prev_line_start, cur_line_end);
     buf.goto_char(prev_line_start);
-    buf.insert(&cur_line_text);
-    buf.insert(&prev_line_text);
+    buf.insert(&replacement);
 
     Ok(Value::Nil)
 }
@@ -3242,6 +3244,17 @@ mod tests {
         let results = eval_all(
             r#"(insert "line1\nline2")
                (goto-char 1)
+               (transpose-lines 1)
+               (buffer-string)"#,
+        );
+        assert_eq!(results[3], r#"OK "line2\nline1\n""#);
+    }
+
+    #[test]
+    fn transpose_lines_last_line_without_trailing_newline() {
+        let results = eval_all(
+            r#"(insert "line1\nline2")
+               (goto-char 7)
                (transpose-lines 1)
                (buffer-string)"#,
         );
