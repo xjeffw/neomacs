@@ -19,6 +19,22 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Improved `create-image` default TYPE resolution for compatibility:
+  - updated:
+    - `rust/neovm-core/src/elisp/image.rs`
+      - omitted TYPE now infers from filename extension (e.g. `jpg -> jpeg`) when possible.
+      - DATA-P MIME symbol hints (e.g. `image/png`) now participate in type inference.
+      - unresolved paths now default to `neomacs` type.
+      - expanded image unit tests for extension/mime/fallback resolution.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/create-image-type-resolution.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/neovm-only.list`
+      - added `cases/create-image-type-resolution`.
+  - verified:
+    - `cargo test image::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/create-image-type-resolution` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Extended `image-type` compatibility for source/type call patterns:
   - updated:
     - `rust/neovm-core/src/elisp/image.rs`
