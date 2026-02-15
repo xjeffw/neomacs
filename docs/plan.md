@@ -18,6 +18,17 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Removed unreachable legacy replace/search stub entrypoints from `isearch` surface:
+  - updated:
+    - `rust/neovm-core/src/elisp/isearch.rs`
+      - removed dead `query-replace*`/`replace-*`/`how-many`/`keep-lines`/`flush-lines` wrappers not wired in builtin dispatch
+      - removed corresponding dead unit tests
+      - aligned `isearch-forward`/`isearch-backward` local tests to current batch-stub error behavior
+  - verified:
+    - `cargo test 'elisp::isearch::tests::' -- --nocapture` (pass, 79 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/query-replace-batch-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/query-replace-edge-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/replace-query-case-fold-variable-semantics` (pass, 10/10)
 - Removed dead duplicate `abort-recursive-edit` helper from misc surface:
   - updated:
     - `rust/neovm-core/src/elisp/misc.rs`
