@@ -75,6 +75,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "buffer-file-name",
     "buffer-hash",
     "buffer-list",
+    "buffer-live-p",
     "buffer-local-value",
     "buffer-local-variables",
     "buffer-modified-p",

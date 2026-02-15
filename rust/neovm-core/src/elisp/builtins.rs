@@ -4394,6 +4394,18 @@ pub(crate) fn builtin_get_buffer(
     }
 }
 
+/// (buffer-live-p OBJECT) -> t or nil
+pub(crate) fn builtin_buffer_live_p(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("buffer-live-p", &args, 1)?;
+    match &args[0] {
+        Value::Buffer(id) => Ok(Value::bool(eval.buffers.get(*id).is_some())),
+        _ => Ok(Value::Nil),
+    }
+}
+
 /// (get-file-buffer FILENAME) -> buffer or nil
 pub(crate) fn builtin_get_file_buffer(
     eval: &mut super::eval::Evaluator,
@@ -5893,6 +5905,7 @@ pub(crate) fn dispatch_builtin(
         // Buffer operations
         "get-buffer-create" => return Some(builtin_get_buffer_create(eval, args)),
         "get-buffer" => return Some(builtin_get_buffer(eval, args)),
+        "buffer-live-p" => return Some(builtin_buffer_live_p(eval, args)),
         "get-file-buffer" => return Some(builtin_get_file_buffer(eval, args)),
         "kill-buffer" => return Some(builtin_kill_buffer(eval, args)),
         "set-buffer" => return Some(builtin_set_buffer(eval, args)),
@@ -8469,6 +8482,27 @@ mod tests {
         .unwrap();
         assert!(missing.is_nil());
         assert!(builtin_get_file_buffer(&mut eval, vec![Value::Int(1)]).is_err());
+    }
+
+    #[test]
+    fn eval_buffer_live_p_tracks_killed_buffers() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let buf = builtin_get_buffer_create(&mut eval, vec![Value::string("*blp*")]).unwrap();
+        let live = builtin_buffer_live_p(&mut eval, vec![buf.clone()]).unwrap();
+        assert_eq!(live, Value::True);
+
+        let _ = builtin_kill_buffer(&mut eval, vec![buf.clone()]).unwrap();
+        let dead = builtin_buffer_live_p(&mut eval, vec![buf]).unwrap();
+        assert_eq!(dead, Value::Nil);
+    }
+
+    #[test]
+    fn eval_buffer_live_p_non_buffer_objects_return_nil() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let by_name = builtin_buffer_live_p(&mut eval, vec![Value::string("*scratch*")]).unwrap();
+        assert_eq!(by_name, Value::Nil);
+        let nil_arg = builtin_buffer_live_p(&mut eval, vec![Value::Nil]).unwrap();
+        assert_eq!(nil_arg, Value::Nil);
     }
 
     #[test]
