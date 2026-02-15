@@ -259,11 +259,11 @@ pub(crate) fn builtin_current_case_table_eval(
 
 /// `(standard-case-table)` -- evaluator-backed standard case table object.
 pub(crate) fn builtin_standard_case_table_eval(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("standard-case-table", &args, 0)?;
-    ensure_standard_case_table_object()
+    ensure_standard_case_table_object_eval(eval)
 }
 
 /// `(set-case-table TABLE)` -- evaluator-backed current buffer case table set.
@@ -285,10 +285,13 @@ pub(crate) fn builtin_set_case_table_eval(
 
 /// `(set-standard-case-table TABLE)` -- evaluator-backed standard table set.
 pub(crate) fn builtin_set_standard_case_table_eval(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    builtin_set_standard_case_table(args)
+    let table = builtin_set_standard_case_table(args)?;
+    eval.obarray
+        .set_symbol_value(STANDARD_CASE_TABLE_SYMBOL, table.clone());
+    Ok(table)
 }
 
 /// `(upcase CHAR)` -- convert a character to uppercase.
@@ -310,6 +313,7 @@ pub(crate) fn builtin_upcase_char(args: Vec<Value>) -> EvalResult {
 
 const CASE_TABLE_TAG: &str = "--case-table--";
 const CURRENT_CASE_TABLE_PROPERTY: &str = "case-table";
+const STANDARD_CASE_TABLE_SYMBOL: &str = "neovm--standard-case-table-object";
 
 fn make_case_table_value() -> Value {
     Value::vector(vec![
@@ -332,8 +336,24 @@ fn ensure_standard_case_table_object() -> EvalResult {
     })
 }
 
+fn ensure_standard_case_table_object_eval(eval: &mut super::eval::Evaluator) -> EvalResult {
+    if let Some(value) = eval
+        .obarray
+        .symbol_value(STANDARD_CASE_TABLE_SYMBOL)
+        .cloned()
+    {
+        if is_case_table(&value) {
+            return Ok(value);
+        }
+    }
+    let table = make_case_table_value();
+    eval.obarray
+        .set_symbol_value(STANDARD_CASE_TABLE_SYMBOL, table.clone());
+    Ok(table)
+}
+
 fn current_case_table_for_buffer(eval: &mut super::eval::Evaluator) -> Result<Value, Flow> {
-    let fallback = ensure_standard_case_table_object()?;
+    let fallback = ensure_standard_case_table_object_eval(eval)?;
     let buf = eval
         .buffers
         .current_buffer_mut()
