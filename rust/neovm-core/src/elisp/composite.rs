@@ -112,6 +112,16 @@ pub(crate) fn builtin_compose_string_internal(args: Vec<Value>) -> EvalResult {
 /// Stub: no compositions exist, always return nil.
 pub(crate) fn builtin_find_composition_internal(args: Vec<Value>) -> EvalResult {
     expect_args("find-composition-internal", &args, 4)?;
+    expect_integer_or_marker_p(&args[0])?;
+    if !args[1].is_nil() {
+        expect_integer_or_marker_p(&args[1])?;
+    }
+    if !args[2].is_nil() && !args[2].is_string() {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), args[2].clone()],
+        ));
+    }
     Ok(Value::Nil)
 }
 
@@ -123,6 +133,14 @@ pub(crate) fn builtin_find_composition_internal(args: Vec<Value>) -> EvalResult 
 /// Stub: return nil (let the display engine handle shaping).
 pub(crate) fn builtin_composition_get_gstring(args: Vec<Value>) -> EvalResult {
     expect_args("composition-get-gstring", &args, 4)?;
+    expect_integerp(&args[0])?;
+    expect_integerp(&args[1])?;
+    if !args[3].is_string() {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), args[3].clone()],
+        ));
+    }
     Ok(Value::Nil)
 }
 
@@ -293,6 +311,33 @@ mod tests {
     }
 
     #[test]
+    fn find_composition_internal_type_checks() {
+        let bad_pos = builtin_find_composition_internal(vec![
+            Value::symbol("x"),
+            Value::Int(10),
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(bad_pos.is_err());
+
+        let bad_limit = builtin_find_composition_internal(vec![
+            Value::Int(1),
+            Value::symbol("y"),
+            Value::Nil,
+            Value::Nil,
+        ]);
+        assert!(bad_limit.is_err());
+
+        let bad_string = builtin_find_composition_internal(vec![
+            Value::Int(1),
+            Value::Nil,
+            Value::Int(1),
+            Value::Nil,
+        ]);
+        assert!(bad_string.is_err());
+    }
+
+    #[test]
     fn composition_get_gstring_returns_nil() {
         let result = builtin_composition_get_gstring(vec![
             Value::Int(0),
@@ -308,6 +353,29 @@ mod tests {
     fn composition_get_gstring_wrong_arity() {
         let result = builtin_composition_get_gstring(vec![Value::Int(0)]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn composition_get_gstring_type_checks() {
+        let bad_from = builtin_composition_get_gstring(vec![
+            Value::symbol("x"),
+            Value::Int(5),
+            Value::Nil,
+            Value::string("hello"),
+        ]);
+        assert!(bad_from.is_err());
+
+        let bad_to = builtin_composition_get_gstring(vec![
+            Value::Int(0),
+            Value::symbol("y"),
+            Value::Nil,
+            Value::string("hello"),
+        ]);
+        assert!(bad_to.is_err());
+
+        let bad_string =
+            builtin_composition_get_gstring(vec![Value::Int(0), Value::Int(5), Value::Nil, Value::Int(1)]);
+        assert!(bad_string.is_err());
     }
 
     #[test]
