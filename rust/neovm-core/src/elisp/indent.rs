@@ -419,48 +419,6 @@ pub(crate) fn builtin_indent_region(
     Ok(Value::True)
 }
 
-/// (indent-line-to COLUMN) -> nil
-///
-/// Indent current line to COLUMN.
-/// Stub: does nothing, returns nil.
-pub(crate) fn builtin_indent_line_to(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_args("indent-line-to", &args, 1)?;
-    let _column = expect_int(&args[0])?;
-    Ok(Value::Nil)
-}
-
-/// (indent-rigidly START END ARG &optional INTERACTIVE) -> nil
-///
-/// Indent all lines starting in the region by ARG columns.
-/// Stub: does nothing, returns nil.
-pub(crate) fn builtin_indent_rigidly(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_min_args("indent-rigidly", &args, 3)?;
-    expect_max_args("indent-rigidly", &args, 4)?;
-    let _start = expect_int(&args[0])?;
-    let _end = expect_int(&args[1])?;
-    let _arg = expect_int(&args[2])?;
-    // Optional INTERACTIVE argument is accepted but ignored.
-    Ok(Value::Nil)
-}
-
-/// (newline-and-indent) -> nil
-///
-/// Insert a newline, then indent according to major mode.
-/// Stub: does nothing, returns nil.
-pub(crate) fn builtin_newline_and_indent(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_args("newline-and-indent", &args, 0)?;
-    Ok(Value::Nil)
-}
-
 /// (reindent-then-newline-and-indent) -> nil
 ///
 /// Reindent current line, insert newline, then indent the new line.
@@ -554,18 +512,6 @@ pub(crate) fn builtin_indent_according_to_mode(
     Ok(Value::Nil)
 }
 
-/// (tab-to-tab-stop) -> nil
-///
-/// Insert spaces or tabs to next defined tab-stop column.
-/// Stub: does nothing, returns nil.
-pub(crate) fn builtin_tab_to_tab_stop(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_args("tab-to-tab-stop", &args, 0)?;
-    Ok(Value::Nil)
-}
-
 /// (back-to-indentation) -> nil
 ///
 /// Move point to first non-space/tab on current line.
@@ -592,18 +538,6 @@ pub(crate) fn builtin_back_to_indentation(
     }
 
     buf.goto_char(dest);
-    Ok(Value::Nil)
-}
-
-/// (delete-indentation &optional ARG REGION) -> nil
-///
-/// Join this line to previous and fix up whitespace at join.
-/// Stub: does nothing, returns nil.
-pub(crate) fn builtin_delete_indentation(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_max_args("delete-indentation", &args, 2)?;
     Ok(Value::Nil)
 }
 
