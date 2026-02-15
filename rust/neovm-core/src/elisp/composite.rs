@@ -46,6 +46,26 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_integerp(arg: &Value) -> Result<(), Flow> {
+    match arg {
+        Value::Int(_) | Value::Char(_) => Ok(()),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integerp"), other.clone()],
+        )),
+    }
+}
+
+fn expect_integer_or_marker_p(arg: &Value) -> Result<(), Flow> {
+    match arg {
+        Value::Int(_) | Value::Char(_) => Ok(()),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integer-or-marker-p"), other.clone()],
+        )),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Pure builtins
 // ---------------------------------------------------------------------------
@@ -59,8 +79,8 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
 /// Stub: composition is handled by the display/layout engine; return nil.
 pub(crate) fn builtin_compose_region_internal(args: Vec<Value>) -> EvalResult {
     expect_range_args("compose-region-internal", &args, 2, 4)?;
-    // START and END should be integers, but since this is a stub we just
-    // validate arity and return nil.
+    expect_integer_or_marker_p(&args[0])?;
+    expect_integer_or_marker_p(&args[1])?;
     Ok(Value::Nil)
 }
 
@@ -72,6 +92,14 @@ pub(crate) fn builtin_compose_region_internal(args: Vec<Value>) -> EvalResult {
 /// Stub: return STRING unchanged.
 pub(crate) fn builtin_compose_string_internal(args: Vec<Value>) -> EvalResult {
     expect_range_args("compose-string-internal", &args, 3, 5)?;
+    if !args[0].is_string() {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), args[0].clone()],
+        ));
+    }
+    expect_integerp(&args[1])?;
+    expect_integerp(&args[2])?;
     // Return the string argument unchanged.
     Ok(args[0].clone())
 }
@@ -199,6 +227,14 @@ mod tests {
     }
 
     #[test]
+    fn compose_region_internal_rejects_non_integer_positions() {
+        let result = builtin_compose_region_internal(vec![Value::symbol("x"), Value::Int(10)]);
+        assert!(result.is_err());
+        let result = builtin_compose_region_internal(vec![Value::Int(1), Value::symbol("y")]);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn compose_string_internal_returns_string() {
         let s = Value::string("hello");
         let result = builtin_compose_string_internal(vec![s.clone(), Value::Int(0), Value::Int(5)]);
@@ -224,6 +260,18 @@ mod tests {
     fn compose_string_internal_too_few_args() {
         let result = builtin_compose_string_internal(vec![Value::string("hi"), Value::Int(0)]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn compose_string_internal_type_checks() {
+        let non_string = builtin_compose_string_internal(vec![Value::Int(1), Value::Int(0), Value::Int(1)]);
+        assert!(non_string.is_err());
+        let bad_start =
+            builtin_compose_string_internal(vec![Value::string("abc"), Value::symbol("x"), Value::Int(1)]);
+        assert!(bad_start.is_err());
+        let bad_end =
+            builtin_compose_string_internal(vec![Value::string("abc"), Value::Int(0), Value::symbol("y")]);
+        assert!(bad_end.is_err());
     }
 
     #[test]
