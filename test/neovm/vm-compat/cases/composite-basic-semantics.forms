@@ -19,6 +19,18 @@
 (condition-case err
     (with-temp-buffer (insert "abc") (compose-region-internal 1 'y))
   (error err))
+(condition-case err
+    (with-temp-buffer (insert "abc") (compose-region-internal 5 1))
+  (error (car err)))
+(condition-case err
+    (with-temp-buffer (insert "abc") (compose-region-internal 0 0))
+  (error (car err)))
+(condition-case err
+    (with-temp-buffer (insert "abc") (compose-region-internal 0 4))
+  (error (car err)))
+(condition-case err
+    (with-temp-buffer (insert "abc") (compose-region-internal -1 1))
+  (error (car err)))
 (condition-case err (compose-region-internal 1) (error (car err)))
 
 (condition-case err (find-composition-internal 1 nil nil nil) (error (car err)))
