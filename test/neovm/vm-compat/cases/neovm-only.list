@@ -7,3 +7,4 @@ cases/image-area-semantics
 cases/image-flush-semantics
 cases/image-remove-semantics
 cases/image-type-semantics
+cases/create-image-type-resolution

@@ -1,0 +1,8 @@
+(image-type (create-image "foo.jpg"))
+(image-type (create-image "foo.unknown"))
+(image-type (create-image "raw" nil 'image/png))
+(image-type (create-image "raw" nil t))
+
+(condition-case err
+    (create-image "foo.png" 1)
+  (error err))

@@ -224,7 +224,10 @@ pub(crate) fn builtin_create_image(args: Vec<Value>) -> EvalResult {
     // TYPE argument (optional, defaults to png).
     let image_type = if args.len() > 1 && !args[1].is_nil() {
         match args[1].as_symbol_name() {
-            Some(name) => Value::symbol(name),
+            Some(name) => {
+                let normalized = normalize_image_type_name(name).unwrap_or("neomacs");
+                Value::symbol(normalized)
+            }
             None => {
                 return Err(signal(
                     "wrong-type-argument",
@@ -233,8 +236,19 @@ pub(crate) fn builtin_create_image(args: Vec<Value>) -> EvalResult {
             }
         }
     } else {
-        // Auto-detect stub: default to png.
-        Value::symbol("png")
+        // Best-effort inference from file extension / MIME hint, with neomacs fallback.
+        let inferred = if args.len() > 2 && args[2].is_truthy() {
+            infer_image_type_from_data_hint(&args[2])
+                .map(str::to_string)
+                .unwrap_or_else(|| "neomacs".to_string())
+        } else {
+            file_or_data
+                .as_str()
+                .and_then(infer_image_type_from_filename)
+                .map(str::to_string)
+                .unwrap_or_else(|| "neomacs".to_string())
+        };
+        Value::symbol(inferred)
     };
 
     // DATA-P argument (optional).
@@ -661,6 +675,43 @@ mod tests {
         let plist = image_spec_plist(&spec);
         let img_type = plist_get(&plist, &Value::Keyword("type".into()));
         assert_eq!(img_type.as_symbol_name(), Some("png"));
+    }
+
+    #[test]
+    fn create_image_default_type_from_jpg_extension() {
+        let result = builtin_create_image(vec![Value::string("foo.JPG")]);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        let plist = image_spec_plist(&spec);
+        let img_type = plist_get(&plist, &Value::Keyword("type".into()));
+        assert_eq!(img_type.as_symbol_name(), Some("jpeg"));
+    }
+
+    #[test]
+    fn create_image_default_type_falls_back_to_neomacs() {
+        let result = builtin_create_image(vec![Value::string("foo.unknown")]);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        let plist = image_spec_plist(&spec);
+        let img_type = plist_get(&plist, &Value::Keyword("type".into()));
+        assert_eq!(img_type.as_symbol_name(), Some("neomacs"));
+    }
+
+    #[test]
+    fn create_image_data_type_from_mime_hint() {
+        let result = builtin_create_image(vec![
+            Value::string("raw-image-bytes"),
+            Value::Nil,
+            Value::symbol("image/jpeg"),
+        ]);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        let plist = image_spec_plist(&spec);
+        let img_type = plist_get(&plist, &Value::Keyword("type".into()));
+        assert_eq!(img_type.as_symbol_name(), Some("jpeg"));
     }
 
     #[test]
