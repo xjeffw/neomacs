@@ -226,50 +226,44 @@ pub(crate) fn builtin_create_image(args: Vec<Value>) -> EvalResult {
 
 /// (image-size SPEC &optional PIXELS FRAME) -> (WIDTH . HEIGHT)
 ///
-/// Return the size of image SPEC as a cons (WIDTH . HEIGHT).
-/// If PIXELS is non-nil, return pixel sizes; otherwise return
-/// sizes in canonical character units.
-///
-/// Stub implementation: always returns (100 . 100) for pixel mode,
-/// or (10 . 5) for character mode.
+/// Batch/no-window semantics:
+/// - invalid SPEC -> `(error "Invalid image specification")`
+/// - valid SPEC in batch -> `(error "Window system frame should be used")`
 pub(crate) fn builtin_image_size(args: Vec<Value>) -> EvalResult {
     expect_min_args("image-size", &args, 1)?;
     expect_max_args("image-size", &args, 3)?;
 
     if !is_image_spec(&args[0]) {
         return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("imagep"), args[0].clone()],
+            "error",
+            vec![Value::string("Invalid image specification")],
         ));
     }
-
-    let pixels = args.get(1).map_or(false, |v| v.is_truthy());
-
-    if pixels {
-        // Return pixel dimensions stub.
-        Ok(Value::cons(Value::Int(100), Value::Int(100)))
-    } else {
-        // Return character cell dimensions stub.
-        Ok(Value::cons(Value::Float(10.0), Value::Float(5.0)))
-    }
+    Err(signal(
+        "error",
+        vec![Value::string("Window system frame should be used")],
+    ))
 }
 
 /// (image-mask-p SPEC &optional FRAME) -> nil
 ///
-/// Return non-nil if image SPEC has a mask bitmap.
-/// Stub: always returns nil (no mask support yet).
+/// Batch/no-window semantics:
+/// - invalid SPEC -> `(error "Invalid image specification")`
+/// - valid SPEC in batch -> `(error "Window system frame should be used")`
 pub(crate) fn builtin_image_mask_p(args: Vec<Value>) -> EvalResult {
     expect_min_args("image-mask-p", &args, 1)?;
     expect_max_args("image-mask-p", &args, 2)?;
 
     if !is_image_spec(&args[0]) {
         return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("imagep"), args[0].clone()],
+            "error",
+            vec![Value::string("Invalid image specification")],
         ));
     }
-
-    Ok(Value::Nil)
+    Err(signal(
+        "error",
+        vec![Value::string("Window system frame should be used")],
+    ))
 }
 
 /// (put-image IMAGE POINT &optional STRING AREA) -> nil
@@ -578,17 +572,7 @@ mod tests {
             builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_image_size(vec![spec, Value::True]);
-        assert!(result.is_ok());
-        let size = result.unwrap();
-
-        match size {
-            Value::Cons(cell) => {
-                let pair = cell.lock().expect("poisoned");
-                assert_eq!(pair.car.as_int(), Some(100));
-                assert_eq!(pair.cdr.as_int(), Some(100));
-            }
-            _ => panic!("expected cons"),
-        }
+        assert!(result.is_err());
     }
 
     #[test]
@@ -597,17 +581,7 @@ mod tests {
             builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_image_size(vec![spec]);
-        assert!(result.is_ok());
-        let size = result.unwrap();
-
-        match size {
-            Value::Cons(cell) => {
-                let pair = cell.lock().expect("poisoned");
-                assert_eq!(pair.car.as_float(), Some(10.0));
-                assert_eq!(pair.cdr.as_float(), Some(5.0));
-            }
-            _ => panic!("expected cons"),
-        }
+        assert!(result.is_err());
     }
 
     #[test]
@@ -627,13 +601,12 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn image_mask_p_returns_nil() {
+    fn image_mask_p_batch_errors_without_window_system() {
         let spec =
             builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_image_mask_p(vec![spec]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
+        assert!(result.is_err());
     }
 
     #[test]
@@ -918,18 +891,11 @@ mod tests {
 
     #[test]
     fn round_trip_create_then_size() {
-        // create-image -> image-size should work.
+        // In batch, image-size requires a window-system frame.
         let spec =
             builtin_create_image(vec![Value::string("photo.jpg"), Value::symbol("jpeg")]).unwrap();
 
-        let size = builtin_image_size(vec![spec, Value::True]).unwrap();
-        match size {
-            Value::Cons(cell) => {
-                let pair = cell.lock().expect("poisoned");
-                assert_eq!(pair.car.as_int(), Some(100));
-                assert_eq!(pair.cdr.as_int(), Some(100));
-            }
-            _ => panic!("expected cons"),
-        }
+        let result = builtin_image_size(vec![spec, Value::True]);
+        assert!(result.is_err());
     }
 }

@@ -183,6 +183,7 @@ cases/x-display-batch-semantics
 cases/display-monitor-semantics
 cases/display-monitor-frames-semantics
 cases/image-clear-cache-semantics
+cases/image-batch-query-semantics
 cases/tty-batch-semantics
 cases/font-batch-semantics
 cases/font-color-semantics
