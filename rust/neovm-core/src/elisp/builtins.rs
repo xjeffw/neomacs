@@ -5591,6 +5591,7 @@ pub(crate) fn dispatch_builtin(
         "replace-string" => return Some(super::isearch::builtin_replace_string_eval(eval, args)),
         "replace-regexp" => return Some(super::isearch::builtin_replace_regexp_eval(eval, args)),
         "how-many" => return Some(super::isearch::builtin_how_many_eval(eval, args)),
+        "count-matches" => return Some(super::isearch::builtin_count_matches_eval(eval, args)),
         "keep-lines" => return Some(super::isearch::builtin_keep_lines_eval(eval, args)),
         "flush-lines" => return Some(super::isearch::builtin_flush_lines_eval(eval, args)),
         // File I/O (evaluator-dependent)

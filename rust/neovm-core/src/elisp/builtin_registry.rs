@@ -164,6 +164,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "copy-sequence",
     "copy-to-register",
     "copysign",
+    "count-matches",
     "count-lines",
     "create-image",
     "current-bidi-paragraph-direction",
