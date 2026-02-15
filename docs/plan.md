@@ -17,6 +17,9 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Ran full NeoVM compatibility sweep after pointer-semantics updates:
+  - verified:
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass across default + neovm-only suites)
 - Clarified legacy `.elc` compatibility suite boundary in case-list metadata:
   - updated `test/neovm/vm-compat/cases/legacy-elc-literal.list` with guidance that
     these corpora are intentionally non-default and should be run via
