@@ -5,17 +5,32 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit `transpose-lines` command-context/error-ordering edge cases (no-op and boundary paths).
+- Audit adjacent kill-ring command-context paths (`kill-new`, rotation, point updates) for batch-oracle deltas.
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Add focused command-context corpus for `transpose-lines` boundary/no-op paths.
-- Audit adjacent kill-ring command-context paths (`kill-new`, rotation, point updates) for batch-oracle deltas.
+- Add focused command-context corpus for `kill-new` / `kill-append` (empty insert, prepend/append ordering).
+- Add focused command-context corpus for `current-kill` rotation/`last-command` interplay.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Aligned `transpose-lines` argument and boundary command-context behavior with oracle semantics:
+  - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
+    - implemented `ARG > 1` BOB carry-forward behavior for `transpose-lines` (e.g. `a b c` -> `b c a`)
+    - aligned negative-ARG boundary error signaling for unsupported backward transpose paths
+    - retained/verified newline normalization for no-trailing-newline line swaps
+    - added unit coverage for `ARG=2` at BOB and negative-ARG error behavior
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/transpose-lines-command-context-semantics.forms`
+    - `test/neovm/vm-compat/cases/transpose-lines-command-context-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test transpose_lines -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/transpose-lines-command-context-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/transpose-lines-read-only-variable-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Added dedicated `transpose-chars` read-only variable oracle corpus and list wiring:
   - added:
     - `test/neovm/vm-compat/cases/transpose-chars-read-only-variable-semantics.forms`
