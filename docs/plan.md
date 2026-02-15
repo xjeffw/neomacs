@@ -1889,6 +1889,17 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-locals` (pass, 9/9)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/defvar-local` (pass, 7/7)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/setq-local` (pass, 4/4)
+- Aligned core editing builtins with `buffer-read-only` variable semantics:
+  - `insert`, `delete-region`, `delete-char`, and `erase-buffer` now honor dynamic/buffer-local/global `buffer-read-only` in addition to internal buffer read-only state
+  - fixed dispatch-path inconsistency: `builtins.rs` and `editfns.rs` paths now enforce the same read-only gate
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/edit-read-only-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/edit-read-only-variable-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/edit-read-only-variable-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-read-only-default-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/case-region-read-only-semantics` (pass, 5/5)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
