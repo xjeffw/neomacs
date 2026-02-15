@@ -19,6 +19,20 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented a non-nil `composition-get-gstring` placeholder shape for valid batch inputs:
+  - updated:
+    - `rust/neovm-core/src/elisp/composite.rs`
+      - `composition-get-gstring` now returns a vector-shaped placeholder gstring on valid input (instead of always `nil`).
+      - added baseline range/error handling for common edge paths (`args-out-of-range`, zero-length shaping error) and expanded unit tests.
+    - `test/neovm/vm-compat/cases/composite-basic-semantics.{forms,expected.tsv}`
+      - added oracle-locked vector-shape checks:
+        - `(vectorp (composition-get-gstring ...))`
+        - `(vectorp (aref (composition-get-gstring ...) 0))`
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test composite::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/composite-basic-semantics` (pass, 34/34)
+
 - Expanded composite type/error parity for `find-composition-internal` and `composition-get-gstring`:
   - updated:
     - `rust/neovm-core/src/elisp/composite.rs`
