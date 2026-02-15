@@ -17,6 +17,13 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Reduced vm-compat sweep redundancy by deduplicating merged case sets:
+  - updated `test/neovm/vm-compat/Makefile`:
+    - added `dedupe_case_list` helper
+    - `ALL_NEOVM_CASES` now dedupes `default.list` + `neovm-only.list` entries before `check-all-neovm`
+  - verified:
+    - `make -C test/neovm/vm-compat -n check-all-neovm CASES='cases/core cases/core' NEOVM_ONLY_CASES='cases/core cases/chars'` emits unique loop entries (`cases/core`, `cases/chars`)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned `yank-pop` pointer publication-on-error semantics with oracle behavior:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs` so `yank-pop` now syncs/publishes `kill-ring-yank-pointer` before command-context gating (`end-of-file` path)
   - added corpus:
