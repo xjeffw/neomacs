@@ -19,6 +19,14 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Tightened `ccl-execute-on-string` arity contract:
+  - updated:
+    - `rust/neovm-core/src/elisp/ccl.rs`
+      - added explicit max-arity check (`5`) for `ccl-execute-on-string`.
+      - added focused unit coverage for string/nil payload handling, non-string rejection, and over-arity signaling.
+  - verified:
+    - `cargo test ccl::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+
 - Enforced `font-xlfd-name` max arity parity:
   - updated:
     - `rust/neovm-core/src/elisp/font.rs`
