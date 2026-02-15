@@ -1,0 +1,15 @@
+1	(fboundp 'run-at-time)	OK t
+2	(fboundp 'run-with-idle-timer)	OK t
+3	(fboundp 'cancel-timer)	OK t
+4	(fboundp 'timer-activate)	OK t
+5	(timerp nil)	OK nil
+6	(let ((tm (run-at-time 0 nil #'ignore))) (prog1 (timerp tm) (cancel-timer tm)))	OK t
+7	(let ((tm (run-at-time "0 sec" nil #'ignore))) (prog1 (timerp tm) (cancel-timer tm)))	OK t
+8	(let ((tm (run-at-time nil nil #'ignore))) (prog1 (timerp tm) (cancel-timer tm)))	OK t
+9	(condition-case err (run-at-time "abc" nil #'ignore) (error (car err)))	OK error
+10	(condition-case err (run-at-time t nil #'ignore) (error (car err)))	OK error
+11	(let ((tm (run-with-idle-timer nil nil #'ignore))) (prog1 (timerp tm) (cancel-timer tm)))	OK t
+12	(condition-case err (run-with-idle-timer "0 sec" nil #'ignore) (error (car err)))	OK error
+13	(condition-case err (timer-activate nil) (error (car err)))	OK error
+14	(let ((tm (run-at-time 60 nil #'ignore))) (cancel-timer tm) (condition-case err (progn (timer-activate tm) 'ok) (error (car err))))	OK ok
+15	(let ((tm (run-at-time 60 nil #'ignore))) (condition-case err (progn (cancel-timer tm) (timer-activate tm) (timer-activate tm) 'ok) (error (car err))))	OK error
