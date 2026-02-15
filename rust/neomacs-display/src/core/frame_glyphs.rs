@@ -8,6 +8,42 @@ use crate::core::face::Face;
 use crate::core::types::{Color, Rect};
 use std::collections::HashMap;
 
+/// Cursor visual style, carrying bar/hbar dimensions.
+///
+/// The cursor glyph always stores full cell dimensions (char_width, face_height).
+/// Bar/Hbar variants carry the thin dimension (width or height) for rendering.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CursorStyle {
+    /// Filled box cursor (covers entire character cell)
+    FilledBox,
+    /// Vertical bar cursor with specified width in pixels
+    Bar(f32),
+    /// Horizontal bar (underline) cursor with specified height in pixels
+    Hbar(f32),
+    /// Hollow box cursor (unfocused window border)
+    Hollow,
+}
+
+impl CursorStyle {
+    /// Convert from C cursor_type (0=box, 1=bar, 2=hbar, 3=hollow, 4+=none)
+    /// and bar_width parameter. Returns None for NO_CURSOR or unknown types.
+    pub fn from_type(cursor_type: u8, bar_width: i32) -> Option<CursorStyle> {
+        let dim = bar_width.max(1) as f32;
+        match cursor_type {
+            0 => Some(CursorStyle::FilledBox),
+            1 => Some(CursorStyle::Bar(dim)),
+            2 => Some(CursorStyle::Hbar(dim)),
+            3 => Some(CursorStyle::Hollow),
+            _ => None,
+        }
+    }
+
+    /// Returns true if this is a hollow (unfocused) cursor
+    pub fn is_hollow(&self) -> bool {
+        matches!(self, CursorStyle::Hollow)
+    }
+}
+
 /// A single glyph to render
 #[derive(Debug, Clone)]
 pub enum FrameGlyph {
@@ -109,8 +145,7 @@ pub enum FrameGlyph {
         y: f32,
         width: f32,
         height: f32,
-        /// 0=box, 1=bar, 2=hbar, 3=hollow
-        style: u8,
+        style: CursorStyle,
         color: Color,
     },
 
@@ -584,7 +619,7 @@ impl FrameGlyphBuffer {
     }
 
     /// Add cursor
-    pub fn add_cursor(&mut self, window_id: i32, x: f32, y: f32, width: f32, height: f32, style: u8, color: Color) {
+    pub fn add_cursor(&mut self, window_id: i32, x: f32, y: f32, width: f32, height: f32, style: CursorStyle, color: Color) {
         self.glyphs.push(FrameGlyph::Cursor { window_id, x, y, width, height, style, color });
     }
 
@@ -732,7 +767,7 @@ mod tests {
         // Populate some data
         buf.add_char('A', 0.0, 0.0, 8.0, 16.0, 12.0, false);
         buf.add_stretch(0.0, 0.0, 100.0, 16.0, Color::RED, 0, false);
-        buf.add_cursor(1, 10.0, 20.0, 2.0, 16.0, 1, Color::WHITE);
+        buf.add_cursor(1, 10.0, 20.0, 2.0, 16.0, CursorStyle::Bar(2.0), Color::WHITE);
         buf.add_window_info(
             1, 100, 0, 500, 1000,
             0.0, 0.0, 800.0, 600.0,
@@ -828,7 +863,7 @@ mod tests {
         buf.begin_frame(800.0, 600.0, Color::BLACK);
         buf.add_char('A', 0.0, 0.0, 8.0, 16.0, 12.0, false);
         buf.add_char('B', 8.0, 0.0, 8.0, 16.0, 12.0, false);
-        buf.add_cursor(1, 16.0, 0.0, 2.0, 16.0, 1, Color::WHITE);
+        buf.add_cursor(1, 16.0, 0.0, 2.0, 16.0, CursorStyle::Bar(2.0), Color::WHITE);
         buf.add_stretch(0.0, 16.0, 800.0, 16.0, Color::BLACK, 0, false);
         buf.add_window_info(
             1, 100, 0, 100, 200,
@@ -986,7 +1021,7 @@ mod tests {
     fn add_cursor_appends_cursor_glyph() {
         let mut buf = FrameGlyphBuffer::new();
         let cursor_color = Color::rgb(0.0, 1.0, 0.0);
-        buf.add_cursor(42, 100.0, 200.0, 2.0, 16.0, 1, cursor_color);
+        buf.add_cursor(42, 100.0, 200.0, 2.0, 16.0, CursorStyle::Bar(2.0), cursor_color);
 
         assert_eq!(buf.len(), 1);
         match &buf.glyphs[0] {
@@ -996,7 +1031,7 @@ mod tests {
                 assert_eq!(*y, 200.0);
                 assert_eq!(*width, 2.0);
                 assert_eq!(*height, 16.0);
-                assert_eq!(*style, 1); // bar
+                assert_eq!(*style, CursorStyle::Bar(2.0));
                 assert_color_eq(color, &cursor_color);
             }
             other => panic!("Expected Cursor glyph, got {:?}", other),
@@ -1007,13 +1042,19 @@ mod tests {
     fn add_cursor_all_styles() {
         let mut buf = FrameGlyphBuffer::new();
         let c = Color::WHITE;
-        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, 0, c); // box
-        buf.add_cursor(1, 0.0, 0.0, 2.0, 16.0, 1, c); // bar
-        buf.add_cursor(1, 0.0, 0.0, 8.0, 2.0, 2, c);  // hbar
-        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, 3, c);  // hollow
+        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, CursorStyle::FilledBox, c);
+        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, CursorStyle::Bar(2.0), c);
+        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, CursorStyle::Hbar(2.0), c);
+        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, CursorStyle::Hollow, c);
 
         assert_eq!(buf.len(), 4);
-        for (i, expected_style) in [0u8, 1, 2, 3].iter().enumerate() {
+        let expected = [
+            CursorStyle::FilledBox,
+            CursorStyle::Bar(2.0),
+            CursorStyle::Hbar(2.0),
+            CursorStyle::Hollow,
+        ];
+        for (i, expected_style) in expected.iter().enumerate() {
             match &buf.glyphs[i] {
                 FrameGlyph::Cursor { style, .. } => {
                     assert_eq!(style, expected_style, "Cursor {} has wrong style", i);
@@ -1026,7 +1067,7 @@ mod tests {
     #[test]
     fn cursor_glyph_is_not_overlay() {
         let mut buf = FrameGlyphBuffer::new();
-        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, 0, Color::WHITE);
+        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, CursorStyle::FilledBox, Color::WHITE);
         assert!(!buf.glyphs[0].is_overlay());
     }
 
@@ -1548,7 +1589,7 @@ mod tests {
     fn is_overlay_returns_false_for_non_char_stretch_types() {
         let mut buf = FrameGlyphBuffer::new();
         buf.add_border(0.0, 0.0, 1.0, 100.0, Color::WHITE);
-        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, 0, Color::WHITE);
+        buf.add_cursor(1, 0.0, 0.0, 8.0, 16.0, CursorStyle::FilledBox, Color::WHITE);
         buf.add_image(1, 0.0, 0.0, 100.0, 100.0);
 
         for glyph in &buf.glyphs {
@@ -1586,7 +1627,7 @@ mod tests {
         }
 
         // Window 1: cursor
-        buf.add_cursor(1, 15.0 * 8.0, 0.0, 2.0, 16.0, 1, Color::WHITE);
+        buf.add_cursor(1, 15.0 * 8.0, 0.0, 2.0, 16.0, CursorStyle::Bar(2.0), Color::WHITE);
         buf.set_cursor_inverse(15.0 * 8.0, 0.0, 8.0, 16.0, Color::WHITE, Color::BLACK);
 
         // Vertical border

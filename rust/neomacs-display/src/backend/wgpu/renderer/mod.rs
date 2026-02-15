@@ -7,7 +7,7 @@ use wgpu::util::DeviceExt;
 
 use crate::core::face::{BoxType, Face, FaceAttributes};
 use crate::core::frame_glyphs::{FrameGlyph, FrameGlyphBuffer, StipplePattern};
-use crate::core::scene::{CursorStyle, Scene};
+use crate::core::scene::{SceneCursorStyle, Scene};
 use crate::core::types::{AnimatedCursor, Color, Rect};
 
 use super::glyph_atlas::{GlyphKey, WgpuGlyphAtlas};
@@ -1027,7 +1027,7 @@ impl WgpuRenderer {
                     let cursor_y = window.bounds.y + cursor.y;
 
                     match cursor.style {
-                        CursorStyle::Box => {
+                        SceneCursorStyle::Box => {
                             // Filled box cursor
                             self.add_rect(
                                 &mut vertices,
@@ -1038,7 +1038,7 @@ impl WgpuRenderer {
                                 &cursor.color,
                             );
                         }
-                        CursorStyle::Bar => {
+                        SceneCursorStyle::Bar => {
                             // Thin vertical bar
                             self.add_rect(
                                 &mut vertices,
@@ -1049,7 +1049,7 @@ impl WgpuRenderer {
                                 &cursor.color,
                             );
                         }
-                        CursorStyle::Underline => {
+                        SceneCursorStyle::Underline => {
                             // Horizontal line at bottom
                             self.add_rect(
                                 &mut vertices,
@@ -1060,7 +1060,7 @@ impl WgpuRenderer {
                                 &cursor.color,
                             );
                         }
-                        CursorStyle::Hollow => {
+                        SceneCursorStyle::Hollow => {
                             // Hollow box (4 lines forming a rectangle)
                             let thickness = 1.0;
                             // Top

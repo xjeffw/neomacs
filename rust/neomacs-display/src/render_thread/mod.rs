@@ -1244,7 +1244,7 @@ impl RenderApp {
             if let Some(ref frame) = self.current_frame {
                 active_cursor = frame.glyphs.iter().find_map(|g| match g {
                     FrameGlyph::Cursor { window_id, x, y, width, height, style, color }
-                        if *style != 3 => Some(CursorTarget {
+                        if !style.is_hollow() => Some(CursorTarget {
                             window_id: *window_id,
                             x: *x, y: *y,
                             width: *width, height: *height,
@@ -1261,7 +1261,7 @@ impl RenderApp {
                 for (_, entry) in &self.child_frames.frames {
                     if let Some(ct) = entry.frame.glyphs.iter().find_map(|g| match g {
                         FrameGlyph::Cursor { window_id, x, y, width, height, style, color }
-                            if *style != 3 => Some(CursorTarget {
+                            if !style.is_hollow() => Some(CursorTarget {
                                 window_id: *window_id,
                                 x: *x, y: *y,
                                 width: *width, height: *height,

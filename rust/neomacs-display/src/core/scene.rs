@@ -42,7 +42,7 @@ pub enum NodeKind {
 
     /// Cursor
     Cursor {
-        style: CursorStyle,
+        style: SceneCursorStyle,
         color: Color,
         blink_on: bool,
     },
@@ -50,14 +50,14 @@ pub enum NodeKind {
 
 /// Cursor style
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CursorStyle {
+pub enum SceneCursorStyle {
     Box,
     Bar,
     Underline,
     Hollow,
 }
 
-impl Default for CursorStyle {
+impl Default for SceneCursorStyle {
     fn default() -> Self {
         Self::Box
     }
@@ -150,7 +150,7 @@ impl Node {
     }
 
     /// Create a cursor node
-    pub fn cursor(style: CursorStyle, color: Color, bounds: Rect) -> Self {
+    pub fn cursor(style: SceneCursorStyle, color: Color, bounds: Rect) -> Self {
         Self {
             kind: NodeKind::Cursor {
                 style,
@@ -221,7 +221,7 @@ pub struct CursorState {
     pub y: f32,
     pub width: f32,
     pub height: f32,
-    pub style: CursorStyle,
+    pub style: SceneCursorStyle,
     pub color: Color,
     pub visible: bool,
 }
@@ -638,10 +638,10 @@ mod tests {
     #[test]
     fn test_node_cursor_creation() {
         let bounds = Rect::new(100.0, 50.0, 8.0, 16.0);
-        let node = Node::cursor(CursorStyle::Bar, Color::WHITE, bounds);
+        let node = Node::cursor(SceneCursorStyle::Bar, Color::WHITE, bounds);
         match &node.kind {
             NodeKind::Cursor { style, color, blink_on } => {
-                assert_eq!(*style, CursorStyle::Bar);
+                assert_eq!(*style, SceneCursorStyle::Bar);
                 assert_eq!(*color, Color::WHITE);
                 assert!(*blink_on);
             }
@@ -898,7 +898,7 @@ mod tests {
             y: 50.0,
             width: 8.0,
             height: 16.0,
-            style: CursorStyle::Box,
+            style: SceneCursorStyle::Box,
             color: Color::GREEN,
             visible: true,
         });
@@ -915,7 +915,7 @@ mod tests {
                         assert_eq!(win_children.len(), 2);
                         match &win_children[1].kind {
                             NodeKind::Cursor { style, color, blink_on } => {
-                                assert_eq!(*style, CursorStyle::Box);
+                                assert_eq!(*style, SceneCursorStyle::Box);
                                 assert_eq!(*color, Color::GREEN);
                                 assert!(*blink_on);
                             }
@@ -940,7 +940,7 @@ mod tests {
             y: 50.0,
             width: 8.0,
             height: 16.0,
-            style: CursorStyle::Bar,
+            style: SceneCursorStyle::Bar,
             color: Color::WHITE,
             visible: false,
         });
@@ -965,12 +965,12 @@ mod tests {
 
     #[test]
     fn test_cursor_style_default() {
-        assert_eq!(CursorStyle::default(), CursorStyle::Box);
+        assert_eq!(SceneCursorStyle::default(), SceneCursorStyle::Box);
     }
 
     #[test]
     fn test_all_cursor_styles() {
-        let styles = [CursorStyle::Box, CursorStyle::Bar, CursorStyle::Underline, CursorStyle::Hollow];
+        let styles = [SceneCursorStyle::Box, SceneCursorStyle::Bar, SceneCursorStyle::Underline, SceneCursorStyle::Hollow];
         let bounds = Rect::new(0.0, 0.0, 8.0, 16.0);
         for style in &styles {
             let node = Node::cursor(*style, Color::WHITE, bounds);

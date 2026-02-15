@@ -1099,7 +1099,7 @@ pub(super) fn emit_focus_mode(ctx: &EffectCtx) -> Vec<RectVertex> {
                 y, height, style, ..
             } = glyph
             {
-                if *style != 3 {
+                if !style.is_hollow() {
                     cursor_y = Some(*y);
                     cursor_h = *height;
                     break;

@@ -13,7 +13,7 @@ use std::io::{self, Write};
 
 use crate::backend::DisplayBackend;
 use crate::core::error::{DisplayError, DisplayResult};
-use crate::core::frame_glyphs::{FrameGlyph, FrameGlyphBuffer};
+use crate::core::frame_glyphs::{CursorStyle, FrameGlyph, FrameGlyphBuffer};
 use crate::core::scene::Scene;
 use crate::core::types::Color;
 
@@ -598,7 +598,7 @@ fn rasterize_frame_glyphs(
 
                 match style {
                     // Box cursor: inverse the cell
-                    0 => {
+                    CursorStyle::FilledBox => {
                         if let Some(cell) = grid.get_mut(col, row) {
                             // Swap fg/bg for inverse video effect
                             let old_fg = cell.attrs.fg;
@@ -607,7 +607,7 @@ fn rasterize_frame_glyphs(
                         }
                     }
                     // Bar cursor: we can approximate with inverse on the cell
-                    1 => {
+                    CursorStyle::Bar(_) => {
                         if let Some(cell) = grid.get_mut(col, row) {
                             // Bar cursor: use a thin bar indicator; in a real
                             // terminal we can't draw a sub-cell bar, so use
@@ -617,19 +617,18 @@ fn rasterize_frame_glyphs(
                         }
                     }
                     // Underline cursor
-                    2 => {
+                    CursorStyle::Hbar(_) => {
                         if let Some(cell) = grid.get_mut(col, row) {
                             cell.attrs.underline = 1;
                         }
                     }
                     // Hollow cursor: just draw a box outline (not really
                     // possible in a cell grid; use inverse as approximation)
-                    3 => {
+                    CursorStyle::Hollow => {
                         if let Some(cell) = grid.get_mut(col, row) {
                             cell.attrs.inverse = true;
                         }
                     }
-                    _ => {}
                 }
             }
 
@@ -924,7 +923,7 @@ impl DisplayBackend for TtyBackend {
                     let row = (*y / ch) as u16;
                     self.cursor_position = Some((col, row));
                     // Show cursor for bar and underline styles (box uses inverse)
-                    self.cursor_visible = *style == 1 || *style == 2;
+                    self.cursor_visible = matches!(style, CursorStyle::Bar(_) | CursorStyle::Hbar(_));
                     break;
                 }
             }
@@ -1664,7 +1663,7 @@ mod tests {
         frame.add_char('A', 16.0, 0.0, 8.0, 16.0, 12.0, false);
 
         // Then add a box cursor at same position
-        frame.add_cursor(1, 16.0, 0.0, 8.0, 16.0, 0, Color::rgb(1.0, 1.0, 1.0));
+        frame.add_cursor(1, 16.0, 0.0, 8.0, 16.0, CursorStyle::FilledBox, Color::rgb(1.0, 1.0, 1.0));
 
         let mut grid = TtyGrid::new(10, 5);
         rasterize_frame_glyphs(&frame, &mut grid, (0, 0, 0));
@@ -1680,7 +1679,7 @@ mod tests {
         frame.char_width = 8.0;
         frame.char_height = 16.0;
 
-        frame.add_cursor(1, 0.0, 0.0, 8.0, 16.0, 2, Color::WHITE);
+        frame.add_cursor(1, 0.0, 0.0, 8.0, 16.0, CursorStyle::Hbar(2.0), Color::WHITE);
 
         let mut grid = TtyGrid::new(10, 5);
         rasterize_frame_glyphs(&frame, &mut grid, (0, 0, 0));

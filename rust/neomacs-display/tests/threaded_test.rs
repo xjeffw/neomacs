@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use neomacs_display::thread_comm::{InputEvent, RenderCommand, ThreadComms};
-use neomacs_display::core::frame_glyphs::FrameGlyphBuffer;
+use neomacs_display::core::frame_glyphs::{CursorStyle, FrameGlyphBuffer};
 use neomacs_display::core::types::Color;
 
 #[test]
@@ -389,7 +389,7 @@ fn test_frame_glyph_buffer_operations() {
     assert_eq!(buffer.len(), 5); // 1 background + 4 chars
 
     // Add cursor
-    buffer.add_cursor(1, 40.0, 0.0, 2.0, 20.0, 2, Color::WHITE);
+    buffer.add_cursor(1, 40.0, 0.0, 2.0, 20.0, CursorStyle::Hbar(2.0), Color::WHITE);
     assert_eq!(buffer.len(), 6);
 
     // Verify font family lookup
@@ -452,13 +452,13 @@ fn test_frame_glyph_buffer_cursor_append() {
     buffer.begin_frame(800.0, 600.0, Color::BLACK);
 
     // Full-frame rebuild: add_cursor always appends
-    buffer.add_cursor(1, 10.0, 10.0, 2.0, 20.0, 0, Color::WHITE);
-    buffer.add_cursor(2, 100.0, 100.0, 2.0, 20.0, 0, Color::WHITE);
+    buffer.add_cursor(1, 10.0, 10.0, 2.0, 20.0, CursorStyle::FilledBox, Color::WHITE);
+    buffer.add_cursor(2, 100.0, 100.0, 2.0, 20.0, CursorStyle::FilledBox, Color::WHITE);
 
     assert_eq!(buffer.len(), 2);
 
     // Adding another cursor appends (frame is rebuilt each time)
-    buffer.add_cursor(3, 200.0, 200.0, 2.0, 20.0, 0, Color::WHITE);
+    buffer.add_cursor(3, 200.0, 200.0, 2.0, 20.0, CursorStyle::FilledBox, Color::WHITE);
     assert_eq!(buffer.len(), 3);
 }
 

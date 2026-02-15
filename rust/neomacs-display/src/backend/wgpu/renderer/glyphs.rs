@@ -10,7 +10,7 @@ use wgpu::util::DeviceExt;
 use std::collections::HashMap;
 use super::super::vertex::{GlyphVertex, RectVertex, RoundedRectVertex, Uniforms};
 use crate::core::types::{Color, Rect, AnimatedCursor};
-use crate::core::frame_glyphs::{FrameGlyph, FrameGlyphBuffer, StipplePattern};
+use crate::core::frame_glyphs::{CursorStyle, FrameGlyph, FrameGlyphBuffer, StipplePattern};
 use crate::core::face::{BoxType, Face, FaceAttributes};
 use super::super::glyph_atlas::{ComposedGlyphKey, GlyphKey, WgpuGlyphAtlas};
 
@@ -430,10 +430,10 @@ impl WgpuRenderer {
             let (lr, lg, lb, la) = self.effects.line_highlight.color;
             let hl_color = Color::new(lr, lg, lb, la);
 
-            // Find the active cursor (style != 3, which is hollow/inactive)
+            // Find the active cursor (non-hollow, i.e. active window)
             for glyph in &frame_glyphs.glyphs {
                 if let FrameGlyph::Cursor { y, height, style, .. } = glyph {
-                    if *style != 3 {
+                    if !style.is_hollow() {
                         // Find the window this cursor belongs to
                         for info in &frame_glyphs.window_infos {
                             if info.selected {
@@ -697,7 +697,7 @@ impl WgpuRenderer {
                 } => {
                     // Compute effective cursor color (possibly overridden by color cycling)
                     let cycle_color;
-                    let effective_color = if self.effects.cursor_color_cycle.enabled && *style != 3 {
+                    let effective_color = if self.effects.cursor_color_cycle.enabled && !style.is_hollow() {
                         let elapsed = self.cursor_color_cycle_start.elapsed().as_secs_f32();
                         let hue = (elapsed * self.effects.cursor_color_cycle.speed) % 1.0;
                         cycle_color = Self::hsl_to_color(hue, self.effects.cursor_color_cycle.saturation, self.effects.cursor_color_cycle.lightness);
@@ -709,7 +709,7 @@ impl WgpuRenderer {
                     // Cursor error pulse: override color on bell
                     let error_pulse_color;
                     let effective_color = if let Some(pulse) = self.cursor_error_pulse_override() {
-                        if *style != 3 {
+                        if !style.is_hollow() {
                             error_pulse_color = pulse;
                             self.needs_continuous_redraw = true;
                             &error_pulse_color
@@ -721,11 +721,11 @@ impl WgpuRenderer {
                     };
                     // Cursor wake animation: scale factor for pop effect
                     let wake = self.cursor_wake_factor();
-                    let wake_active = wake != 1.0 && *style != 3;
+                    let wake_active = wake != 1.0 && !style.is_hollow();
                     if wake_active {
                         self.needs_continuous_redraw = true;
                     }
-                    if *style == 0 {
+                    if matches!(style, CursorStyle::FilledBox) {
                         // Filled box cursor: split into bg rect + behind-text trail.
                         // The static cursor bg rect uses cursor_inverse info if available,
                         // otherwise falls back to the cursor color at the static position.
@@ -777,7 +777,7 @@ impl WgpuRenderer {
                     } else {
                         // Non-filled-box cursors: bar, hbar, hollow — drawn ON TOP of text
                         let use_corners = if let Some(ref anim) = animated_cursor {
-                            *window_id == anim.window_id && *style != 3 && anim.corners.is_some()
+                            *window_id == anim.window_id && !style.is_hollow() && anim.corners.is_some()
                         } else {
                             false
                         };
@@ -792,7 +792,7 @@ impl WgpuRenderer {
                             }
                         } else {
                             let (cx, cy, cw, ch) = if let Some(ref anim) = animated_cursor {
-                                if *window_id == anim.window_id && *style != 3 {
+                                if *window_id == anim.window_id && !style.is_hollow() {
                                     (anim.x, anim.y, anim.width, anim.height)
                                 } else {
                                     (*x, *y, *width, *height)
@@ -801,28 +801,28 @@ impl WgpuRenderer {
                                 (*x, *y, *width, *height)
                             };
 
-                            let should_draw = *style == 3 || cursor_visible;
+                            let should_draw = style.is_hollow() || cursor_visible;
                             if should_draw {
                                 match style {
-                                    1 => {
+                                    CursorStyle::Bar(bar_w) => {
                                         // Bar (thin vertical line)
                                         if wake_active {
-                                            let (sx, sy, sw, sh) = Self::scale_rect(cx, cy, 2.0, ch, wake);
+                                            let (sx, sy, sw, sh) = Self::scale_rect(cx, cy, *bar_w, ch, wake);
                                             self.add_rect(&mut cursor_vertices, sx, sy, sw, sh, effective_color);
                                         } else {
-                                            self.add_rect(&mut cursor_vertices, cx, cy, 2.0, ch, effective_color);
+                                            self.add_rect(&mut cursor_vertices, cx, cy, *bar_w, ch, effective_color);
                                         }
                                     }
-                                    2 => {
+                                    CursorStyle::Hbar(hbar_h) => {
                                         // Underline (hbar at bottom)
                                         if wake_active {
-                                            let (sx, sy, sw, sh) = Self::scale_rect(cx, cy + ch - 2.0, cw, 2.0, wake);
+                                            let (sx, sy, sw, sh) = Self::scale_rect(cx, cy + ch - *hbar_h, cw, *hbar_h, wake);
                                             self.add_rect(&mut cursor_vertices, sx, sy, sw, sh, effective_color);
                                         } else {
-                                            self.add_rect(&mut cursor_vertices, cx, cy + ch - 2.0, cw, 2.0, effective_color);
+                                            self.add_rect(&mut cursor_vertices, cx, cy + ch - *hbar_h, cw, *hbar_h, effective_color);
                                         }
                                     }
-                                    3 => {
+                                    CursorStyle::Hollow => {
                                         // Hollow box (4 border edges)
                                         self.add_rect(&mut cursor_vertices, cx, cy, cw, 1.0, effective_color);
                                         self.add_rect(&mut cursor_vertices, cx, cy + ch - 1.0, cw, 1.0, effective_color);

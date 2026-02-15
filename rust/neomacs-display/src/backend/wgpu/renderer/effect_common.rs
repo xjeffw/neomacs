@@ -5,7 +5,7 @@
 
 use super::super::vertex::RectVertex;
 use crate::core::types::{Color, AnimatedCursor};
-use crate::core::frame_glyphs::{FrameGlyph, FrameGlyphBuffer};
+use crate::core::frame_glyphs::{CursorStyle, FrameGlyph, FrameGlyphBuffer};
 use crate::effect_config::EffectsConfig;
 
 /// Shared context for effect vertex computation.
@@ -65,7 +65,7 @@ pub(super) fn find_cursor_pos(
     }
     for glyph in &frame_glyphs.glyphs {
         if let FrameGlyph::Cursor { x, y, width, height, style, .. } = glyph {
-            if *style != 3 {
+            if !style.is_hollow() {
                 return Some((*x, *y, *width, *height));
             }
         }
@@ -179,14 +179,14 @@ mod tests {
         let animated = None;
         let mut frame_glyphs = FrameGlyphBuffer::new();
 
-        // Add a non-hollow cursor (style 0 = filled box)
+        // Add a non-hollow cursor (style FilledBox)
         frame_glyphs.glyphs.push(FrameGlyph::Cursor {
             window_id: 1,
             x: 50.0,
             y: 60.0,
             width: 8.0,
             height: 16.0,
-            style: 0,
+            style: CursorStyle::FilledBox,
             color: Color::new(1.0, 1.0, 1.0, 1.0),
         });
 
@@ -200,14 +200,14 @@ mod tests {
         let animated = None;
         let mut frame_glyphs = FrameGlyphBuffer::new();
 
-        // Add hollow cursor (style 3 = hollow, inactive window)
+        // Add hollow cursor (Hollow = inactive window)
         frame_glyphs.glyphs.push(FrameGlyph::Cursor {
             window_id: 1,
             x: 10.0,
             y: 20.0,
             width: 8.0,
             height: 16.0,
-            style: 3,
+            style: CursorStyle::Hollow,
             color: Color::new(1.0, 1.0, 1.0, 1.0),
         });
 
@@ -218,7 +218,7 @@ mod tests {
             y: 40.0,
             width: 2.0,
             height: 16.0,
-            style: 1, // bar cursor
+            style: CursorStyle::Bar(2.0), // bar cursor
             color: Color::new(1.0, 1.0, 1.0, 1.0),
         });
 
@@ -240,7 +240,7 @@ mod tests {
             y: 200.0,
             width: 8.0,
             height: 16.0,
-            style: 0,
+            style: CursorStyle::FilledBox,
             color: Color::new(1.0, 1.0, 1.0, 1.0),
         });
 
@@ -251,7 +251,7 @@ mod tests {
             y: 400.0,
             width: 8.0,
             height: 16.0,
-            style: 2, // hbar cursor
+            style: CursorStyle::Hbar(2.0), // hbar cursor
             color: Color::new(1.0, 1.0, 1.0, 1.0),
         });
 
@@ -273,7 +273,7 @@ mod tests {
             y: 20.0,
             width: 8.0,
             height: 16.0,
-            style: 3,
+            style: CursorStyle::Hollow,
             color: Color::new(1.0, 1.0, 1.0, 1.0),
         });
 

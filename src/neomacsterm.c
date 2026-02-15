@@ -1924,16 +1924,40 @@ neomacs_layout_get_window_params (void *frame_ptr, int window_index,
   params->tab_line_height = (float) WINDOW_TAB_LINE_HEIGHT (w);
 
   /* Cursor type — read from phys_cursor_type (set by C display engine).
-     get_window_cursor_type() is static in xdisp.c so we use the cached value. */
+     get_window_cursor_type() is static in xdisp.c so we use the cached value.
+
+     cursor_bar_width carries the configured dimension:
+       BAR_CURSOR  → bar width  from (bar . WIDTH)  or default 2
+       HBAR_CURSOR → bar height from (hbar . HEIGHT) or default 2
+       others      → 0 (unused)
+
+     We extract this from the buffer's cursor-type variable since
+     w->phys_cursor_width holds the glyph pixel width, not the
+     configured cursor dimension.  */
   switch (w->phys_cursor_type)
     {
     case FILLED_BOX_CURSOR: params->cursor_type = 0; break;
     case BAR_CURSOR: params->cursor_type = 1; break;
     case HBAR_CURSOR: params->cursor_type = 2; break;
     case HOLLOW_BOX_CURSOR: params->cursor_type = 3; break;
+    case NO_CURSOR: params->cursor_type = 4; break;
     default: params->cursor_type = 0; break;
     }
-  params->cursor_bar_width = w->phys_cursor_width > 0 ? w->phys_cursor_width : 2;
+
+  /* Extract bar/hbar dimension from cursor-type spec.  */
+  {
+    int cursor_dim = 2; /* default for both bar and hbar */
+    Lisp_Object ct = Qnil;
+    if (BUFFERP (w->contents))
+      ct = BVAR (XBUFFER (w->contents), cursor_type);
+    /* If buffer cursor-type is t or nil, use frame default.  */
+    if (EQ (ct, Qt) || NILP (ct))
+      cursor_dim = FRAME_CURSOR_WIDTH (f);
+    else if (CONSP (ct) && RANGED_FIXNUMP (1, XCDR (ct), INT_MAX))
+      cursor_dim = XFIXNUM (XCDR (ct));
+    /* else plain symbol (bar, hbar, box, hollow) → keep default 2 */
+    params->cursor_bar_width = cursor_dim > 0 ? cursor_dim : 2;
+  }
 
   /* Fringe widths */
   params->left_fringe_width = (float) WINDOW_LEFT_FRINGE_WIDTH (w);

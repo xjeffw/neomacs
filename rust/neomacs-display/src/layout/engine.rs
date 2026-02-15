@@ -9,7 +9,7 @@ use std::ffi::c_int;
 use std::ffi::c_void;
 
 use crate::core::face::{Face, FaceAttributes, UnderlineStyle, BoxType};
-use crate::core::frame_glyphs::{FrameGlyphBuffer, StipplePattern};
+use crate::core::frame_glyphs::{CursorStyle, FrameGlyphBuffer, StipplePattern};
 use crate::core::types::{Color, Rect};
 use super::types::*;
 use super::emacs_ffi::*;
@@ -1894,40 +1894,34 @@ impl LayoutEngine {
                 } else {
                     char_w
                 };
-                let (cursor_w, cursor_h) = match params.cursor_type {
-                    1 => (params.cursor_bar_width.max(1) as f32, face_h), // bar
-                    2 => (cursor_face_w, 2.0),                             // hbar
-                    _ => (cursor_face_w, face_h),                          // box/hollow
-                };
 
                 let cursor_style = if params.selected {
-                    params.cursor_type
+                    CursorStyle::from_type(params.cursor_type, params.cursor_bar_width)
                 } else if params.cursor_in_non_selected {
-                    3 // hollow for inactive windows
+                    Some(CursorStyle::Hollow)
                 } else {
-                    255 // skip: no cursor in non-selected windows
+                    None
                 };
 
-                if cursor_style < 255 {
+                if let Some(style) = cursor_style {
                     frame_glyphs.add_cursor(
                         params.window_id as i32,
                         cursor_px,
                         cursor_y,
-                        cursor_w,
-                        cursor_h,
-                        cursor_style,
+                        cursor_face_w,
+                        face_h,
+                        style,
                         face_fg,
                     );
 
-                    // Set inverse for filled box cursor
-                    if cursor_style == 0 {
+                    if matches!(style, CursorStyle::FilledBox) {
                         frame_glyphs.set_cursor_inverse(
                             cursor_px,
                             cursor_y,
-                            cursor_w,
-                            cursor_h,
-                            face_fg,     // cursor_bg = text fg
-                            face_bg,     // cursor_fg = text bg (inverse)
+                            cursor_face_w,
+                            face_h,
+                            face_fg,
+                            face_bg,
                         );
                     }
                 }
@@ -2751,37 +2745,32 @@ impl LayoutEngine {
                 } else {
                     char_w
                 };
-                let (cursor_w, cursor_h) = match params.cursor_type {
-                    1 => (params.cursor_bar_width.max(1) as f32, face_h), // bar
-                    2 => (cursor_face_w, 2.0),                             // hbar
-                    _ => (cursor_face_w, face_h),                          // box/hollow
-                };
 
                 let cursor_style = if params.selected {
-                    params.cursor_type
+                    CursorStyle::from_type(params.cursor_type, params.cursor_bar_width)
                 } else if params.cursor_in_non_selected {
-                    3 // hollow for inactive windows
+                    Some(CursorStyle::Hollow)
                 } else {
-                    255 // skip: no cursor in non-selected windows
+                    None
                 };
 
-                if cursor_style < 255 {
+                if let Some(style) = cursor_style {
                     frame_glyphs.add_cursor(
                         params.window_id as i32,
                         cursor_px,
                         cursor_y,
-                        cursor_w,
-                        cursor_h,
-                        cursor_style,
+                        cursor_face_w,
+                        face_h,
+                        style,
                         face_fg,
                     );
 
-                    if cursor_style == 0 {
+                    if matches!(style, CursorStyle::FilledBox) {
                         frame_glyphs.set_cursor_inverse(
                             cursor_px,
                             cursor_y,
-                            cursor_w,
-                            cursor_h,
+                            cursor_face_w,
+                            face_h,
                             face_fg,
                             face_bg,
                         );
@@ -2921,43 +2910,37 @@ impl LayoutEngine {
                 cursor_row = clamped_row;
                 let cursor_px = content_x + x_offset;
 
-                let cursor_style = if params.selected {
-                    params.cursor_type
-                } else if params.cursor_in_non_selected {
-                    3
+                let cursor_face_w = if self.face_data.font_char_width > 0.0 {
+                    self.face_data.font_char_width
                 } else {
-                    255 // skip
+                    char_w
                 };
 
-                if cursor_style < 255 {
-                    // Use face-specific dimensions so cursor matches variable-height faces
-                    let cursor_face_w = if self.face_data.font_char_width > 0.0 {
-                        self.face_data.font_char_width
-                    } else {
-                        char_w
-                    };
-                    let (cursor_w, cursor_h) = match params.cursor_type {
-                        1 => (params.cursor_bar_width.max(1) as f32, face_h), // bar
-                        2 => (cursor_face_w, 2.0),                             // hbar
-                        _ => (cursor_face_w, face_h),                          // box/hollow
-                    };
+                let cursor_style = if params.selected {
+                    CursorStyle::from_type(params.cursor_type, params.cursor_bar_width)
+                } else if params.cursor_in_non_selected {
+                    Some(CursorStyle::Hollow)
+                } else {
+                    None
+                };
 
+                if let Some(style) = cursor_style {
                     frame_glyphs.add_cursor(
                         params.window_id as i32,
                         cursor_px,
                         cursor_y,
-                        cursor_w,
-                        cursor_h,
-                        cursor_style,
+                        cursor_face_w,
+                        face_h,
+                        style,
                         face_fg,
                     );
 
-                    if cursor_style == 0 {
+                    if matches!(style, CursorStyle::FilledBox) {
                         frame_glyphs.set_cursor_inverse(
                             cursor_px,
                             cursor_y,
-                            cursor_w,
-                            cursor_h,
+                            cursor_face_w,
+                            face_h,
                             face_fg,
                             face_bg,
                         );
@@ -3259,52 +3242,41 @@ impl LayoutEngine {
                 cursor_x = x_offset;
                 let cursor_px = content_x + x_offset;
 
-                let cursor_style = if params.selected {
-                    params.cursor_type
-                } else if params.cursor_in_non_selected {
-                    3
+                let cursor_face_w = if self.face_data.font_char_width > 0.0 {
+                    self.face_data.font_char_width
                 } else {
-                    255 // skip
+                    char_w
                 };
 
-                if cursor_style < 255 {
-                    // Use face-specific dimensions so cursor matches variable-height faces
-                    let cursor_face_w = if self.face_data.font_char_width > 0.0 {
-                        self.face_data.font_char_width
-                    } else {
-                        char_w
-                    };
-                    let (cursor_w, cursor_h) = match params.cursor_type {
-                        1 => (params.cursor_bar_width.max(1) as f32, face_h), // bar
-                        2 => (cursor_face_w, 2.0),                             // hbar
-                        _ => (cursor_face_w, face_h),                          // box/hollow
-                    };
+                let cursor_style = if params.selected {
+                    CursorStyle::from_type(params.cursor_type, params.cursor_bar_width)
+                } else if params.cursor_in_non_selected {
+                    Some(CursorStyle::Hollow)
+                } else {
+                    None
+                };
+
+                if let Some(style) = cursor_style {
                     frame_glyphs.add_cursor(
                         params.window_id as i32,
                         cursor_px,
                         cursor_y,
-                        cursor_w,
-                        cursor_h,
-                        cursor_style,
-                        face_fg,
-                    );
-                }
-
-                if cursor_style == 0 {
-                    let cursor_face_w = if self.face_data.font_char_width > 0.0 {
-                        self.face_data.font_char_width
-                    } else {
-                        char_w
-                    };
-                    let cursor_h = face_h;
-                    frame_glyphs.set_cursor_inverse(
-                        cursor_px,
-                        cursor_y,
                         cursor_face_w,
-                        cursor_h,
+                        face_h,
+                        style,
                         face_fg,
-                        face_bg,
                     );
+
+                    if matches!(style, CursorStyle::FilledBox) {
+                        frame_glyphs.set_cursor_inverse(
+                            cursor_px,
+                            cursor_y,
+                            cursor_face_w,
+                            face_h,
+                            face_fg,
+                            face_bg,
+                        );
+                    }
                 }
             }
             // If cursor_y >= text_y_limit, skip — forward scroll will fix next frame

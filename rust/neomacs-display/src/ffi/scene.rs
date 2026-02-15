@@ -229,13 +229,23 @@ pub unsafe extern "C" fn neomacs_display_set_cursor(
     // Blink is handled by the render thread, so always add cursor when visible.
     if display.use_hybrid {
         if visible != 0 {
-            // style: 0=box, 1=bar, 2=underline, 3=hollow
-            display.frame_glyphs.add_cursor(
-                window_id,
-                x, y, width, height,
-                style as u8,
-                Color::from_pixel(color),
-            );
+            // Convert C-side style integer to CursorStyle enum.
+            // For bar, use width as the bar width; for hbar, use height.
+            let cursor_style = match style {
+                0 => Some(crate::core::frame_glyphs::CursorStyle::FilledBox),
+                1 => Some(crate::core::frame_glyphs::CursorStyle::Bar(width)),
+                2 => Some(crate::core::frame_glyphs::CursorStyle::Hbar(height)),
+                3 => Some(crate::core::frame_glyphs::CursorStyle::Hollow),
+                _ => None,
+            };
+            if let Some(cs) = cursor_style {
+                display.frame_glyphs.add_cursor(
+                    window_id,
+                    x, y, width, height,
+                    cs,
+                    Color::from_pixel(color),
+                );
+            }
         }
         return;
     }
@@ -251,11 +261,11 @@ pub unsafe extern "C" fn neomacs_display_set_cursor(
             width,
             height,
             style: match style {
-                0 => CursorStyle::Box,
-                1 => CursorStyle::Bar,
-                2 => CursorStyle::Underline,
-                3 => CursorStyle::Hollow,
-                _ => CursorStyle::Box,
+                0 => SceneCursorStyle::Box,
+                1 => SceneCursorStyle::Bar,
+                2 => SceneCursorStyle::Underline,
+                3 => SceneCursorStyle::Hollow,
+                _ => SceneCursorStyle::Box,
             },
             color: Color::from_pixel(color),
             visible: cursor_visible,

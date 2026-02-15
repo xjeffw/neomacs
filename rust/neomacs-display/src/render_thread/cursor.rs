@@ -1,5 +1,6 @@
 //! Cursor animation, blinking, and size transition state.
 
+use crate::core::frame_glyphs::CursorStyle;
 use crate::core::types::{Color, CursorAnimStyle, ease_out_quad, ease_out_cubic, ease_out_expo, ease_in_out_cubic, ease_linear};
 
 /// Target position/style for cursor animation
@@ -10,7 +11,7 @@ pub(super) struct CursorTarget {
     pub(super) y: f32,
     pub(super) width: f32,
     pub(super) height: f32,
-    pub(super) style: u8,
+    pub(super) style: CursorStyle,
     pub(super) color: Color,
     /// Which frame owns this cursor (0 = root frame, non-zero = child frame_id)
     pub(super) frame_id: u64,
@@ -131,7 +132,7 @@ impl CursorState {
     /// Returns [TL, TR, BR, BL] as (x, y) tuples.
     pub(super) fn target_corners(target: &CursorTarget) -> [(f32, f32); 4] {
         match target.style {
-            0 => {
+            CursorStyle::FilledBox => {
                 // Filled box: full rectangle
                 let x0 = target.x;
                 let y0 = target.y;
@@ -139,24 +140,24 @@ impl CursorState {
                 let y1 = target.y + target.height;
                 [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
             }
-            1 => {
-                // Bar: thin vertical line (2px wide)
+            CursorStyle::Bar(bar_w) => {
+                // Bar: thin vertical line
                 let x0 = target.x;
                 let y0 = target.y;
-                let x1 = target.x + 2.0;
+                let x1 = target.x + bar_w;
                 let y1 = target.y + target.height;
                 [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
             }
-            2 => {
-                // Underline: thin horizontal line at bottom (2px tall)
+            CursorStyle::Hbar(hbar_h) => {
+                // Underline: thin horizontal line at bottom
                 let x0 = target.x;
-                let y0 = target.y + target.height - 2.0;
+                let y0 = target.y + target.height - hbar_h;
                 let x1 = target.x + target.width;
                 let y1 = target.y + target.height;
                 [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
             }
-            _ => {
-                // Default: full rectangle
+            CursorStyle::Hollow => {
+                // Hollow: full rectangle (border only drawn elsewhere)
                 let x0 = target.x;
                 let y0 = target.y;
                 let x1 = target.x + target.width;
@@ -312,7 +313,7 @@ mod tests {
     // ---------------------------------------------------------------
     // Helper: create a CursorTarget with given position/size/style
     // ---------------------------------------------------------------
-    fn make_target(x: f32, y: f32, w: f32, h: f32, style: u8) -> CursorTarget {
+    fn make_target(x: f32, y: f32, w: f32, h: f32, style: CursorStyle) -> CursorTarget {
         CursorTarget {
             window_id: 1,
             x,
@@ -563,7 +564,7 @@ mod tests {
 
     #[test]
     fn target_corners_filled_box_style_0() {
-        let target = make_target(10.0, 20.0, 100.0, 50.0, 0);
+        let target = make_target(10.0, 20.0, 100.0, 50.0, CursorStyle::FilledBox);
         let corners = CursorState::target_corners(&target);
         // TL, TR, BR, BL
         assert_eq!(corners[0], (10.0, 20.0));   // top-left
@@ -574,7 +575,7 @@ mod tests {
 
     #[test]
     fn target_corners_bar_style_1() {
-        let target = make_target(10.0, 20.0, 100.0, 50.0, 1);
+        let target = make_target(10.0, 20.0, 100.0, 50.0, CursorStyle::Bar(2.0));
         let corners = CursorState::target_corners(&target);
         // Bar is 2px wide
         assert_eq!(corners[0], (10.0, 20.0));
@@ -585,7 +586,7 @@ mod tests {
 
     #[test]
     fn target_corners_underline_style_2() {
-        let target = make_target(10.0, 20.0, 100.0, 50.0, 2);
+        let target = make_target(10.0, 20.0, 100.0, 50.0, CursorStyle::Hbar(2.0));
         let corners = CursorState::target_corners(&target);
         // Underline is 2px tall at the bottom
         assert_eq!(corners[0], (10.0, 68.0));    // y + height - 2.0
@@ -596,7 +597,7 @@ mod tests {
 
     #[test]
     fn target_corners_hollow_style_3_uses_default() {
-        let target = make_target(10.0, 20.0, 100.0, 50.0, 3);
+        let target = make_target(10.0, 20.0, 100.0, 50.0, CursorStyle::Hollow);
         let corners = CursorState::target_corners(&target);
         // Style 3 (hollow) falls through to default: full rectangle
         assert_eq!(corners[0], (10.0, 20.0));
@@ -606,8 +607,8 @@ mod tests {
     }
 
     #[test]
-    fn target_corners_unknown_style_255_uses_default() {
-        let target = make_target(5.0, 10.0, 20.0, 30.0, 255);
+    fn target_corners_hollow_uses_full_rectangle() {
+        let target = make_target(5.0, 10.0, 20.0, 30.0, CursorStyle::Hollow);
         let corners = CursorState::target_corners(&target);
         assert_eq!(corners[0], (5.0, 10.0));
         assert_eq!(corners[1], (25.0, 10.0));
@@ -617,7 +618,7 @@ mod tests {
 
     #[test]
     fn target_corners_zero_size_cursor() {
-        let target = make_target(10.0, 20.0, 0.0, 0.0, 0);
+        let target = make_target(10.0, 20.0, 0.0, 0.0, CursorStyle::FilledBox);
         let corners = CursorState::target_corners(&target);
         // All four corners collapse to (10, 20) or (10, 20)
         assert_eq!(corners[0], (10.0, 20.0));
@@ -629,14 +630,14 @@ mod tests {
     #[test]
     fn target_corners_bar_ignores_width() {
         // Bar style always uses 2px width regardless of target.width
-        let target = make_target(0.0, 0.0, 500.0, 30.0, 1);
+        let target = make_target(0.0, 0.0, 500.0, 30.0, CursorStyle::Bar(2.0));
         let corners = CursorState::target_corners(&target);
         assert_eq!(corners[1].0, 2.0); // top-right x = 0 + 2
     }
 
     #[test]
     fn target_corners_underline_uses_full_width() {
-        let target = make_target(0.0, 0.0, 80.0, 20.0, 2);
+        let target = make_target(0.0, 0.0, 80.0, 20.0, CursorStyle::Hbar(2.0));
         let corners = CursorState::target_corners(&target);
         assert_eq!(corners[0].0, 0.0);
         assert_eq!(corners[1].0, 80.0); // uses full width
@@ -655,7 +656,7 @@ mod tests {
         state.current_w = 50.0;
         state.current_h = 25.0;
 
-        let target = make_target(300.0, 400.0, 80.0, 40.0, 0);
+        let target = make_target(300.0, 400.0, 80.0, 40.0, CursorStyle::FilledBox);
         state.snap(&target);
 
         assert_eq!(state.current_x, 300.0);
@@ -668,7 +669,7 @@ mod tests {
     fn snap_stops_animation() {
         let mut state = CursorState::default();
         state.animating = true;
-        let target = make_target(0.0, 0.0, 10.0, 10.0, 0);
+        let target = make_target(0.0, 0.0, 10.0, 10.0, CursorStyle::FilledBox);
         state.snap(&target);
         assert!(!state.animating);
     }
@@ -682,7 +683,7 @@ mod tests {
         state.current_h = 20.0;
         state.animating = true;
 
-        let target = make_target(50.0, 60.0, 10.0, 20.0, 0);
+        let target = make_target(50.0, 60.0, 10.0, 20.0, CursorStyle::FilledBox);
         state.snap(&target);
 
         assert_eq!(state.current_x, 50.0);
@@ -734,7 +735,7 @@ mod tests {
         let mut state = CursorState::default();
         state.anim_enabled = false;
         state.animating = true;
-        state.target = Some(make_target(100.0, 100.0, 10.0, 20.0, 0));
+        state.target = Some(make_target(100.0, 100.0, 10.0, 20.0, CursorStyle::FilledBox));
         assert!(!state.tick_animation());
     }
 
@@ -743,7 +744,7 @@ mod tests {
         let mut state = CursorState::default();
         state.anim_enabled = true;
         state.animating = false;
-        state.target = Some(make_target(100.0, 100.0, 10.0, 20.0, 0));
+        state.target = Some(make_target(100.0, 100.0, 10.0, 20.0, CursorStyle::FilledBox));
         assert!(!state.tick_animation());
     }
 
@@ -771,7 +772,7 @@ mod tests {
         state.current_y = 0.0;
         state.current_w = 10.0;
         state.current_h = 20.0;
-        state.target = Some(make_target(200.0, 300.0, 10.0, 20.0, 0));
+        state.target = Some(make_target(200.0, 300.0, 10.0, 20.0, CursorStyle::FilledBox));
         state.last_anim_time = Instant::now();
 
         // Wait a tiny bit so dt > 0
@@ -799,7 +800,7 @@ mod tests {
         state.current_y = 200.0;
         state.current_w = 10.0;
         state.current_h = 20.0;
-        state.target = Some(make_target(100.3, 200.2, 10.1, 20.1, 0));
+        state.target = Some(make_target(100.3, 200.2, 10.1, 20.1, CursorStyle::FilledBox));
         state.last_anim_time = Instant::now();
 
         std::thread::sleep(Duration::from_millis(1));
@@ -832,7 +833,7 @@ mod tests {
         state.current_y = 0.0;
         state.current_w = 10.0;
         state.current_h = 20.0;
-        state.target = Some(make_target(100.0, 200.0, 30.0, 40.0, 0));
+        state.target = Some(make_target(100.0, 200.0, 30.0, 40.0, CursorStyle::FilledBox));
         state.anim_start_time = Instant::now();
         state.last_anim_time = Instant::now();
 
@@ -861,7 +862,7 @@ mod tests {
         state.start_y = 0.0;
         state.start_w = 10.0;
         state.start_h = 20.0;
-        state.target = Some(make_target(100.0, 200.0, 30.0, 40.0, 0));
+        state.target = Some(make_target(100.0, 200.0, 30.0, 40.0, CursorStyle::FilledBox));
         // Set start time in the past so elapsed > duration
         state.anim_start_time = Instant::now() - Duration::from_millis(100);
         state.last_anim_time = Instant::now();
@@ -891,7 +892,7 @@ mod tests {
         state.start_y = 0.0;
         state.start_w = 10.0;
         state.start_h = 10.0;
-        state.target = Some(make_target(100.0, 100.0, 10.0, 10.0, 0));
+        state.target = Some(make_target(100.0, 100.0, 10.0, 10.0, CursorStyle::FilledBox));
         state.anim_start_time = Instant::now();
         state.last_anim_time = Instant::now();
 
@@ -916,7 +917,7 @@ mod tests {
         state.start_y = 50.0;
         state.start_w = 10.0;
         state.start_h = 20.0;
-        state.target = Some(make_target(200.0, 200.0, 10.0, 20.0, 0));
+        state.target = Some(make_target(200.0, 200.0, 10.0, 20.0, CursorStyle::FilledBox));
         state.anim_start_time = Instant::now();
         state.last_anim_time = Instant::now();
 
@@ -941,7 +942,7 @@ mod tests {
         state.start_y = 0.0;
         state.start_w = 5.0;
         state.start_h = 15.0;
-        state.target = Some(make_target(300.0, 300.0, 5.0, 15.0, 0));
+        state.target = Some(make_target(300.0, 300.0, 5.0, 15.0, CursorStyle::FilledBox));
         state.anim_start_time = Instant::now();
         state.last_anim_time = Instant::now();
 
@@ -966,7 +967,7 @@ mod tests {
         state.start_y = 10.0;
         state.start_w = 8.0;
         state.start_h = 16.0;
-        state.target = Some(make_target(400.0, 400.0, 8.0, 16.0, 0));
+        state.target = Some(make_target(400.0, 400.0, 8.0, 16.0, CursorStyle::FilledBox));
         state.anim_start_time = Instant::now();
         state.last_anim_time = Instant::now();
 
@@ -986,7 +987,7 @@ mod tests {
         state.anim_enabled = true;
         state.animating = true;
         state.anim_style = CursorAnimStyle::CriticallyDampedSpring;
-        state.target = Some(make_target(200.0, 300.0, 80.0, 40.0, 0));
+        state.target = Some(make_target(200.0, 300.0, 80.0, 40.0, CursorStyle::FilledBox));
 
         // Initialize corner springs away from target
         let target_corners = CursorState::target_corners(state.target.as_ref().unwrap());
@@ -1016,7 +1017,7 @@ mod tests {
         state.anim_enabled = true;
         state.animating = true;
         state.anim_style = CursorAnimStyle::CriticallyDampedSpring;
-        let target = make_target(100.0, 100.0, 50.0, 25.0, 0);
+        let target = make_target(100.0, 100.0, 50.0, 25.0, CursorStyle::FilledBox);
         state.target = Some(target.clone());
 
         // Set corner springs very close to target with tiny velocity
@@ -1048,7 +1049,7 @@ mod tests {
         state.anim_enabled = true;
         state.animating = true;
         state.anim_style = CursorAnimStyle::CriticallyDampedSpring;
-        let target = make_target(50.0, 50.0, 20.0, 10.0, 0);
+        let target = make_target(50.0, 50.0, 20.0, 10.0, CursorStyle::FilledBox);
         state.target = Some(target.clone());
 
         let target_corners = CursorState::target_corners(&target);
@@ -1091,7 +1092,7 @@ mod tests {
         state.current_y = 200.0;
         state.current_w = 10.0;
         state.current_h = 20.0;
-        state.target = Some(make_target(100.0, 200.0, 10.0, 20.0, 0));
+        state.target = Some(make_target(100.0, 200.0, 10.0, 20.0, CursorStyle::FilledBox));
         state.anim_start_time = Instant::now();
         state.last_anim_time = Instant::now();
 
@@ -1115,7 +1116,7 @@ mod tests {
         state.start_y = 0.0;
         state.start_w = 5.0;
         state.start_h = 10.0;
-        state.target = Some(make_target(500.0, 600.0, 15.0, 25.0, 0));
+        state.target = Some(make_target(500.0, 600.0, 15.0, 25.0, CursorStyle::FilledBox));
         state.anim_start_time = Instant::now();
         state.last_anim_time = Instant::now();
 
@@ -1144,7 +1145,7 @@ mod tests {
         state.current_y = 100.0;
         state.current_w = 10.0;
         state.current_h = 20.0;
-        state.target = Some(make_target(100.0, 100.0, 10.0, 20.0, 0));
+        state.target = Some(make_target(100.0, 100.0, 10.0, 20.0, CursorStyle::FilledBox));
         state.last_anim_time = Instant::now();
 
         std::thread::sleep(Duration::from_millis(1));
@@ -1171,7 +1172,7 @@ mod tests {
         state.current_y = 0.0;
         state.current_w = 10.0;
         state.current_h = 20.0;
-        state.target = Some(make_target(100.0, 100.0, 10.0, 20.0, 0));
+        state.target = Some(make_target(100.0, 100.0, 10.0, 20.0, CursorStyle::FilledBox));
         state.last_anim_time = Instant::now();
 
         // Run many ticks
@@ -1204,7 +1205,7 @@ mod tests {
         state.current_y = 0.0;
         state.current_w = 10.0;
         state.current_h = 20.0;
-        state.target = Some(make_target(100.0, 200.0, 30.0, 40.0, 0));
+        state.target = Some(make_target(100.0, 200.0, 30.0, 40.0, CursorStyle::FilledBox));
         state.anim_start_time = Instant::now();
         state.last_anim_time = Instant::now();
 
@@ -1458,13 +1459,13 @@ mod tests {
 
     #[test]
     fn cursor_target_clone() {
-        let target = make_target(10.0, 20.0, 30.0, 40.0, 1);
+        let target = make_target(10.0, 20.0, 30.0, 40.0, CursorStyle::Bar(2.0));
         let cloned = target.clone();
         assert_eq!(cloned.x, 10.0);
         assert_eq!(cloned.y, 20.0);
         assert_eq!(cloned.width, 30.0);
         assert_eq!(cloned.height, 40.0);
-        assert_eq!(cloned.style, 1);
+        assert_eq!(cloned.style, CursorStyle::Bar(2.0));
         assert_eq!(cloned.window_id, 1);
         assert_eq!(cloned.frame_id, 0);
     }
@@ -1484,7 +1485,7 @@ mod tests {
         state.start_y = 0.0;
         state.start_w = 10.0;
         state.start_h = 10.0;
-        state.target = Some(make_target(100.0, 100.0, 10.0, 10.0, 0));
+        state.target = Some(make_target(100.0, 100.0, 10.0, 10.0, CursorStyle::FilledBox));
         let old_time = Instant::now() - Duration::from_millis(100);
         state.last_anim_time = old_time;
         state.anim_start_time = old_time;
@@ -1519,7 +1520,7 @@ mod tests {
             state.start_y = 0.0;
             state.start_w = 10.0;
             state.start_h = 20.0;
-            state.target = Some(make_target(200.0, 300.0, 40.0, 50.0, 0));
+            state.target = Some(make_target(200.0, 300.0, 40.0, 50.0, CursorStyle::FilledBox));
             state.anim_start_time = Instant::now() - Duration::from_millis(100);
             state.last_anim_time = Instant::now();
 
@@ -1554,7 +1555,7 @@ mod tests {
 
     #[test]
     fn target_corners_negative_coordinates() {
-        let target = make_target(-50.0, -30.0, 100.0, 60.0, 0);
+        let target = make_target(-50.0, -30.0, 100.0, 60.0, CursorStyle::FilledBox);
         let corners = CursorState::target_corners(&target);
         assert_eq!(corners[0], (-50.0, -30.0));
         assert_eq!(corners[1], (50.0, -30.0));
@@ -1564,7 +1565,7 @@ mod tests {
 
     #[test]
     fn target_corners_large_coordinates() {
-        let target = make_target(10000.0, 20000.0, 500.0, 300.0, 0);
+        let target = make_target(10000.0, 20000.0, 500.0, 300.0, CursorStyle::FilledBox);
         let corners = CursorState::target_corners(&target);
         assert_eq!(corners[0], (10000.0, 20000.0));
         assert_eq!(corners[1], (10500.0, 20000.0));

@@ -5,7 +5,7 @@ use super::TitleFadeEntry;
 use wgpu::util::DeviceExt;
 use super::super::vertex::{GlyphVertex, RectVertex, RoundedRectVertex, Uniforms};
 use crate::core::types::{AnimatedCursor, Color, Rect};
-use crate::core::frame_glyphs::{FrameGlyph, FrameGlyphBuffer};
+use crate::core::frame_glyphs::{CursorStyle, FrameGlyph, FrameGlyphBuffer};
 use super::super::glyph_atlas::{GlyphKey, WgpuGlyphAtlas};
 use crate::core::face::Face;
 use crate::render_thread::PopupMenuState;
@@ -254,7 +254,7 @@ impl WgpuRenderer {
                         }
                         let c = *color;
                         // Use animated position if this cursor matches the animated cursor
-                        let (gx, gy, gw, gh) = if *style != 3 {
+                        let (gx, gy, gw, gh) = if !style.is_hollow() {
                             if let Some(ref ac) = animated_cursor {
                                 if ac.window_id == *window_id {
                                     (ac.x + offset_x, ac.y + offset_y, ac.width, ac.height)
@@ -268,26 +268,25 @@ impl WgpuRenderer {
                             (*x + offset_x, *y + offset_y, *width, *height)
                         };
                         match style {
-                            0 => {
+                            CursorStyle::FilledBox => {
                                 // Filled box
                                 self.add_rect(&mut cursor_rects, gx, gy, gw, gh, &c);
                             }
-                            1 => {
+                            CursorStyle::Bar(bar_w) => {
                                 // Bar
-                                self.add_rect(&mut cursor_rects, gx, gy, 2.0, gh, &c);
+                                self.add_rect(&mut cursor_rects, gx, gy, *bar_w, gh, &c);
                             }
-                            2 => {
+                            CursorStyle::Hbar(hbar_h) => {
                                 // Underline/hbar
-                                self.add_rect(&mut cursor_rects, gx, gy + gh - 2.0, gw, 2.0, &c);
+                                self.add_rect(&mut cursor_rects, gx, gy + gh - *hbar_h, gw, *hbar_h, &c);
                             }
-                            3 => {
+                            CursorStyle::Hollow => {
                                 // Hollow box
                                 self.add_rect(&mut cursor_rects, gx, gy, gw, 1.0, &c);
                                 self.add_rect(&mut cursor_rects, gx, gy + gh - 1.0, gw, 1.0, &c);
                                 self.add_rect(&mut cursor_rects, gx, gy, 1.0, gh, &c);
                                 self.add_rect(&mut cursor_rects, gx + gw - 1.0, gy, 1.0, gh, &c);
                             }
-                            _ => {}
                         }
                     }
                     FrameGlyph::ScrollBar { x, y, width, height, thumb_start, thumb_size,

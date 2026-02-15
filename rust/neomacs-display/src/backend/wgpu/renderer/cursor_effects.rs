@@ -68,7 +68,7 @@ pub(super) fn emit_cursor_crosshair(ctx: &EffectCtx) -> Vec<RectVertex> {
     } else {
         for glyph in &ctx.frame_glyphs.glyphs {
             if let FrameGlyph::Cursor { x, y, width, height, style, .. } = glyph {
-                if *style != 3 {
+                if !style.is_hollow() {
                     cross_pos = Some((*x, *y, *width, *height));
                     break;
                 }

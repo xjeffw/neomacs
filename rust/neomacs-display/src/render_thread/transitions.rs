@@ -322,7 +322,7 @@ impl RenderApp {
                                 // Check cursor is within this window
                                 if *x >= info.bounds.x && *x < info.bounds.x + info.bounds.width
                                     && *y >= info.bounds.y && *y < info.bounds.y + info.bounds.height
-                                    && *style != 3
+                                    && !style.is_hollow()
                                 {
                                     cursor_y = Some(*y);
                                     break;
@@ -547,7 +547,7 @@ impl RenderApp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::frame_glyphs::WindowInfo;
+    use crate::core::frame_glyphs::{CursorStyle, WindowInfo};
     use crate::core::scroll_animation::{ScrollEffect, ScrollEasing};
     use crate::core::types::Rect;
     use std::collections::{HashMap, HashSet};
@@ -1821,60 +1821,60 @@ mod tests {
     //   && *y >= info.bounds.y && *y < info.bounds.y + info.bounds.height
     //   && *style != 3
 
-    fn cursor_in_window(cx: f32, cy: f32, style: u8, bounds: Rect) -> bool {
+    fn cursor_in_window(cx: f32, cy: f32, style: CursorStyle, bounds: Rect) -> bool {
         cx >= bounds.x && cx < bounds.x + bounds.width
             && cy >= bounds.y && cy < bounds.y + bounds.height
-            && style != 3
+            && !style.is_hollow()
     }
 
     #[test]
     fn cursor_inside_window() {
         let bounds = Rect::new(0.0, 0.0, 800.0, 600.0);
-        assert!(cursor_in_window(100.0, 200.0, 0, bounds));
+        assert!(cursor_in_window(100.0, 200.0, CursorStyle::FilledBox, bounds));
     }
 
     #[test]
     fn cursor_at_window_origin() {
         let bounds = Rect::new(10.0, 20.0, 800.0, 600.0);
-        assert!(cursor_in_window(10.0, 20.0, 1, bounds));
+        assert!(cursor_in_window(10.0, 20.0, CursorStyle::Bar(2.0), bounds));
     }
 
     #[test]
     fn cursor_outside_window_left() {
         let bounds = Rect::new(10.0, 0.0, 800.0, 600.0);
-        assert!(!cursor_in_window(5.0, 100.0, 0, bounds));
+        assert!(!cursor_in_window(5.0, 100.0, CursorStyle::FilledBox, bounds));
     }
 
     #[test]
     fn cursor_outside_window_right() {
         let bounds = Rect::new(0.0, 0.0, 800.0, 600.0);
-        assert!(!cursor_in_window(800.0, 100.0, 0, bounds)); // exclusive right edge
+        assert!(!cursor_in_window(800.0, 100.0, CursorStyle::FilledBox, bounds)); // exclusive right edge
     }
 
     #[test]
     fn cursor_outside_window_above() {
         let bounds = Rect::new(0.0, 50.0, 800.0, 600.0);
-        assert!(!cursor_in_window(100.0, 30.0, 0, bounds));
+        assert!(!cursor_in_window(100.0, 30.0, CursorStyle::FilledBox, bounds));
     }
 
     #[test]
     fn cursor_outside_window_below() {
         let bounds = Rect::new(0.0, 0.0, 800.0, 600.0);
-        assert!(!cursor_in_window(100.0, 600.0, 0, bounds)); // exclusive bottom edge
+        assert!(!cursor_in_window(100.0, 600.0, CursorStyle::FilledBox, bounds)); // exclusive bottom edge
     }
 
     #[test]
     fn cursor_hollow_style_excluded() {
-        // Style 3 = hollow cursor (inactive window) -> excluded from line animation
+        // Hollow cursor (inactive window) -> excluded from line animation
         let bounds = Rect::new(0.0, 0.0, 800.0, 600.0);
-        assert!(!cursor_in_window(100.0, 200.0, 3, bounds));
+        assert!(!cursor_in_window(100.0, 200.0, CursorStyle::Hollow, bounds));
     }
 
     #[test]
     fn cursor_all_active_styles_included() {
         let bounds = Rect::new(0.0, 0.0, 800.0, 600.0);
-        assert!(cursor_in_window(100.0, 200.0, 0, bounds)); // box
-        assert!(cursor_in_window(100.0, 200.0, 1, bounds)); // bar
-        assert!(cursor_in_window(100.0, 200.0, 2, bounds)); // hbar
+        assert!(cursor_in_window(100.0, 200.0, CursorStyle::FilledBox, bounds)); // box
+        assert!(cursor_in_window(100.0, 200.0, CursorStyle::Bar(2.0), bounds)); // bar
+        assert!(cursor_in_window(100.0, 200.0, CursorStyle::Hbar(2.0), bounds)); // hbar
     }
 }
