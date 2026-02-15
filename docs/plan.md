@@ -4,6 +4,24 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented text-property arity compatibility slice:
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/textprop-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/textprop-arity-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - aligned max-arity checks with GNU Emacs for:
+    - `put-text-property` (max 5)
+    - `get-text-property` / `get-char-property` (max 3)
+    - `add-text-properties` / `remove-text-properties` (max 4)
+    - `text-properties-at` (max 2)
+    - `next-single-property-change` / `previous-single-property-change` (max 4)
+    - `next-property-change` (max 3)
+    - `text-property-any` (max 5)
+  - added unit tests for over-arity error paths in `textprop.rs`
+  - verified:
+    - `cargo test textprop::tests:: -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/textprop-arity-semantics.forms EXPECTED=cases/textprop-arity-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Implemented overlay arity compatibility slice:
   - added oracle corpus:
     - `test/neovm/vm-compat/cases/overlay-arity-semantics.forms`
