@@ -30,6 +30,8 @@ pub enum SyntaxClass {
     Open,
     /// ')' — Close parenthesis/bracket
     Close,
+    /// '\'' — Expression prefix
+    Prefix,
     /// '"' — String delimiter
     StringDelim,
     /// '$' — Math delimiter (paired)
@@ -58,6 +60,7 @@ impl SyntaxClass {
             '.' => Some(SyntaxClass::Punctuation),
             '(' => Some(SyntaxClass::Open),
             ')' => Some(SyntaxClass::Close),
+            '\'' => Some(SyntaxClass::Prefix),
             '"' => Some(SyntaxClass::StringDelim),
             '$' => Some(SyntaxClass::MathDelim),
             '\\' => Some(SyntaxClass::Escape),
@@ -79,6 +82,7 @@ impl SyntaxClass {
             SyntaxClass::Punctuation => '.',
             SyntaxClass::Open => '(',
             SyntaxClass::Close => ')',
+            SyntaxClass::Prefix => '\'',
             SyntaxClass::StringDelim => '"',
             SyntaxClass::MathDelim => '$',
             SyntaxClass::Escape => '\\',
@@ -100,8 +104,9 @@ impl SyntaxClass {
             SyntaxClass::Symbol => 3,
             SyntaxClass::Open => 4,
             SyntaxClass::Close => 5,
-            SyntaxClass::MathDelim => 6,
+            SyntaxClass::Prefix => 6,
             SyntaxClass::StringDelim => 7,
+            SyntaxClass::MathDelim => 8,
             SyntaxClass::Escape => 9,
             SyntaxClass::CharQuote => 10,
             SyntaxClass::Comment => 11,
@@ -1807,6 +1812,7 @@ mod tests {
             ('.', SyntaxClass::Punctuation),
             ('(', SyntaxClass::Open),
             (')', SyntaxClass::Close),
+            ('\'', SyntaxClass::Prefix),
             ('"', SyntaxClass::StringDelim),
             ('$', SyntaxClass::MathDelim),
             ('\\', SyntaxClass::Escape),
@@ -1863,6 +1869,19 @@ mod tests {
     fn string_to_syntax_string_delim() {
         let entry = string_to_syntax("\"").unwrap();
         assert_eq!(entry.class, SyntaxClass::StringDelim);
+    }
+
+    #[test]
+    fn string_to_syntax_prefix_class() {
+        let entry = string_to_syntax("'").unwrap();
+        assert_eq!(entry.class, SyntaxClass::Prefix);
+        let value = syntax_entry_to_value(&entry);
+        if let Value::Cons(cell) = &value {
+            let cell = cell.lock().unwrap();
+            assert!(matches!(cell.car, Value::Int(6)));
+        } else {
+            panic!("Expected cons cell");
+        }
     }
 
     #[test]
