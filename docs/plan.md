@@ -5,17 +5,33 @@ Last updated: 2026-02-15
 ## Doing
 
 - Continue command-context and read-only variable compatibility sweep in `rust/neovm-core/src/elisp/kill_ring.rs`.
-- Audit adjacent kill-ring command-context paths (`kill-new`, rotation, point updates) for batch-oracle deltas.
+- Audit kill-ring state semantics around dynamic/local `kill-ring` bindings vs internal ring state.
 - Keeping each slice small: runtime patch -> oracle corpus -> docs note -> push.
 
 ## Next
 
-- Add focused command-context corpus for `kill-new` / `kill-append` (empty insert, prepend/append ordering).
-- Add focused command-context corpus for `current-kill` rotation/`last-command` interplay.
+- Add focused oracle corpus for dynamic/local `kill-ring` variable semantics (`let`, `setq`, buffer-local).
+- Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
 
 ## Done
 
+- Aligned core kill-ring command-context behavior with oracle semantics:
+  - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
+    - `current-kill` now honors `N` in `DO-NOT-MOVE` mode (peek offset without rotating pointer)
+    - `kill-new` now records empty-string kills (while regular kill operations still ignore empty pushes)
+    - added `KillRing::peek` and `KillRing::push_allow_empty` helpers for explicit semantics
+    - added unit coverage for `current-kill` do-not-move offsets and empty-string `kill-new`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/kill-ring-command-context-semantics.forms`
+    - `test/neovm/vm-compat/cases/kill-ring-command-context-semantics.expected.tsv`
+    - wired into `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test current_kill -- --nocapture` in `rust/neovm-core` (pass)
+    - `cargo test kill_new_allows_empty_entry -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kill-ring-command-context-semantics` (pass, 17/17)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/command-dispatch-default-arg-semantics` (pass, 46/46)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned `transpose-lines` argument and boundary command-context behavior with oracle semantics:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - implemented `ARG > 1` BOB carry-forward behavior for `transpose-lines` (e.g. `a b c` -> `b c a`)
