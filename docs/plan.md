@@ -19,6 +19,21 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Fixed minibuffer reader initial-input type validation in batch stubs:
+  - updated:
+    - `rust/neovm-core/src/elisp/reader.rs`
+      - `read-from-minibuffer` / `read-string` now validate optional INITIAL input as string-like (`nil`, string, or cons).
+      - non-string-like INITIAL values now signal `wrong-type-argument (stringp ...)` before batch EOF signaling.
+      - expanded reader unit coverage for non-string INITIAL rejection.
+    - `test/neovm/vm-compat/cases/minibuffer-batch.{forms,expected.tsv}`
+      - added oracle lock-ins for:
+        - `(read-from-minibuffer "" 1)` => `wrong-type-argument`
+        - `(read-string "" 1)` => `wrong-type-argument`
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test reader::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minibuffer-batch` (pass, 32/32)
+
 - Fixed `read-number` default-argument type validation in batch read stubs:
   - updated:
     - `rust/neovm-core/src/elisp/reader.rs`
