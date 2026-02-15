@@ -130,6 +130,59 @@ fn make_alist(pairs: Vec<(Value, Value)>) -> Value {
 // Display query builtins
 // ---------------------------------------------------------------------------
 
+/// (redraw-frame &optional FRAME) -> nil
+pub(crate) fn builtin_redraw_frame(args: Vec<Value>) -> EvalResult {
+    expect_range_args("redraw-frame", &args, 0, 1)?;
+    Ok(Value::Nil)
+}
+
+/// (redraw-display) -> nil
+pub(crate) fn builtin_redraw_display(args: Vec<Value>) -> EvalResult {
+    expect_args("redraw-display", &args, 0)?;
+    Ok(Value::Nil)
+}
+
+/// (open-termscript FILE) -> error
+///
+/// NeoVM does not support terminal script logging.
+pub(crate) fn builtin_open_termscript(args: Vec<Value>) -> EvalResult {
+    expect_args("open-termscript", &args, 1)?;
+    Err(signal(
+        "error",
+        vec![Value::string("Terminal script output is unsupported")],
+    ))
+}
+
+/// (ding &optional ARG) -> nil
+pub(crate) fn builtin_ding(args: Vec<Value>) -> EvalResult {
+    expect_range_args("ding", &args, 0, 1)?;
+    Ok(Value::Nil)
+}
+
+/// (send-string-to-terminal STRING &optional TERMINAL) -> nil
+pub(crate) fn builtin_send_string_to_terminal(args: Vec<Value>) -> EvalResult {
+    expect_range_args("send-string-to-terminal", &args, 1, 2)?;
+    match &args[0] {
+        Value::Str(_) => Ok(Value::Nil),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), other.clone()],
+        )),
+    }
+}
+
+/// (internal-show-cursor WINDOW SHOW) -> nil
+pub(crate) fn builtin_internal_show_cursor(args: Vec<Value>) -> EvalResult {
+    expect_args("internal-show-cursor", &args, 2)?;
+    Ok(Value::Nil)
+}
+
+/// (internal-show-cursor-p &optional WINDOW) -> nil
+pub(crate) fn builtin_internal_show_cursor_p(args: Vec<Value>) -> EvalResult {
+    expect_range_args("internal-show-cursor-p", &args, 0, 1)?;
+    Ok(Value::Nil)
+}
+
 /// (display-graphic-p &optional DISPLAY) -> nil in batch-style vm context.
 pub(crate) fn builtin_display_graphic_p(args: Vec<Value>) -> EvalResult {
     expect_max_args("display-graphic-p", &args, 1)?;

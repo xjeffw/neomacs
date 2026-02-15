@@ -5768,6 +5768,9 @@ pub(crate) fn dispatch_builtin(
         "display-buffer" => return Some(super::window_cmds::builtin_display_buffer(eval, args)),
         "pop-to-buffer" => return Some(super::window_cmds::builtin_pop_to_buffer(eval, args)),
         "selected-frame" => return Some(super::window_cmds::builtin_selected_frame(eval, args)),
+        "last-nonminibuffer-frame" => {
+            return Some(super::window_cmds::builtin_selected_frame(eval, args))
+        }
         "frame-list" => return Some(super::window_cmds::builtin_frame_list(eval, args)),
         "make-frame" => return Some(super::window_cmds::builtin_make_frame(eval, args)),
         "delete-frame" => return Some(super::window_cmds::builtin_delete_frame(eval, args)),
@@ -6303,6 +6306,13 @@ pub(crate) fn dispatch_builtin(
         "make-category-set" => super::category::builtin_make_category_set(args),
 
         // Display/terminal (pure)
+        "redraw-frame" => super::display::builtin_redraw_frame(args),
+        "redraw-display" => super::display::builtin_redraw_display(args),
+        "open-termscript" => super::display::builtin_open_termscript(args),
+        "ding" => super::display::builtin_ding(args),
+        "send-string-to-terminal" => super::display::builtin_send_string_to_terminal(args),
+        "internal-show-cursor" => super::display::builtin_internal_show_cursor(args),
+        "internal-show-cursor-p" => super::display::builtin_internal_show_cursor_p(args),
         "display-graphic-p" => super::display::builtin_display_graphic_p(args),
         "display-color-p" => super::display::builtin_display_color_p(args),
         "display-pixel-width" => super::display::builtin_display_pixel_width(args),

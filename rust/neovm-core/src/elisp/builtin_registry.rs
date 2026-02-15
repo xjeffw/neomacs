@@ -213,6 +213,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "directory-files",
     "directory-files-and-attributes",
     "directory-name-p",
+    "ding",
     "display-backing-store",
     "display-buffer",
     "display-color-cells",
@@ -378,6 +379,8 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "internal-face-x-get-resource",
     "internal-get-lisp-face-attribute",
     "internal-lisp-face-p",
+    "internal-show-cursor",
+    "internal-show-cursor-p",
     "internal-merge-in-global-face",
     "internal-set-alternative-font-family-alist",
     "internal-set-alternative-font-registry-alist",
@@ -408,6 +411,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "kill-whole-line",
     "kill-word",
     "ldexp",
+    "last-nonminibuffer-frame",
     "length",
     "libxml-available-p",
     "libxml-parse-html-region",
@@ -518,6 +522,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "number-to-register",
     "open-line",
     "open-rectangle",
+    "open-termscript",
     "other-window",
     "overlay-buffer",
     "overlay-end",
@@ -606,6 +611,8 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "replace-match",
     "replace-rectangle",
     "replace-regexp-in-string",
+    "redraw-display",
+    "redraw-frame",
     "resume-tty",
     "reverse",
     "run-at-time",
@@ -621,6 +628,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "search-backward",
     "search-forward",
     "secure-hash",
+    "send-string-to-terminal",
     "select-window",
     "selected-frame",
     "selected-window",
@@ -854,6 +862,8 @@ mod tests {
         assert!(is_dispatch_builtin_name("minibuffer-contents"));
         assert!(is_dispatch_builtin_name("minibuffer-contents-no-properties"));
         assert!(is_dispatch_builtin_name("sleep-for"));
+        assert!(is_dispatch_builtin_name("redraw-frame"));
+        assert!(is_dispatch_builtin_name("last-nonminibuffer-frame"));
         assert!(is_dispatch_builtin_name("exit-minibuffer"));
         assert!(is_dispatch_builtin_name("recursive-edit"));
         assert!(is_dispatch_builtin_name("exit-recursive-edit"));
