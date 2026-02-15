@@ -442,6 +442,34 @@ fn dynamic_or_global_symbol_value(eval: &Evaluator, name: &str) -> Option<Value>
     eval.obarray.symbol_value(name).cloned()
 }
 
+fn prefix_numeric_value(value: &Value) -> i64 {
+    match value {
+        Value::Nil => 1,
+        Value::Int(n) => *n,
+        Value::Float(f) => *f as i64,
+        Value::Char(c) => *c as i64,
+        Value::Symbol(s) if s == "-" => -1,
+        Value::Cons(cell) => {
+            let car = {
+                let pair = cell.lock().expect("poisoned");
+                pair.car.clone()
+            };
+            match car {
+                Value::Int(n) => n,
+                Value::Float(f) => f as i64,
+                Value::Char(c) => c as i64,
+                _ => 1,
+            }
+        }
+        _ => 1,
+    }
+}
+
+fn interactive_prefix_numeric_arg(eval: &Evaluator) -> Value {
+    let raw = dynamic_or_global_symbol_value(eval, "current-prefix-arg").unwrap_or(Value::Nil);
+    Value::Int(prefix_numeric_value(&raw))
+}
+
 fn interactive_region_args(eval: &Evaluator, missing_mark_signal: &str) -> Result<Vec<Value>, Flow> {
     let buf = eval
         .buffers
@@ -491,6 +519,26 @@ fn default_command_execute_args(eval: &Evaluator, name: &str) -> Result<Vec<Valu
 
 fn default_call_interactively_args(eval: &Evaluator, name: &str) -> Result<Vec<Value>, Flow> {
     match name {
+        "self-insert-command"
+        | "delete-char"
+        | "kill-word"
+        | "backward-kill-word"
+        | "downcase-word"
+        | "upcase-word"
+        | "capitalize-word"
+        | "transpose-lines"
+        | "transpose-paragraphs"
+        | "transpose-sentences"
+        | "transpose-sexps"
+        | "transpose-words"
+        | "forward-char"
+        | "backward-char"
+        | "next-line"
+        | "previous-line"
+        | "beginning-of-line"
+        | "end-of-line"
+        | "move-beginning-of-line"
+        | "move-end-of-line" => Ok(vec![interactive_prefix_numeric_arg(eval)]),
         "set-mark-command" => Ok(vec![
             dynamic_or_global_symbol_value(eval, "current-prefix-arg").unwrap_or(Value::Nil),
         ]),
