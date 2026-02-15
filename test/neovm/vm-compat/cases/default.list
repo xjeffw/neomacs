@@ -84,6 +84,7 @@ cases/file-name-completion
 cases/substitute-in-file-name
 cases/features-sync
 cases/pcase
+cases/json-semantics
 cases/seq-position
 cases/split-string-semantics
 cases/make-string-semantics

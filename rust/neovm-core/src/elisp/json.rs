@@ -320,10 +320,8 @@ fn serialize_to_json(value: &Value, opts: &SerializeOpts, depth: usize) -> Resul
         Value::Cons(_) => {
             let items = list_to_vec(value).ok_or_else(|| {
                 signal(
-                    "json-serialize-error",
-                    vec![Value::string(
-                        "Expected a proper list (alist) for JSON object",
-                    )],
+                    "wrong-type-argument",
+                    vec![Value::symbol("listp"), value.clone()],
                 )
             })?;
             let mut parts = Vec::with_capacity(items.len());
@@ -331,14 +329,14 @@ fn serialize_to_json(value: &Value, opts: &SerializeOpts, depth: usize) -> Resul
                 match item {
                     Value::Cons(cell) => {
                         let pair = cell.lock().expect("poisoned");
-                        let key_str = value_to_object_key(&pair.car)?;
+                        let key_str = symbol_object_key(&pair.car)?;
                         let val_json = serialize_to_json(&pair.cdr, opts, depth + 1)?;
                         parts.push(format!("{}:{}", json_encode_string(&key_str), val_json));
                     }
                     _ => {
                         return Err(signal(
-                            "json-serialize-error",
-                            vec![Value::string("Alist entry is not a cons cell")],
+                            "wrong-type-argument",
+                            vec![Value::symbol("consp"), item.clone()],
                         ));
                     }
                 }
@@ -394,26 +392,15 @@ fn hash_key_to_string(key: &HashKey) -> Result<String, Flow> {
 
 /// Convert a Lisp value to a string key for a JSON object (used when
 /// serializing alists).
-fn value_to_object_key(value: &Value) -> Result<String, Flow> {
+///
+/// Emacs `json-serialize` expects symbol keys in alists.
+fn symbol_object_key(value: &Value) -> Result<String, Flow> {
     match value {
-        Value::Str(s) => Ok((**s).clone()),
         Value::Symbol(s) => Ok(s.clone()),
-        Value::Nil => Ok("nil".to_string()),
-        Value::True => Ok("t".to_string()),
-        Value::Keyword(s) => {
-            if let Some(stripped) = s.strip_prefix(':') {
-                Ok(stripped.to_string())
-            } else {
-                Ok(s.clone())
-            }
-        }
-        Value::Int(n) => Ok(n.to_string()),
+        Value::Keyword(s) => Ok(s.clone()),
         other => Err(signal(
-            "json-serialize-error",
-            vec![Value::string(format!(
-                "Cannot use {} as JSON object key",
-                super::print::print_value(other)
-            ))],
+            "wrong-type-argument",
+            vec![Value::symbol("symbolp"), other.clone()],
         )),
     }
 }
@@ -964,7 +951,7 @@ impl<'a> JsonParser<'a> {
             self.expect_byte(b':')?;
             let val = self.parse_value()?;
 
-            pairs.push(Value::cons(Value::string(key), val));
+            pairs.push(Value::cons(Value::symbol(key), val));
 
             self.skip_ws();
             match self.peek() {
@@ -1086,13 +1073,21 @@ pub(crate) fn builtin_json_parse_string(args: Vec<Value>) -> EvalResult {
     };
     let opts = parse_parse_kwargs(&args, 1)?;
     let mut parser = JsonParser::new(&input, opts);
+    parser.skip_ws();
+    if parser.pos >= parser.input.len() {
+        let p = parser.pos as i64;
+        return Err(signal(
+            "json-end-of-file",
+            vec![Value::Int(1), Value::Int(p), Value::Int(p)],
+        ));
+    }
     let result = parser.parse_value()?;
 
     // Ensure there is no trailing non-whitespace.
     parser.skip_ws();
     if parser.pos < parser.input.len() {
         return Err(signal(
-            "json-parse-error",
+            "json-trailing-content",
             vec![Value::string(format!(
                 "Trailing content after JSON value at position {}",
                 parser.pos
@@ -1233,8 +1228,8 @@ mod tests {
     #[test]
     fn serialize_alist() {
         let alist = Value::list(vec![
-            Value::cons(Value::string("a"), Value::Int(1)),
-            Value::cons(Value::string("b"), Value::Int(2)),
+            Value::cons(Value::symbol("a"), Value::Int(1)),
+            Value::cons(Value::symbol("b"), Value::Int(2)),
         ]);
         let result = builtin_json_serialize(vec![alist]);
         assert_eq!(result.unwrap().as_str(), Some("{\"a\":1,\"b\":2}"));
@@ -1243,9 +1238,21 @@ mod tests {
     #[test]
     fn serialize_nested() {
         let inner = Value::vector(vec![Value::Int(1), Value::Int(2)]);
-        let alist = Value::list(vec![Value::cons(Value::string("arr"), inner)]);
+        let alist = Value::list(vec![Value::cons(Value::symbol("arr"), inner)]);
         let result = builtin_json_serialize(vec![alist]);
         assert_eq!(result.unwrap().as_str(), Some("{\"arr\":[1,2]}"));
+    }
+
+    #[test]
+    fn serialize_alist_string_key_type_error() {
+        let alist = Value::list(vec![Value::cons(Value::string("a"), Value::Int(1))]);
+        match builtin_json_serialize(vec![alist]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("symbolp")));
+            }
+            other => panic!("expected wrong-type-argument signal, got {:?}", other),
+        }
     }
 
     #[test]
@@ -1437,7 +1444,7 @@ mod tests {
         match &items[0] {
             Value::Cons(cell) => {
                 let pair = cell.lock().unwrap();
-                assert_eq!(pair.car.as_str(), Some("x"));
+                assert_eq!(pair.car, Value::symbol("x"));
                 assert!(matches!(pair.cdr, Value::Int(10)));
             }
             other => panic!("expected cons, got {:?}", other),
@@ -1494,8 +1501,12 @@ mod tests {
 
     #[test]
     fn parse_empty_string_error() {
-        let result = builtin_json_parse_string(vec![Value::string("")]);
-        assert!(result.is_err());
+        match builtin_json_parse_string(vec![Value::string("")]) {
+            Err(Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "json-end-of-file");
+            }
+            other => panic!("expected json-end-of-file signal, got {:?}", other),
+        }
     }
 
     #[test]
