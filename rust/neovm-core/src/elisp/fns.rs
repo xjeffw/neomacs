@@ -704,13 +704,6 @@ pub(crate) fn builtin_secure_hash_eval(
 }
 
 /// (buffer-hash &optional BUFFER-OR-NAME)
-/// Stub: always returns "0".
-pub(crate) fn builtin_buffer_hash(args: Vec<Value>) -> EvalResult {
-    expect_range_args("buffer-hash", &args, 0, 1)?;
-    Ok(Value::string("0"))
-}
-
-/// (buffer-hash &optional BUFFER-OR-NAME)
 /// Evaluator-aware implementation used at runtime.
 pub(crate) fn builtin_buffer_hash_eval(
     eval: &mut super::eval::Evaluator,
@@ -1588,14 +1581,6 @@ mod tests {
             }
             other => panic!("expected error signal, got {other:?}"),
         }
-    }
-
-    // ---- buffer-hash stub ----
-
-    #[test]
-    fn buffer_hash_stub() {
-        let r = builtin_buffer_hash(vec![]).unwrap();
-        assert_eq!(r.as_str(), Some("0"));
     }
 
     #[test]

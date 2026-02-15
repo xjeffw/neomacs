@@ -7411,7 +7411,6 @@ pub(crate) fn dispatch_builtin(
         "base64url-encode-string" => super::fns::builtin_base64url_encode_string(args),
         "md5" => super::fns::builtin_md5(args),
         "secure-hash" => super::fns::builtin_secure_hash(args),
-        "buffer-hash" => super::fns::builtin_buffer_hash(args),
         "equal-including-properties" => super::fns::builtin_equal_including_properties(args),
         "widget-get" => super::fns::builtin_widget_get(args),
         "widget-put" => super::fns::builtin_widget_put(args),
