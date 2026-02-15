@@ -915,6 +915,94 @@ pub(crate) fn builtin_copy_syntax_table(args: Vec<Value>) -> EvalResult {
     }
 }
 
+/// `(syntax-class-to-char CLASS)` — map syntax class code to descriptor char.
+pub(crate) fn builtin_syntax_class_to_char(args: Vec<Value>) -> EvalResult {
+    if args.len() != 1 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![
+                Value::symbol("syntax-class-to-char"),
+                Value::Int(args.len() as i64),
+            ],
+        ));
+    }
+
+    let class = match &args[0] {
+        Value::Int(n) => *n,
+        Value::Char(c) => *c as i64,
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("fixnump"), other.clone()],
+            ));
+        }
+    };
+
+    let ch = match class {
+        0 => ' ',
+        1 => '.',
+        2 => 'w',
+        3 => '_',
+        4 => '(',
+        5 => ')',
+        6 => '\'',
+        7 => '"',
+        8 => '$',
+        9 => '\\',
+        10 => '/',
+        11 => '<',
+        12 => '>',
+        13 => '@',
+        14 => '!',
+        15 => '|',
+        n => {
+            return Err(signal(
+                "args-out-of-range",
+                vec![Value::Int(15), Value::Int(n)],
+            ));
+        }
+    };
+
+    Ok(Value::Char(ch))
+}
+
+/// `(matching-paren CHAR)` — return matching paren for bracket chars.
+pub(crate) fn builtin_matching_paren(args: Vec<Value>) -> EvalResult {
+    if args.len() != 1 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("matching-paren"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let ch = match &args[0] {
+        Value::Int(n) => char::from_u32(*n as u32).ok_or_else(|| {
+            signal(
+                "wrong-type-argument",
+                vec![Value::symbol("characterp"), args[0].clone()],
+            )
+        })?,
+        Value::Char(c) => *c,
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("characterp"), other.clone()],
+            ));
+        }
+    };
+
+    let out = match ch {
+        '(' => Some(')'),
+        ')' => Some('('),
+        '[' => Some(']'),
+        ']' => Some('['),
+        '{' => Some('}'),
+        '}' => Some('{'),
+        _ => None,
+    };
+    Ok(out.map_or(Value::Nil, Value::Char))
+}
+
 /// `(standard-syntax-table)` — return the standard syntax table.
 pub(crate) fn builtin_standard_syntax_table(args: Vec<Value>) -> EvalResult {
     if !args.is_empty() {
@@ -2322,6 +2410,66 @@ mod tests {
             Err(crate::elisp::error::Flow::Signal(sig)) => {
                 assert_eq!(sig.symbol, "wrong-number-of-arguments");
                 assert_eq!(sig.data.first(), Some(&Value::symbol("copy-syntax-table")));
+            }
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn syntax_class_to_char_basics_and_errors() {
+        assert_eq!(
+            builtin_syntax_class_to_char(vec![Value::Int(0)]).unwrap(),
+            Value::Char(' ')
+        );
+        assert_eq!(
+            builtin_syntax_class_to_char(vec![Value::Int(15)]).unwrap(),
+            Value::Char('|')
+        );
+
+        match builtin_syntax_class_to_char(vec![Value::Int(-1)]) {
+            Err(crate::elisp::error::Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "args-out-of-range");
+                assert_eq!(sig.data, vec![Value::Int(15), Value::Int(-1)]);
+            }
+            other => panic!("expected args-out-of-range signal, got {other:?}"),
+        }
+
+        match builtin_syntax_class_to_char(vec![Value::string("x")]) {
+            Err(crate::elisp::error::Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("fixnump")));
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn matching_paren_basics_and_errors() {
+        assert_eq!(
+            builtin_matching_paren(vec![Value::Int('(' as i64)]).unwrap(),
+            Value::Char(')')
+        );
+        assert_eq!(
+            builtin_matching_paren(vec![Value::Int(']' as i64)]).unwrap(),
+            Value::Char('[')
+        );
+        assert_eq!(
+            builtin_matching_paren(vec![Value::Int('a' as i64)]).unwrap(),
+            Value::Nil
+        );
+
+        match builtin_matching_paren(vec![Value::string("(")]) {
+            Err(crate::elisp::error::Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("characterp")));
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+
+        match builtin_matching_paren(vec![]) {
+            Err(crate::elisp::error::Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("matching-paren")));
             }
             other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
         }
