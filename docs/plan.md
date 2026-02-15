@@ -12,12 +12,26 @@ Last updated: 2026-02-15
 
 ## Next
 
-- Add one focused corpus for transpose-family siblings (`transpose-sexps`/`transpose-sentences`) with signed interactive prefix counts.
+- Add one focused corpus for paragraph/line transpose siblings with signed interactive prefix counts.
 - Continue promoting already-green non-default corpora to `default.list` one-by-one with targeted checks.
 - Keep validating list hygiene and merged-case dedupe as list membership changes.
 
 ## Done
 
+- Aligned transpose-sibling prefix behavior for `transpose-sexps`/`transpose-sentences`:
+  - updated:
+    - `rust/neovm-core/src/elisp/kill_ring.rs`
+      - `transpose-sentences` negative underflow now signals
+        `error` `"Don’t have two things to transpose"` (oracle behavior)
+  - added corpus:
+    - `test/neovm/vm-compat/cases/transpose-siblings-prefix-arg-semantics.forms`
+    - `test/neovm/vm-compat/cases/transpose-siblings-prefix-arg-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/transpose-siblings-prefix-arg-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/transpose-sentences-read-only-variable-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned `transpose-words` signed-count semantics (direct + interactive paths):
   - updated:
     - `rust/neovm-core/src/elisp/kill_ring.rs`
