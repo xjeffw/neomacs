@@ -46,6 +46,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "backtrace-frame",
     "backward-char",
     "backward-kill-word",
+    "backward-prefix-chars",
     "backward-sexp",
     "backward-word",
     "base64-decode-string",

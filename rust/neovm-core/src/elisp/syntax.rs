@@ -331,24 +331,9 @@ impl SyntaxTable {
             entries.insert(ch, SyntaxEntry::simple(SyntaxClass::Punctuation));
         }
 
-        // Prefix characters
-        entries.insert(
-            '\'',
-            SyntaxEntry {
-                class: SyntaxClass::Punctuation,
-                matching_char: None,
-                flags: SyntaxFlags::PREFIX,
-            },
-        );
-        // Backtick
-        entries.insert(
-            '`',
-            SyntaxEntry {
-                class: SyntaxClass::Punctuation,
-                matching_char: None,
-                flags: SyntaxFlags::PREFIX,
-            },
-        );
+        // Quote/backtick are punctuation by default in Emacs standard syntax.
+        entries.insert('\'', SyntaxEntry::simple(SyntaxClass::Punctuation));
+        entries.insert('`', SyntaxEntry::simple(SyntaxClass::Punctuation));
         // Dollar for TeX math
         entries.insert('$', SyntaxEntry::simple(SyntaxClass::MathDelim));
 
@@ -1201,6 +1186,48 @@ pub(crate) fn builtin_forward_comment(
             }
             remaining -= 1;
         }
+    }
+
+    Ok(Value::Nil)
+}
+
+/// `(backward-prefix-chars)` — move point backward over prefix-syntax chars.
+pub(crate) fn builtin_backward_prefix_chars(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    if !args.is_empty() {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![
+                Value::symbol("backward-prefix-chars"),
+                Value::Int(args.len() as i64),
+            ],
+        ));
+    }
+
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    loop {
+        let pt = buf.point();
+        if pt <= buf.point_min() {
+            break;
+        }
+        let Some(ch) = buf.char_before(pt) else {
+            break;
+        };
+        let is_prefix = buf
+            .syntax_table
+            .get_entry(ch)
+            .map(|entry| entry.flags.contains(SyntaxFlags::PREFIX))
+            .unwrap_or(false);
+        if !is_prefix {
+            break;
+        }
+        buf.goto_char(pt.saturating_sub(ch.len_utf8()));
     }
 
     Ok(Value::Nil)
@@ -2317,6 +2344,62 @@ mod tests {
                 assert_eq!(sig.data.first(), Some(&Value::symbol("integerp")));
             }
             other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn backward_prefix_chars_default_is_noop() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        {
+            let buf = eval.buffers.current_buffer_mut().expect("current buffer");
+            buf.delete_region(buf.point_min(), buf.point_max());
+            buf.insert("''foo");
+            buf.goto_char(buf.text.char_to_byte(2));
+        }
+
+        let out = builtin_backward_prefix_chars(&mut eval, vec![]).unwrap();
+        assert_eq!(out, Value::Nil);
+        let point_1 = eval
+            .buffers
+            .current_buffer()
+            .expect("current buffer")
+            .point_char() as i64
+            + 1;
+        assert_eq!(point_1, 3);
+    }
+
+    #[test]
+    fn backward_prefix_chars_moves_over_prefix_flag_chars() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        {
+            let buf = eval.buffers.current_buffer_mut().expect("current buffer");
+            buf.delete_region(buf.point_min(), buf.point_max());
+            buf.insert("''foo");
+            buf.goto_char(buf.point_min());
+            let entry = string_to_syntax(". p").unwrap();
+            buf.syntax_table.modify_syntax_entry('\'', entry);
+            buf.goto_char(buf.text.char_to_byte(2));
+        }
+
+        builtin_backward_prefix_chars(&mut eval, vec![]).unwrap();
+        let point_1 = eval
+            .buffers
+            .current_buffer()
+            .expect("current buffer")
+            .point_char() as i64
+            + 1;
+        assert_eq!(point_1, 1);
+    }
+
+    #[test]
+    fn backward_prefix_chars_validates_arity() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+        match builtin_backward_prefix_chars(&mut eval, vec![Value::Int(1)]) {
+            Err(crate::elisp::error::Flow::Signal(sig)) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(sig.data.first(), Some(&Value::symbol("backward-prefix-chars")));
+            }
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
         }
     }
 
