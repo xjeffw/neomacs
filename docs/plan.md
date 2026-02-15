@@ -19,6 +19,25 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Implemented `category-table` object semantics and evaluator wiring:
+  - updated:
+    - `rust/neovm-core/src/elisp/category.rs`
+      - replaced stubbed `category-table-p`/`category-table`/`standard-category-table`/`make-category-table`/`set-category-table` pure behavior with real category char-table object handling.
+      - added process-wide stable standard category-table object management.
+      - added evaluator-backed `category-table`, `standard-category-table`, and `set-category-table` behavior with buffer-local current table storage.
+      - added focused unit tests for category table object identity/type and `set-category-table` paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed `category-table`, `standard-category-table`, and `set-category-table` through evaluator dispatch.
+    - `test/neovm/vm-compat/cases/category-table-object-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/default.list`
+      - included `cases/category-table-object-semantics` in default compatibility runs.
+  - verified:
+    - `cargo test category::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/category-table-object-semantics.forms EXPECTED=cases/category-table-object-semantics.expected.tsv` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/category-table-object-semantics` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `NEOVM_ORACLE_EMACS=/nix/store/ha7zx1gahhj7lrx223m9rpwh89vbqq9z-emacs-git-with-packages-20240702.0/bin/emacs make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; expected allowlisted drift only: `neovm-precompile-file`)
+
 - Implemented additional syntax helper builtins and default-table parity lock-ins:
   - updated:
     - `rust/neovm-core/src/elisp/syntax.rs`
