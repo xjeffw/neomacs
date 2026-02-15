@@ -19,6 +19,26 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned `put-image` / `insert-image` error and return semantics for batch mode:
+  - updated:
+    - `rust/neovm-core/src/elisp/image.rs`
+      - `put-image`:
+        - invalid image now signals `(error "Not an image: ...")`.
+        - point validation now uses `integer-or-marker-p` (accepts integer/char in batch).
+      - `insert-image`:
+        - max arity raised to `5`.
+        - invalid image now signals `(error "Not an image: ...")`.
+        - successful batch path now returns `t`.
+      - refreshed/expanded image unit tests for the new contracts.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/image-insert-put-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/neovm-only.list`
+      - added `cases/image-insert-put-semantics`.
+  - verified:
+    - `cargo test image::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/image-insert-put-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Aligned image query stub semantics for batch/no-window behavior:
   - updated:
     - `rust/neovm-core/src/elisp/image.rs`
