@@ -70,6 +70,7 @@ cases/printing
 cases/prin1-to-string-noescape
 cases/chars
 cases/syntax-table-semantics
+cases/syntax-table-object-semantics
 cases/copy-syntax-table-semantics
 cases/forward-comment-semantics
 cases/backward-prefix-chars-semantics
