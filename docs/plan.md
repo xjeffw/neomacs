@@ -19,6 +19,22 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Aligned `compose-string-internal` range/error behavior with oracle subset:
+  - updated:
+    - `rust/neovm-core/src/elisp/composite.rs`
+      - added range validation for START/END against input string length.
+      - now signals `args-out-of-range` for negative/out-of-bounds or `START > END`.
+      - preserves valid zero-length composition behavior (`START == END`) by returning the input string.
+      - expanded composite unit tests for range paths.
+    - `test/neovm/vm-compat/cases/composite-basic-semantics.{forms,expected.tsv}`
+      - added range/error coverage for `compose-string-internal`:
+        - `(2 1)`, `(0 4)`, `(-1 1)` => `args-out-of-range`
+        - `(0 0)` remains successful and equals original string
+      - refreshed oracle baseline.
+  - verified:
+    - `cargo test composite::tests --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/composite-basic-semantics` (pass, 47/47)
+
 - Added evaluator-backed `compose-region-internal` range validation and oracle corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/composite.rs`
