@@ -4,7 +4,6 @@
 //! - Trigonometric: `acos`, `asin`, `atan`, `cos`, `sin`, `tan`
 //! - Classification: `isnan`, `copysign`, `frexp`, `ldexp`, `logb`
 //! - Exponential: `exp`, `expt`, `log`, `sqrt`
-//! - Conversion: `float`
 //! - Rounding (integer result): `ceiling`, `floor`, `round`, `truncate`
 //! - Rounding (float result): `fceiling`, `ffloor`, `fround`, `ftruncate`
 
@@ -333,19 +332,6 @@ pub(crate) fn builtin_sqrt(args: Vec<Value>) -> EvalResult {
         ));
     }
     Ok(Value::Float(x.sqrt()))
-}
-
-/// (float X) -- convert X to a floating-point number
-pub(crate) fn builtin_float(args: Vec<Value>) -> EvalResult {
-    expect_args("float", &args, 1)?;
-    match &args[0] {
-        Value::Int(n) => Ok(Value::Float(*n as f64)),
-        Value::Float(f) => Ok(Value::Float(*f)),
-        other => Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("number-or-marker-p"), other.clone()],
-        )),
-    }
 }
 
 /// (logb X) -- integer part of base-2 logarithm of |X|
@@ -805,16 +791,7 @@ mod tests {
         assert!(builtin_sqrt(vec![Value::Float(-1.0)]).is_err());
     }
 
-    // ===== float / logb =====
-
-    #[test]
-    fn test_float_conversion() {
-        let result = builtin_float(vec![Value::Int(42)]).unwrap();
-        assert_float_eq(&result, 42.0, 1e-10);
-
-        let result = builtin_float(vec![Value::Float(3.14)]).unwrap();
-        assert_float_eq(&result, 3.14, 1e-10);
-    }
+    // ===== logb =====
 
     #[test]
     fn test_logb() {
@@ -992,7 +969,7 @@ mod tests {
         assert!(builtin_cos(vec![Value::string("x")]).is_err());
         assert!(builtin_sin(vec![Value::Nil]).is_err());
         assert!(builtin_exp(vec![Value::True]).is_err());
-        assert!(builtin_float(vec![Value::string("y")]).is_err());
+        assert!(builtin_logb(vec![Value::string("y")]).is_err());
     }
 
     // ===== Wrong arity errors =====
