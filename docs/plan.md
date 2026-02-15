@@ -18,6 +18,38 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Re-ran full NeoVM compatibility gate to keep drift bounded between slices:
+  - verified:
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default corpus)
+- Removed dead unexposed `cl-first` family tail wrappers:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - deleted unreferenced `builtin_cl_fifth` / `builtin_cl_sixth` / `builtin_cl_seventh` /
+        `builtin_cl_eighth` / `builtin_cl_ninth` / `builtin_cl_tenth`
+      - preserved active `cl-first`/`cl-second`/`cl-third`/`cl-fourth` helpers
+  - verified:
+    - `cargo test 'elisp::cl_lib::tests::' -- --nocapture` (pass, 36 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+- Removed dead unexposed eval-only `cl-*` helper surface:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - deleted unreferenced `builtin_cl_map` / `builtin_cl_notevery` / `builtin_cl_notany`
+      - deleted unreferenced `builtin_cl_remove_if` / `builtin_cl_remove_if_not` / `builtin_cl_find_if`
+      - deleted unreferenced `builtin_cl_count_if` / `builtin_cl_sort` / `builtin_cl_stable_sort`
+  - verified:
+    - `cargo test 'elisp::cl_lib::tests::' -- --nocapture` (pass, 36 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/seq-more` (pass, 16/16)
+- Removed dead duplicate helper wrappers from `builtins_extra`:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins_extra.rs`
+      - deleted unreferenced `builtin_string_to_number_ext` / `builtin_random_ext`
+      - deleted unreferenced `builtin_cl_plusp` / `builtin_cl_minusp`
+      - deleted unreferenced `builtin_cl_gensym` / `builtin_make_symbol_extra`
+  - verified:
+    - `cargo test 'elisp::builtins_extra::tests::' -- --nocapture` (pass, 16 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/string-to-number-semantics` (pass, 8/8)
 - Removed dead `casefiddle` up/down/character predicate wrapper surface:
   - updated:
     - `rust/neovm-core/src/elisp/casefiddle.rs`
