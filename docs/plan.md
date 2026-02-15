@@ -6,17 +6,41 @@ Last updated: 2026-02-15
 
 - Expand kill-ring/yank pointer corpus around normalization and command-context edges.
 - Keep default-suite case lists authoritative and append passing corpora in small slices.
-- Continue `yank-pop` parity lock-in for region-tracking and pointer-publication behavior under intervening edits.
+- Continue `yank-pop` parity lock-in for command-context error ordering and mark-marker interactions.
+- Run a full `check-all-neovm` sweep after the recent default-list promotions.
 - Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
 
 ## Next
 
-- Add one focused corpus for `yank-pop` behavior when mark is unset/overridden after yank (error precedence + pointer publication).
+- Add one focused corpus for `yank-pop` with explicitly empty `kill-ring` + pointer seeds (error payload parity).
 - Continue promoting already-green non-default corpora to `default.list` one-by-one with targeted checks.
-- Run `check-all-neovm` after the next 2-4 corpus/list promotions to catch integration regressions early.
+- Keep validating list hygiene and merged-case dedupe as list membership changes.
 
 ## Done
 
+- Aligned `yank-pop` command-context and mark-marker semantics with oracle behavior:
+  - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
+    - `yank-pop` now rotates/publishes pointer state after mark-bounds resolution, preserving no-rotation behavior when mark is unset
+  - updated `rust/neovm-core/src/elisp/marker.rs`:
+    - `set-marker` now mirrors updates back to buffer mark when operating on current `mark-marker` snapshots (including `nil` clear)
+  - updated `rust/neovm-core/src/elisp/eval.rs`:
+    - prebound `kill-ring`, `kill-ring-yank-pointer`, and `last-command` to `nil`
+  - added corpora:
+    - `test/neovm/vm-compat/cases/yank-pop-mark-marker-semantics.forms`
+    - `test/neovm/vm-compat/cases/yank-pop-mark-marker-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/yank-pop-no-prior-yank-pointer-semantics.forms`
+    - `test/neovm/vm-compat/cases/yank-pop-no-prior-yank-pointer-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-pop-mark-marker-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-pop-no-prior-yank-pointer-semantics` (pass, 2/2)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-pop-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-pop-pointer-normalize-error-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-pop-read-only-variable-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/yank-pop-region-tracking-semantics` (pass, 3/3)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass across default + neovm-only suites after latest promotions)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned `yank-pop` replacement-region tracking with oracle behavior under intervening edits:
   - updated `rust/neovm-core/src/elisp/kill_ring.rs`:
     - `yank-pop` now derives replacement bounds from current `mark`/`point` (while retaining yank-context gate), instead of stale stored byte ranges
