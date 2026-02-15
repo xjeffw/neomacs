@@ -371,6 +371,17 @@ fn transpose_subr_ranges(
         return Err(two_thing_error());
     }
 
+    let buf = eval
+        .buffers
+        .current_buffer()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    if region_case_read_only(eval, buf) {
+        return Err(signal(
+            "buffer-read-only",
+            vec![Value::string(buf.name.clone())],
+        ));
+    }
+
     let (a, middle, b) = {
         let buf_r = eval
             .buffers
@@ -1999,12 +2010,6 @@ pub(crate) fn builtin_transpose_paragraphs(
             .buffers
             .current_buffer()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
-        if buf.read_only {
-            return Err(signal(
-                "buffer-read-only",
-                vec![Value::string(buf.name.clone())],
-            ));
-        }
         let (forward, backward) = collect_paragraph_boundaries(buf);
         (
             buf.point_min(),
