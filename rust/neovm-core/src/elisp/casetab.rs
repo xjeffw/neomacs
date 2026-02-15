@@ -6,7 +6,12 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
+use std::cell::RefCell;
 use std::collections::HashMap;
+
+thread_local! {
+    static STANDARD_CASE_TABLE_OBJECT: RefCell<Option<Value>> = const { RefCell::new(None) };
+}
 
 // ---------------------------------------------------------------------------
 // CaseTable
@@ -198,34 +203,92 @@ pub(crate) fn builtin_case_table_p(args: Vec<Value>) -> EvalResult {
 
 /// `(current-case-table)` -- return the current case table.
 ///
-/// Stub: returns t (the standard case table is always active).
+/// Pure fallback returns the standard case table object.
 pub(crate) fn builtin_current_case_table(args: Vec<Value>) -> EvalResult {
     expect_args("current-case-table", &args, 0)?;
-    Ok(Value::True)
+    ensure_standard_case_table_object()
 }
 
 /// `(standard-case-table)` -- return the standard case table.
 ///
-/// Stub: returns t.
+/// Returns the process-wide standard case table object.
 pub(crate) fn builtin_standard_case_table(args: Vec<Value>) -> EvalResult {
     expect_args("standard-case-table", &args, 0)?;
-    Ok(Value::True)
+    ensure_standard_case_table_object()
 }
 
 /// `(set-case-table TABLE)` -- set the current case table.
 ///
-/// Stub: accepts any argument, returns the argument.
+/// Pure fallback: validate TABLE and return it.
 pub(crate) fn builtin_set_case_table(args: Vec<Value>) -> EvalResult {
     expect_args("set-case-table", &args, 1)?;
+    if !is_case_table(&args[0]) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("case-table-p"), args[0].clone()],
+        ));
+    }
     Ok(args[0].clone())
 }
 
 /// `(set-standard-case-table TABLE)` -- set the standard case table.
 ///
-/// Stub: accepts any argument, returns the argument.
+/// Pure fallback: validate TABLE and return it.
 pub(crate) fn builtin_set_standard_case_table(args: Vec<Value>) -> EvalResult {
     expect_args("set-standard-case-table", &args, 1)?;
+    if !is_case_table(&args[0]) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("case-table-p"), args[0].clone()],
+        ));
+    }
+    STANDARD_CASE_TABLE_OBJECT.with(|slot| {
+        *slot.borrow_mut() = Some(args[0].clone());
+    });
     Ok(args[0].clone())
+}
+
+/// `(current-case-table)` -- evaluator-backed current buffer case table object.
+pub(crate) fn builtin_current_case_table_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("current-case-table", &args, 0)?;
+    current_case_table_for_buffer(eval)
+}
+
+/// `(standard-case-table)` -- evaluator-backed standard case table object.
+pub(crate) fn builtin_standard_case_table_eval(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("standard-case-table", &args, 0)?;
+    ensure_standard_case_table_object()
+}
+
+/// `(set-case-table TABLE)` -- evaluator-backed current buffer case table set.
+pub(crate) fn builtin_set_case_table_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("set-case-table", &args, 1)?;
+    if !is_case_table(&args[0]) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("case-table-p"), args[0].clone()],
+        ));
+    }
+    let table = args[0].clone();
+    set_current_case_table_for_buffer(eval, table.clone())?;
+    Ok(table)
+}
+
+/// `(set-standard-case-table TABLE)` -- evaluator-backed standard table set.
+pub(crate) fn builtin_set_standard_case_table_eval(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    builtin_set_standard_case_table(args)
 }
 
 /// `(upcase CHAR)` -- convert a character to uppercase.
@@ -246,6 +309,59 @@ pub(crate) fn builtin_upcase_char(args: Vec<Value>) -> EvalResult {
 // ---------------------------------------------------------------------------
 
 const CASE_TABLE_TAG: &str = "--case-table--";
+const CURRENT_CASE_TABLE_PROPERTY: &str = "case-table";
+
+fn make_case_table_value() -> Value {
+    Value::vector(vec![
+        Value::symbol(CASE_TABLE_TAG),
+        Value::Nil,
+        Value::Nil,
+        Value::Nil,
+        Value::Nil,
+    ])
+}
+
+fn ensure_standard_case_table_object() -> EvalResult {
+    STANDARD_CASE_TABLE_OBJECT.with(|slot| {
+        if let Some(value) = slot.borrow().as_ref() {
+            return Ok(value.clone());
+        }
+        let table = make_case_table_value();
+        *slot.borrow_mut() = Some(table.clone());
+        Ok(table)
+    })
+}
+
+fn current_case_table_for_buffer(eval: &mut super::eval::Evaluator) -> Result<Value, Flow> {
+    let fallback = ensure_standard_case_table_object()?;
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+
+    if let Some(value) = buf.properties.get(CURRENT_CASE_TABLE_PROPERTY) {
+        if is_case_table(value) {
+            return Ok(value.clone());
+        }
+    }
+
+    buf.properties
+        .insert(CURRENT_CASE_TABLE_PROPERTY.to_string(), fallback.clone());
+    Ok(fallback)
+}
+
+fn set_current_case_table_for_buffer(
+    eval: &mut super::eval::Evaluator,
+    table: Value,
+) -> Result<(), Flow> {
+    let buf = eval
+        .buffers
+        .current_buffer_mut()
+        .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
+    buf.properties
+        .insert(CURRENT_CASE_TABLE_PROPERTY.to_string(), table);
+    Ok(())
+}
 
 /// Return `true` if `v` is a case table (tagged vector).
 pub fn is_case_table(v: &Value) -> bool {
@@ -429,9 +545,9 @@ mod tests {
     }
 
     #[test]
-    fn builtin_current_case_table_returns_t() {
+    fn builtin_current_case_table_returns_case_table() {
         let result = builtin_current_case_table(vec![]).unwrap();
-        assert!(matches!(result, Value::True));
+        assert!(is_case_table(&result));
     }
 
     #[test]
@@ -440,9 +556,9 @@ mod tests {
     }
 
     #[test]
-    fn builtin_standard_case_table_returns_t() {
+    fn builtin_standard_case_table_returns_case_table() {
         let result = builtin_standard_case_table(vec![]).unwrap();
-        assert!(matches!(result, Value::True));
+        assert!(is_case_table(&result));
     }
 
     #[test]
@@ -452,9 +568,14 @@ mod tests {
 
     #[test]
     fn builtin_set_case_table_returns_arg() {
-        let table = Value::True;
+        let table = make_case_table_value();
         let result = builtin_set_case_table(vec![table.clone()]).unwrap();
-        assert!(matches!(result, Value::True));
+        assert_eq!(result, table);
+    }
+
+    #[test]
+    fn builtin_set_case_table_rejects_non_table() {
+        assert!(builtin_set_case_table(vec![Value::Int(1)]).is_err());
     }
 
     #[test]
@@ -465,14 +586,43 @@ mod tests {
 
     #[test]
     fn builtin_set_standard_case_table_returns_arg() {
-        let table = Value::Int(99);
+        let table = make_case_table_value();
         let result = builtin_set_standard_case_table(vec![table.clone()]).unwrap();
-        assert!(matches!(result, Value::Int(99)));
+        assert_eq!(result, table);
+    }
+
+    #[test]
+    fn builtin_set_standard_case_table_rejects_non_table() {
+        assert!(builtin_set_standard_case_table(vec![Value::Int(1)]).is_err());
     }
 
     #[test]
     fn builtin_set_standard_case_table_wrong_args() {
         assert!(builtin_set_standard_case_table(vec![]).is_err());
+    }
+
+    #[test]
+    fn evaluator_case_table_roundtrip_and_isolation() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let standard = builtin_standard_case_table_eval(&mut eval, vec![]).unwrap();
+        let current = builtin_current_case_table_eval(&mut eval, vec![]).unwrap();
+        assert_eq!(standard, current);
+
+        let current_id = eval.buffers.current_buffer().expect("current buffer").id;
+        let other_id = eval.buffers.create_buffer("*case-other*");
+
+        let custom = make_case_table_value();
+        builtin_set_case_table_eval(&mut eval, vec![custom.clone()]).unwrap();
+        let after_set = builtin_current_case_table_eval(&mut eval, vec![]).unwrap();
+        assert_eq!(after_set, custom);
+
+        eval.buffers.set_current(other_id);
+        let other_current = builtin_current_case_table_eval(&mut eval, vec![]).unwrap();
+        assert_eq!(other_current, standard);
+
+        eval.buffers.set_current(current_id);
+        let restored = builtin_current_case_table_eval(&mut eval, vec![]).unwrap();
+        assert_eq!(restored, custom);
     }
 
     #[test]

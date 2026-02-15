@@ -6645,6 +6645,16 @@ pub(crate) fn dispatch_builtin(
         "point-min-marker" => return Some(super::marker::builtin_point_min_marker(eval, args)),
         "point-max-marker" => return Some(super::marker::builtin_point_max_marker(eval, args)),
 
+        // Case table (evaluator-dependent)
+        "current-case-table" => return Some(super::casetab::builtin_current_case_table_eval(eval, args)),
+        "standard-case-table" => {
+            return Some(super::casetab::builtin_standard_case_table_eval(eval, args))
+        }
+        "set-case-table" => return Some(super::casetab::builtin_set_case_table_eval(eval, args)),
+        "set-standard-case-table" => {
+            return Some(super::casetab::builtin_set_standard_case_table_eval(eval, args))
+        }
+
         // Category (evaluator-dependent)
         "define-category" => return Some(super::category::builtin_define_category_eval(eval, args)),
         "category-docstring" => {
