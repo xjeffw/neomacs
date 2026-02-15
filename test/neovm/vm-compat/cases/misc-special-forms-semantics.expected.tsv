@@ -1,0 +1,13 @@
+1	(fboundp 'with-syntax-table)	OK t
+2	(special-form-p 'with-syntax-table)	OK nil
+3	(with-syntax-table (make-syntax-table) :ok)	OK :ok
+4	(with-syntax-table (make-syntax-table) 1 2 3)	OK 3
+5	(let ((x 0)) (with-syntax-table (progn (setq x (1+ x)) (make-syntax-table)) x))	OK 1
+6	(condition-case err (with-syntax-table) (wrong-number-of-arguments (car err)))	OK wrong-number-of-arguments
+7	(condition-case err (with-syntax-table (progn (signal 'error '("boom"))) 1) (error (car err)))	OK error
+8	(fboundp 'track-mouse)	OK t
+9	(special-form-p 'track-mouse)	OK nil
+10	(track-mouse :a :b)	OK :b
+11	(track-mouse)	OK nil
+12	(let ((x 0)) (track-mouse (setq x 1) (setq x (+ x 1)) x))	OK 2
+13	(condition-case err (track-mouse (signal 'error '("boom"))) (error (car err)))	OK error

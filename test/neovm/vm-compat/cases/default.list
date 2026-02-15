@@ -65,6 +65,7 @@ cases/special-form-arity-errors
 cases/special-form-type-errors
 cases/def-special-form-errors
 cases/func-arity-fallback-macros
+cases/misc-special-forms-semantics
 cases/printing
 cases/prin1-to-string-noescape
 cases/chars
