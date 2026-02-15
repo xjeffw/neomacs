@@ -18,6 +18,15 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Pruned dead duplicate `isnan` wrapper from `floatfns`:
+  - updated:
+    - `rust/neovm-core/src/elisp/floatfns.rs`
+      - removed unreferenced local `builtin_isnan` implementation (active `isnan` dispatch remains in `builtins.rs`).
+      - removed local wrapper-only `isnan` test.
+  - verified:
+    - `cargo test 'elisp::floatfns::tests::' -- --nocapture` (pass, 19 tests)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/core` (pass, 15/15)
+
 - Pruned dead duplicate trigonometric wrappers from `floatfns`:
   - updated:
     - `rust/neovm-core/src/elisp/floatfns.rs`

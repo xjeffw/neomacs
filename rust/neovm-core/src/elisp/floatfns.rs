@@ -1,7 +1,7 @@
 //! Float and math builtins for the Elisp interpreter.
 //!
 //! Implements all functions from Emacs `floatfns.c`:
-//! - Classification: `isnan`, `copysign`, `frexp`, `ldexp`, `logb`
+//! - Classification: `copysign`, `frexp`, `ldexp`, `logb`
 //! - Exponential: `exp`, `expt`, `log`, `sqrt`
 //! - Rounding (float result): `fceiling`, `ffloor`, `fround`, `ftruncate`
 
@@ -75,13 +75,6 @@ fn check_range(name: &str, result: f64) -> Result<f64, Flow> {
 // ---------------------------------------------------------------------------
 // Classification / special float operations
 // ---------------------------------------------------------------------------
-
-/// (isnan X) -- return t if X is NaN, nil otherwise
-pub(crate) fn builtin_isnan(args: Vec<Value>) -> EvalResult {
-    expect_args("isnan", &args, 1)?;
-    let x = extract_float("isnan", &args[0])?;
-    Ok(Value::bool(x.is_nan()))
-}
 
 /// (copysign X1 X2) -- copy sign of X2 to magnitude of X1
 pub(crate) fn builtin_copysign(args: Vec<Value>) -> EvalResult {
@@ -376,18 +369,6 @@ mod tests {
     }
 
     // ===== Classification =====
-
-    #[test]
-    fn test_isnan() {
-        let result = builtin_isnan(vec![Value::Float(f64::NAN)]).unwrap();
-        assert!(result.is_truthy());
-
-        let result = builtin_isnan(vec![Value::Float(1.0)]).unwrap();
-        assert!(result.is_nil());
-
-        let result = builtin_isnan(vec![Value::Int(0)]).unwrap();
-        assert!(result.is_nil());
-    }
 
     #[test]
     fn test_copysign() {
