@@ -5452,6 +5452,7 @@ pub(crate) fn dispatch_builtin(
         }
         "cancel-timer" => return Some(super::timer::builtin_cancel_timer(eval, args)),
         "timer-activate" => return Some(super::timer::builtin_timer_activate(eval, args)),
+        "sleep-for" => return Some(super::timer::builtin_sleep_for(args)),
         // Advice system
         "advice-add" => return Some(super::advice::builtin_advice_add(eval, args)),
         "advice-remove" => return Some(super::advice::builtin_advice_remove(eval, args)),

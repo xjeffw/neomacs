@@ -397,6 +397,41 @@ pub(crate) fn builtin_timer_activate(
     Ok(Value::Nil)
 }
 
+/// (sleep-for SECONDS &optional MILLISECONDS) -> nil
+pub(crate) fn builtin_sleep_for(args: Vec<Value>) -> EvalResult {
+    expect_min_args("sleep-for", &args, 1)?;
+    if args.len() > 2 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("sleep-for"), Value::Int(args.len() as i64)],
+        ));
+    }
+
+    let secs = expect_number(&args[0])?;
+    let millis = if args.len() > 1 {
+        match &args[1] {
+            Value::Int(n) => *n as f64,
+            Value::Float(f) => *f,
+            Value::Nil => 0.0,
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("numberp"), other.clone()],
+                ));
+            }
+        }
+    } else {
+        0.0
+    };
+
+    let total_secs = secs + millis / 1000.0;
+    if total_secs > 0.0 {
+        std::thread::sleep(Duration::from_secs_f64(total_secs));
+    }
+
+    Ok(Value::Nil)
+}
+
 /// (sit-for SECONDS &optional NODISP) -> t
 ///
 /// Stub implementation: just returns t.
@@ -659,6 +694,35 @@ mod tests {
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn test_builtin_sleep_for() {
+        let result = builtin_sleep_for(vec![Value::Int(0)]);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nil());
+
+        let result = builtin_sleep_for(vec![Value::Int(0), Value::Int(0)]);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nil());
+
+        let result = builtin_sleep_for(vec![]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+
+        let result = builtin_sleep_for(vec![Value::Int(0), Value::Int(0), Value::Int(0)]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+
+        let result = builtin_sleep_for(vec![Value::string("1")]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
         ));
     }
 

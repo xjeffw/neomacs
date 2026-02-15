@@ -678,6 +678,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "shell-command-to-string",
     "signal",
     "sit-for",
+    "sleep-for",
     "skip-chars-backward",
     "skip-chars-forward",
     "skip-syntax-backward",
@@ -852,6 +853,7 @@ mod tests {
         assert!(is_dispatch_builtin_name("minibuffer-prompt"));
         assert!(is_dispatch_builtin_name("minibuffer-contents"));
         assert!(is_dispatch_builtin_name("minibuffer-contents-no-properties"));
+        assert!(is_dispatch_builtin_name("sleep-for"));
         assert!(is_dispatch_builtin_name("exit-minibuffer"));
         assert!(is_dispatch_builtin_name("recursive-edit"));
         assert!(is_dispatch_builtin_name("exit-recursive-edit"));
