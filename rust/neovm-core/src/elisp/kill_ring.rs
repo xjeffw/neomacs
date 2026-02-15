@@ -14,7 +14,7 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::syntax::{backward_word, forward_word, scan_sexps, SyntaxClass, SyntaxTable};
-use super::value::{eq_value, Value};
+use super::value::{equal_value, eq_value, Value};
 use crate::buffer::Buffer;
 
 // ===========================================================================
@@ -614,26 +614,39 @@ fn kill_ring_entries_from_value(value: &Value) -> Option<Vec<String>> {
     }
 }
 
-fn kill_ring_pointer_index(kill_ring_value: &Value, pointer_value: &Value) -> usize {
+fn kill_ring_pointer_index(
+    kill_ring_value: &Value,
+    pointer_value: &Value,
+    ring_len: usize,
+    strict_non_list: bool,
+) -> Result<usize, Flow> {
     if pointer_value.is_nil() {
-        return 0;
+        return Ok(0);
     }
+    if !matches!(pointer_value, Value::Cons(_)) {
+        return if strict_non_list {
+            Err(signal("wrong-type-argument", vec![]))
+        } else {
+            Ok(0)
+        };
+    }
+
     let mut cursor = kill_ring_value.clone();
     let mut idx = 0usize;
     loop {
-        if eq_value(&cursor, pointer_value) {
-            return idx;
+        if eq_value(&cursor, pointer_value) || equal_value(&cursor, pointer_value, 0) {
+            return Ok(idx);
         }
         match cursor {
             Value::Cons(cell) => {
                 let pair = match cell.lock() {
                     Ok(p) => p,
-                    Err(_) => return 0,
+                    Err(_) => return Ok(0),
                 };
                 cursor = pair.cdr.clone();
                 idx += 1;
             }
-            _ => return 0,
+            _ => return Ok(ring_len.saturating_sub(1)),
         }
     }
 }
@@ -655,12 +668,19 @@ fn list_tail_at(list: &Value, index: usize) -> Value {
     cursor
 }
 
-fn sync_kill_ring_from_binding(eval: &mut super::eval::Evaluator) {
+fn sync_kill_ring_from_binding_internal(
+    eval: &mut super::eval::Evaluator,
+    strict_non_list_pointer: bool,
+) -> Result<(), Flow> {
     if let Some(value) = dynamic_or_global_symbol_value(eval, "kill-ring") {
         if let Some(entries) = kill_ring_entries_from_value(&value) {
-            let pointer_index = dynamic_or_global_symbol_value(eval, "kill-ring-yank-pointer")
-                .map(|ptr| kill_ring_pointer_index(&value, &ptr))
-                .unwrap_or(0);
+            let pointer_index = if let Some(ptr) =
+                dynamic_or_global_symbol_value(eval, "kill-ring-yank-pointer")
+            {
+                kill_ring_pointer_index(&value, &ptr, entries.len(), strict_non_list_pointer)?
+            } else {
+                0
+            };
             if eval.kill_ring.entries != entries {
                 eval.kill_ring.set_entries(entries);
             }
@@ -672,6 +692,15 @@ fn sync_kill_ring_from_binding(eval: &mut super::eval::Evaluator) {
             }
         }
     }
+    Ok(())
+}
+
+fn sync_kill_ring_from_binding(eval: &mut super::eval::Evaluator) {
+    let _ = sync_kill_ring_from_binding_internal(eval, false);
+}
+
+fn sync_kill_ring_from_binding_strict(eval: &mut super::eval::Evaluator) -> Result<(), Flow> {
+    sync_kill_ring_from_binding_internal(eval, true)
 }
 
 fn sync_kill_ring_binding(eval: &mut super::eval::Evaluator) {
@@ -724,7 +753,7 @@ pub(crate) fn builtin_current_kill(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("current-kill", &args, 1)?;
-    sync_kill_ring_from_binding(eval);
+    sync_kill_ring_from_binding_strict(eval)?;
     let n = expect_int(&args[0])?;
     let do_not_move = args.get(1).map_or(false, |v| v.is_truthy());
 
@@ -1137,7 +1166,7 @@ pub(crate) fn builtin_backward_kill_word(
 
 /// `(yank &optional ARG)` — reinsert the last stretch of killed text.
 pub(crate) fn builtin_yank(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    sync_kill_ring_from_binding(eval);
+    sync_kill_ring_from_binding_strict(eval)?;
     // If ARG is given, rotate kill ring first.
     if !args.is_empty() && args[0].is_truthy() {
         let n = expect_int(&args[0])?;
@@ -1185,7 +1214,7 @@ pub(crate) fn builtin_yank(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
 
 /// `(yank-pop &optional ARG)` — replace yanked text with an older kill.
 pub(crate) fn builtin_yank_pop(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    sync_kill_ring_from_binding(eval);
+    sync_kill_ring_from_binding_strict(eval)?;
     let yank_command_in_progress = matches!(
         dynamic_or_global_symbol_value(eval, "last-command"),
         Some(Value::Symbol(ref name)) if name == "yank"
