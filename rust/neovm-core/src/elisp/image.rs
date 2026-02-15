@@ -373,20 +373,29 @@ pub(crate) fn builtin_remove_images(args: Vec<Value>) -> EvalResult {
 /// (image-flush SPEC &optional FRAME) -> nil
 ///
 /// Flush the image cache for image SPEC.
-/// Stub: does nothing, returns nil.
+/// Batch semantics:
+/// - invalid SPEC -> `(error "Invalid image specification")`
+/// - FRAME = t -> nil (all-frames path)
+/// - otherwise -> `(error "Window system frame should be used")`
 pub(crate) fn builtin_image_flush(args: Vec<Value>) -> EvalResult {
     expect_min_args("image-flush", &args, 1)?;
     expect_max_args("image-flush", &args, 2)?;
 
     if !is_image_spec(&args[0]) {
         return Err(signal(
-            "wrong-type-argument",
-            vec![Value::symbol("imagep"), args[0].clone()],
+            "error",
+            vec![Value::string("Invalid image specification")],
         ));
     }
 
-    // Stub: no-op.
-    Ok(Value::Nil)
+    if args.len() == 2 && matches!(args[1], Value::True) {
+        return Ok(Value::Nil);
+    }
+
+    Err(signal(
+        "error",
+        vec![Value::string("Window system frame should be used")],
+    ))
 }
 
 /// (clear-image-cache &optional FILTER) -> nil
@@ -805,14 +814,45 @@ mod tests {
             builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
         let result = builtin_image_flush(vec![spec]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "error"
+                && sig.data.first() == Some(&Value::string("Window system frame should be used"))
+        ));
+    }
+
+    #[test]
+    fn image_flush_all_frames() {
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
+        let result = builtin_image_flush(vec![spec, Value::True]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
 
     #[test]
+    fn image_flush_non_t_frame_errors() {
+        let spec =
+            builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
+        let result = builtin_image_flush(vec![spec, Value::Int(1)]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "error"
+                && sig.data.first() == Some(&Value::string("Window system frame should be used"))
+        ));
+    }
+
+    #[test]
     fn image_flush_not_image() {
         let result = builtin_image_flush(vec![Value::Int(42)]);
-        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "error"
+                && sig.data.first() == Some(&Value::string("Invalid image specification"))
+        ));
     }
 
     // -----------------------------------------------------------------------
