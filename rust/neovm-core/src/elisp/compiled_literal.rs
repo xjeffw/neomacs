@@ -35,6 +35,7 @@ pub(crate) fn maybe_coerce_compiled_literal_function(value: Value) -> Value {
 /// Build a typed placeholder from a `(byte-code BYTESTR CONSTS MAXDEPTH ...)`
 /// form used by some `.elc` payloads.
 #[cfg(feature = "legacy-elc-literal")]
+#[allow(dead_code)]
 pub(crate) fn placeholder_from_byte_code_form(args: &[Value]) -> Result<Value, Flow> {
     if args.len() < 3 {
         return Err(signal(
@@ -100,6 +101,7 @@ pub(crate) fn placeholder_from_byte_code_form(args: &[Value]) -> Result<Value, F
 /// Source-only default policy: `(byte-code ...)` forms are unsupported unless
 /// legacy `.elc` compatibility is explicitly enabled.
 #[cfg(not(feature = "legacy-elc-literal"))]
+#[allow(dead_code)]
 pub(crate) fn placeholder_from_byte_code_form(_args: &[Value]) -> Result<Value, Flow> {
     Err(signal(
         "error",

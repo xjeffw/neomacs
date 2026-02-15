@@ -18,6 +18,14 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Silenced intentional placeholder dead-code noise in compiled-literal path:
+  - updated:
+    - `rust/neovm-core/src/elisp/compiled_literal.rs`
+      - added targeted `#[allow(dead_code)]` on feature-paired `placeholder_from_byte_code_form`.
+  - verified:
+    - `cargo test 'elisp::compiled_literal::tests::' -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/bytecode-literal-default-policy` (pass, 5/5)
+
 - Feature-gated legacy `.elc` literal decode helpers to active feature scope:
   - updated:
     - `rust/neovm-core/src/elisp/compiled_literal.rs`
