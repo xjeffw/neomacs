@@ -27,6 +27,18 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/display-stub-semantics.forms EXPECTED=cases/display-stub-semantics.expected.tsv` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Added TTY batch semantics compatibility slice:
+  - `tty-type`, `tty-top-frame`, `controlling-tty-p` now reject invalid terminal designators with `wrong-type-argument` (`terminal-live-p` payload)
+  - `suspend-tty` and `resume-tty` now signal GNU-compatible non-text terminal `error` payloads in batch mode while preserving type checks on invalid designators
+  - added oracle corpus:
+    - `test/neovm/vm-compat/cases/tty-batch-semantics.forms`
+    - `test/neovm/vm-compat/cases/tty-batch-semantics.expected.tsv`
+    - enabled in `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test display::tests -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/tty-batch-semantics.forms EXPECTED=cases/tty-batch-semantics.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Added timer compatibility slice (`run-at-time` / `run-with-idle-timer` / `timer-activate`):
   - `run-at-time` now accepts GNU-compatible immediate specs for `nil` and numeric-prefixed strings like `"0 sec"` (while invalid specs signal `error`)
   - `run-with-timer` compatibility is now lock-in covered for numeric, `nil`, and `"0 sec"` immediate forms
