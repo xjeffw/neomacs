@@ -12,12 +12,32 @@ Last updated: 2026-02-15
 
 ## Next
 
-- Add one focused corpus for `transient-mark-mode` + `set-mark-command`/`activate-mark` interactions in batch mode.
+- Add one focused corpus for `call-interactively`/`command-execute` `set-mark-command` prefix handling.
 - Continue promoting already-green non-default corpora to `default.list` one-by-one with targeted checks.
 - Keep validating list hygiene and merged-case dedupe as list membership changes.
 
 ## Done
 
+- Aligned `set-mark-command`/`activate-mark` semantics with oracle behavior:
+  - updated:
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - `set-mark-command` now requires exactly one arg
+      - `set-mark-command` non-`nil` arg now moves point to mark (no swap) and preserves `mark-active`
+      - command-dispatch default args now pass `nil` for interactive `set-mark-command`
+    - `rust/neovm-core/src/elisp/navigation.rs`
+      - added `activate-mark` builtin with optional arg and mark-present activation behavior
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `activate-mark` dispatch
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `activate-mark` for `fboundp`/introspection parity
+  - added corpus:
+    - `test/neovm/vm-compat/cases/set-mark-command-activate-mark-semantics.forms`
+    - `test/neovm/vm-compat/cases/set-mark-command-activate-mark-semantics.expected.tsv`
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/set-mark-command-activate-mark-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Aligned mark-activation command semantics with oracle behavior:
   - updated `rust/neovm-core/src/elisp/navigation.rs`:
     - `exchange-point-and-mark` now signals `user-error` when mark is unset
