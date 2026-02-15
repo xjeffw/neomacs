@@ -476,6 +476,24 @@ pub fn file_newer_than_file_p(file1: &str, file2: &str) -> bool {
     mtime1 > mtime2
 }
 
+/// Return true if FILE is in DIR, using true-name semantics.
+pub fn file_in_directory_p(file: &str, dir: &str, default_dir: Option<&str>) -> bool {
+    let file_true = file_truename(file, default_dir);
+    let dir_true = file_truename(dir, default_dir);
+
+    let file_norm = directory_file_name(&file_true);
+    let dir_norm = directory_file_name(&dir_true);
+    if file_norm == dir_norm {
+        return true;
+    }
+
+    let mut prefix = dir_norm.clone();
+    if !prefix.ends_with('/') {
+        prefix.push('/');
+    }
+    file_norm.starts_with(&prefix)
+}
+
 // ===========================================================================
 // File I/O operations
 // ===========================================================================
@@ -1573,6 +1591,28 @@ pub(crate) fn builtin_file_newer_than_file_p_eval(
     let file1 = expand_file_name(&file1, default_dir.as_deref());
     let file2 = expand_file_name(&file2, default_dir.as_deref());
     Ok(Value::bool(file_newer_than_file_p(&file1, &file2)))
+}
+
+/// (file-in-directory-p FILE DIR) -> t or nil
+pub(crate) fn builtin_file_in_directory_p(args: Vec<Value>) -> EvalResult {
+    expect_args("file-in-directory-p", &args, 2)?;
+    let file = expect_string_strict(&args[0])?;
+    let dir = expect_string_strict(&args[1])?;
+    Ok(Value::bool(file_in_directory_p(&file, &dir, None)))
+}
+
+/// Evaluator-aware variant of `file-in-directory-p` that resolves relative
+/// paths against dynamic/default `default-directory`.
+pub(crate) fn builtin_file_in_directory_p_eval(eval: &Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_args("file-in-directory-p", &args, 2)?;
+    let file = expect_string_strict(&args[0])?;
+    let dir = expect_string_strict(&args[1])?;
+    let default_dir = default_directory_for_eval(eval);
+    Ok(Value::bool(file_in_directory_p(
+        &file,
+        &dir,
+        default_dir.as_deref(),
+    )))
 }
 
 /// (file-modes FILENAME &optional FLAG) -> integer or nil
@@ -3432,6 +3472,8 @@ mod tests {
         assert!(builtin_file_name_case_insensitive_p(vec![Value::Nil]).is_err());
         assert!(builtin_file_newer_than_file_p(vec![Value::Nil, Value::string("/tmp")]).is_err());
         assert!(builtin_file_newer_than_file_p(vec![Value::string("/tmp"), Value::Nil]).is_err());
+        assert!(builtin_file_in_directory_p(vec![Value::Nil, Value::string("/tmp")]).is_err());
+        assert!(builtin_file_in_directory_p(vec![Value::string("/tmp"), Value::Nil]).is_err());
     }
 
     #[test]
@@ -3565,6 +3607,92 @@ mod tests {
         assert_eq!(result, Value::True);
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_builtin_file_in_directory_p_semantics() {
+        let base = std::env::temp_dir().join("neovm-file-in-directory-p");
+        let dir = base.join("dir");
+        let out = base.join("out");
+        let inside = dir.join("inside.txt");
+        let outside = out.join("outside.txt");
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&dir).expect("create dir");
+        fs::create_dir_all(&out).expect("create out");
+        fs::write(&inside, b"inside").expect("write inside");
+        fs::write(&outside, b"outside").expect("write outside");
+
+        assert_eq!(
+            builtin_file_in_directory_p(vec![
+                Value::string(inside.to_string_lossy()),
+                Value::string(dir.to_string_lossy()),
+            ])
+            .expect("inside check"),
+            Value::True
+        );
+        assert_eq!(
+            builtin_file_in_directory_p(vec![
+                Value::string(outside.to_string_lossy()),
+                Value::string(dir.to_string_lossy()),
+            ])
+            .expect("outside check"),
+            Value::Nil
+        );
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let link = dir.join("link");
+            symlink(&out, &link).expect("symlink");
+            let link_child = link.join("child.txt");
+            assert_eq!(
+                builtin_file_in_directory_p(vec![
+                    Value::string(link_child.to_string_lossy()),
+                    Value::string(dir.to_string_lossy()),
+                ])
+                .expect("symlink path against dir"),
+                Value::Nil
+            );
+            assert_eq!(
+                builtin_file_in_directory_p(vec![
+                    Value::string(link_child.to_string_lossy()),
+                    Value::string(out.to_string_lossy()),
+                ])
+                .expect("symlink path against target dir"),
+                Value::True
+            );
+        }
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_file_in_directory_p_eval_respects_default_directory() {
+        use super::super::eval::Evaluator;
+
+        let base = std::env::temp_dir().join("neovm-file-in-directory-p-eval");
+        let dir = base.join("dir");
+        let file = dir.join("inside.txt");
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&dir).expect("create dir");
+        fs::write(&file, b"inside").expect("write file");
+
+        let mut eval = Evaluator::new();
+        eval.obarray.set_symbol_value(
+            "default-directory",
+            Value::string(format!("{}/", base.to_string_lossy())),
+        );
+
+        assert_eq!(
+            builtin_file_in_directory_p_eval(
+                &eval,
+                vec![Value::string("dir/inside.txt"), Value::string("dir")],
+            )
+            .expect("eval in-directory check"),
+            Value::True
+        );
+
+        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]

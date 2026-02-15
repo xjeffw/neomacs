@@ -273,6 +273,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "file-attributes-lessp",
     "file-directory-p",
     "file-exists-p",
+    "file-in-directory-p",
     "file-name-absolute-p",
     "file-name-all-completions",
     "file-name-as-directory",
