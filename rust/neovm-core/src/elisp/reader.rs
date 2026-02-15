@@ -751,6 +751,9 @@ pub(crate) fn builtin_completing_read(
     expect_min_args("completing-read", &args, 2)?;
     expect_max_args("completing-read", &args, 8)?;
     let _prompt = expect_string(&args[0])?;
+    if let Some(initial) = args.get(4) {
+        expect_initial_input_stringish(initial)?;
+    }
     Err(signal(
         "end-of-file",
         vec![Value::string("Error reading from stdin")],
@@ -1448,6 +1451,25 @@ mod tests {
             ],
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn completing_read_rejects_non_stringish_initial_input() {
+        let mut ev = Evaluator::new();
+        let result = builtin_completing_read(
+            &mut ev,
+            vec![
+                Value::string("Choose: "),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Int(1),
+            ],
+        );
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
     }
 
     #[test]
