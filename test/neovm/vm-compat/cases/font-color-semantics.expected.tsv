@@ -1,0 +1,15 @@
+1	(fboundp 'color-defined-p)	OK t
+2	(color-defined-p "red")	OK t
+3	(color-defined-p "NO-SUCH-COLOR")	OK nil
+4	(color-defined-p nil)	OK nil
+5	(condition-case err (color-defined-p "red" nil nil) (error (car err)))	OK wrong-number-of-arguments
+6	(fboundp 'color-values)	OK t
+7	(color-values "red")	OK (65535 0 0)
+8	(color-values "NO-SUCH-COLOR")	OK nil
+9	(color-values nil)	OK nil
+10	(color-values 1)	OK nil
+11	(condition-case err (color-values "red" nil nil) (error (car err)))	OK wrong-number-of-arguments
+12	(fboundp 'defined-colors)	OK t
+13	(let ((cs (defined-colors))) (and (listp cs) (not (null (member "red" cs)))))	OK t
+14	(let ((cs (defined-colors nil))) (and (listp cs) (not (null (member "red" cs)))))	OK t
+15	(condition-case err (defined-colors nil nil) (error (car err)))	OK wrong-number-of-arguments

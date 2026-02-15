@@ -1,0 +1,27 @@
+(fboundp 'color-defined-p)
+(color-defined-p "red")
+(color-defined-p "NO-SUCH-COLOR")
+(color-defined-p nil)
+(condition-case err
+    (color-defined-p "red" nil nil)
+  (error (car err)))
+
+(fboundp 'color-values)
+(color-values "red")
+(color-values "NO-SUCH-COLOR")
+(color-values nil)
+(color-values 1)
+(condition-case err
+    (color-values "red" nil nil)
+  (error (car err)))
+
+(fboundp 'defined-colors)
+(let ((cs (defined-colors)))
+  (and (listp cs)
+       (not (null (member "red" cs)))))
+(let ((cs (defined-colors nil)))
+  (and (listp cs)
+       (not (null (member "red" cs)))))
+(condition-case err
+    (defined-colors nil nil)
+  (error (car err)))

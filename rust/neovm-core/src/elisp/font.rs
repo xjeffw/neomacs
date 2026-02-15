@@ -1325,7 +1325,12 @@ pub(crate) fn builtin_face_list(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_color_defined_p(args: Vec<Value>) -> EvalResult {
     expect_min_args("color-defined-p", &args, 1)?;
     expect_max_args("color-defined-p", &args, 2)?;
-    Ok(Value::True)
+    match &args[0] {
+        Value::Str(_) => Ok(Value::bool(
+            !builtin_color_values(vec![args[0].clone()])?.is_nil(),
+        )),
+        _ => Ok(Value::Nil),
+    }
 }
 
 /// `(color-values COLOR &optional FRAME)` -- parse common color names and hex
@@ -1335,12 +1340,7 @@ pub(crate) fn builtin_color_values(args: Vec<Value>) -> EvalResult {
     expect_max_args("color-values", &args, 2)?;
     let color_name = match &args[0] {
         Value::Str(s) => (**s).clone(),
-        other => {
-            return Err(signal(
-                "wrong-type-argument",
-                vec![Value::symbol("stringp"), other.clone()],
-            ));
-        }
+        _ => return Ok(Value::Nil),
     };
     let lower = color_name.trim().to_lowercase();
 
@@ -2113,9 +2113,15 @@ mod tests {
     }
 
     #[test]
-    fn color_defined_p_always_true() {
-        let result = builtin_color_defined_p(vec![Value::string("anything")]).unwrap();
+    fn color_defined_p_known_and_unknown() {
+        let result = builtin_color_defined_p(vec![Value::string("red")]).unwrap();
         assert!(result.is_truthy());
+
+        let missing = builtin_color_defined_p(vec![Value::string("anything")]).unwrap();
+        assert!(missing.is_nil());
+
+        let non_string = builtin_color_defined_p(vec![Value::Int(1)]).unwrap();
+        assert!(non_string.is_nil());
     }
 
     #[test]
@@ -2174,9 +2180,9 @@ mod tests {
     }
 
     #[test]
-    fn color_values_wrong_type() {
-        let result = builtin_color_values(vec![Value::Int(42)]);
-        assert!(result.is_err());
+    fn color_values_wrong_type_returns_nil() {
+        let result = builtin_color_values(vec![Value::Int(42)]).unwrap();
+        assert!(result.is_nil());
     }
 
     #[test]

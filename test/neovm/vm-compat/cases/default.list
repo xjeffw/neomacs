@@ -184,6 +184,7 @@ cases/display-monitor-semantics
 cases/display-monitor-frames-semantics
 cases/tty-batch-semantics
 cases/font-batch-semantics
+cases/font-color-semantics
 cases/face-batch-semantics
 cases/face-id-semantics
 cases/face-font-semantics
