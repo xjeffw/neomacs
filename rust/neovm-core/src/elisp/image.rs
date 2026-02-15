@@ -370,9 +370,12 @@ pub(crate) fn builtin_image_flush(args: Vec<Value>) -> EvalResult {
 /// or t (clear all frames).
 /// Stub: does nothing, returns nil.
 pub(crate) fn builtin_clear_image_cache(args: Vec<Value>) -> EvalResult {
-    expect_max_args("clear-image-cache", &args, 1)?;
-
-    // Stub: no-op.
+    if args.len() != 1 || args[0].is_nil() {
+        return Err(signal(
+            "error",
+            vec![Value::string("Window system frame should be used")],
+        ));
+    }
     Ok(Value::Nil)
 }
 
@@ -744,8 +747,13 @@ mod tests {
     #[test]
     fn clear_image_cache_no_args() {
         let result = builtin_clear_image_cache(vec![]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn clear_image_cache_nil_filter_errors() {
+        let result = builtin_clear_image_cache(vec![Value::Nil]);
+        assert!(result.is_err());
     }
 
     #[test]
