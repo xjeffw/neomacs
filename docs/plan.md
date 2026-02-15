@@ -4,6 +4,14 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Re-ran full vm-compat verification and fixed a real regression:
+  - `make -C test/neovm/vm-compat check-all-neovm` initially exposed a mismatch in `cases/internal-lisp-face-comparators` for string face designators (`"default"`)
+  - patched `internal-lisp-face-empty-p` / `internal-lisp-face-equal-p` face resolution to accept valid string face names with GNU-compatible invalid-face payloads
+  - added targeted Rust unit coverage for string-face comparator paths
+  - re-verified:
+    - `cargo test internal_lisp_face_ -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/internal-lisp-face-comparators.forms EXPECTED=cases/internal-lisp-face-comparators.expected.tsv` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 - Implemented `internal-set-alternative-font-family-alist` / `internal-set-alternative-font-registry-alist` compatibility slice:
   - replaced nil stubs with proper-list validation and oracle-compatible payloads (`wrong-type-argument listp ...` on dotted/non-list entries)
   - `internal-set-alternative-font-family-alist` now converts validated string members to symbols and returns normalized alist shape
@@ -416,7 +424,7 @@ Last updated: 2026-02-15
 
 ## Next
 
-1. Run a full vm-compat verification pass (`check-all-neovm`) after the latest cleanup batch and record results.
+1. Keep `check-all-neovm` as a recurring post-slice gate (detect regressions before they batch up).
 2. Expand focused oracle corpora for remaining high-risk areas still carrying stubs (search/input/minibuffer/display edges).
 3. Prioritize one high-impact stub-to-real implementation slice with oracle lock-in, then repeat.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
