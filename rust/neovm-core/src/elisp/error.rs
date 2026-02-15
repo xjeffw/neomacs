@@ -144,6 +144,23 @@ pub fn print_value_with_eval(eval: &super::eval::Evaluator, value: &Value) -> St
     super::print::print_value(value)
 }
 
+/// Render a value as bytes with evaluator-context-aware opaque handle formatting.
+pub fn print_value_bytes_with_eval(eval: &super::eval::Evaluator, value: &Value) -> Vec<u8> {
+    if let Some(handle) = super::display::print_terminal_handle(value) {
+        return handle.into_bytes();
+    }
+    if let Some(id) = eval.threads.thread_id_from_handle(value) {
+        return format!("#<thread {id}>").into_bytes();
+    }
+    if let Some(id) = eval.threads.mutex_id_from_handle(value) {
+        return format!("#<mutex {id}>").into_bytes();
+    }
+    if let Some(id) = eval.threads.condition_variable_id_from_handle(value) {
+        return format!("#<condvar {id}>").into_bytes();
+    }
+    super::print::print_value_bytes(value)
+}
+
 fn print_data_payload_with_eval(eval: &super::eval::Evaluator, data: &[Value]) -> String {
     if data.is_empty() {
         "nil".to_string()
@@ -154,6 +171,14 @@ fn print_data_payload_with_eval(eval: &super::eval::Evaluator, data: &[Value]) -
             .collect::<Vec<_>>();
         format!("({})", parts.join(" "))
     }
+}
+
+fn append_print_value_bytes_with_eval(
+    eval: &super::eval::Evaluator,
+    value: &Value,
+    out: &mut Vec<u8>,
+) {
+    out.extend_from_slice(&print_value_bytes_with_eval(eval, value));
 }
 
 /// Format an eval result for harnesses that have evaluator context and need
@@ -176,4 +201,48 @@ pub fn format_eval_result_with_eval(
             )
         }
     }
+}
+
+/// Byte-preserving variant of `format_eval_result_with_eval`.
+///
+/// This preserves non-UTF-8 byte payloads in printed string literals used by
+/// vm-compat corpus checks while still applying evaluator-aware opaque-handle
+/// rendering for thread/mutex/condvar/terminal values.
+pub fn format_eval_result_bytes_with_eval(
+    eval: &super::eval::Evaluator,
+    result: &Result<Value, EvalError>,
+) -> Vec<u8> {
+    let mut out = Vec::new();
+    match result {
+        Ok(value) => {
+            out.extend_from_slice(b"OK ");
+            append_print_value_bytes_with_eval(eval, value, &mut out);
+        }
+        Err(EvalError::Signal { symbol, data }) => {
+            out.extend_from_slice(b"ERR (");
+            out.extend_from_slice(symbol.as_bytes());
+            out.push(b' ');
+            if data.is_empty() {
+                out.extend_from_slice(b"nil");
+            } else {
+                out.push(b'(');
+                for (idx, item) in data.iter().enumerate() {
+                    if idx > 0 {
+                        out.push(b' ');
+                    }
+                    append_print_value_bytes_with_eval(eval, item, &mut out);
+                }
+                out.push(b')');
+            }
+            out.push(b')');
+        }
+        Err(EvalError::UncaughtThrow { tag, value }) => {
+            out.extend_from_slice(b"ERR (no-catch (");
+            append_print_value_bytes_with_eval(eval, tag, &mut out);
+            out.push(b' ');
+            append_print_value_bytes_with_eval(eval, value, &mut out);
+            out.extend_from_slice(b"))");
+        }
+    }
+    out
 }
