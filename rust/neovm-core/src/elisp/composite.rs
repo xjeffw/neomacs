@@ -111,9 +111,34 @@ pub(crate) fn builtin_clear_composition_cache(args: Vec<Value>) -> EvalResult {
 /// `(composition-sort-rules RULES)`
 ///
 /// Sort composition rules by priority.
-/// Returns RULES unchanged (stub).
+///
+/// Batch-compatible subset:
+/// - nil RULES => nil
+/// - non-list RULES => `(wrong-type-argument listp RULES)`
+/// - list entries that are not composition rules => generic invalid-rule error
+/// - otherwise return RULES unchanged
 pub(crate) fn builtin_composition_sort_rules(args: Vec<Value>) -> EvalResult {
     expect_args("composition-sort-rules", &args, 1)?;
+    if args[0].is_nil() {
+        return Ok(Value::Nil);
+    }
+
+    let items = list_to_vec(&args[0]).ok_or_else(|| {
+        signal(
+            "wrong-type-argument",
+            vec![Value::symbol("listp"), args[0].clone()],
+        )
+    })?;
+
+    for item in items {
+        if !matches!(item, Value::Cons(_)) {
+            return Err(signal(
+                "error",
+                vec![Value::string("Invalid composition rule in RULES argument")],
+            ));
+        }
+    }
+
     Ok(args[0].clone())
 }
 
@@ -122,12 +147,10 @@ pub(crate) fn builtin_composition_sort_rules(args: Vec<Value>) -> EvalResult {
 /// Toggle auto-composition mode.  In real Emacs this is a minor mode that
 /// controls whether automatic character composition is performed.
 ///
-/// Stub: return nil.  The actual variable `auto-composition-mode` should be
-/// set via `defvar`/`defcustom` in Lisp; this function entry exists only to
-/// satisfy code that calls it as a function.
+/// Batch-compatible behavior: return `t`.
 pub(crate) fn builtin_auto_composition_mode(args: Vec<Value>) -> EvalResult {
     expect_max_args("auto-composition-mode", &args, 1)?;
-    Ok(Value::Nil)
+    Ok(Value::True)
 }
 
 // ---------------------------------------------------------------------------
@@ -253,13 +276,29 @@ mod tests {
     }
 
     #[test]
-    fn composition_sort_rules_returns_input() {
+    fn composition_sort_rules_nil_returns_nil() {
+        let result = builtin_composition_sort_rules(vec![Value::Nil]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn composition_sort_rules_rejects_non_lists() {
+        let result = builtin_composition_sort_rules(vec![Value::vector(vec![Value::Int(1)])]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn composition_sort_rules_rejects_invalid_rules() {
         let rules = Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
-        let result = builtin_composition_sort_rules(vec![rules.clone()]);
-        assert!(result.is_ok());
-        // Should return the same list object.
-        let returned = result.unwrap();
-        assert!(returned.is_list());
+        let result = builtin_composition_sort_rules(vec![rules]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn composition_sort_rules_accepts_cons_rules() {
+        let rules = Value::list(vec![Value::cons(Value::Int(1), Value::Int(2))]);
+        let result = builtin_composition_sort_rules(vec![rules.clone()]).unwrap();
+        assert_eq!(result, rules);
     }
 
     #[test]
@@ -272,14 +311,14 @@ mod tests {
     fn auto_composition_mode_no_args() {
         let result = builtin_auto_composition_mode(vec![]);
         assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
+        assert!(result.unwrap().is_truthy());
     }
 
     #[test]
     fn auto_composition_mode_with_arg() {
         let result = builtin_auto_composition_mode(vec![Value::Int(1)]);
         assert!(result.is_ok());
-        assert!(result.unwrap().is_nil());
+        assert!(result.unwrap().is_truthy());
     }
 
     #[test]
