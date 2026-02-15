@@ -85,6 +85,24 @@ fn terminal_designator_p(value: &Value) -> bool {
     value.is_nil() || is_terminal_handle(value)
 }
 
+fn terminal_designator_eval_p(eval: &mut super::eval::Evaluator, value: &Value) -> bool {
+    terminal_designator_p(value) || live_frame_designator_p(eval, value)
+}
+
+fn expect_terminal_designator_eval(
+    eval: &mut super::eval::Evaluator,
+    value: &Value,
+) -> Result<(), Flow> {
+    if terminal_designator_eval_p(eval, value) {
+        Ok(())
+    } else {
+        Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("terminal-live-p"), value.clone()],
+        ))
+    }
+}
+
 fn expect_terminal_designator(value: &Value) -> Result<(), Flow> {
     if terminal_designator_p(value) {
         Ok(())
@@ -671,6 +689,22 @@ pub(crate) fn builtin_terminal_name(args: Vec<Value>) -> EvalResult {
     Ok(Value::string(TERMINAL_NAME))
 }
 
+/// Evaluator-aware variant of `terminal-name`.
+///
+/// Accepts live frame designators in addition to terminal designators.
+pub(crate) fn builtin_terminal_name_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("terminal-name", &args, 1)?;
+    if let Some(term) = args.first() {
+        if !term.is_nil() {
+            expect_terminal_designator_eval(eval, term)?;
+        }
+    }
+    Ok(Value::string(TERMINAL_NAME))
+}
+
 /// (terminal-list) -> list containing one opaque terminal handle.
 pub(crate) fn builtin_terminal_list(args: Vec<Value>) -> EvalResult {
     expect_max_args("terminal-list", &args, 0)?;
@@ -709,6 +743,17 @@ pub(crate) fn builtin_frame_terminal_eval(
 pub(crate) fn builtin_terminal_live_p(args: Vec<Value>) -> EvalResult {
     expect_range_args("terminal-live-p", &args, 1, 1)?;
     Ok(Value::bool(terminal_designator_p(&args[0])))
+}
+
+/// Evaluator-aware variant of `terminal-live-p`.
+///
+/// Returns non-nil for terminal designators and live frame designators.
+pub(crate) fn builtin_terminal_live_p_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_range_args("terminal-live-p", &args, 1, 1)?;
+    Ok(Value::bool(terminal_designator_eval_p(eval, &args[0])))
 }
 
 /// (terminal-parameter TERMINAL PARAMETER) -> nil (stub)
@@ -986,9 +1031,28 @@ mod tests {
     }
 
     #[test]
+    fn eval_terminal_live_p_accepts_live_frame_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let frame_id = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval).0 as i64;
+        let live = builtin_terminal_live_p_eval(&mut eval, vec![Value::Int(frame_id)]).unwrap();
+        assert_eq!(live, Value::True);
+
+        let stale = builtin_terminal_live_p_eval(&mut eval, vec![Value::Int(999_999)]).unwrap();
+        assert!(stale.is_nil());
+    }
+
+    #[test]
     fn terminal_name_rejects_invalid_designator() {
         let result = builtin_terminal_name(vec![Value::Int(1)]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn eval_terminal_name_accepts_live_frame_designator() {
+        let mut eval = crate::elisp::Evaluator::new();
+        let frame_id = crate::elisp::window_cmds::ensure_selected_frame_id(&mut eval).0 as i64;
+        let result = builtin_terminal_name_eval(&mut eval, vec![Value::Int(frame_id)]).unwrap();
+        assert_eq!(result, Value::string("initial_terminal"));
     }
 
     #[test]
