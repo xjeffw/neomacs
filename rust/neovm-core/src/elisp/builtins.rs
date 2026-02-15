@@ -5971,6 +5971,9 @@ pub(crate) fn dispatch_builtin(
         "flush-lines" => return Some(super::isearch::builtin_flush_lines_eval(eval, args)),
         // xdisp (evaluator-dependent)
         "format-mode-line" => return Some(super::xdisp::builtin_format_mode_line_eval(eval, args)),
+        "pos-visible-in-window-p" => {
+            return Some(super::xdisp::builtin_pos_visible_in_window_p_eval(eval, args))
+        }
         "tool-bar-height" => return Some(super::xdisp::builtin_tool_bar_height_eval(eval, args)),
         "tab-bar-height" => return Some(super::xdisp::builtin_tab_bar_height_eval(eval, args)),
         // File I/O (evaluator-dependent)

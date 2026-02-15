@@ -76,7 +76,7 @@ pub(crate) fn builtin_format_mode_line_eval(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args_range("format-mode-line", &args, 1, 4)?;
-    validate_optional_window_designator(eval, args.get(2))?;
+    validate_optional_window_designator(eval, args.get(2), "windowp")?;
     validate_optional_buffer_designator(eval, args.get(3))?;
     Ok(Value::string(""))
 }
@@ -133,6 +133,18 @@ pub(crate) fn builtin_window_text_pixel_size(args: Vec<Value>) -> EvalResult {
 /// returns nil.
 pub(crate) fn builtin_pos_visible_in_window_p(args: Vec<Value>) -> EvalResult {
     expect_args_range("pos-visible-in-window-p", &args, 0, 3)?;
+    Ok(Value::Nil)
+}
+
+/// `(pos-visible-in-window-p &optional POS WINDOW PARTIALLY)` evaluator-backed variant.
+///
+/// Batch mode reports no visibility (`nil`), but validates WINDOW designators.
+pub(crate) fn builtin_pos_visible_in_window_p_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args_range("pos-visible-in-window-p", &args, 0, 3)?;
+    validate_optional_window_designator(eval, args.get(1), "window-live-p")?;
     Ok(Value::Nil)
 }
 
@@ -276,6 +288,7 @@ fn validate_optional_frame_designator(
 fn validate_optional_window_designator(
     eval: &super::eval::Evaluator,
     value: Option<&Value>,
+    predicate: &str,
 ) -> Result<(), Flow> {
     let Some(windowish) = value else {
         return Ok(());
@@ -297,7 +310,7 @@ fn validate_optional_window_designator(
     }
     Err(signal(
         "wrong-type-argument",
-        vec![Value::symbol("windowp"), windowish.clone()],
+        vec![Value::symbol(predicate), windowish.clone()],
     ))
 }
 
@@ -461,6 +474,21 @@ mod tests {
             builtin_pos_visible_in_window_p(vec![Value::Int(100), Value::symbol("window")])
                 .unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn test_pos_visible_in_window_p_eval_window_validation() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let err =
+            builtin_pos_visible_in_window_p_eval(&mut eval, vec![Value::Nil, Value::string("x")])
+                .unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
+
+        let ok = builtin_pos_visible_in_window_p_eval(&mut eval, vec![Value::Int(1)]).unwrap();
+        assert!(ok.is_nil());
     }
 
     #[test]
