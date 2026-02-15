@@ -10,7 +10,7 @@ Last updated: 2026-02-15
 
 ## Next
 
-- Keep bytecode-literal reader/exec corpora out of `default.list` while `.elc` compatibility remains disabled.
+- Keep bytecode-literal reader/exec corpora out of `default.list` while `.elc` compatibility remains disabled; retain default-policy corpus in default.
 - Expand oracle corpus for additional malformed pointer permutations across mutators and command-context commands.
 - Audit `yank`/`yank-pop` behavior with empty kill-ring entries and pointer wrap rules.
 - Run targeted regression checks after each slice (`command-dispatch-default-arg-semantics`, touched command corpus, and focused `yank`/`yank-pop` suites).
@@ -28,6 +28,12 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/load-suffixes` (pass, 1/1)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/precompile` (pass, 18/18)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/string-concat-error-paths` (pass, 13/13)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Locked `.elc` default policy in the default vm-compat suite:
+  - added to `test/neovm/vm-compat/cases/default.list`:
+    - `cases/bytecode-literal-default-policy`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/bytecode-literal-default-policy` (pass, 5/5)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 - Added mutator-pointer-normalization oracle corpus and list wiring:
   - added and enabled:
