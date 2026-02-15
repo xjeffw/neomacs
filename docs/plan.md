@@ -1900,6 +1900,16 @@ Last updated: 2026-02-15
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/edit-read-only-variable-semantics` (pass, 6/6)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-read-only-default-semantics` (pass, 5/5)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/case-region-read-only-semantics` (pass, 5/5)
+- Aligned indentation mutation paths with `buffer-read-only` variable semantics:
+  - `move-to-column` (force path), `indent-region`, `indent-for-tab-command`, and `indent-according-to-mode` now honor dynamic/buffer-local/global `buffer-read-only` in addition to internal buffer read-only state
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/indent-read-only-variable-semantics.forms`
+    - `test/neovm/vm-compat/cases/indent-read-only-variable-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/indent-read-only-variable-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/indent-mode-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/move-to-column-force-semantics` (pass, 6/6)
 - Kept branch green with targeted Rust tests and vm-compat checks after each slice.
 
 ## Doing
