@@ -246,13 +246,6 @@ pub(crate) fn builtin_char_width(args: Vec<Value>) -> EvalResult {
     Ok(Value::Int(char_width(c) as i64))
 }
 
-/// `(string-width STRING)` — already exists, but this provides the backing impl.
-pub(crate) fn builtin_string_width(args: Vec<Value>) -> EvalResult {
-    expect_args("string-width", &args, 1)?;
-    let s = expect_string(&args[0])?;
-    Ok(Value::Int(string_width(&s) as i64))
-}
-
 /// `(string-bytes STRING)` -> integer byte length of STRING.
 pub(crate) fn builtin_string_bytes(args: Vec<Value>) -> EvalResult {
     expect_args("string-bytes", &args, 1)?;
@@ -265,13 +258,6 @@ pub(crate) fn builtin_multibyte_string_p(args: Vec<Value>) -> EvalResult {
     expect_args("multibyte-string-p", &args, 1)?;
     let s = expect_string(&args[0])?;
     Ok(Value::bool(is_multibyte_string(&s)))
-}
-
-/// `(unibyte-string-p STRING)` -> t or nil
-pub(crate) fn builtin_unibyte_string_p(args: Vec<Value>) -> EvalResult {
-    expect_args("unibyte-string-p", &args, 1)?;
-    let s = expect_string(&args[0])?;
-    Ok(Value::bool(is_ascii_string(&s)))
 }
 
 /// `(encode-coding-string STRING CODING-SYSTEM)` -> string
