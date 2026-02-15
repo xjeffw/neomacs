@@ -81,6 +81,7 @@ cases/syntax-class-paren-semantics
 cases/syntax-after-semantics
 cases/parse-partial-sexp-syntax-ppss-semantics
 cases/category-semantics
+cases/category-table-object-semantics
 cases/char-resolve-modifiers-semantics
 cases/char-byte-conversion-semantics
 cases/get-byte-semantics
