@@ -962,7 +962,8 @@ pub(crate) fn builtin_substitute_command_keys(
     eval: &mut Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("substitute-command-keys", &args, 1)?;
+    expect_min_args("substitute-command-keys", &args, 1)?;
+    expect_max_args("substitute-command-keys", &args, 3)?;
     let s = match args[0].as_str() {
         Some(s) => s.to_string(),
         None => {
@@ -1008,7 +1009,10 @@ pub(crate) fn builtin_substitute_command_keys(
 /// `(describe-key-briefly KEY &optional INSERT UNTRANSLATED)`
 /// Print the command bound to KEY.
 pub(crate) fn builtin_describe_key_briefly(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_min_args("describe-key-briefly", &args, 1)?;
+    expect_max_args("describe-key-briefly", &args, 3)?;
+    if args.is_empty() {
+        return Ok(Value::string(""));
+    }
 
     let key_desc = match args[0].as_str() {
         Some(s) => s.to_string(),
@@ -1025,7 +1029,11 @@ pub(crate) fn builtin_describe_key_briefly(eval: &mut Evaluator, args: Vec<Value
         format!("{} is bound to {}", key_desc, binding_val)
     };
 
-    Ok(Value::string(description))
+    if args.get(1).is_some_and(|v| !v.is_nil()) {
+        Ok(Value::Nil)
+    } else {
+        Ok(Value::string(description))
+    }
 }
 
 /// `(this-command-keys)` -> string of keys that invoked current command.
@@ -2730,6 +2738,17 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[test]
+    fn substitute_command_keys_accepts_optional_args() {
+        let mut ev = Evaluator::new();
+        let result = builtin_substitute_command_keys(
+            &mut ev,
+            vec![Value::string("x"), Value::symbol("extra"), Value::symbol("more")],
+        )
+        .unwrap();
+        assert_eq!(result.as_str(), Some("x"));
+    }
+
     // -------------------------------------------------------------------
     // describe-key-briefly
     // -------------------------------------------------------------------
@@ -2747,7 +2766,8 @@ mod tests {
         let mut ev = Evaluator::new();
         let map_id = ev.keymaps.make_keymap();
         ev.keymaps.set_global_map(map_id);
-        let events = KeymapManager::parse_key_description("C-f").unwrap();
+        let events = crate::elisp::kbd::key_events_from_designator(&Value::string("C-f"))
+            .expect("key designator should decode");
         ev.keymaps.define_key(
             map_id,
             events[0].clone(),
@@ -2757,6 +2777,21 @@ mod tests {
         let result = builtin_describe_key_briefly(&mut ev, vec![Value::string("C-f")]).unwrap();
         let s = result.as_str().unwrap();
         assert!(s.contains("forward-char"));
+    }
+
+    #[test]
+    fn describe_key_briefly_no_args_returns_empty_string() {
+        let mut ev = Evaluator::new();
+        let result = builtin_describe_key_briefly(&mut ev, vec![]).unwrap();
+        assert_eq!(result.as_str(), Some(""));
+    }
+
+    #[test]
+    fn describe_key_briefly_insert_non_nil_returns_nil() {
+        let mut ev = Evaluator::new();
+        let result =
+            builtin_describe_key_briefly(&mut ev, vec![Value::string("C-z"), Value::True]).unwrap();
+        assert!(result.is_nil());
     }
 
     // -------------------------------------------------------------------
