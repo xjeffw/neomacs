@@ -53,6 +53,23 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
+- Expanded display monitor/X query `subr-arity` parity:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added/extended arity overrides:
+        - `(0 . 1)`: `display-mm-width`, `display-mm-height`, `display-screens`, `display-planes`, `display-visual-class`, `display-backing-store`, `display-monitor-attributes-list`, `frame-monitor-attributes`
+        - `(0 . 0)`: `x-display-list`
+      - extended subr-arity unit matrix coverage for these names.
+    - `test/neovm/vm-compat/cases/display-terminal-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/display-terminal-subr-arity-semantics.expected.tsv`
+      - expanded oracle lock-in matrix for monitor/X display query subr arities.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/display-terminal-subr-arity-semantics.forms EXPECTED=cases/display-terminal-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_display_terminal_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-terminal-subr-arity-semantics` (pass, 28/28)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass)
+
 - Hardened vm-compat runner parsing for stdout-noisy forms (for example `read-passwd` prompts):
   - updated:
     - `test/neovm/vm-compat/oracle_eval.el`
