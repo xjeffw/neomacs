@@ -41,7 +41,7 @@
 (fboundp 'cl-notevery)
 (condition-case err (cl-notevery) (error err))
 (fboundp 'cl-oddp)
-(condition-case err (cl-oddp) (error err))
+(condition-case err (cl-oddp 3) (error err))
 (fboundp 'cl-plusp)
 (condition-case err (cl-plusp) (error err))
 (fboundp 'cl-position)
