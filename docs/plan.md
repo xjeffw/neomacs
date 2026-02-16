@@ -48,6 +48,7 @@ Last updated: 2026-02-16
 - Keep newly landed `minor-mode-key-binding` runtime parity slice stable while expanding remaining interactive/keymap stub areas.
 - Keep newly landed `other-buffer` runtime+`subr-arity` parity stable while expanding remaining buffer/window helper drifts.
 - Keep newly landed `kill-buffer` runtime parity stable while expanding remaining buffer lifecycle/helper drifts.
+- Keep newly landed `set-buffer` deleted-buffer parity stable while expanding remaining buffer designator/runtime drifts.
 
 ## Next
 
@@ -61,6 +62,22 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned `set-buffer` deleted-buffer behavior with GNU Emacs and added oracle lock-in:
+  - updated builtin runtime semantics:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `set-buffer` now signals `(error "Selecting deleted buffer")` for dead
+      buffer objects instead of returning a stale buffer handle.
+  - added evaluator regression:
+    - `set_buffer_rejects_deleted_buffer_object`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/set-buffer-dead-buffer-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_buffer_rejects_deleted_buffer_object -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/set-buffer-dead-buffer-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned `kill-buffer` runtime semantics with GNU Emacs and added oracle lock-in:
   - updated builtin behavior:
