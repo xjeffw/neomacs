@@ -5,6 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../../.." && pwd)"
 registry_file="$repo_root/rust/neovm-core/src/elisp/builtin_registry.rs"
 allowlist_file="${1:-$script_dir/cases/builtin-registry-fboundp-allowlist.txt}"
+source "$script_dir/lib/builtin-registry.sh"
 
 if [[ ! -f "$registry_file" ]]; then
   echo "builtin registry not found: $registry_file" >&2
@@ -40,15 +41,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-awk '
-  /const DISPATCH_BUILTIN_NAMES:/ && /=[[:space:]]*&\[/ { in_table=1; next }
-  in_table && /^[[:space:]]*\];/ { in_table=0; exit }
-  in_table {
-    if (match($0, /^[[:space:]]*"([^"]+)",[[:space:]]*$/, m)) {
-      print m[1]
-    }
-  }
-' "$registry_file" > "$tmp_names"
+collect_dispatch_builtin_names "$registry_file" "$tmp_names"
 
 if [[ ! -s "$tmp_names" ]]; then
   echo "failed to parse builtin names from registry" >&2
@@ -57,7 +50,7 @@ fi
 
 # NeoVM-prefixed symbols are extension builtins and intentionally absent in
 # GNU Emacs; exclude them from oracle parity comparison.
-grep -v '^neovm-' "$tmp_names" > "$tmp_core_names"
+collect_core_dispatch_builtin_names "$tmp_names" "$tmp_core_names"
 
 if [[ ! -s "$tmp_core_names" ]]; then
   echo "failed to derive core builtin names from registry" >&2
