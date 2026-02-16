@@ -406,6 +406,12 @@ fn subr_arity_value(name: &str) -> Value {
         "delete-indentation" => arity_cons(0, Some(3)),
         "delete-overlay" => arity_cons(1, Some(1)),
         "delete-window" => arity_cons(0, Some(1)),
+        "delete-directory" => arity_cons(1, Some(3)),
+        "delete-file" => arity_cons(1, Some(2)),
+        "directory-file-name" | "directory-name-p" => arity_cons(1, Some(1)),
+        "directory-files" => arity_cons(1, Some(5)),
+        "directory-files-and-attributes" => arity_cons(1, Some(6)),
+        "expand-file-name" => arity_cons(1, Some(2)),
         "help-key-description" => arity_cons(2, Some(2)),
         "recent-keys" => arity_cons(0, Some(1)),
         "input-pending-p" => arity_cons(0, Some(1)),
@@ -1008,6 +1014,17 @@ mod tests {
         assert_subr_arity("delete-indentation", 0, Some(3));
         assert_subr_arity("delete-overlay", 1, Some(1));
         assert_subr_arity("delete-window", 0, Some(1));
+    }
+
+    #[test]
+    fn subr_arity_filesystem_path_primitives_match_oracle() {
+        assert_subr_arity("delete-directory", 1, Some(3));
+        assert_subr_arity("delete-file", 1, Some(2));
+        assert_subr_arity("directory-file-name", 1, Some(1));
+        assert_subr_arity("directory-files", 1, Some(5));
+        assert_subr_arity("directory-files-and-attributes", 1, Some(6));
+        assert_subr_arity("directory-name-p", 1, Some(1));
+        assert_subr_arity("expand-file-name", 1, Some(2));
     }
 
     #[test]
