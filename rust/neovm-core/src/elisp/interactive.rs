@@ -1749,15 +1749,23 @@ fn extract_thing_filename(text: &str, idx: usize) -> Value {
 
 fn bounds_word(text: &str, idx: usize) -> Option<(usize, usize)> {
     let chars: Vec<char> = text.chars().collect();
-    if idx >= chars.len() || !is_word_char(chars[idx]) {
+    if idx > chars.len() {
         return None;
     }
 
-    let mut start = idx;
+    let focus_idx = if idx < chars.len() && is_word_char(chars[idx]) {
+        idx
+    } else if idx > 0 && is_word_char(chars[idx - 1]) {
+        idx - 1
+    } else {
+        return None;
+    };
+
+    let mut start = focus_idx;
     while start > 0 && is_word_char(chars[start - 1]) {
         start -= 1;
     }
-    let mut end = idx;
+    let mut end = focus_idx;
     while end < chars.len() && is_word_char(chars[end]) {
         end += 1;
     }
@@ -1770,15 +1778,23 @@ fn bounds_word(text: &str, idx: usize) -> Option<(usize, usize)> {
 
 fn bounds_symbol(text: &str, idx: usize) -> Option<(usize, usize)> {
     let chars: Vec<char> = text.chars().collect();
-    if idx >= chars.len() || !is_symbol_char(chars[idx]) {
+    if idx > chars.len() {
         return None;
     }
 
-    let mut start = idx;
+    let focus_idx = if idx < chars.len() && is_symbol_char(chars[idx]) {
+        idx
+    } else if idx > 0 && is_symbol_char(chars[idx - 1]) {
+        idx - 1
+    } else {
+        return None;
+    };
+
+    let mut start = focus_idx;
     while start > 0 && is_symbol_char(chars[start - 1]) {
         start -= 1;
     }
-    let mut end = idx;
+    let mut end = focus_idx;
     while end < chars.len() && is_symbol_char(chars[end]) {
         end += 1;
     }
@@ -2657,6 +2673,25 @@ mod tests {
     }
 
     #[test]
+    fn thing_at_point_word_and_symbol_boundary() {
+        let mut ev = Evaluator::new();
+        eval_all_with(
+            &mut ev,
+            r#"(get-buffer-create "tap-bound")
+               (set-buffer "tap-bound")
+               (insert "alpha my-symbol")
+               (goto-char (point-min))
+               (search-forward "alpha")"#,
+        );
+        let word = builtin_thing_at_point(&mut ev, vec![Value::symbol("word")]).unwrap();
+        assert_eq!(word.as_str(), Some("alpha"));
+
+        eval_all_with(&mut ev, "(search-forward \"my-symbol\")");
+        let symbol = builtin_thing_at_point(&mut ev, vec![Value::symbol("symbol")]).unwrap();
+        assert_eq!(symbol.as_str(), Some("my-symbol"));
+    }
+
+    #[test]
     fn thing_at_point_line() {
         let mut ev = Evaluator::new();
         eval_all_with(
@@ -2759,6 +2794,28 @@ mod tests {
             assert_eq!(cell.cdr.as_int(), Some(6));
         } else {
             panic!("expected cons, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn bounds_of_thing_at_point_symbol_boundary() {
+        let mut ev = Evaluator::new();
+        eval_all_with(
+            &mut ev,
+            r#"(get-buffer-create "bnd-bound")
+               (set-buffer "bnd-bound")
+               (insert "my-symbol other")
+               (goto-char (point-min))
+               (search-forward "my-symbol")"#,
+        );
+        let result =
+            builtin_bounds_of_thing_at_point(&mut ev, vec![Value::symbol("symbol")]).unwrap();
+        if let Value::Cons(cell) = &result {
+            let cell = cell.lock().expect("cons lock");
+            assert_eq!(cell.car.as_int(), Some(1));
+            assert_eq!(cell.cdr.as_int(), Some(10));
+        } else {
+            panic!("expected symbol bounds cons, got {result:?}");
         }
     }
 
