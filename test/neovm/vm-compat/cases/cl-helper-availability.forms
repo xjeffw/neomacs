@@ -23,7 +23,7 @@
 (fboundp 'cl-first)
 (condition-case err (cl-first '(a b)) (error err))
 (fboundp 'cl-fourth)
-(condition-case err (cl-fourth) (error err))
+(condition-case err (cl-fourth '(a b c d)) (error err))
 (fboundp 'cl-gensym)
 (condition-case err (cl-gensym) (error err))
 (fboundp 'cl-intersection)

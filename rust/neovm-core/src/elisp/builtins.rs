@@ -7600,6 +7600,7 @@ pub(crate) fn dispatch_builtin(
         "cl-first" => super::cl_lib::builtin_cl_first(args),
         "cl-second" => super::cl_lib::builtin_cl_second(args),
         "cl-third" => super::cl_lib::builtin_cl_third(args),
+        "cl-fourth" => super::cl_lib::builtin_cl_fourth(args),
         "seq-reverse" => super::cl_lib::builtin_seq_reverse(args),
         "seq-drop" => super::cl_lib::builtin_seq_drop(args),
         "seq-take" => super::cl_lib::builtin_seq_take(args),
