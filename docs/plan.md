@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned rectangle kill-buffer variable semantics and locked compatibility corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/rect.rs`
+      - `kill-rectangle` now publishes `killed-rectangle` symbol value in sync with internal rectangle state.
+      - `yank-rectangle` now reads dynamic/global `killed-rectangle` when present, including oracle-aligned error signaling for non-list and non-string payload shapes.
+      - added focused unit coverage for symbol publication, symbol-driven yank behavior, and invalid symbol payload errors.
+    - `test/neovm/vm-compat/cases/rect-killed-rectangle-variable-semantics.forms`
+      - added oracle-backed probes for `killed-rectangle` publication, symbol-driven yank, nil no-op behavior, and invalid symbol payload error classes.
+    - `test/neovm/vm-compat/cases/rect-killed-rectangle-variable-semantics.expected.tsv`
+      - recorded oracle baseline outputs for killed-rectangle variable behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/rect-killed-rectangle-variable-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test kill_rectangle --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test yank_rectangle --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/rect-killed-rectangle-variable-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented oracle-aligned `clear-rectangle` semantics and locked compatibility corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/rect.rs`
