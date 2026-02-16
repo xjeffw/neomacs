@@ -885,7 +885,8 @@ pub(crate) fn builtin_set_input_mode(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("set-input-mode", &args, 4)?;
+    expect_min_args("set-input-mode", &args, 3)?;
+    expect_max_args("set-input-mode", &args, 4)?;
     eval.set_input_mode_interrupt(args[0].is_truthy());
     Ok(Value::Nil)
 }
@@ -1884,7 +1885,7 @@ mod tests {
     #[test]
     fn set_input_mode_rejects_wrong_arity() {
         let mut ev = Evaluator::new();
-        let too_few = builtin_set_input_mode(&mut ev, vec![Value::Nil, Value::Nil, Value::Nil]);
+        let too_few = builtin_set_input_mode(&mut ev, vec![Value::Nil, Value::Nil]);
         assert!(matches!(
             too_few,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
@@ -1898,6 +1899,18 @@ mod tests {
             too_many,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
         ));
+    }
+
+    #[test]
+    fn set_input_mode_accepts_three_args() {
+        let mut ev = Evaluator::new();
+        let result = builtin_set_input_mode(&mut ev, vec![Value::Nil, Value::True, Value::True])
+            .expect("set-input-mode should accept 3 args");
+        assert!(result.is_nil());
+        assert_eq!(
+            builtin_current_input_mode(&mut ev, vec![]).unwrap(),
+            Value::list(vec![Value::Nil, Value::Nil, Value::True, Value::Int(7)])
+        );
     }
 
     #[test]
