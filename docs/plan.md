@@ -25,6 +25,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned X-display terminal-designator semantics with oracle and locked coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/display.rs`
+      - `x-display-color-p` now treats terminal handles as current non-X display queries and returns `nil`.
+      - `x-display-pixel-width`, `x-display-pixel-height`, and `x-close-connection` now signal
+        `error` with `Terminal 0 is not an X display` for terminal handles.
+      - added focused unit assertions for terminal-handle X-display paths.
+    - `test/neovm/vm-compat/cases/x-display-terminal-designator-semantics.forms`
+    - `test/neovm/vm-compat/cases/x-display-terminal-designator-semantics.expected.tsv`
+      - added oracle-locked matrix for terminal-handle behavior across X-display query/close builtins.
+    - `test/neovm/vm-compat/cases/default.list`
+      - included new case in default vm-compat gate.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/x-display-terminal-designator-semantics` (pass, 9/9)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/x-display-batch-semantics` (pass, 35/35)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml x_display_ -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Fixed terminal parameter pointer-key identity/lifetime semantics to match oracle:
   - updated:
     - `rust/neovm-core/src/elisp/display.rs`
