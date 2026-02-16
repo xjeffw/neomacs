@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `cl-some` as a callable CL helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - added eval-dependent `cl-some` builtin as a CL alias over `seq-some`.
+      - added focused unit coverage for truthy predicate discovery path.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator-dependent dispatch now routes `cl-some`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `cl-some` to builtin registry.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.forms`
+      - switched helper probe to callable form `(cl-some #'numberp '("x" 2))`.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`t`).
+  - verified:
+    - `cargo test cl_some --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `cl-count-if` as a callable CL helper:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
