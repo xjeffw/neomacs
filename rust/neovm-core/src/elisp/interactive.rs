@@ -1729,24 +1729,10 @@ fn extract_thing_email(text: &str, idx: usize) -> Value {
 }
 
 fn extract_thing_filename(text: &str, idx: usize) -> Value {
-    let chars: Vec<char> = text.chars().collect();
-    if idx >= chars.len() {
-        return Value::Nil;
+    match bounds_filename(text, idx) {
+        Some((start, end)) => Value::string(&text[start..end]),
+        None => Value::Nil,
     }
-    if !is_filename_char(chars[idx]) {
-        return Value::Nil;
-    }
-
-    let mut start = idx;
-    while start > 0 && is_filename_char(chars[start - 1]) {
-        start -= 1;
-    }
-    let mut end = idx;
-    while end < chars.len() && is_filename_char(chars[end]) {
-        end += 1;
-    }
-    let s: String = chars[start..end].iter().collect();
-    Value::string(s)
 }
 
 fn bounds_word(text: &str, idx: usize) -> Option<(usize, usize)> {
@@ -1856,15 +1842,23 @@ fn bounds_number(text: &str, idx: usize) -> Option<(usize, usize)> {
 
 fn bounds_filename(text: &str, idx: usize) -> Option<(usize, usize)> {
     let chars: Vec<char> = text.chars().collect();
-    if idx >= chars.len() || !is_filename_char(chars[idx]) {
+    if idx > chars.len() {
         return None;
     }
 
-    let mut start = idx;
+    let focus_idx = if idx < chars.len() && is_filename_char(chars[idx]) {
+        idx
+    } else if idx > 0 && is_filename_char(chars[idx - 1]) {
+        idx - 1
+    } else {
+        return None;
+    };
+
+    let mut start = focus_idx;
     while start > 0 && is_filename_char(chars[start - 1]) {
         start -= 1;
     }
-    let mut end = idx;
+    let mut end = focus_idx;
     while end < chars.len() && is_filename_char(chars[end]) {
         end += 1;
     }
@@ -2782,6 +2776,20 @@ mod tests {
         } else {
             panic!("expected filename bounds cons, got {result:?}");
         }
+    }
+
+    #[test]
+    fn thing_at_point_filename_at_end_boundary() {
+        let mut ev = Evaluator::new();
+        eval_all_with(
+            &mut ev,
+            r#"(get-buffer-create "tap6")
+               (set-buffer "tap6")
+               (insert "open ./dir/file.txt now")
+               (goto-char (point-max))"#,
+        );
+        let result = builtin_thing_at_point(&mut ev, vec![Value::symbol("filename")]).unwrap();
+        assert_eq!(result.as_str(), Some("now"));
     }
 
     // -------------------------------------------------------------------
