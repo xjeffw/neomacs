@@ -38,6 +38,7 @@ Initial scaffold:
 - Form corpus: `test/neovm/vm-compat/cases/core.forms`
 - Oracle evaluator: `test/neovm/vm-compat/oracle_eval.el`
 - Oracle runner: `test/neovm/vm-compat/run-oracle.sh`
+- Hardcoded default oracle binary: `/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs`
 - NeoVM runner: `test/neovm/vm-compat/run-neovm.sh`
 - Comparator: `test/neovm/vm-compat/compare-results.sh`
 - NeoVM-only extension/policy cases: `load-suffixes`, `load-policy`, `precompile`
