@@ -25,6 +25,33 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented `discard-input` with dynamic `unread-command-events` mutation parity and locked oracle coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/reader.rs`
+      - added evaluator-backed `discard-input` implementation.
+      - behavior now matches batch oracle slice:
+        - arity `(0 . 0)`,
+        - returns `nil`,
+        - clears `unread-command-events` in current scope (including dynamic let bindings),
+        - supports non-list/dotted unread values by normalizing to `nil`.
+      - added unit coverage for queue clearing, dynamic binding semantics, return value, and arity errors.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `discard-input` into evaluator-dependent builtin dispatch.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `discard-input` to dispatch builtin registry.
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added `subr-arity` override `(0 . 0)` for `discard-input`.
+    - `test/neovm/vm-compat/cases/discard-input-semantics.forms`
+    - `test/neovm/vm-compat/cases/discard-input-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in for return value, queue clearing, `input-pending-p` interaction, and arity error payload.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml discard_input -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/discard-input-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-pending-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented `input-pending-p` with dynamic `unread-command-events` parity and locked oracle coverage:
   - updated:
     - `rust/neovm-core/src/elisp/reader.rs`
