@@ -3146,14 +3146,37 @@ pub(crate) fn builtin_run_hook_with_args(
 }
 
 pub(crate) fn builtin_featurep(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
-    expect_args("featurep", &args, 1)?;
+    expect_min_args("featurep", &args, 1)?;
+    expect_max_args("featurep", &args, 2)?;
     let name = args[0].as_symbol_name().ok_or_else(|| {
         signal(
             "wrong-type-argument",
             vec![Value::symbol("symbolp"), args[0].clone()],
         )
     })?;
-    Ok(Value::bool(eval.feature_present(name)))
+    if !eval.feature_present(name) {
+        return Ok(Value::Nil);
+    }
+
+    let Some(subfeature) = args.get(1) else {
+        return Ok(Value::True);
+    };
+    if subfeature.is_nil() {
+        return Ok(Value::True);
+    }
+
+    let subfeatures = eval
+        .obarray()
+        .get_property(name, "subfeatures")
+        .cloned()
+        .unwrap_or(Value::Nil);
+    let items = list_to_vec(&subfeatures).ok_or_else(|| {
+        signal(
+            "wrong-type-argument",
+            vec![Value::symbol("listp"), subfeatures.clone()],
+        )
+    })?;
+    Ok(Value::bool(items.iter().any(|item| item == subfeature)))
 }
 
 // ===========================================================================
@@ -9643,6 +9666,83 @@ mod tests {
         assert_eq!(by_name, Value::Nil);
         let nil_arg = builtin_buffer_live_p(&mut eval, vec![Value::Nil]).unwrap();
         assert_eq!(nil_arg, Value::Nil);
+    }
+
+    #[test]
+    fn featurep_accepts_optional_subfeature_arg() {
+        let mut eval = super::super::eval::Evaluator::new();
+        eval.set_variable("features", Value::list(vec![Value::symbol("vm-featurep-present")]));
+        eval.obarray_mut().put_property(
+            "vm-featurep-present",
+            "subfeatures",
+            Value::list(vec![Value::symbol("vm-sub"), Value::Int(1)]),
+        );
+
+        let base = builtin_featurep(&mut eval, vec![Value::symbol("vm-featurep-present")]).unwrap();
+        assert_eq!(base, Value::True);
+
+        let with_nil = builtin_featurep(
+            &mut eval,
+            vec![Value::symbol("vm-featurep-present"), Value::Nil],
+        )
+        .unwrap();
+        assert_eq!(with_nil, Value::True);
+
+        let with_sub = builtin_featurep(
+            &mut eval,
+            vec![Value::symbol("vm-featurep-present"), Value::symbol("vm-sub")],
+        )
+        .unwrap();
+        assert_eq!(with_sub, Value::True);
+
+        let with_other = builtin_featurep(
+            &mut eval,
+            vec![Value::symbol("vm-featurep-present"), Value::symbol("vm-other")],
+        )
+        .unwrap();
+        assert_eq!(with_other, Value::Nil);
+    }
+
+    #[test]
+    fn featurep_subfeatures_property_must_be_list() {
+        let mut eval = super::super::eval::Evaluator::new();
+        eval.set_variable("features", Value::list(vec![Value::symbol("vm-featurep-present")]));
+        eval.obarray_mut()
+            .put_property("vm-featurep-present", "subfeatures", Value::Int(1));
+
+        let err = builtin_featurep(
+            &mut eval,
+            vec![Value::symbol("vm-featurep-present"), Value::symbol("vm-sub")],
+        )
+        .expect_err("featurep should signal listp when subfeatures is not a list");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(sig.data, vec![Value::symbol("listp"), Value::Int(1)]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn featurep_rejects_more_than_two_args() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let err = builtin_featurep(
+            &mut eval,
+            vec![
+                Value::symbol("vm-featurep-present"),
+                Value::Nil,
+                Value::symbol("extra"),
+            ],
+        )
+        .expect_err("featurep should reject more than two arguments");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(sig.data, vec![Value::symbol("featurep"), Value::Int(3)]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
     }
 
     #[test]

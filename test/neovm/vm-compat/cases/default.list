@@ -321,6 +321,7 @@ cases/file-name-types
 cases/file-name-completion
 cases/substitute-in-file-name
 cases/features-sync
+cases/featurep-optional-subfeature-semantics
 cases/pcase
 cases/json-semantics
 cases/json-buffer-semantics

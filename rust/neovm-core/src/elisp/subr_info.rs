@@ -375,6 +375,7 @@ fn subr_arity_value(name: &str) -> Value {
         "current-kill" => arity_cons(1, Some(2)),
         "current-time-string" | "current-time-zone" => arity_cons(0, Some(2)),
         "called-interactively-p" | "float-time" => arity_cons(0, Some(1)),
+        "featurep" => arity_cons(1, Some(2)),
         "commandp" => arity_cons(1, Some(2)),
         "cancel-timer" | "timerp" => arity_cons(1, Some(1)),
         "run-at-time" => arity_cons(3, None),
@@ -1183,6 +1184,7 @@ mod tests {
         assert_subr_arity("custom-variable-p", 1, Some(1));
         assert_subr_arity("decode-char", 2, Some(2));
         assert_subr_arity("default-value", 1, Some(1));
+        assert_subr_arity("featurep", 1, Some(2));
     }
 
     #[test]
