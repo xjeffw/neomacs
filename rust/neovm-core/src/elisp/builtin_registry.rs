@@ -888,6 +888,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "undo",
     "undo-boundary",
     "universal-argument",
+    "unibyte-charset",
     "unibyte-char-to-multibyte",
     "unibyte-string-p",
     "unibyte-string",

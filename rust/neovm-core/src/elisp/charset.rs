@@ -266,6 +266,12 @@ pub(crate) fn builtin_charset_list(args: Vec<Value>) -> EvalResult {
     Ok(Value::list(names))
 }
 
+/// `(unibyte-charset)` -- return the charset used for unibyte strings.
+pub(crate) fn builtin_unibyte_charset(args: Vec<Value>) -> EvalResult {
+    expect_args("unibyte-charset", &args, 0)?;
+    Ok(Value::symbol("eight-bit"))
+}
+
 /// `(charset-priority-list &optional HIGHESTP)` -- return list of charsets
 /// in priority order.  If HIGHESTP is non-nil, return only the highest
 /// priority charset.
@@ -618,6 +624,12 @@ mod tests {
         let items = list_to_vec(&r).unwrap();
         assert!(matches!(&items[0], Value::Symbol(s) if s == "unicode"));
         assert!(items.len() >= 2);
+    }
+
+    #[test]
+    fn unibyte_charset_returns_eight_bit() {
+        let r = builtin_unibyte_charset(vec![]).unwrap();
+        assert!(matches!(r, Value::Symbol(s) if s == "eight-bit"));
     }
 
     // -----------------------------------------------------------------------
