@@ -8743,7 +8743,7 @@ pub(crate) fn builtin_search_forward(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_min_args("search-forward", &args, 1)?;
+    expect_range_args("search-forward", &args, 1, 4)?;
     let pattern = expect_string(&args[0])?;
     let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
         .map(|v| !v.is_nil())
@@ -8961,7 +8961,7 @@ pub(crate) fn builtin_search_backward(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_min_args("search-backward", &args, 1)?;
+    expect_range_args("search-backward", &args, 1, 4)?;
     let pattern = expect_string(&args[0])?;
     let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
         .map(|v| !v.is_nil())
@@ -9024,7 +9024,7 @@ pub(crate) fn builtin_re_search_forward(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_min_args("re-search-forward", &args, 1)?;
+    expect_range_args("re-search-forward", &args, 1, 4)?;
     let pattern = expect_string(&args[0])?;
     let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
         .map(|v| !v.is_nil())
@@ -9090,7 +9090,7 @@ pub(crate) fn builtin_re_search_backward(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_min_args("re-search-backward", &args, 1)?;
+    expect_range_args("re-search-backward", &args, 1, 4)?;
     let pattern = expect_string(&args[0])?;
     let case_fold = dynamic_or_global_symbol_value(eval, "case-fold-search")
         .map(|v| !v.is_nil())
@@ -9156,7 +9156,7 @@ pub(crate) fn builtin_looking_at(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("looking-at", &args, 1)?;
+    expect_range_args("looking-at", &args, 1, 2)?;
     let pattern = expect_string(&args[0])?;
 
     let buf = eval
@@ -9200,7 +9200,7 @@ pub(crate) fn builtin_string_match_eval(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_min_args("string-match", &args, 2)?;
+    expect_range_args("string-match", &args, 2, 4)?;
     let pattern = expect_string(&args[0])?;
     let s = expect_string(&args[1])?;
     let start = normalize_string_start_arg(&s, args.get(2))?;
@@ -9225,7 +9225,7 @@ pub(crate) fn builtin_string_match_p_eval(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_min_args("string-match-p", &args, 2)?;
+    expect_range_args("string-match-p", &args, 2, 3)?;
     let pattern = expect_string(&args[0])?;
     let s = expect_string(&args[1])?;
     let start = normalize_string_start_arg(&s, args.get(2))?;
@@ -9251,7 +9251,7 @@ pub(crate) fn builtin_match_string(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_min_args("match-string", &args, 1)?;
+    expect_range_args("match-string", &args, 1, 2)?;
     let group = expect_int(&args[0])? as usize;
 
     let md = match &eval.match_data {
@@ -9455,7 +9455,7 @@ pub(crate) fn builtin_replace_match(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("replace-match", &args, 1)?;
-    if args.len() > 6 {
+    if args.len() > 5 {
         return Err(signal(
             "wrong-number-of-arguments",
             vec![
@@ -10239,6 +10239,94 @@ mod tests {
             vec![Value::string("a"), Value::string("ba"), Value::Int(3)],
         );
         assert!(out_of_range.is_err());
+    }
+
+    #[test]
+    fn search_match_runtime_arity_edges_match_oracle_contracts() {
+        let mut eval = crate::elisp::eval::Evaluator::new();
+
+        let search_over_arity = builtin_search_forward(
+            &mut eval,
+            vec![
+                Value::string("a"),
+                Value::Nil,
+                Value::Nil,
+                Value::Int(1),
+                Value::Nil,
+            ],
+        );
+        assert!(matches!(
+            search_over_arity,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+
+        let regex_over_arity = builtin_re_search_forward(
+            &mut eval,
+            vec![
+                Value::string("a"),
+                Value::Nil,
+                Value::Nil,
+                Value::Int(1),
+                Value::Nil,
+            ],
+        );
+        assert!(matches!(
+            regex_over_arity,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+
+        let looking_at_optional_second =
+            builtin_looking_at(&mut eval, vec![Value::string("a"), Value::True]);
+        assert!(looking_at_optional_second.is_ok());
+
+        let match_string_over_arity = builtin_match_string(
+            &mut eval,
+            vec![Value::Int(0), Value::string("a"), Value::Nil],
+        );
+        assert!(matches!(
+            match_string_over_arity,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+
+        let replace_match_over_arity = builtin_replace_match(
+            &mut eval,
+            vec![
+                Value::string("x"),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
+        assert!(matches!(
+            replace_match_over_arity,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+
+        let string_match_over_arity = builtin_string_match_eval(
+            &mut eval,
+            vec![
+                Value::string("a"),
+                Value::string("a"),
+                Value::Int(0),
+                Value::Nil,
+                Value::Nil,
+            ],
+        );
+        assert!(matches!(
+            string_match_over_arity,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+
+        let string_match_p_over_arity = builtin_string_match_p_eval(
+            &mut eval,
+            vec![Value::string("a"), Value::string("a"), Value::Int(0), Value::Nil],
+        );
+        assert!(matches!(
+            string_match_p_over_arity,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
     }
 
     #[test]

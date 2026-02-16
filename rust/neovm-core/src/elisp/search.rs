@@ -46,6 +46,17 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_range_args(name: &str, args: &[Value], min: usize, max: usize) -> Result<(), Flow> {
+    if args.len() < min || args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn expect_int(val: &Value) -> Result<i64, Flow> {
     match val {
         Value::Int(n) => Ok(*n),
@@ -211,7 +222,7 @@ fn flatten_match_data(md: &super::regex::MatchData) -> Value {
 /// STRING starting at START (default 0).  Returns the index of the match
 /// or nil.  Updates match data.
 pub(crate) fn builtin_string_match(args: Vec<Value>) -> EvalResult {
-    expect_min_args("string-match", &args, 2)?;
+    expect_range_args("string-match", &args, 2, 4)?;
     let pattern = expect_string(&args[0])?;
     let s = expect_string(&args[1])?;
     let start = normalize_string_start_arg(&s, args.get(2))?;
@@ -229,7 +240,7 @@ pub(crate) fn builtin_string_match(args: Vec<Value>) -> EvalResult {
 /// `(string-match-p REGEXP STRING &optional START)` -- like `string-match`
 /// but does not modify match data.
 pub(crate) fn builtin_string_match_p(args: Vec<Value>) -> EvalResult {
-    expect_min_args("string-match-p", &args, 2)?;
+    expect_range_args("string-match-p", &args, 2, 3)?;
     let pattern = expect_string(&args[0])?;
     let s = expect_string(&args[1])?;
     let start = normalize_string_start_arg(&s, args.get(2))?;
@@ -389,7 +400,7 @@ pub(crate) fn builtin_set_match_data(args: Vec<Value>) -> EvalResult {
 /// `(looking-at REGEXP)` -- test whether text after point matches REGEXP.
 /// Stub: returns nil (needs buffer context).
 pub(crate) fn builtin_looking_at(args: Vec<Value>) -> EvalResult {
-    expect_args("looking-at", &args, 1)?;
+    expect_range_args("looking-at", &args, 1, 2)?;
     let pattern = expect_string(&args[0])?;
     let rust_pattern = super::regex::translate_emacs_regex(&pattern);
     let _ = regex::Regex::new(&rust_pattern)
@@ -405,7 +416,7 @@ pub(crate) fn builtin_replace_regexp_in_string(args: Vec<Value>) -> EvalResult {
 }
 
 fn builtin_replace_regexp_in_string_with_case_fold(args: Vec<Value>, case_fold: bool) -> EvalResult {
-    expect_min_args("replace-regexp-in-string", &args, 3)?;
+    expect_range_args("replace-regexp-in-string", &args, 3, 7)?;
     let pattern = expect_string(&args[0])?;
     let rep = expect_string(&args[1])?;
     let s = expect_string(&args[2])?;

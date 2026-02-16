@@ -443,6 +443,16 @@ fn subr_arity_value(name: &str) -> Value {
             arity_cons(1, Some(1))
         }
         "remove-overlays" => arity_cons(0, Some(4)),
+        "looking-at" => arity_cons(1, Some(2)),
+        "match-beginning" | "match-end" => arity_cons(1, Some(1)),
+        "match-data" => arity_cons(0, Some(3)),
+        "match-string" => arity_cons(1, Some(2)),
+        "replace-match" => arity_cons(1, Some(5)),
+        "replace-regexp-in-string" => arity_cons(3, Some(7)),
+        "string-match" => arity_cons(2, Some(4)),
+        "search-forward" | "search-backward" | "re-search-forward" | "re-search-backward"
+        | "posix-search-forward" | "posix-search-backward" | "word-search-forward"
+        | "word-search-backward" => arity_cons(1, Some(4)),
         "add-variable-watcher" => arity_cons(2, Some(2)),
         "remove-hook" => arity_cons(2, Some(3)),
         "advice-add" => arity_cons(3, Some(4)),
@@ -1666,6 +1676,26 @@ mod tests {
         assert_subr_arity("line-number-at-pos", 0, Some(2));
         assert_subr_arity("line-number-display-width", 0, Some(1));
         assert_subr_arity("line-pixel-height", 0, Some(0));
+    }
+
+    #[test]
+    fn subr_arity_search_match_primitives_match_oracle() {
+        assert_subr_arity("looking-at", 1, Some(2));
+        assert_subr_arity("match-beginning", 1, Some(1));
+        assert_subr_arity("match-end", 1, Some(1));
+        assert_subr_arity("match-data", 0, Some(3));
+        assert_subr_arity("match-string", 1, Some(2));
+        assert_subr_arity("replace-match", 1, Some(5));
+        assert_subr_arity("replace-regexp-in-string", 3, Some(7));
+        assert_subr_arity("string-match", 2, Some(4));
+        assert_subr_arity("search-forward", 1, Some(4));
+        assert_subr_arity("search-backward", 1, Some(4));
+        assert_subr_arity("re-search-forward", 1, Some(4));
+        assert_subr_arity("re-search-backward", 1, Some(4));
+        assert_subr_arity("posix-search-forward", 1, Some(4));
+        assert_subr_arity("posix-search-backward", 1, Some(4));
+        assert_subr_arity("word-search-forward", 1, Some(4));
+        assert_subr_arity("word-search-backward", 1, Some(4));
     }
 
     #[test]
