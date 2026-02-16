@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `last-kbd-macro` as a real evaluator builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/kmacro.rs`
+      - added `last-kbd-macro` builtin with zero-arity contract.
+      - returns the last recorded macro as a vector, or `nil` when unset.
+      - added focused unit coverage for empty and populated states.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator dispatch now routes `last-kbd-macro`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `last-kbd-macro` to dispatch builtin registry.
+    - `test/neovm/vm-compat/cases/kmacro-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior.
+  - verified:
+    - `cargo test kmacro::tests::test_last_kbd_macro_builtin --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kmacro-helper-availability` (pass, 14/14)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Exposed keyboard macro state predicates as real evaluator builtins:
   - updated:
     - `rust/neovm-core/src/elisp/kmacro.rs`
