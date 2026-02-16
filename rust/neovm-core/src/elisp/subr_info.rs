@@ -312,10 +312,14 @@ fn subr_arity_value(name: &str) -> Value {
         | "display-screens" | "display-color-cells" | "display-planes"
         | "display-visual-class" | "display-backing-store" | "display-monitor-attributes-list"
         | "frame-monitor-attributes" | "terminal-name" | "frame-terminal" | "tty-type"
-        | "tty-top-frame" | "x-display-pixel-width" | "x-display-pixel-height" => {
+        | "tty-top-frame" | "tty-display-color-p" | "tty-display-color-cells"
+        | "tty-no-underline" | "window-system" | "x-display-pixel-width"
+        | "x-display-pixel-height" | "x-server-version" | "x-server-max-request-size"
+        | "x-display-grayscale-p" => {
             arity_cons(0, Some(1))
         }
         "terminal-list" | "x-display-list" => arity_cons(0, Some(0)),
+        "frame-edges" => arity_cons(0, Some(2)),
         "terminal-live-p" => arity_cons(1, Some(1)),
         "terminal-parameter" => arity_cons(2, Some(2)),
         "set-terminal-parameter" => arity_cons(3, Some(3)),
@@ -625,6 +629,8 @@ mod tests {
         assert_subr_arity("display-backing-store", 0, Some(1));
         assert_subr_arity("display-monitor-attributes-list", 0, Some(1));
         assert_subr_arity("frame-monitor-attributes", 0, Some(1));
+        assert_subr_arity("window-system", 0, Some(1));
+        assert_subr_arity("frame-edges", 0, Some(2));
         assert_subr_arity("terminal-name", 0, Some(1));
         assert_subr_arity("terminal-list", 0, Some(0));
         assert_subr_arity("terminal-live-p", 1, Some(1));
@@ -632,8 +638,14 @@ mod tests {
         assert_subr_arity("terminal-parameter", 2, Some(2));
         assert_subr_arity("set-terminal-parameter", 3, Some(3));
         assert_subr_arity("tty-type", 0, Some(1));
+        assert_subr_arity("tty-display-color-p", 0, Some(1));
+        assert_subr_arity("tty-display-color-cells", 0, Some(1));
+        assert_subr_arity("tty-no-underline", 0, Some(1));
         assert_subr_arity("tty-top-frame", 0, Some(1));
         assert_subr_arity("x-display-list", 0, Some(0));
+        assert_subr_arity("x-server-version", 0, Some(1));
+        assert_subr_arity("x-server-max-request-size", 0, Some(1));
+        assert_subr_arity("x-display-grayscale-p", 0, Some(1));
         assert_subr_arity("x-display-pixel-width", 0, Some(1));
         assert_subr_arity("x-display-pixel-height", 0, Some(1));
     }

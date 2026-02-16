@@ -233,6 +233,30 @@ fn make_alist(pairs: Vec<(Value, Value)>) -> Value {
     Value::list(entries)
 }
 
+fn frame_not_live_error(value: &Value) -> Flow {
+    signal(
+        "error",
+        vec![Value::string(format!(
+            "{} is not a live frame",
+            super::print::print_value(value)
+        ))],
+    )
+}
+
+fn x_windows_not_initialized_error() -> Flow {
+    signal(
+        "error",
+        vec![Value::string("X windows are not in use or not initialized")],
+    )
+}
+
+fn x_window_system_frame_error() -> Flow {
+    signal(
+        "error",
+        vec![Value::string("Window system frame should be used")],
+    )
+}
+
 // ---------------------------------------------------------------------------
 // Display query builtins
 // ---------------------------------------------------------------------------
@@ -585,6 +609,72 @@ pub(crate) fn builtin_display_backing_store_eval(
     Ok(Value::symbol("not-useful"))
 }
 
+/// (window-system &optional FRAME) -> nil in batch-style vm context.
+pub(crate) fn builtin_window_system(args: Vec<Value>) -> EvalResult {
+    expect_max_args("window-system", &args, 1)?;
+    if let Some(frame) = args.first() {
+        if !frame.is_nil() {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("framep"), frame.clone()],
+            ));
+        }
+    }
+    Ok(Value::Nil)
+}
+
+/// Evaluator-aware variant of `window-system`.
+pub(crate) fn builtin_window_system_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("window-system", &args, 1)?;
+    if let Some(frame) = args.first() {
+        if !frame.is_nil() && !live_frame_designator_p(eval, frame) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("framep"), frame.clone()],
+            ));
+        }
+    }
+    Ok(Value::Nil)
+}
+
+/// (frame-edges &optional FRAME TYPE) -> `(0 0 80 25)` in batch-style vm context.
+pub(crate) fn builtin_frame_edges(args: Vec<Value>) -> EvalResult {
+    expect_range_args("frame-edges", &args, 0, 2)?;
+    if let Some(frame) = args.first() {
+        if !frame.is_nil() {
+            return Err(frame_not_live_error(frame));
+        }
+    }
+    Ok(Value::list(vec![
+        Value::Int(0),
+        Value::Int(0),
+        Value::Int(80),
+        Value::Int(25),
+    ]))
+}
+
+/// Evaluator-aware variant of `frame-edges`.
+pub(crate) fn builtin_frame_edges_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_range_args("frame-edges", &args, 0, 2)?;
+    if let Some(frame) = args.first() {
+        if !frame.is_nil() && !live_frame_designator_p(eval, frame) {
+            return Err(frame_not_live_error(frame));
+        }
+    }
+    Ok(Value::list(vec![
+        Value::Int(0),
+        Value::Int(0),
+        Value::Int(80),
+        Value::Int(25),
+    ]))
+}
+
 /// Evaluator-aware variant of `display-images-p`.
 pub(crate) fn builtin_display_images_p_eval(
     eval: &mut super::eval::Evaluator,
@@ -614,6 +704,117 @@ pub(crate) fn builtin_display_supports_face_attributes_p_eval(
 pub(crate) fn builtin_x_display_list(args: Vec<Value>) -> EvalResult {
     expect_max_args("x-display-list", &args, 0)?;
     Ok(Value::Nil)
+}
+
+/// (x-server-version &optional DISPLAY) -> error in batch/no-X context.
+pub(crate) fn builtin_x_server_version(args: Vec<Value>) -> EvalResult {
+    expect_max_args("x-server-version", &args, 1)?;
+    match args.first() {
+        None | Some(Value::Nil) => Err(x_windows_not_initialized_error()),
+        Some(display) if is_terminal_handle(display) => {
+            if let Some(err) = terminal_not_x_display_error(display) {
+                Err(err)
+            } else {
+                Err(invalid_get_device_terminal_error(display))
+            }
+        }
+        Some(Value::Str(display)) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} can't be opened"))],
+        )),
+        Some(other) => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("frame-live-p"), other.clone()],
+        )),
+    }
+}
+
+/// Evaluator-aware variant of `x-server-version`.
+pub(crate) fn builtin_x_server_version_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("x-server-version", &args, 1)?;
+    if let Some(display) = args.first() {
+        if live_frame_designator_p(eval, display) {
+            return Err(x_window_system_frame_error());
+        }
+    }
+    builtin_x_server_version(args)
+}
+
+/// (x-server-max-request-size &optional DISPLAY) -> error in batch/no-X context.
+pub(crate) fn builtin_x_server_max_request_size(args: Vec<Value>) -> EvalResult {
+    expect_max_args("x-server-max-request-size", &args, 1)?;
+    match args.first() {
+        None | Some(Value::Nil) => Err(x_windows_not_initialized_error()),
+        Some(display) if is_terminal_handle(display) => {
+            if let Some(err) = terminal_not_x_display_error(display) {
+                Err(err)
+            } else {
+                Err(invalid_get_device_terminal_error(display))
+            }
+        }
+        Some(Value::Str(display)) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} can't be opened"))],
+        )),
+        Some(other) => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("frame-live-p"), other.clone()],
+        )),
+    }
+}
+
+/// Evaluator-aware variant of `x-server-max-request-size`.
+pub(crate) fn builtin_x_server_max_request_size_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("x-server-max-request-size", &args, 1)?;
+    if let Some(display) = args.first() {
+        if live_frame_designator_p(eval, display) {
+            return Err(x_window_system_frame_error());
+        }
+    }
+    builtin_x_server_max_request_size(args)
+}
+
+/// (x-display-grayscale-p &optional DISPLAY) -> error in batch/no-X context.
+pub(crate) fn builtin_x_display_grayscale_p(args: Vec<Value>) -> EvalResult {
+    expect_max_args("x-display-grayscale-p", &args, 1)?;
+    match args.first() {
+        None | Some(Value::Nil) => Err(x_windows_not_initialized_error()),
+        Some(display) if is_terminal_handle(display) => {
+            if let Some(err) = terminal_not_x_display_error(display) {
+                Err(err)
+            } else {
+                Err(invalid_get_device_terminal_error(display))
+            }
+        }
+        Some(Value::Str(display)) => Err(signal(
+            "error",
+            vec![Value::string(format!("Display {display} can't be opened"))],
+        )),
+        Some(other) => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("frame-live-p"), other.clone()],
+        )),
+    }
+}
+
+/// Evaluator-aware variant of `x-display-grayscale-p`.
+pub(crate) fn builtin_x_display_grayscale_p_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("x-display-grayscale-p", &args, 1)?;
+    if let Some(display) = args.first() {
+        if live_frame_designator_p(eval, display) {
+            return Err(x_window_system_frame_error());
+        }
+    }
+    builtin_x_display_grayscale_p(args)
 }
 
 /// (x-open-connection DISPLAY &optional XRM-STRING MUST-SUCCEED) -> nil
@@ -1038,6 +1239,69 @@ pub(crate) fn builtin_tty_top_frame_eval(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("tty-top-frame", &args, 1)?;
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator_eval(eval, terminal)?;
+    }
+    Ok(Value::Nil)
+}
+
+/// (tty-display-color-p &optional TERMINAL) -> nil
+pub(crate) fn builtin_tty_display_color_p(args: Vec<Value>) -> EvalResult {
+    expect_max_args("tty-display-color-p", &args, 1)?;
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator(terminal)?;
+    }
+    Ok(Value::Nil)
+}
+
+/// Evaluator-aware variant of `tty-display-color-p`.
+pub(crate) fn builtin_tty_display_color_p_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("tty-display-color-p", &args, 1)?;
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator_eval(eval, terminal)?;
+    }
+    Ok(Value::Nil)
+}
+
+/// (tty-display-color-cells &optional TERMINAL) -> 0
+pub(crate) fn builtin_tty_display_color_cells(args: Vec<Value>) -> EvalResult {
+    expect_max_args("tty-display-color-cells", &args, 1)?;
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator(terminal)?;
+    }
+    Ok(Value::Int(0))
+}
+
+/// Evaluator-aware variant of `tty-display-color-cells`.
+pub(crate) fn builtin_tty_display_color_cells_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("tty-display-color-cells", &args, 1)?;
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator_eval(eval, terminal)?;
+    }
+    Ok(Value::Int(0))
+}
+
+/// (tty-no-underline &optional TERMINAL) -> nil
+pub(crate) fn builtin_tty_no_underline(args: Vec<Value>) -> EvalResult {
+    expect_max_args("tty-no-underline", &args, 1)?;
+    if let Some(terminal) = args.first() {
+        expect_terminal_designator(terminal)?;
+    }
+    Ok(Value::Nil)
+}
+
+/// Evaluator-aware variant of `tty-no-underline`.
+pub(crate) fn builtin_tty_no_underline_eval(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("tty-no-underline", &args, 1)?;
     if let Some(terminal) = args.first() {
         expect_terminal_designator_eval(eval, terminal)?;
     }

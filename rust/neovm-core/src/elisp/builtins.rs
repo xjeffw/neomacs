@@ -7401,6 +7401,8 @@ pub(crate) fn dispatch_builtin(
                 eval, args,
             ))
         }
+        "window-system" => return Some(super::display::builtin_window_system_eval(eval, args)),
+        "frame-edges" => return Some(super::display::builtin_frame_edges_eval(eval, args)),
         "display-mm-width" => {
             return Some(super::display::builtin_display_mm_width_eval(eval, args))
         }
@@ -7438,6 +7440,15 @@ pub(crate) fn dispatch_builtin(
         }
         "tty-type" => return Some(super::display::builtin_tty_type_eval(eval, args)),
         "tty-top-frame" => return Some(super::display::builtin_tty_top_frame_eval(eval, args)),
+        "tty-display-color-p" => {
+            return Some(super::display::builtin_tty_display_color_p_eval(eval, args))
+        }
+        "tty-display-color-cells" => {
+            return Some(super::display::builtin_tty_display_color_cells_eval(eval, args))
+        }
+        "tty-no-underline" => {
+            return Some(super::display::builtin_tty_no_underline_eval(eval, args))
+        }
         "controlling-tty-p" => {
             return Some(super::display::builtin_controlling_tty_p_eval(
                 eval, args,
@@ -7463,6 +7474,15 @@ pub(crate) fn dispatch_builtin(
             return Some(super::display::builtin_x_display_pixel_height_eval(
                 eval, args,
             ))
+        }
+        "x-server-version" => {
+            return Some(super::display::builtin_x_server_version_eval(eval, args))
+        }
+        "x-server-max-request-size" => {
+            return Some(super::display::builtin_x_server_max_request_size_eval(eval, args))
+        }
+        "x-display-grayscale-p" => {
+            return Some(super::display::builtin_x_display_grayscale_p_eval(eval, args))
         }
         "x-display-color-p" => {
             return Some(super::display::builtin_x_display_color_p_eval(eval, args))
@@ -8132,6 +8152,9 @@ pub(crate) fn dispatch_builtin(
         "set-terminal-parameter" => super::display::builtin_set_terminal_parameter(args),
         "tty-type" => super::display::builtin_tty_type(args),
         "tty-top-frame" => super::display::builtin_tty_top_frame(args),
+        "tty-display-color-p" => super::display::builtin_tty_display_color_p(args),
+        "tty-display-color-cells" => super::display::builtin_tty_display_color_cells(args),
+        "tty-no-underline" => super::display::builtin_tty_no_underline(args),
         "controlling-tty-p" => super::display::builtin_controlling_tty_p(args),
         "suspend-tty" => super::display::builtin_suspend_tty(args),
         "resume-tty" => super::display::builtin_resume_tty(args),
@@ -8139,10 +8162,15 @@ pub(crate) fn dispatch_builtin(
             super::display::builtin_display_monitor_attributes_list(args)
         }
         "frame-monitor-attributes" => super::display::builtin_frame_monitor_attributes(args),
+        "window-system" => super::display::builtin_window_system(args),
+        "frame-edges" => super::display::builtin_frame_edges(args),
         "display-images-p" => super::display::builtin_display_images_p(args),
         "display-supports-face-attributes-p" => {
             super::display::builtin_display_supports_face_attributes_p(args)
         }
+        "x-server-version" => super::display::builtin_x_server_version(args),
+        "x-server-max-request-size" => super::display::builtin_x_server_max_request_size(args),
+        "x-display-grayscale-p" => super::display::builtin_x_display_grayscale_p(args),
 
         // Image (pure)
         "image-type-available-p" => super::image::builtin_image_type_available_p(args),
