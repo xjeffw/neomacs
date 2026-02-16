@@ -60,6 +60,7 @@ Last updated: 2026-02-16
 - Keep newly landed `set-window-buffer` bootstrap parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed `set-window-dedicated-p` designator parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed `select-window` designator/current-buffer parity stable while expanding remaining window lifecycle/helper drifts.
+- Keep newly landed `other-window` current-buffer side-effect parity stable while expanding remaining window navigation/helper drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
@@ -74,6 +75,22 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned `other-window` current-buffer side effects with GNU Emacs and added oracle lock-in:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - after cycling selected window, `other-window` now updates current buffer to that window’s displayed buffer (matching GNU Emacs command semantics).
+    - preserves existing return shape (`nil`) while aligning observable buffer-selection side effects.
+  - added evaluator regression:
+    - `other_window_updates_current_buffer_to_selected_window_buffer`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/other-window-current-buffer-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml other_window_` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/other-window-current-buffer-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/select-window-current-buffer-semantics` (pass)
 
 - Aligned `select-window` designator semantics and current-buffer side effects with GNU Emacs and added oracle lock-ins:
   - updated runtime behavior:
