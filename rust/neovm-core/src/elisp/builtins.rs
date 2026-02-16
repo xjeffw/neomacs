@@ -7500,6 +7500,8 @@ pub(crate) fn dispatch_builtin(
         "hash-table-rehash-threshold" => super::hashtab::builtin_hash_table_rehash_threshold(args),
         "hash-table-weakness" => super::hashtab::builtin_hash_table_weakness(args),
         "copy-hash-table" => super::hashtab::builtin_copy_hash_table(args),
+        "hash-table-keys" => super::hashtab::builtin_hash_table_keys(args),
+        "hash-table-values" => super::hashtab::builtin_hash_table_values(args),
 
         // Threading (pure)
         // Misc (pure)

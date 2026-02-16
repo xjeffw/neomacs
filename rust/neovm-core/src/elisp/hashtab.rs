@@ -176,6 +176,38 @@ pub(crate) fn builtin_copy_hash_table(args: Vec<Value>) -> EvalResult {
     }
 }
 
+/// (hash-table-keys TABLE) -> list of keys
+pub(crate) fn builtin_hash_table_keys(args: Vec<Value>) -> EvalResult {
+    expect_args("hash-table-keys", &args, 1)?;
+    match &args[0] {
+        Value::HashTable(ht) => {
+            let table = ht.lock().expect("poisoned");
+            let keys: Vec<Value> = table.data.keys().map(hash_key_to_value).collect();
+            Ok(Value::list(keys))
+        }
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("hash-table-p"), other.clone()],
+        )),
+    }
+}
+
+/// (hash-table-values TABLE) -> list of values
+pub(crate) fn builtin_hash_table_values(args: Vec<Value>) -> EvalResult {
+    expect_args("hash-table-values", &args, 1)?;
+    match &args[0] {
+        Value::HashTable(ht) => {
+            let table = ht.lock().expect("poisoned");
+            let values: Vec<Value> = table.data.values().cloned().collect();
+            Ok(Value::list(values))
+        }
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("hash-table-p"), other.clone()],
+        )),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Eval-dependent builtins
 // ---------------------------------------------------------------------------
@@ -242,4 +274,44 @@ pub(crate) fn builtin_unintern(eval: &mut super::eval::Evaluator, args: Vec<Valu
     };
     let removed = eval.obarray.unintern(&name);
     Ok(if removed { Value::True } else { Value::Nil })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hash_table_keys_values_basics() {
+        let table = Value::hash_table(HashTableTest::Equal);
+        if let Value::HashTable(ht) = &table {
+            let mut raw = ht.lock().expect("poisoned");
+            let test = raw.test.clone();
+            raw.data
+                .insert(Value::symbol("alpha").to_hash_key(&test), Value::Int(1));
+            raw.data
+                .insert(Value::symbol("beta").to_hash_key(&test), Value::Int(2));
+        } else {
+            panic!("expected hash table");
+        }
+
+        let keys = builtin_hash_table_keys(vec![table.clone()]).unwrap();
+        let keys = list_to_vec(&keys).expect("proper list");
+        assert_eq!(keys.len(), 2);
+        assert!(keys.iter().any(|v| v.as_symbol_name() == Some("alpha")));
+        assert!(keys.iter().any(|v| v.as_symbol_name() == Some("beta")));
+
+        let values = builtin_hash_table_values(vec![table]).unwrap();
+        let values = list_to_vec(&values).expect("proper list");
+        assert_eq!(values.len(), 2);
+        assert!(values.iter().any(|v| v.as_int() == Some(1)));
+        assert!(values.iter().any(|v| v.as_int() == Some(2)));
+    }
+
+    #[test]
+    fn hash_table_keys_values_errors() {
+        assert!(builtin_hash_table_keys(vec![]).is_err());
+        assert!(builtin_hash_table_values(vec![]).is_err());
+        assert!(builtin_hash_table_keys(vec![Value::Nil]).is_err());
+        assert!(builtin_hash_table_values(vec![Value::Nil]).is_err());
+    }
 }
