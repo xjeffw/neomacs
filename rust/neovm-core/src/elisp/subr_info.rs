@@ -333,6 +333,11 @@ fn subr_arity_value(name: &str) -> Value {
             arity_cons(1, Some(1))
         }
         "capitalize-region" => arity_cons(2, Some(3)),
+        "add-hook" => arity_cons(2, Some(4)),
+        "remove-hook" => arity_cons(2, Some(3)),
+        "advice-add" => arity_cons(3, Some(4)),
+        "advice-remove" | "advice-member-p" => arity_cons(2, Some(2)),
+        "run-hook-with-args" => arity_cons(1, None),
         "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
         "defining-kbd-macro" => arity_cons(1, Some(2)),
         "help-key-description" => arity_cons(2, Some(2)),
@@ -875,6 +880,16 @@ mod tests {
         assert_subr_arity("capitalize", 1, Some(1));
         assert_subr_arity("capitalize-word", 1, Some(1));
         assert_subr_arity("capitalize-region", 2, Some(3));
+    }
+
+    #[test]
+    fn subr_arity_hook_advice_primitives_match_oracle() {
+        assert_subr_arity("add-hook", 2, Some(4));
+        assert_subr_arity("remove-hook", 2, Some(3));
+        assert_subr_arity("advice-add", 3, Some(4));
+        assert_subr_arity("advice-remove", 2, Some(2));
+        assert_subr_arity("advice-member-p", 2, Some(2));
+        assert_subr_arity("run-hook-with-args", 1, None);
     }
 
     #[test]
