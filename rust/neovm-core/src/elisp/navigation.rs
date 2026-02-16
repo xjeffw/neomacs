@@ -423,6 +423,38 @@ pub(crate) fn builtin_end_of_line(
     Ok(Value::Nil)
 }
 
+/// (beginning-of-buffer &optional ARG)
+///
+/// GNU Emacs batch behavior keeps this as a command primitive:
+/// - nil/missing ARG => point-min
+/// - non-nil ARG => point-max
+pub(crate) fn builtin_beginning_of_buffer(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("beginning-of-buffer", &args, 1)?;
+    let buf = eval.buffers.current_buffer_mut().ok_or_else(no_buffer)?;
+    if args.first().is_some_and(|arg| !arg.is_nil()) {
+        buf.goto_char(buf.zv);
+    } else {
+        buf.goto_char(buf.begv);
+    }
+    Ok(Value::Nil)
+}
+
+/// (end-of-buffer &optional ARG)
+///
+/// ARG is accepted for arity compatibility; point moves to point-max.
+pub(crate) fn builtin_end_of_buffer(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_max_args("end-of-buffer", &args, 1)?;
+    let buf = eval.buffers.current_buffer_mut().ok_or_else(no_buffer)?;
+    buf.goto_char(buf.zv);
+    Ok(Value::Nil)
+}
+
 /// (goto-line LINE)
 pub(crate) fn builtin_goto_line(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("goto-line", &args, 1)?;
@@ -1128,6 +1160,46 @@ mod tests {
         eval_str(&mut ev, "(end-of-line)");
         let pos = eval_int(&mut ev, "(point)");
         assert_eq!(pos, 4); // position of '\n'
+    }
+
+    #[test]
+    fn test_beginning_of_buffer_moves_to_start_by_default() {
+        let mut ev = eval_with_text("abc\ndef");
+        eval_str(&mut ev, "(goto-char 5)");
+        eval_str(&mut ev, "(beginning-of-buffer)");
+        assert_eq!(eval_int(&mut ev, "(point)"), 1);
+    }
+
+    #[test]
+    fn test_beginning_of_buffer_non_nil_arg_moves_to_end() {
+        let mut ev = eval_with_text("abc\ndef");
+        eval_str(&mut ev, "(goto-char 2)");
+        eval_str(&mut ev, "(beginning-of-buffer 1)");
+        assert_eq!(eval_int(&mut ev, "(point)"), 8);
+    }
+
+    #[test]
+    fn test_end_of_buffer_moves_to_end() {
+        let mut ev = eval_with_text("abc\ndef");
+        eval_str(&mut ev, "(goto-char 2)");
+        eval_str(&mut ev, "(end-of-buffer)");
+        assert_eq!(eval_int(&mut ev, "(point)"), 8);
+    }
+
+    #[test]
+    fn test_beginning_end_of_buffer_reject_too_many_args() {
+        let mut ev = eval_with_text("abc");
+        let beginning_err = eval_str(
+            &mut ev,
+            "(condition-case err (beginning-of-buffer nil nil) (error (car err)))",
+        );
+        assert_eq!(beginning_err.as_symbol_name(), Some("wrong-number-of-arguments"));
+
+        let end_err = eval_str(
+            &mut ev,
+            "(condition-case err (end-of-buffer nil nil) (error (car err)))",
+        );
+        assert_eq!(end_err.as_symbol_name(), Some("wrong-number-of-arguments"));
     }
 
     #[test]

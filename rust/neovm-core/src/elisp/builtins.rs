@@ -7215,10 +7215,14 @@ pub(crate) fn dispatch_builtin(
         "beginning-of-line" => {
             return Some(super::navigation::builtin_beginning_of_line(eval, args))
         }
+        "beginning-of-buffer" => {
+            return Some(super::navigation::builtin_beginning_of_buffer(eval, args))
+        }
         "move-beginning-of-line" => {
             return Some(super::navigation::builtin_beginning_of_line(eval, args))
         }
         "end-of-line" => return Some(super::navigation::builtin_end_of_line(eval, args)),
+        "end-of-buffer" => return Some(super::navigation::builtin_end_of_buffer(eval, args)),
         "move-end-of-line" => return Some(super::navigation::builtin_end_of_line(eval, args)),
         "goto-line" => return Some(super::navigation::builtin_goto_line(eval, args)),
         "forward-char" => return Some(super::navigation::builtin_forward_char(eval, args)),
