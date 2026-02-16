@@ -19,6 +19,31 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed keyboard macro state predicates as real evaluator builtins:
+  - updated:
+    - `rust/neovm-core/src/elisp/kmacro.rs`
+      - added `defining-kbd-macro-p` and `executing-kbd-macro-p` builtins
+        with zero-arity contracts.
+      - added `executing` runtime state tracking to `KmacroManager`.
+      - macro execution paths now set/reset `executing` around playback.
+      - `kbd-macro-query` now accepts both recording and executing states.
+      - added focused unit coverage for predicate builtins + defaults.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator dispatch now routes:
+        - `defining-kbd-macro-p`
+        - `executing-kbd-macro-p`
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added both predicate names to dispatch builtin registry.
+    - `test/neovm/vm-compat/cases/kmacro-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable predicate behavior.
+  - verified:
+    - `cargo test kmacro::tests::test_defining_executing_kbd_macro_p_builtins --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kmacro-helper-availability` (pass, 14/14)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kbd-macro-query-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kmacro-arity-semantics` (pass, 12/12)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Enforced keyboard macro builtin arity contracts:
   - updated:
     - `rust/neovm-core/src/elisp/kmacro.rs`
