@@ -1,5 +1,5 @@
 1	(fboundp 'thread-live-p)	OK t
-2	(fboundp 'thread-alive-p)	OK nil
+2	(fboundp 'thread-alive-p)	OK t
 3	(fboundp 'threadp)	OK t
 4	(fboundp 'current-thread)	OK t
 5	(fboundp 'all-threads)	OK t
@@ -26,7 +26,7 @@
 26	(let ((m (make-mutex))) (mutexp m))	OK t
 27	(let ((m (make-mutex))) (let ((cv (make-condition-variable m))) (condition-variable-p cv)))	OK t
 28	(symbol-function 'thread-live-p)	OK #<subr thread-live-p>
-29	(condition-case err (symbol-function 'thread-alive-p) (error (car err)))	OK nil
+29	(condition-case err (symbol-function 'thread-alive-p) (error (car err)))	OK #<subr thread-alive-p>
 30	(functionp 'thread-live-p)	OK t
 31	(functionp 'with-mutex)	OK nil
 32	(special-form-p 'with-mutex)	OK nil

@@ -6762,6 +6762,7 @@ pub(crate) fn dispatch_builtin(
         "thread-join" => return Some(super::threads::builtin_thread_join(eval, args)),
         "thread-yield" => return Some(super::threads::builtin_thread_yield(eval, args)),
         "thread-name" => return Some(super::threads::builtin_thread_name(eval, args)),
+        "thread-alive-p" => return Some(super::threads::builtin_thread_live_p(eval, args)),
         "thread-live-p" => return Some(super::threads::builtin_thread_live_p(eval, args)),
         "threadp" => return Some(super::threads::builtin_threadp(eval, args)),
         "thread-signal" => return Some(super::threads::builtin_thread_signal(eval, args)),
