@@ -47,6 +47,20 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned symbol/obarray helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `intern`, `intern-soft`, `indirect-function`, `unintern`: `(1 . 2)`
+    - `make-symbol`, `symbol-name`, `symbol-plist`: `(1 . 1)`
+    - `symbol-file`: `(1 . 3)`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/symbol-obarray-subr-arity-semantics`
+  - wired into default vm-compat suite:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_symbol_obarray_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/symbol-obarray-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned indent helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `indent-according-to-mode`, `indent-for-tab-command`: `(0 . 1)`
