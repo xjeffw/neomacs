@@ -61,32 +61,50 @@ fn expect_int(value: &Value) -> Result<i64, Flow> {
     }
 }
 
-/// Resolve an optional window argument: if nil or absent, use the selected
-/// window of the selected frame; otherwise interpret as integer window id.
-fn resolve_window_id(
-    frames: &FrameManager,
+/// Resolve an optional window designator.
+///
+/// - nil/omitted => selected window of selected frame
+/// - non-nil invalid designator => `(wrong-type-argument PRED VALUE)`
+fn resolve_window_id_with_pred(
+    eval: &mut super::eval::Evaluator,
     arg: Option<&Value>,
+    pred: &str,
 ) -> Result<(FrameId, WindowId), Flow> {
-    let frame = frames
-        .selected_frame()
+    let frame_id = ensure_selected_frame_id(eval);
+    let frame = eval
+        .frames
+        .get(frame_id)
         .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
-    let frame_id = frame.id;
 
     match arg {
         None | Some(Value::Nil) => Ok((frame_id, frame.selected_window)),
         Some(val) => {
-            let id = expect_int(val)? as u64;
-            // Verify window exists in the selected frame.
-            if frame.find_window(WindowId(id)).is_some() {
-                Ok((frame_id, WindowId(id)))
+            let wid = match val {
+                Value::Int(n) => WindowId(*n as u64),
+                _ => {
+                    return Err(signal(
+                        "wrong-type-argument",
+                        vec![Value::symbol(pred), val.clone()],
+                    ))
+                }
+            };
+            if frame.find_window(wid).is_some() {
+                Ok((frame_id, wid))
             } else {
                 Err(signal(
-                    "error",
-                    vec![Value::string(format!("No window with id {id}"))],
+                    "wrong-type-argument",
+                    vec![Value::symbol(pred), val.clone()],
                 ))
             }
         }
     }
+}
+
+fn resolve_window_id(
+    eval: &mut super::eval::Evaluator,
+    arg: Option<&Value>,
+) -> Result<(FrameId, WindowId), Flow> {
+    resolve_window_id_with_pred(eval, arg, "window-live-p")
 }
 
 /// Resolve an optional frame argument: if nil or absent, use the selected frame.
@@ -145,6 +163,14 @@ pub(crate) fn ensure_selected_frame_id(eval: &mut super::eval::Evaluator) -> Fra
         frame
             .parameters
             .insert("height".to_string(), Value::Int(25));
+        if let Some(Window::Leaf {
+            window_start, point, ..
+        }) = frame.find_window_mut(frame.selected_window)
+        {
+            // Batch-mode startup in GNU Emacs reports point/window-start as 1.
+            *window_start = 1;
+            *point = 1;
+        }
     }
     fid
 }
@@ -192,7 +218,7 @@ pub(crate) fn builtin_window_buffer(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id_with_pred(eval, args.first(), "windowp")?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     match w.buffer_id() {
         Some(bid) => Ok(Value::Buffer(bid)),
@@ -205,7 +231,7 @@ pub(crate) fn builtin_window_start(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     match w {
         Window::Leaf { window_start, .. } => Ok(Value::Int(*window_start as i64)),
@@ -221,19 +247,28 @@ pub(crate) fn builtin_window_end(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     match w {
         Window::Leaf {
             window_start,
             bounds,
+            buffer_id,
             ..
         } => {
-            // Rough estimate: window_start + lines * columns.
+            // Clamp the display estimate to the buffer's end position so empty
+            // buffers report their 1-based start/end as GNU Emacs does.
             let frame = eval.frames.get(fid).unwrap();
             let lines = (bounds.height / frame.char_height) as usize;
             let cols = (bounds.width / frame.char_width) as usize;
-            Ok(Value::Int((*window_start + lines * cols) as i64))
+            let estimated_end = window_start.saturating_add(lines.saturating_mul(cols));
+            let buffer_end = eval
+                .buffers
+                .get(*buffer_id)
+                .map(|buf| buf.text.char_count().saturating_add(1))
+                .unwrap_or(*window_start);
+            let clamped_end = estimated_end.min(buffer_end.max(*window_start));
+            Ok(Value::Int(clamped_end as i64))
         }
         _ => Ok(Value::Int(0)),
     }
@@ -244,7 +279,7 @@ pub(crate) fn builtin_window_point(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     match w {
         Window::Leaf { point, .. } => Ok(Value::Int(*point as i64)),
@@ -258,18 +293,12 @@ pub(crate) fn builtin_set_window_start(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("set-window-start", &args, 2)?;
-    let wid_val = expect_int(&args[0])? as u64;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let pos = expect_int(&args[1])? as usize;
-
-    let frame = eval
-        .frames
-        .selected_frame_mut()
-        .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
-    let fid = frame.id;
     if let Some(w) = eval
         .frames
         .get_mut(fid)
-        .and_then(|f| f.find_window_mut(WindowId(wid_val)))
+        .and_then(|f| f.find_window_mut(wid))
     {
         if let Window::Leaf { window_start, .. } = w {
             *window_start = pos;
@@ -284,18 +313,12 @@ pub(crate) fn builtin_set_window_point(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("set-window-point", &args, 2)?;
-    let wid_val = expect_int(&args[0])? as u64;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let pos = expect_int(&args[1])? as usize;
-
-    let fid = eval
-        .frames
-        .selected_frame()
-        .map(|f| f.id)
-        .ok_or_else(|| signal("error", vec![Value::string("No selected frame")]))?;
     if let Some(w) = eval
         .frames
         .get_mut(fid)
-        .and_then(|f| f.find_window_mut(WindowId(wid_val)))
+        .and_then(|f| f.find_window_mut(wid))
     {
         if let Window::Leaf { point, .. } = w {
             *point = pos;
@@ -311,7 +334,7 @@ pub(crate) fn builtin_window_height(
 ) -> EvalResult {
     expect_max_args("window-height", &args, 1)?;
     let _ = ensure_selected_frame_id(eval);
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     let ch = eval.frames.get(fid).map(|f| f.char_height).unwrap_or(16.0);
     Ok(Value::Int(window_height_lines(w, ch)))
@@ -324,7 +347,7 @@ pub(crate) fn builtin_window_width(
 ) -> EvalResult {
     expect_max_args("window-width", &args, 1)?;
     let _ = ensure_selected_frame_id(eval);
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     let cw = eval.frames.get(fid).map(|f| f.char_width).unwrap_or(8.0);
     Ok(Value::Int(window_width_cols(w, cw)))
@@ -337,7 +360,7 @@ pub(crate) fn builtin_window_body_height(
 ) -> EvalResult {
     expect_max_args("window-body-height", &args, 2)?;
     let _ = ensure_selected_frame_id(eval);
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     let _pixelwise = args.get(1);
     // Batch GNU Emacs returns character-height values even when PIXELWISE is non-nil.
@@ -352,7 +375,7 @@ pub(crate) fn builtin_window_body_width(
 ) -> EvalResult {
     expect_max_args("window-body-width", &args, 2)?;
     let _ = ensure_selected_frame_id(eval);
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     let _pixelwise = args.get(1);
     // Batch GNU Emacs returns character-width values even when PIXELWISE is non-nil.
@@ -471,7 +494,7 @@ pub(crate) fn builtin_fit_window_to_buffer(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("fit-window-to-buffer", &args, 6)?;
-    let (_fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (_fid, wid) = resolve_window_id(eval, args.first())?;
     Ok(Value::Int(wid.0 as i64))
 }
 
@@ -480,7 +503,7 @@ pub(crate) fn builtin_window_dedicated_p(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let w = get_leaf(&eval.frames, fid, wid)?;
     match w {
         Window::Leaf { dedicated, .. } => Ok(Value::bool(*dedicated)),
@@ -558,7 +581,7 @@ pub(crate) fn builtin_split_window(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
 
     // Determine split direction from SIDE argument.
     let direction = match args.get(2) {
@@ -584,7 +607,7 @@ pub(crate) fn builtin_delete_window(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     if !eval.frames.delete_window(fid, wid) {
         return Err(signal(
             "error",
@@ -601,7 +624,7 @@ pub(crate) fn builtin_delete_other_windows(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, keep_wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, keep_wid) = resolve_window_id(eval, args.first())?;
     let frame = eval
         .frames
         .get(fid)
@@ -687,7 +710,7 @@ pub(crate) fn builtin_next_window(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let frame = eval
         .frames
         .get(fid)
@@ -706,7 +729,7 @@ pub(crate) fn builtin_previous_window(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    let (fid, wid) = resolve_window_id(&eval.frames, args.first())?;
+    let (fid, wid) = resolve_window_id(eval, args.first())?;
     let frame = eval
         .frames
         .get(fid)
@@ -1297,6 +1320,33 @@ mod tests {
             .map(format_eval_result)
             .collect::<Vec<_>>();
         assert_eq!(out[0], "OK t");
+    }
+
+    #[test]
+    fn window_designators_bootstrap_nil_and_validate_invalid_window_handles() {
+        let forms = parse_forms(
+            "(window-start nil)
+             (window-point nil)
+             (window-buffer nil)
+             (condition-case err (window-start 999999) (error err))
+             (condition-case err (window-buffer 999999) (error err))
+             (condition-case err (set-window-start nil 1) (error err))
+             (condition-case err (set-window-point nil 1) (error err))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK 1");
+        assert_eq!(out[1], "OK 1");
+        assert!(out[2].starts_with("OK #<buffer "), "unexpected value: {}", out[2]);
+        assert_eq!(out[3], "OK (wrong-type-argument window-live-p 999999)");
+        assert_eq!(out[4], "OK (wrong-type-argument windowp 999999)");
+        assert_eq!(out[5], "OK 1");
+        assert_eq!(out[6], "OK 1");
     }
 
     #[test]
