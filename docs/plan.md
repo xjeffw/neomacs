@@ -20,6 +20,7 @@ Last updated: 2026-02-16
 - Keep newly landed event/error/misc primitive `subr-arity` parity stable while expanding remaining command-loop slices.
 - Keep newly landed `eval*` primitive runtime+`subr-arity` parity stable while expanding remaining startup drifts.
 - Keep newly landed startup-helper primitive `subr-arity` parity stable while expanding remaining high-volume drifts.
+- Keep newly landed define/default primitive runtime+`subr-arity` parity stable while expanding remaining startup drifts.
 
 ## Next
 
@@ -31,6 +32,32 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned define/default primitive runtime arity behavior and `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - `define-key`: now accepts optional 4th arg (`REMOVE`) with `(3 . 4)` arity.
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - added regression test `define_key_accepts_optional_remove_arg`.
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(0 . 0)`: `default-file-modes`
+        - `(2 . 3)`: `define-category`
+        - `(2 . 2)`: `define-coding-system-alias`
+        - `(3 . 4)`: `define-key`
+      - added unit matrix `subr_arity_define_defaults_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/define-default-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/define-default-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for define/default arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/define-default-subr-arity-semantics.forms EXPECTED=cases/define-default-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml define_key_accepts_optional_remove_arg -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_define_defaults_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/define-default-subr-arity-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned startup-helper primitive `subr-arity` metadata with GNU Emacs:
   - updated:
