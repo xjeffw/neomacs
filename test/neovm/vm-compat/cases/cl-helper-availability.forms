@@ -1,7 +1,7 @@
 (fboundp 'cl-adjoin)
 (condition-case err (cl-adjoin) (error err))
 (fboundp 'cl-coerce)
-(condition-case err (cl-coerce) (error err))
+(condition-case err (cl-coerce '(a b) 'vector) (error err))
 (fboundp 'cl-concatenate)
 (condition-case err (cl-concatenate 'list '(a b) '(c)) (error err))
 (fboundp 'cl-count)
