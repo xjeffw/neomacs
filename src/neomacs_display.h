@@ -2605,4 +2605,42 @@ void neomacs_display_free_dropped_path(char *path);
  */
 char *neomacs_display_get_terminal_title(uint32_t terminal_id);
 
+/* ============================================================================
+ * Toolbar
+ * ============================================================================ */
+
+#define NEOMACS_EVENT_TOOL_BAR_CLICK 16
+
+/**
+ * Begin collecting toolbar items.
+ */
+void neomacs_display_tool_bar_begin(struct NeomacsDisplay *handle,
+                                     int count, float height);
+
+/**
+ * Add a single toolbar item.
+ */
+void neomacs_display_tool_bar_add_item(struct NeomacsDisplay *handle,
+                                        int index,
+                                        const char *icon_name,
+                                        const char *label,
+                                        const char *help,
+                                        int enabled,
+                                        int selected,
+                                        int is_separator);
+
+/**
+ * Finish collecting toolbar items and send to render thread.
+ */
+void neomacs_display_tool_bar_end(struct NeomacsDisplay *handle,
+                                   uint32_t fg_color,
+                                   uint32_t bg_color);
+
+/**
+ * Configure toolbar appearance.
+ */
+void neomacs_display_set_tool_bar_config(struct NeomacsDisplay *handle,
+                                          int icon_size,
+                                          int padding);
+
 #endif  /* NEOMACS_DISPLAY_H */

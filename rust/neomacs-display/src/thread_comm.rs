@@ -100,6 +100,8 @@ pub enum InputEvent {
         x: f32,
         y: f32,
     },
+    /// Toolbar button clicked (index into toolbar items)
+    ToolBarClick { index: i32 },
 }
 
 /// A single item in a popup menu
@@ -117,6 +119,18 @@ pub struct PopupMenuItem {
     pub submenu: bool,
     /// Nesting depth (0 = top-level, 1 = first submenu, etc.)
     pub depth: u32,
+}
+
+/// A single toolbar item sent from C
+#[derive(Clone, Debug)]
+pub struct ToolBarItem {
+    pub index: u32,
+    pub icon_name: String,
+    pub label: String,
+    pub help: String,
+    pub enabled: bool,
+    pub selected: bool,
+    pub is_separator: bool,
 }
 
 /// Wrapper for effect update closures that implements Debug.
@@ -341,6 +355,18 @@ pub enum RenderCommand {
         shadow_layers: u32,
         shadow_offset: f32,
         shadow_opacity: f32,
+    },
+    /// Set toolbar items (sent each frame when items change)
+    SetToolBar {
+        items: Vec<ToolBarItem>,
+        height: f32,
+        fg_r: f32, fg_g: f32, fg_b: f32,
+        bg_r: f32, bg_g: f32, bg_b: f32,
+    },
+    /// Configure toolbar appearance
+    SetToolBarConfig {
+        icon_size: u32,
+        padding: u32,
     },
 }
 

@@ -1289,3 +1289,116 @@ effect_setter!(neomacs_display_set_aurora(enabled: c_int, r1: c_int, g1: c_int, 
 // They follow the exact same pattern from the original file.
 
 include!("animation_effects.rs");
+
+// ============================================================================
+// Toolbar FFI
+// ============================================================================
+
+use std::cell::RefCell;
+
+thread_local! {
+    static TOOLBAR_ITEMS: RefCell<Vec<ToolBarItem>> = RefCell::new(Vec::new());
+    static TOOLBAR_HEIGHT: RefCell<f32> = RefCell::new(0.0);
+}
+
+/// Begin collecting toolbar items. Call before add_item calls.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_tool_bar_begin(
+    _handle: *mut NeomacsDisplay,
+    count: c_int,
+    height: f32,
+) {
+    TOOLBAR_ITEMS.with(|items| {
+        let mut items = items.borrow_mut();
+        items.clear();
+        items.reserve(count as usize);
+    });
+    TOOLBAR_HEIGHT.with(|h| {
+        *h.borrow_mut() = height;
+    });
+}
+
+/// Add a single toolbar item.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_tool_bar_add_item(
+    _handle: *mut NeomacsDisplay,
+    index: c_int,
+    icon_name: *const c_char,
+    label: *const c_char,
+    help: *const c_char,
+    enabled: c_int,
+    selected: c_int,
+    is_separator: c_int,
+) {
+    let icon = if icon_name.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(icon_name).to_string_lossy().into_owned()
+    };
+    let lbl = if label.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(label).to_string_lossy().into_owned()
+    };
+    let hlp = if help.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(help).to_string_lossy().into_owned()
+    };
+
+    TOOLBAR_ITEMS.with(|items| {
+        items.borrow_mut().push(ToolBarItem {
+            index: index as u32,
+            icon_name: icon,
+            label: lbl,
+            help: hlp,
+            enabled: enabled != 0,
+            selected: selected != 0,
+            is_separator: is_separator != 0,
+        });
+    });
+}
+
+/// Finish collecting toolbar items and send to render thread.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_tool_bar_end(
+    _handle: *mut NeomacsDisplay,
+    fg_color: u32,
+    bg_color: u32,
+) {
+    let items = TOOLBAR_ITEMS.with(|items| {
+        std::mem::take(&mut *items.borrow_mut())
+    });
+    let height = TOOLBAR_HEIGHT.with(|h| *h.borrow());
+
+    let fg_r = ((fg_color >> 16) & 0xFF) as f32 / 255.0;
+    let fg_g = ((fg_color >> 8) & 0xFF) as f32 / 255.0;
+    let fg_b = (fg_color & 0xFF) as f32 / 255.0;
+    let bg_r = ((bg_color >> 16) & 0xFF) as f32 / 255.0;
+    let bg_g = ((bg_color >> 8) & 0xFF) as f32 / 255.0;
+    let bg_b = (bg_color & 0xFF) as f32 / 255.0;
+
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(RenderCommand::SetToolBar {
+            items,
+            height,
+            fg_r, fg_g, fg_b,
+            bg_r, bg_g, bg_b,
+        });
+    }
+}
+
+/// Configure toolbar appearance.
+#[no_mangle]
+pub unsafe extern "C" fn neomacs_display_set_tool_bar_config(
+    _handle: *mut NeomacsDisplay,
+    icon_size: c_int,
+    padding: c_int,
+) {
+    if let Some(ref state) = THREADED_STATE {
+        let _ = state.emacs_comms.cmd_tx.try_send(RenderCommand::SetToolBarConfig {
+            icon_size: icon_size as u32,
+            padding: padding as u32,
+        });
+    }
+}

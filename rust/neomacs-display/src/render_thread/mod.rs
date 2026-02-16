@@ -34,7 +34,7 @@ use crate::core::types::{
     AnimatedCursor, Color, CursorAnimStyle, Rect,
     ease_out_quad, ease_out_cubic, ease_out_expo, ease_in_out_cubic, ease_linear,
 };
-use crate::thread_comm::{InputEvent, PopupMenuItem, RenderCommand, RenderComms};
+use crate::thread_comm::{InputEvent, PopupMenuItem, RenderCommand, RenderComms, ToolBarItem};
 use cursor::{CursorTarget, CornerSpring, CursorState};
 pub(crate) use popup_menu::{MenuPanel, PopupMenuState, TooltipState};
 use transitions::{CrossfadeTransition, ScrollTransition, TransitionState};
@@ -293,6 +293,17 @@ struct RenderApp {
     // Active tooltip overlay
     tooltip: Option<TooltipState>,
 
+    // Toolbar state
+    toolbar_items: Vec<ToolBarItem>,
+    toolbar_height: f32,
+    toolbar_fg: (f32, f32, f32),
+    toolbar_bg: (f32, f32, f32),
+    toolbar_icon_textures: HashMap<String, u32>, // icon_name → image_id in image_cache
+    toolbar_hovered: Option<u32>,
+    toolbar_pressed: Option<u32>,
+    toolbar_icon_size: u32,
+    toolbar_padding: u32,
+
     // Visual bell state (flash overlay)
     visual_bell_start: Option<std::time::Instant>,
 
@@ -386,6 +397,15 @@ impl RenderApp {
             child_frame_shadow_opacity: 0.3,
             popup_menu: None,
             tooltip: None,
+            toolbar_items: Vec::new(),
+            toolbar_height: 0.0,
+            toolbar_fg: (0.8, 0.8, 0.8),
+            toolbar_bg: (0.15, 0.15, 0.15),
+            toolbar_icon_textures: HashMap::new(),
+            toolbar_hovered: None,
+            toolbar_pressed: None,
+            toolbar_icon_size: 20,
+            toolbar_padding: 6,
             visual_bell_start: None,
             ime_enabled: false,
             ime_preedit_active: false,
@@ -1201,6 +1221,39 @@ impl RenderApp {
                     self.child_frame_shadow_layers = shadow_layers;
                     self.child_frame_shadow_offset = shadow_offset;
                     self.child_frame_shadow_opacity = shadow_opacity;
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetToolBar { items, height, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b } => {
+                    // Load icon textures for any new icons
+                    for item in &items {
+                        if !item.is_separator && !item.icon_name.is_empty()
+                            && !self.toolbar_icon_textures.contains_key(&item.icon_name)
+                        {
+                            if let Some(svg_data) = crate::backend::wgpu::toolbar_icons::get_icon_svg(&item.icon_name) {
+                                if let Some(renderer) = self.renderer.as_mut() {
+                                    let icon_size = self.toolbar_icon_size;
+                                    let id = renderer.load_image_data(svg_data, icon_size, icon_size);
+                                    self.toolbar_icon_textures.insert(item.icon_name.clone(), id);
+                                    log::debug!("Loaded toolbar icon '{}' as image_id={}", item.icon_name, id);
+                                }
+                            }
+                        }
+                    }
+                    self.toolbar_items = items;
+                    self.toolbar_height = height;
+                    self.toolbar_fg = (fg_r, fg_g, fg_b);
+                    self.toolbar_bg = (bg_r, bg_g, bg_b);
+                    self.frame_dirty = true;
+                }
+                RenderCommand::SetToolBarConfig { icon_size, padding } => {
+                    self.toolbar_icon_size = icon_size;
+                    self.toolbar_padding = padding;
+                    // Clear cached textures so they reload at new size
+                    for (_name, id) in self.toolbar_icon_textures.drain() {
+                        if let Some(renderer) = self.renderer.as_mut() {
+                            renderer.free_image(id);
+                        }
+                    }
                     self.frame_dirty = true;
                 }
                 RenderCommand::CreateWindow { emacs_frame_id, width, height, title } => {
@@ -2280,6 +2333,26 @@ impl RenderApp {
             }
         }
 
+        // Render toolbar overlay
+        if self.toolbar_height > 0.0 && !self.toolbar_items.is_empty() {
+            if let Some(ref renderer) = self.renderer {
+                renderer.render_toolbar(
+                    &surface_view,
+                    &self.toolbar_items,
+                    self.toolbar_height,
+                    self.toolbar_fg,
+                    self.toolbar_bg,
+                    &self.toolbar_icon_textures,
+                    self.toolbar_hovered,
+                    self.toolbar_pressed,
+                    self.toolbar_icon_size,
+                    self.toolbar_padding,
+                    self.width,
+                    self.height,
+                );
+            }
+        }
+
         // Render popup menu overlay (topmost layer)
         if let Some(ref menu) = self.popup_menu {
             if let (Some(ref renderer), Some(ref mut glyph_atlas)) =
@@ -2826,6 +2899,23 @@ impl ApplicationHandler for RenderApp {
                     if let Some(ref window) = self.window {
                         let _ = window.drag_window();
                     }
+                } else if state == ElementState::Pressed
+                    && button == MouseButton::Left
+                    && self.toolbar_height > 0.0
+                    && self.mouse_pos.1 < self.toolbar_height
+                {
+                    // Toolbar click — hit test toolbar items
+                    if let Some(idx) = self.toolbar_hit_test(self.mouse_pos.0, self.mouse_pos.1) {
+                        self.toolbar_pressed = Some(idx);
+                        self.comms.send_input(InputEvent::ToolBarClick { index: idx as i32 });
+                        self.frame_dirty = true;
+                    }
+                } else if state == ElementState::Released
+                    && button == MouseButton::Left
+                    && self.toolbar_pressed.is_some()
+                {
+                    self.toolbar_pressed = None;
+                    self.frame_dirty = true;
                 } else {
                     let btn = match button {
                         MouseButton::Left => 1,
@@ -2909,6 +2999,19 @@ impl ApplicationHandler for RenderApp {
                                 window.set_cursor(icon);
                             }
                         }
+                    }
+                }
+
+                // Update toolbar hover state
+                if self.toolbar_height > 0.0 {
+                    let old_hover = self.toolbar_hovered;
+                    if ly < self.toolbar_height {
+                        self.toolbar_hovered = self.toolbar_hit_test(lx, ly);
+                    } else {
+                        self.toolbar_hovered = None;
+                    }
+                    if self.toolbar_hovered != old_hover {
+                        self.frame_dirty = true;
                     }
                 }
 

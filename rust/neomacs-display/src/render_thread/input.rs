@@ -54,6 +54,32 @@ impl RenderApp {
         }
     }
 
+    /// Hit-test toolbar items. Returns the index of the item under (x, y), or None.
+    pub(super) fn toolbar_hit_test(&self, x: f32, y: f32) -> Option<u32> {
+        if self.toolbar_height <= 0.0 || y >= self.toolbar_height {
+            return None;
+        }
+        let padding = self.toolbar_padding as f32;
+        let icon_size = self.toolbar_icon_size as f32;
+        let item_size = icon_size + padding * 2.0;
+        let separator_width = 12.0_f32;
+        let item_spacing = 2.0_f32;
+
+        let mut item_x = padding;
+        for item in &self.toolbar_items {
+            if item.is_separator {
+                item_x += separator_width;
+                continue;
+            }
+            let right = item_x + item_size;
+            if x >= item_x && x < right {
+                return Some(item.index);
+            }
+            item_x = right + item_spacing;
+        }
+        None
+    }
+
     /// Detect if the mouse is on a resize edge of a borderless window.
     /// Returns the resize direction if within the border zone, or None.
     pub(super) fn detect_resize_edge(

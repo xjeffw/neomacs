@@ -39,6 +39,7 @@ use crate::backend::wgpu::{
     NEOMACS_EVENT_MENU_SELECTION,
     NEOMACS_EVENT_FILE_DROP,
     NEOMACS_EVENT_TERMINAL_TITLE_CHANGED,
+    NEOMACS_EVENT_TOOL_BAR_CLICK,
 };
 
 /// Resize callback function type for C FFI
@@ -209,7 +210,7 @@ pub(crate) static TERMINAL_ID_COUNTER: std::sync::atomic::AtomicU32 = std::sync:
 // Threaded State
 // ============================================================================
 
-use crate::thread_comm::{EmacsComms, EffectUpdater, InputEvent, PopupMenuItem, RenderCommand, ThreadComms};
+use crate::thread_comm::{EmacsComms, EffectUpdater, InputEvent, PopupMenuItem, RenderCommand, ThreadComms, ToolBarItem};
 use crate::render_thread::{RenderThread, SharedImageDimensions, SharedMonitorInfo};
 
 /// Global state for threaded mode

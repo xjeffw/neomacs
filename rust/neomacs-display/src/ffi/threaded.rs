@@ -376,6 +376,10 @@ pub unsafe extern "C" fn neomacs_display_drain_input(
                             queue.push(paths);
                         }
                     }
+                    InputEvent::ToolBarClick { index } => {
+                        out.kind = NEOMACS_EVENT_TOOL_BAR_CLICK;
+                        out.x = index;
+                    }
                 }
                 count += 1;
             }

@@ -11,6 +11,7 @@ mod window_state;
 mod events;
 mod image_cache;
 mod xpm;
+pub mod toolbar_icons;
 
 #[cfg(all(feature = "video", target_os = "linux"))]
 mod vulkan_dmabuf;
@@ -52,6 +53,7 @@ pub use events::{
     NEOMACS_EVENT_MENU_SELECTION,
     NEOMACS_EVENT_FILE_DROP,
     NEOMACS_EVENT_TERMINAL_TITLE_CHANGED,
+    NEOMACS_EVENT_TOOL_BAR_CLICK,
 };
 
 #[cfg(all(feature = "wpe-webkit", target_os = "linux"))]

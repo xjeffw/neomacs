@@ -5295,6 +5295,110 @@ neomacs_layout_check_line_prefix (void *buffer_ptr, void *window_ptr,
   return 0;
 }
 
+/* Send tool bar items to the GPU toolbar.
+   Extracts items from f->tool_bar_items (populated by update_tool_bar
+   in redisplay_internal) and sends them to the render thread.  */
+static void
+neomacs_send_tool_bar_items (struct frame *f)
+{
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return;
+
+  /* Check if tool-bar-mode is active.  */
+  if (FRAME_TOOL_BAR_LINES (f) <= 0 || NILP (f->tool_bar_items))
+    {
+      /* Send empty toolbar to hide it.  */
+      neomacs_display_tool_bar_begin (dpyinfo->display_handle, 0, 0.0f);
+      neomacs_display_tool_bar_end (dpyinfo->display_handle, 0, 0);
+      return;
+    }
+
+  int nitems = f->n_tool_bar_items;
+  int nslots = TOOL_BAR_ITEM_NSLOTS;
+  Lisp_Object items_vec = f->tool_bar_items;
+
+  if (!VECTORP (items_vec) || nitems <= 0)
+    return;
+
+  /* Get tool-bar face colors.  */
+  struct face *tb_face = FACE_FROM_ID_OR_NULL (f, TOOL_BAR_FACE_ID);
+  unsigned long fg_pixel = tb_face ? tb_face->foreground : FRAME_FOREGROUND_PIXEL (f);
+  unsigned long bg_pixel = tb_face ? tb_face->background : FRAME_BACKGROUND_PIXEL (f);
+  uint32_t fg_rgb = ((RED_FROM_ULONG (fg_pixel) << 16)
+                     | (GREEN_FROM_ULONG (fg_pixel) << 8)
+                     | BLUE_FROM_ULONG (fg_pixel));
+  uint32_t bg_rgb = ((RED_FROM_ULONG (bg_pixel) << 16)
+                     | (GREEN_FROM_ULONG (bg_pixel) << 8)
+                     | BLUE_FROM_ULONG (bg_pixel));
+
+  float height = (float) FRAME_LINE_HEIGHT (f) + 12.0f;  /* icon + padding */
+  neomacs_display_tool_bar_begin (dpyinfo->display_handle, nitems, height);
+
+  for (int i = 0; i < nitems; i++)
+    {
+      int base = i * nslots;
+
+      /* Check if this is a separator.  */
+      Lisp_Object type = AREF (items_vec, base + TOOL_BAR_ITEM_TYPE);
+      bool is_separator = EQ (type, Qt);
+
+      /* Extract enabled/selected state.  */
+      bool enabled = !NILP (AREF (items_vec, base + TOOL_BAR_ITEM_ENABLED_P));
+      bool selected = !NILP (AREF (items_vec, base + TOOL_BAR_ITEM_SELECTED_P));
+
+      /* Extract label and help strings.  */
+      Lisp_Object caption = AREF (items_vec, base + TOOL_BAR_ITEM_CAPTION);
+      Lisp_Object help = AREF (items_vec, base + TOOL_BAR_ITEM_HELP);
+      Lisp_Object label = AREF (items_vec, base + TOOL_BAR_ITEM_LABEL);
+      const char *label_str = STRINGP (label) ? SSDATA (label)
+                              : (STRINGP (caption) ? SSDATA (caption) : "");
+      const char *help_str = STRINGP (help) ? SSDATA (help) : label_str;
+
+      /* Extract icon name from image spec's :file path.  */
+      const char *icon_name = "";
+      char icon_buf[64];
+      if (!is_separator)
+        {
+          Lisp_Object images = AREF (items_vec, base + TOOL_BAR_ITEM_IMAGES);
+
+          /* May be a vector of 4 specs (enabled, disabled, selected,
+             disabled-selected) — use element 0.  */
+          if (VECTORP (images) && ASIZE (images) > 0)
+            images = AREF (images, 0);
+
+          /* Image spec: (image :type TYPE :file PATH ...)  */
+          if (CONSP (images) && EQ (XCAR (images), Qimage))
+            {
+              Lisp_Object file = Fplist_get (XCDR (images), QCfile, Qnil);
+              if (STRINGP (file))
+                {
+                  /* Extract basename without extension.  */
+                  const char *path = SSDATA (file);
+                  const char *base_name = strrchr (path, '/');
+                  base_name = base_name ? base_name + 1 : path;
+                  const char *dot = strrchr (base_name, '.');
+                  ptrdiff_t len = dot ? dot - base_name : strlen (base_name);
+                  if (len > 0 && len < (ptrdiff_t) sizeof (icon_buf))
+                    {
+                      memcpy (icon_buf, base_name, len);
+                      icon_buf[len] = '\0';
+                      icon_name = icon_buf;
+                    }
+                }
+            }
+        }
+
+      neomacs_display_tool_bar_add_item (dpyinfo->display_handle,
+                                          i, icon_name, label_str, help_str,
+                                          enabled ? 1 : 0,
+                                          selected ? 1 : 0,
+                                          is_separator ? 1 : 0);
+    }
+
+  neomacs_display_tool_bar_end (dpyinfo->display_handle, fg_rgb, bg_rgb);
+}
+
 /* Called at the end of updating a frame */
 void
 neomacs_update_end (struct frame *f)
@@ -5433,12 +5537,9 @@ neomacs_update_end (struct frame *f)
           if (mbw->current_matrix)
             neomacs_extract_window_glyphs (mbw, NULL);
         }
-      if (WINDOWP (f->tool_bar_window))
-        {
-          struct window *tbw = XWINDOW (f->tool_bar_window);
-          if (tbw->current_matrix)
-            neomacs_extract_window_glyphs (tbw, NULL);
-        }
+      /* Send tool bar items to GPU toolbar instead of extracting
+         from glyph matrix (which renders text-based icons).  */
+      neomacs_send_tool_bar_items (f);
 
       /* Signal end of frame to Rust (sends frame to render thread) */
       if (output && output->window_id > 0)
@@ -16222,6 +16323,31 @@ neomacs_display_wakeup_handler (int fd, void *data)
           }
           break;
 
+        case NEOMACS_EVENT_TOOL_BAR_CLICK:
+          {
+            /* ev->x contains the toolbar item index.  Look up
+               the item KEY from f->tool_bar_items and generate
+               a TOOL_BAR_EVENT.  */
+            int idx = ev->x;
+            int nslots = TOOL_BAR_ITEM_NSLOTS;
+            int prop_idx = idx * nslots;
+            if (VECTORP (f->tool_bar_items)
+                && prop_idx + TOOL_BAR_ITEM_KEY < ASIZE (f->tool_bar_items))
+              {
+                Lisp_Object key = AREF (f->tool_bar_items,
+                                        prop_idx + TOOL_BAR_ITEM_KEY);
+                if (!NILP (key))
+                  {
+                    inev.ie.kind = TOOL_BAR_EVENT;
+                    XSETFRAME (inev.ie.frame_or_window, f);
+                    inev.ie.arg = key;
+                    inev.ie.modifiers = 0;
+                    neomacs_evq_enqueue (&inev);
+                  }
+              }
+          }
+          break;
+
         default:
           break;
         }
@@ -16276,6 +16402,26 @@ neomacs_display_shutdown_threaded_mode (void)
   threaded_mode_active = 0;
 }
 
+
+DEFUN ("neomacs-set-toolbar-config",
+       Fneomacs_set_toolbar_config,
+       Sneomacs_set_toolbar_config, 0, 2, 0,
+       doc: /* Configure GPU toolbar appearance.
+ICON-SIZE is the icon size in pixels (default 24).
+PADDING is the padding around icons in pixels (default 6).  */)
+  (Lisp_Object icon_size, Lisp_Object padding)
+{
+  struct neomacs_display_info *dpyinfo = neomacs_display_list;
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return Qnil;
+
+  int isz = 24, pad = 6;
+  if (FIXNUMP (icon_size)) isz = XFIXNUM (icon_size);
+  if (FIXNUMP (padding)) pad = XFIXNUM (padding);
+
+  neomacs_display_set_tool_bar_config (dpyinfo->display_handle, isz, pad);
+  return Qt;
+}
 
 DEFUN ("neomacs-set-child-frame-style",
        Fneomacs_set_child_frame_style,
@@ -16557,6 +16703,7 @@ syms_of_neomacsterm (void)
   defsubr (&Sneomacs_terminal_set_float);
   defsubr (&Sneomacs_terminal_get_text);
   defsubr (&Sneomacs_set_child_frame_style);
+  defsubr (&Sneomacs_set_toolbar_config);
 
   DEFSYM (Qneomacs, "neomacs");
   /* Qvideo and Qwebkit are defined in xdisp.c for use in VIDEOP/WEBKITP */

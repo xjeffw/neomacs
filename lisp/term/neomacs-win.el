@@ -466,6 +466,34 @@ Only takes effect when window decorations are disabled."
          (when (fboundp 'neomacs-set-corner-radius)
            (neomacs-set-corner-radius val))))
 
+;;; GPU Toolbar
+
+(declare-function neomacs-set-toolbar-config "neomacsterm.c"
+  (&optional icon-size padding))
+
+(defcustom neomacs-toolbar-icon-size 24
+  "Size of toolbar icons in pixels."
+  :type 'integer
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-toolbar-config)
+           (neomacs-set-toolbar-config
+            val (if (boundp 'neomacs-toolbar-padding)
+                    neomacs-toolbar-padding 6)))))
+
+(defcustom neomacs-toolbar-padding 6
+  "Padding around toolbar icons in pixels."
+  :type 'integer
+  :group 'frames
+  :set (lambda (sym val)
+         (set-default sym val)
+         (when (fboundp 'neomacs-set-toolbar-config)
+           (neomacs-set-toolbar-config
+            (if (boundp 'neomacs-toolbar-icon-size)
+                neomacs-toolbar-icon-size 24)
+            val))))
+
 ;;; Extra spacing (line-height and letter-spacing)
 
 (declare-function neomacs-set-extra-spacing "neomacsterm.c"

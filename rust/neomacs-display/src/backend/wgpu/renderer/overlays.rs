@@ -10,6 +10,7 @@ use super::super::glyph_atlas::{GlyphKey, WgpuGlyphAtlas};
 use crate::core::face::Face;
 use crate::render_thread::PopupMenuState;
 use crate::render_thread::TooltipState;
+use crate::thread_comm::ToolBarItem;
 use std::collections::HashMap;
 
 impl WgpuRenderer {
@@ -2131,5 +2132,176 @@ impl WgpuRenderer {
             pass.draw(0..rect_vertices.len() as u32, 0..1);
         }
         self.queue.submit(Some(encoder.finish()));
+    }
+
+    /// Render the GPU toolbar overlay at the top of the frame.
+    pub fn render_toolbar(
+        &self,
+        view: &wgpu::TextureView,
+        items: &[ToolBarItem],
+        toolbar_height: f32,
+        fg: (f32, f32, f32),
+        bg: (f32, f32, f32),
+        icon_textures: &HashMap<String, u32>,
+        hovered: Option<u32>,
+        pressed: Option<u32>,
+        icon_size: u32,
+        padding: u32,
+        surface_width: u32,
+        surface_height: u32,
+    ) {
+        let logical_w = surface_width as f32 / self.scale_factor;
+        let logical_h = surface_height as f32 / self.scale_factor;
+        let uniforms = Uniforms {
+            screen_size: [logical_w, logical_h],
+            _padding: [0.0, 0.0],
+        };
+        self.queue
+            .write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+
+        let bg_color = Color::new(bg.0, bg.1, bg.2, 1.0).srgb_to_linear();
+        let icon_sz = icon_size as f32;
+        let pad = padding as f32;
+        let item_size = icon_sz + pad * 2.0;
+        let separator_width = 12.0_f32;
+        let item_spacing = 2.0_f32;
+
+        // --- Pass 1: Background bar + item highlights ---
+        let mut rect_verts: Vec<RectVertex> = Vec::new();
+
+        // Full toolbar background
+        self.add_rect(&mut rect_verts, 0.0, 0.0, logical_w, toolbar_height, &bg_color);
+
+        // Item backgrounds (hover/pressed states)
+        let mut item_x = pad;
+        for item in items {
+            if item.is_separator {
+                // Draw separator line
+                let sep_x = item_x + separator_width / 2.0 - 0.5;
+                let sep_y = pad;
+                let sep_h = toolbar_height - pad * 2.0;
+                let sep_color = Color::new(fg.0, fg.1, fg.2, 0.2).srgb_to_linear();
+                self.add_rect(&mut rect_verts, sep_x, sep_y, 1.0, sep_h, &sep_color);
+                item_x += separator_width;
+                continue;
+            }
+
+            let is_hovered = hovered == Some(item.index);
+            let is_pressed = pressed == Some(item.index);
+
+            if is_pressed {
+                let c = Color::new(fg.0, fg.1, fg.2, 0.2).srgb_to_linear();
+                self.add_rect(&mut rect_verts, item_x, 0.0, item_size, toolbar_height, &c);
+            } else if is_hovered && item.enabled {
+                let c = Color::new(fg.0, fg.1, fg.2, 0.1).srgb_to_linear();
+                self.add_rect(&mut rect_verts, item_x, 0.0, item_size, toolbar_height, &c);
+            }
+
+            if item.selected {
+                // Draw selection indicator (bottom accent line)
+                let accent = Color::new(0.3, 0.6, 1.0, 0.8).srgb_to_linear();
+                self.add_rect(&mut rect_verts, item_x, toolbar_height - 2.0, item_size, 2.0, &accent);
+            }
+
+            item_x += item_size + item_spacing;
+        }
+
+        // Bottom border line
+        let border_color = Color::new(fg.0, fg.1, fg.2, 0.15).srgb_to_linear();
+        self.add_rect(&mut rect_verts, 0.0, toolbar_height - 1.0, logical_w, 1.0, &border_color);
+
+        if !rect_verts.is_empty() {
+            let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Toolbar Rect Buffer"),
+                contents: bytemuck::cast_slice(&rect_verts),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Toolbar Rect Encoder"),
+            });
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Toolbar Rect Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+                pass.set_pipeline(&self.rect_pipeline);
+                pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                pass.set_vertex_buffer(0, buffer.slice(..));
+                pass.draw(0..rect_verts.len() as u32, 0..1);
+            }
+            self.queue.submit(std::iter::once(encoder.finish()));
+        }
+
+        // --- Pass 2: Icon textures ---
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Toolbar Icon Encoder"),
+        });
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Toolbar Icon Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            pass.set_pipeline(&self.image_pipeline);
+            pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+
+            let mut item_x = pad;
+            for item in items {
+                if item.is_separator {
+                    item_x += separator_width;
+                    continue;
+                }
+
+                let icon_x = item_x + pad;
+                let icon_y = (toolbar_height - icon_sz) / 2.0;
+
+                // Tint color: fg color for enabled, dimmed for disabled
+                let alpha = if item.enabled { 1.0 } else { 0.4 };
+                let tint = [fg.0, fg.1, fg.2, alpha];
+
+                if let Some(&image_id) = icon_textures.get(&item.icon_name) {
+                    if let Some(cached) = self.image_cache.get(image_id) {
+                        let vertices = [
+                            GlyphVertex { position: [icon_x, icon_y], tex_coords: [0.0, 0.0], color: tint },
+                            GlyphVertex { position: [icon_x + icon_sz, icon_y], tex_coords: [1.0, 0.0], color: tint },
+                            GlyphVertex { position: [icon_x + icon_sz, icon_y + icon_sz], tex_coords: [1.0, 1.0], color: tint },
+                            GlyphVertex { position: [icon_x, icon_y], tex_coords: [0.0, 0.0], color: tint },
+                            GlyphVertex { position: [icon_x + icon_sz, icon_y + icon_sz], tex_coords: [1.0, 1.0], color: tint },
+                            GlyphVertex { position: [icon_x, icon_y + icon_sz], tex_coords: [0.0, 1.0], color: tint },
+                        ];
+                        let image_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("Toolbar Icon Vertex Buffer"),
+                            contents: bytemuck::cast_slice(&vertices),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        });
+                        pass.set_bind_group(1, &cached.bind_group, &[]);
+                        pass.set_vertex_buffer(0, image_buffer.slice(..));
+                        pass.draw(0..6, 0..1);
+                    }
+                }
+
+                item_x += item_size + item_spacing;
+            }
+        }
+        self.queue.submit(std::iter::once(encoder.finish()));
     }
 }
