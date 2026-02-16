@@ -67,7 +67,7 @@
 (fboundp 'cl-sixth)
 (condition-case err (cl-sixth '(a b c d e f)) (error err))
 (fboundp 'cl-some)
-(condition-case err (cl-some) (error err))
+(condition-case err (cl-some #'numberp '("x" 2)) (error err))
 (fboundp 'cl-sort)
 (condition-case err (cl-sort) (error err))
 (fboundp 'cl-stable-sort)
