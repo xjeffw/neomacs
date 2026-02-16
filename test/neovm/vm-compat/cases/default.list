@@ -309,6 +309,7 @@ cases/set-file-times-semantics
 cases/system-users-groups-semantics
 cases/user-identity-semantics
 cases/runtime-identity-semantics
+cases/runtime-identity-subr-arity-semantics
 cases/file-ops-relative
 cases/fileio-relative
 cases/file-error-conditions
