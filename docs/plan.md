@@ -17,13 +17,33 @@ Last updated: 2026-02-16
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Land the next evaluator-backed stub replacement outside `rect` (prefer display/input path with high package impact).
+2. Land the next evaluator-backed stub replacement outside `rect`/`recent-keys` (prefer display/input path with high package impact).
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
-6. Evolve `recent-keys` from empty-vector compatibility baseline to evaluator-backed key history once command-loop event capture is wired.
+6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Evolved `recent-keys` from empty-vector stub to evaluator-backed consumed-input history and locked oracle coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/eval.rs`
+      - added evaluator-owned consumed input-event history.
+      - centralized `unread-command-events` pop logic to record every consumed event.
+    - `rust/neovm-core/src/elisp/reader.rs`
+    - `rust/neovm-core/src/elisp/lread.rs`
+      - switched reader/lread consumers to evaluator pop path so `read-char`, `read-key`, `read-key-sequence*`, `read-event`, and `read-char-exclusive` publish consumed events consistently (including skipped/error-path events).
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - made `recent-keys` evaluator-backed and return the consumed-event history vector.
+    - `test/neovm/vm-compat/cases/help-key-recent-keys-semantics.forms`
+    - `test/neovm/vm-compat/cases/help-key-recent-keys-semantics.expected.tsv`
+      - added oracle lock-in for `recent-keys` deltas after `read-char`, `read-char-exclusive`, `read-key`, and `read-event` including non-character/error paths.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml read_char_consumes_unread_command_event -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml read_char_exclusive_skips_non_character_events -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/help-key-recent-keys-semantics` (pass, 45/45)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-batch-readers` (pass, 70/70)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
 - Expanded display-query oracle corpus around selected-window designator boundaries:
   - updated:
