@@ -884,10 +884,13 @@ pub(crate) fn builtin_read_char(
         ));
     }
     expect_optional_prompt_string(&args)?;
-    if let Some(event) = eval.pop_unread_command_event() {
+    if let Some(event) = eval.peek_unread_command_event() {
         if let Some(n) = event_to_int(&event) {
+            let _ = eval.pop_unread_command_event();
             return Ok(Value::Int(n));
         }
+        eval.assign("unread-command-events", Value::list(vec![event.clone()]));
+        eval.record_input_event(event);
         return Err(non_character_input_event_error());
     }
     Ok(Value::Nil)
@@ -1708,6 +1711,31 @@ mod tests {
                 if sig.symbol == "error"
                     && sig.data == vec![Value::string("Non-character input-event")]
         ));
+        assert_eq!(ev.recent_input_events(), &[Value::symbol("foo")]);
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::symbol("foo")]))
+        );
+    }
+
+    #[test]
+    fn read_char_non_character_truncates_unread_tail_to_offending_event() {
+        let mut ev = Evaluator::new();
+        ev.obarray.set_symbol_value(
+            "unread-command-events",
+            Value::list(vec![Value::symbol("foo"), Value::Int(97)]),
+        );
+        let result = builtin_read_char(&mut ev, vec![]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "error"
+                    && sig.data == vec![Value::string("Non-character input-event")]
+        ));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::symbol("foo")]))
+        );
         assert_eq!(ev.recent_input_events(), &[Value::symbol("foo")]);
     }
 

@@ -250,20 +250,33 @@ impl Evaluator {
     }
 
     pub(crate) fn pop_unread_command_event(&mut self) -> Option<Value> {
-        let current = self
-            .obarray
-            .symbol_value("unread-command-events")
-            .cloned()
-            .unwrap_or(Value::Nil);
+        let current = match self.eval_symbol("unread-command-events") {
+            Ok(value) => value,
+            Err(_) => Value::Nil,
+        };
         match current {
             Value::Cons(cell) => {
                 let pair = cell.lock().expect("poisoned");
                 let head = pair.car.clone();
                 let tail = pair.cdr.clone();
                 drop(pair);
-                self.obarray.set_symbol_value("unread-command-events", tail);
+                self.assign("unread-command-events", tail);
                 self.record_input_event(head.clone());
                 Some(head)
+            }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn peek_unread_command_event(&self) -> Option<Value> {
+        let current = match self.eval_symbol("unread-command-events") {
+            Ok(value) => value,
+            Err(_) => Value::Nil,
+        };
+        match current {
+            Value::Cons(cell) => {
+                let pair = cell.lock().expect("poisoned");
+                Some(pair.car.clone())
             }
             _ => None,
         }
