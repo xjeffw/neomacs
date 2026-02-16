@@ -290,6 +290,7 @@ fn builtin_command_name(name: &str) -> bool {
             | "switch-to-buffer"
             | "find-file"
             | "save-buffer"
+            | "select-frame"
             | "set-mark-command"
             | "recenter-top-bottom"
             | "scroll-up-command"
@@ -2734,6 +2735,7 @@ mod tests {
             "make-directory",
             "query-replace",
             "re-search-forward",
+            "select-frame",
             "setenv",
             "top-level",
             "write-region",

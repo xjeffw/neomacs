@@ -7530,6 +7530,7 @@ pub(crate) fn dispatch_builtin(
         "display-buffer" => return Some(super::window_cmds::builtin_display_buffer(eval, args)),
         "pop-to-buffer" => return Some(super::window_cmds::builtin_pop_to_buffer(eval, args)),
         "selected-frame" => return Some(super::window_cmds::builtin_selected_frame(eval, args)),
+        "select-frame" => return Some(super::window_cmds::builtin_select_frame(eval, args)),
         "last-nonminibuffer-frame" => {
             return Some(super::window_cmds::builtin_selected_frame(eval, args))
         }

@@ -1042,6 +1042,48 @@ pub(crate) fn builtin_selected_frame(
     Ok(Value::Int(fid.0 as i64))
 }
 
+/// `(select-frame FRAME &optional NORECORD)` -> frame.
+pub(crate) fn builtin_select_frame(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("select-frame", &args, 1)?;
+    expect_max_args("select-frame", &args, 2)?;
+    let fid = match &args[0] {
+        Value::Int(n) => {
+            let fid = FrameId(*n as u64);
+            if eval.frames.get(fid).is_none() {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("frame-live-p"), Value::Int(*n)],
+                ));
+            }
+            fid
+        }
+        other => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("frame-live-p"), other.clone()],
+            ))
+        }
+    };
+    if !eval.frames.select_frame(fid) {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("frame-live-p"), args[0].clone()],
+        ));
+    }
+    if let Some(buf_id) = eval
+        .frames
+        .get(fid)
+        .and_then(|f| f.find_window(f.selected_window))
+        .and_then(|w| w.buffer_id())
+    {
+        eval.buffers.set_current(buf_id);
+    }
+    Ok(Value::Int(fid.0 as i64))
+}
+
 /// `(frame-list)` -> list of frame ids.
 pub(crate) fn builtin_frame_list(
     eval: &mut super::eval::Evaluator,
@@ -2077,6 +2119,35 @@ mod tests {
         assert_eq!(out[7], "OK (wrong-type-argument framep 999999)");
         assert_eq!(out[8], "OK \"F1\"");
         assert_eq!(out[9], "OK nil");
+    }
+
+    #[test]
+    fn select_frame_arity_designators_and_selection() {
+        let forms = parse_forms(
+            "(condition-case err (select-frame) (error (car err)))
+             (condition-case err (select-frame nil) (error err))
+             (condition-case err (select-frame \"x\") (error err))
+             (condition-case err (select-frame 999999) (error err))
+             (let ((f1 (selected-frame))
+                   (f2 (make-frame)))
+               (prog1
+                   (list (framep (select-frame f2))
+                         (eq (selected-frame) f2))
+                 (select-frame f1)
+                 (delete-frame f2)))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK wrong-number-of-arguments");
+        assert_eq!(out[1], "OK (wrong-type-argument frame-live-p nil)");
+        assert_eq!(out[2], "OK (wrong-type-argument frame-live-p \"x\")");
+        assert_eq!(out[3], "OK (wrong-type-argument frame-live-p 999999)");
+        assert_eq!(out[4], "OK (t t)");
     }
 
     #[test]
