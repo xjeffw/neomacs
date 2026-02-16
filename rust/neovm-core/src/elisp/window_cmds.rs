@@ -107,24 +107,32 @@ fn resolve_window_id(
     resolve_window_id_with_pred(eval, arg, "window-live-p")
 }
 
-/// Resolve an optional frame argument: if nil or absent, use the selected frame.
-fn resolve_frame_id(frames: &FrameManager, arg: Option<&Value>) -> Result<FrameId, Flow> {
+/// Resolve a frame designator, signaling predicate-shaped type errors.
+///
+/// When ARG is nil/omitted, GNU Emacs resolves against the selected frame.
+/// In batch compatibility mode we bootstrap that frame on demand.
+fn resolve_frame_id(
+    eval: &mut super::eval::Evaluator,
+    arg: Option<&Value>,
+    predicate: &str,
+) -> Result<FrameId, Flow> {
     match arg {
-        None | Some(Value::Nil) => frames
-            .selected_frame()
-            .map(|f| f.id)
-            .ok_or_else(|| signal("error", vec![Value::string("No selected frame")])),
-        Some(val) => {
-            let id = expect_int(val)? as u64;
-            if frames.get(FrameId(id)).is_some() {
-                Ok(FrameId(id))
+        None | Some(Value::Nil) => Ok(ensure_selected_frame_id(eval)),
+        Some(Value::Int(n)) => {
+            let fid = FrameId(*n as u64);
+            if eval.frames.get(fid).is_some() {
+                Ok(fid)
             } else {
                 Err(signal(
-                    "error",
-                    vec![Value::string(format!("No frame with id {id}"))],
+                    "wrong-type-argument",
+                    vec![Value::symbol(predicate), Value::Int(*n)],
                 ))
             }
         }
+        Some(other) => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol(predicate), other.clone()],
+        )),
     }
 }
 
@@ -1110,7 +1118,7 @@ pub(crate) fn builtin_delete_frame(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("delete-frame", &args, 2)?;
-    let fid = resolve_frame_id(&eval.frames, args.first())?;
+    let fid = resolve_frame_id(eval, args.first(), "framep")?;
     if !eval.frames.delete_frame(fid) {
         return Err(signal("error", vec![Value::string("Cannot delete frame")]));
     }
@@ -1124,7 +1132,7 @@ pub(crate) fn builtin_frame_parameter(
 ) -> EvalResult {
     expect_min_args("frame-parameter", &args, 2)?;
     expect_max_args("frame-parameter", &args, 2)?;
-    let fid = resolve_frame_id(&eval.frames, Some(&args[0]))?;
+    let fid = resolve_frame_id(eval, Some(&args[0]), "framep")?;
     let param_name = match &args[1] {
         Value::Symbol(s) => s.clone(),
         _ => return Ok(Value::Nil),
@@ -1178,7 +1186,7 @@ pub(crate) fn builtin_frame_parameters(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_max_args("frame-parameters", &args, 1)?;
-    let fid = resolve_frame_id(&eval.frames, args.first())?;
+    let fid = resolve_frame_id(eval, args.first(), "framep")?;
     let frame = eval
         .frames
         .get(fid)
@@ -1223,7 +1231,7 @@ pub(crate) fn builtin_modify_frame_parameters(
 ) -> EvalResult {
     expect_min_args("modify-frame-parameters", &args, 2)?;
     expect_max_args("modify-frame-parameters", &args, 2)?;
-    let fid = resolve_frame_id(&eval.frames, Some(&args[0]))?;
+    let fid = resolve_frame_id(eval, Some(&args[0]), "frame-live-p")?;
     let items = super::value::list_to_vec(&args[1]).unwrap_or_default();
 
     let frame = eval
@@ -2036,6 +2044,39 @@ mod tests {
         assert_eq!(out[1], "OK (wrong-type-argument frame-live-p nil)");
         assert_eq!(out[2], "OK (wrong-type-argument frame-live-p 999999)");
         assert_eq!(out[3], "OK t");
+    }
+
+    #[test]
+    fn frame_designator_errors_use_emacs_predicates() {
+        let forms = parse_forms(
+            "(condition-case err (frame-parameter \"x\" 'name) (error err))
+             (condition-case err (frame-parameter 999999 'name) (error err))
+             (condition-case err (frame-parameters \"x\") (error err))
+             (condition-case err (frame-parameters 999999) (error err))
+             (condition-case err (modify-frame-parameters \"x\" nil) (error err))
+             (condition-case err (modify-frame-parameters 999999 nil) (error err))
+             (condition-case err (delete-frame \"x\") (error err))
+             (condition-case err (delete-frame 999999) (error err))
+             (frame-parameter nil 'name)
+             (condition-case err (modify-frame-parameters nil nil) (error err))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK (wrong-type-argument framep \"x\")");
+        assert_eq!(out[1], "OK (wrong-type-argument framep 999999)");
+        assert_eq!(out[2], "OK (wrong-type-argument framep \"x\")");
+        assert_eq!(out[3], "OK (wrong-type-argument framep 999999)");
+        assert_eq!(out[4], "OK (wrong-type-argument frame-live-p \"x\")");
+        assert_eq!(out[5], "OK (wrong-type-argument frame-live-p 999999)");
+        assert_eq!(out[6], "OK (wrong-type-argument framep \"x\")");
+        assert_eq!(out[7], "OK (wrong-type-argument framep 999999)");
+        assert_eq!(out[8], "OK \"F1\"");
+        assert_eq!(out[9], "OK nil");
     }
 
     #[test]
