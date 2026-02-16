@@ -25,6 +25,7 @@ Last updated: 2026-02-16
 - Keep newly landed thread primitive `subr-arity` oracle matrix coverage stable while expanding remaining parity drifts.
 - Keep newly landed `featurep` runtime+`subr-arity` parity stable while expanding remaining startup/feature drifts.
 - Keep newly landed `getenv` runtime+`subr-arity` parity stable while expanding remaining process/environment drifts.
+- Keep newly landed symbol/state primitive `subr-arity` parity stable while expanding remaining introspection drifts.
 
 ## Next
 
@@ -36,6 +37,26 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned symbol/state primitive `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(1 . 1)`: `fboundp`, `func-arity`, `symbol-function`, `symbol-value`, `fmakunbound`, `makunbound`
+        - `(2 . 2)`: `fset`, `set`, `get`
+        - `(3 . 3)`: `put`
+      - added unit matrix `subr_arity_symbol_state_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/symbol-state-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/symbol-state-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for symbol/state arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/symbol-state-subr-arity-semantics.forms EXPECTED=cases/symbol-state-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_symbol_state_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/symbol-state-subr-arity-semantics` (pass, 10/10)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned `getenv` runtime behavior and `subr-arity` metadata with GNU Emacs:
   - updated:
