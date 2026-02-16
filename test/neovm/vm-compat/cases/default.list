@@ -193,6 +193,7 @@ cases/xdisp-stub-edges-semantics
 cases/format-mode-line-batch-semantics
 cases/display-batch-semantics
 cases/display-query-designator-semantics
+cases/display-images-face-support-semantics
 cases/display-frame-designator-semantics
 cases/x-display-batch-semantics
 cases/display-monitor-semantics
