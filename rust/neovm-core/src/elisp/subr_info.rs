@@ -308,6 +308,14 @@ fn subr_arity_value(name: &str) -> Value {
         "copy-file" => arity_cons(2, Some(6)),
         "copy-region-as-kill" => arity_cons(2, Some(3)),
         "copy-to-register" => arity_cons(3, Some(5)),
+        "file-name-absolute-p" | "file-name-as-directory" | "file-name-directory"
+        | "file-name-nondirectory" | "file-name-sans-extension"
+        | "file-name-case-insensitive-p" => arity_cons(1, Some(1)),
+        "file-name-all-completions" => arity_cons(2, Some(2)),
+        "file-name-completion" => arity_cons(2, Some(3)),
+        "file-name-extension" => arity_cons(1, Some(2)),
+        "file-name-concat" => arity_cons(1, None),
+        "file-truename" => arity_cons(1, Some(3)),
         "file-attributes" | "file-modes" => arity_cons(1, Some(2)),
         "file-directory-p" | "file-exists-p" | "file-readable-p" | "file-regular-p"
         | "file-symlink-p" | "file-writable-p" => arity_cons(1, Some(1)),
@@ -1101,6 +1109,21 @@ mod tests {
         assert_subr_arity("file-regular-p", 1, Some(1));
         assert_subr_arity("file-symlink-p", 1, Some(1));
         assert_subr_arity("file-writable-p", 1, Some(1));
+    }
+
+    #[test]
+    fn subr_arity_file_name_primitives_match_oracle() {
+        assert_subr_arity("file-name-absolute-p", 1, Some(1));
+        assert_subr_arity("file-name-all-completions", 2, Some(2));
+        assert_subr_arity("file-name-as-directory", 1, Some(1));
+        assert_subr_arity("file-name-case-insensitive-p", 1, Some(1));
+        assert_subr_arity("file-name-completion", 2, Some(3));
+        assert_subr_arity("file-name-concat", 1, None);
+        assert_subr_arity("file-name-directory", 1, Some(1));
+        assert_subr_arity("file-name-extension", 1, Some(2));
+        assert_subr_arity("file-name-nondirectory", 1, Some(1));
+        assert_subr_arity("file-name-sans-extension", 1, Some(1));
+        assert_subr_arity("file-truename", 1, Some(3));
     }
 
     #[test]
