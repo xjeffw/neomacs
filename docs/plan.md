@@ -42,6 +42,7 @@ Last updated: 2026-02-16
 - Keep newly landed read-core helper primitive `subr-arity` parity stable while expanding remaining minibuffer/input drifts.
 - Keep newly landed input-mode helper primitive `subr-arity` parity stable while expanding remaining input/runtime drifts.
 - Keep newly landed filesystem-create helper primitive `subr-arity` parity stable while expanding remaining filesystem helper drifts.
+- Keep newly landed `minor-mode-key-binding` runtime parity slice stable while expanding remaining interactive/keymap stub areas.
 
 ## Next
 
@@ -53,6 +54,23 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Implemented evaluator-backed `minor-mode-key-binding` compatibility slice (stub -> active mode map lookup):
+  - runtime behavior:
+    - replaced unconditional `nil` stub with active lookup over `minor-mode-overriding-map-alist` then `minor-mode-map-alist`.
+    - key designator parse/type failures now follow GNU behavior for this builtin (`nil`, not a hard type error).
+    - active mode entries now resolve keymap ids and return first match as `((MODE . BINDING))`.
+    - invalid active keymap ids now signal `wrong-type-argument keymapp ...` (oracle-aligned).
+  - unit coverage:
+    - `minor_mode_key_binding_returns_first_matching_mode_binding`
+    - `minor_mode_key_binding_invalid_keymap_id_errors_for_active_mode`
+  - oracle corpus expanded and re-recorded:
+    - `test/neovm/vm-compat/cases/minor-mode-key-binding-semantics.forms`
+    - `test/neovm/vm-compat/cases/minor-mode-key-binding-semantics.expected.tsv`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml minor_mode_key_binding -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minor-mode-key-binding-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned filesystem-create helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
