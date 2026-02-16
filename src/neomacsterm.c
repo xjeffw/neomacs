@@ -3962,6 +3962,27 @@ neomacs_layout_check_display_prop (void *buffer_ptr, void *window_ptr,
           return 0;
         }
 
+      /* Check for ((slice ...) image) — sliced image (e.g., pdf-tools). */
+      if (CONSP (car) && EQ (XCAR (car), Qslice))
+        {
+          Lisp_Object rest = XCDR (display_prop);
+          if (CONSP (rest))
+            {
+              Lisp_Object img_spec = XCAR (rest);
+              if (CONSP (img_spec) && EQ (XCAR (img_spec), Qimage))
+                {
+                  struct window *w
+                    = window_ptr ? (struct window *) window_ptr : NULL;
+                  struct frame *f
+                    = w ? XFRAME (WINDOW_FRAME (w)) : NULL;
+                  if (f)
+                    resolve_display_image (f, w, img_spec, out);
+                }
+            }
+          set_buffer_internal_1 (old);
+          return 0;
+        }
+
       /* Check for (video :id N :width W :height H) display property */
       if (EQ (car, Qvideo))
         {
@@ -4006,7 +4027,8 @@ neomacs_layout_check_display_prop (void *buffer_ptr, void *window_ptr,
           && !EQ (car, Qleft_fringe) && !EQ (car, Qright_fringe)
           && !EQ (car, Qvideo) && !EQ (car, Qwebkit)
           && !NILP (car)
-          && !(CONSP (car) && EQ (XCAR (car), Qmargin)))
+          && !(CONSP (car) && EQ (XCAR (car), Qmargin))
+          && !(CONSP (car) && EQ (XCAR (car), Qslice)))
         {
           Lisp_Object tail;
           for (tail = display_prop; CONSP (tail); tail = XCDR (tail))
@@ -4301,9 +4323,7 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
                                    uint32_t *right_fringe_fg_out,
                                    uint32_t *right_fringe_bg_out,
                                    int *before_naligns_out,
-                                   int *after_naligns_out,
-                                   void *overlay_display_out,
-                                   int64_t *overlay_display_end_out)
+                                   int *after_naligns_out)
 {
   struct buffer *buf = (struct buffer *) buffer_ptr;
   struct window *w = window_ptr ? (struct window *) window_ptr : NULL;
@@ -4320,15 +4340,6 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
   *right_fringe_bg_out = 0;
   *before_naligns_out = 0;
   *after_naligns_out = 0;
-
-  /* Initialize overlay display output. */
-  struct DisplayPropFFI *odout = (struct DisplayPropFFI *) overlay_display_out;
-  if (odout)
-    {
-      memset (odout, 0, sizeof *odout);
-      odout->image_ascent = 50;  /* DEFAULT_IMAGE_ASCENT */
-    }
-  *overlay_display_end_out = 0;
 
   if (!buf)
     return -1;
@@ -4366,55 +4377,6 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
 
       ptrdiff_t ostart = OVERLAY_START (overlay);
       ptrdiff_t oend = OVERLAY_END (overlay);
-
-      /* Check for overlay 'display property (e.g., pdf-tools images).
-         When present, this replaces the overlay's covered text with
-         the display spec.  First overlay with a display prop wins. */
-      if (odout && odout->type == 0 && ostart <= pos && oend > pos)
-        {
-          Lisp_Object odisp = Foverlay_get (overlay, Qdisplay);
-          if (!NILP (odisp) && f)
-            {
-              /* Try image spec: (image ...) */
-              if (CONSP (odisp) && EQ (XCAR (odisp), Qimage))
-                {
-                  if (resolve_display_image (f, w, odisp, odout))
-                    *overlay_display_end_out = oend;
-                }
-              /* Handle ((slice ...) image) — sliced image from pdf-tools */
-              else if (CONSP (odisp) && CONSP (XCAR (odisp))
-                       && EQ (XCAR (XCAR (odisp)), Qslice))
-                {
-                  Lisp_Object rest = XCDR (odisp);
-                  if (CONSP (rest))
-                    {
-                      Lisp_Object img_spec = XCAR (rest);
-                      if (CONSP (img_spec)
-                          && EQ (XCAR (img_spec), Qimage))
-                        {
-                          if (resolve_display_image (f, w, img_spec, odout))
-                            *overlay_display_end_out = oend;
-                        }
-                    }
-                }
-              /* Try string replacement */
-              else if (STRINGP (odisp))
-                {
-                  ptrdiff_t slen = SBYTES (odisp);
-                  ptrdiff_t copy = slen;
-                  if (copy > before_buf_len - 1)
-                    copy = before_buf_len - 1;
-                  if (copy > 0)
-                    {
-                      odout->type = 1;
-                      odout->str_len = (int) copy;
-                      memcpy (before_buf, SDATA (odisp), copy);
-                      before_buf[copy] = 0;
-                      *overlay_display_end_out = oend;
-                    }
-                }
-            }
-        }
 
       /* Before-string: render at overlay start. */
       if (ostart == pos)
