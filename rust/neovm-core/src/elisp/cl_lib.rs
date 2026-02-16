@@ -154,6 +154,19 @@ pub(crate) fn builtin_cl_tenth(args: Vec<Value>) -> EvalResult {
     cl_list_nth(&args[0], 9)
 }
 
+/// `(cl-rest LIST)` -- return the tail (cdr) of LIST.
+pub(crate) fn builtin_cl_rest(args: Vec<Value>) -> EvalResult {
+    expect_args("cl-rest", &args, 1)?;
+    match &args[0] {
+        Value::Nil => Ok(Value::Nil),
+        Value::Cons(cell) => Ok(cell.lock().expect("poisoned").cdr.clone()),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("listp"), other.clone()],
+        )),
+    }
+}
+
 fn seq_position_list_elements(seq: &Value) -> Result<Vec<Value>, Flow> {
     let mut elements = Vec::new();
     let mut cursor = seq.clone();
@@ -983,6 +996,26 @@ mod tests {
     #[test]
     fn cl_tenth_wrong_type() {
         assert!(builtin_cl_tenth(vec![Value::Int(1)]).is_err());
+    }
+
+    #[test]
+    fn cl_rest_list() {
+        let list = Value::list(vec![Value::symbol("a"), Value::symbol("b"), Value::symbol("c")]);
+        let result = builtin_cl_rest(vec![list]).unwrap();
+        let items = list_to_vec(&result).unwrap();
+        assert_eq!(items.len(), 2);
+        assert!(matches!(&items[0], Value::Symbol(s) if s == "b"));
+    }
+
+    #[test]
+    fn cl_rest_nil() {
+        let result = builtin_cl_rest(vec![Value::Nil]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn cl_rest_wrong_type() {
+        assert!(builtin_cl_rest(vec![Value::Int(1)]).is_err());
     }
 
     #[test]

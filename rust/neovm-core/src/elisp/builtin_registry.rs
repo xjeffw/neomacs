@@ -172,6 +172,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "cl-first",
     "cl-fourth",
     "cl-ninth",
+    "cl-rest",
     "cl-second",
     "cl-seventh",
     "cl-sixth",
