@@ -9,12 +9,13 @@ Last updated: 2026-02-16
 - Run targeted vm-compat checks after each behavior-affecting slice.
 - Keep recurring full-corpus `check-all-neovm` gates after each compatibility batch.
 - Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
+- Shift next compatibility slices from rectangle helpers to remaining high-impact display/font/input stubs.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
 2. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths).
-3. Keep shrinking semantic drift in partially stubbed rectangle/font/face/display helpers using small parity slices.
+3. Land the next evaluator-backed stub replacement outside `rect` (prefer display/input path with high package impact).
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 
 ## Done
