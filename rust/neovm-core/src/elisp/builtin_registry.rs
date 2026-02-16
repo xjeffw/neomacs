@@ -791,6 +791,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "string-as-unibyte",
     "string-blank-p",
     "string-clean-whitespace",
+    "string-chop-newline",
     "string-collate-equalp",
     "string-collate-lessp",
     "string-empty-p",

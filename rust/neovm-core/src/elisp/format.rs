@@ -762,6 +762,18 @@ pub(crate) fn builtin_format_seconds(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
+// string-chop-newline
+// ---------------------------------------------------------------------------
+
+/// `(string-chop-newline STRING)` -- remove trailing CR/LF run from STRING.
+pub(crate) fn builtin_string_chop_newline(args: Vec<Value>) -> EvalResult {
+    expect_args("string-chop-newline", &args, 1)?;
+    let s = require_string("string-chop-newline", &args[0])?;
+    let trimmed = s.trim_end_matches(['\n', '\r']).to_string();
+    Ok(Value::string(trimmed))
+}
+
+// ---------------------------------------------------------------------------
 // string-lines
 // ---------------------------------------------------------------------------
 
@@ -1055,6 +1067,33 @@ mod tests {
     fn format_seconds_literal_percent() {
         let result = builtin_format_seconds(vec![Value::string("100%%"), Value::Int(0)]);
         assert_eq!(result.unwrap().as_str().unwrap(), "100%");
+    }
+
+    // ===================================================================
+    // string-chop-newline tests
+    // ===================================================================
+
+    #[test]
+    fn string_chop_newline_no_newline() {
+        let result = builtin_string_chop_newline(vec![Value::string("x")]).unwrap();
+        assert_eq!(result.as_str().unwrap(), "x");
+    }
+
+    #[test]
+    fn string_chop_newline_lf() {
+        let result = builtin_string_chop_newline(vec![Value::string("x\n")]).unwrap();
+        assert_eq!(result.as_str().unwrap(), "x");
+    }
+
+    #[test]
+    fn string_chop_newline_crlf_run() {
+        let result = builtin_string_chop_newline(vec![Value::string("x\r\n\n")]).unwrap();
+        assert_eq!(result.as_str().unwrap(), "x");
+    }
+
+    #[test]
+    fn string_chop_newline_wrong_type() {
+        assert!(builtin_string_chop_newline(vec![Value::Int(1)]).is_err());
     }
 
     // ===================================================================
