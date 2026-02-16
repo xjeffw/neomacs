@@ -8,5 +8,6 @@
 8	(cl-remove-if-not #'numberp '(1 "x" 2))	OK (1 2)
 9	(cl-map 'list #'1+ '(1 2 3))	OK (2 3 4)
 10	(cl-map 'vector #'1+ '(1 2 3))	OK [2 3 4]
-11	(cl-sort '(3 1 2) #'<)	OK (1 2 3)
-12	(cl-stable-sort '(3 1 2) #'<)	OK (1 2 3)
+11	(cl-map 'string #'identity "ab")	OK "ab"
+12	(cl-sort '(3 1 2) #'<)	OK (1 2 3)
+13	(cl-stable-sort '(3 1 2) #'<)	OK (1 2 3)

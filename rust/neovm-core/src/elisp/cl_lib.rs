@@ -945,6 +945,34 @@ pub(crate) fn builtin_cl_map(eval: &mut super::eval::Evaluator, args: Vec<Value>
             })?;
             Ok(Value::vector(items))
         }
+        Value::Symbol(s) if s == "string" => {
+            let items = list_to_vec(&mapped).ok_or_else(|| {
+                signal("wrong-type-argument", vec![Value::symbol("listp"), mapped.clone()])
+            })?;
+            let mut out = String::new();
+            for item in items {
+                let ch = match item {
+                    Value::Char(c) => c,
+                    Value::Int(n) => u32::try_from(n)
+                        .ok()
+                        .and_then(char::from_u32)
+                        .ok_or_else(|| {
+                            signal(
+                                "wrong-type-argument",
+                                vec![Value::symbol("characterp"), Value::Int(n)],
+                            )
+                        })?,
+                    other => {
+                        return Err(signal(
+                            "wrong-type-argument",
+                            vec![Value::symbol("characterp"), other],
+                        ))
+                    }
+                };
+                out.push(ch);
+            }
+            Ok(Value::string(out))
+        }
         other => Err(signal(
             "error",
             vec![Value::string(format!(
@@ -2019,12 +2047,27 @@ mod tests {
     }
 
     #[test]
+    fn cl_map_string_with_eval() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let result = builtin_cl_map(
+            &mut evaluator,
+            vec![
+                Value::symbol("string"),
+                Value::Subr("identity".to_string()),
+                Value::string("ab"),
+            ],
+        )
+        .unwrap();
+        assert_eq!(result, Value::string("ab"));
+    }
+
+    #[test]
     fn cl_map_unsupported_type() {
         let mut evaluator = super::super::eval::Evaluator::new();
         assert!(builtin_cl_map(
             &mut evaluator,
             vec![
-                Value::symbol("string"),
+                Value::symbol("hash-table"),
                 Value::Subr("identity".to_string()),
                 Value::list(vec![Value::Int(1)]),
             ],
