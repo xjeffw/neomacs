@@ -57,6 +57,7 @@ Last updated: 2026-02-16
 - Keep newly landed window size-query default/predicate parity stable while expanding remaining window/frame-list drifts.
 - Keep newly landed `window-list` bootstrap/frame-arg parity stable while expanding remaining window object-representation drifts.
 - Keep newly landed `get-buffer-window` optional-buffer parity stable while expanding remaining window/buffer helper drifts.
+- Keep newly landed `set-window-buffer` bootstrap parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
@@ -71,6 +72,25 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned `set-window-buffer` nil-window bootstrap semantics with GNU Emacs and added oracle lock-in:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - `set-window-buffer` now reuses shared window designator resolution (`resolve_window_id`) so omitted/`nil` window designators bootstrap an initial frame in batch mode instead of signaling `(error "No selected frame")`.
+    - preserves existing invalid-window predicate signaling (`wrong-type-argument window-live-p ...`) through shared resolver path.
+  - updated shared window state defaults:
+    - `rust/neovm-core/src/window.rs`
+    - `Window::set_buffer` now resets `window_start`/`point` to Emacs-style `1`-based point-min when switching displayed buffers.
+  - added evaluator regression:
+    - `set_window_buffer_bootstraps_initial_frame_for_nil_window_designator`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/set-window-buffer-bootstrap-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml elisp::window_cmds::tests:: -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/set-window-buffer-bootstrap-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-buffer-missing-designator-semantics` (pass)
 
 - Aligned `get-buffer-window` / `get-buffer-window-list` optional-buffer semantics with GNU Emacs and added oracle lock-in:
   - updated runtime behavior:
