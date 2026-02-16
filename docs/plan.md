@@ -7823,6 +7823,22 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-neovm CASE=cases/buffer-point-subr-arity-semantics` (pass, 15/15)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
+- Aligned char/charset/char-table primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - added arity overrides:
+    - `(0 . 1)`: `char-after`, `char-before`, `charset-after`, `charset-id-internal`, `charset-priority-list`
+    - `(1 . 1)`: `char-category-set`, `char-or-string-p`, `char-resolve-modifiers`, `char-syntax`, `char-width`, `char-table-p`, `char-table-parent`, `char-table-subtype`, `charset-plist`
+    - `(1 . 2)`: `char-charset`
+    - `(2 . 2)`: `char-table-extra-slot`, `char-table-range`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/char-charset-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/char-charset-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/char-charset-subr-arity-semantics.forms EXPECTED=cases/char-charset-subr-arity-semantics.expected.tsv` (pass)
+    - `cargo test subr_arity_char_charset_primitives_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-neovm CASE=cases/char-charset-subr-arity-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
