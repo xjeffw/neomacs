@@ -4458,13 +4458,7 @@ pub(crate) fn builtin_get_buffer(
 ) -> EvalResult {
     expect_args("get-buffer", &args, 1)?;
     match &args[0] {
-        Value::Buffer(id) => {
-            if eval.buffers.get(*id).is_some() {
-                Ok(args[0].clone())
-            } else {
-                Ok(Value::Nil)
-            }
-        }
+        Value::Buffer(_) => Ok(args[0].clone()),
         Value::Str(s) => {
             if let Some(id) = eval.buffers.find_buffer_by_name(s) {
                 Ok(Value::Buffer(id))
@@ -4472,7 +4466,10 @@ pub(crate) fn builtin_get_buffer(
                 Ok(Value::Nil)
             }
         }
-        _ => Ok(Value::Nil),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), other.clone()],
+        )),
     }
 }
 
@@ -9879,6 +9876,29 @@ mod tests {
             }
             other => panic!("unexpected flow: {other:?}"),
         }
+    }
+
+    #[test]
+    fn get_buffer_rejects_non_string_non_buffer_designators() {
+        let mut eval = super::super::eval::Evaluator::new();
+        for bad in [Value::Int(1), Value::Nil, Value::symbol("foo")] {
+            let err = builtin_get_buffer(&mut eval, vec![bad.clone()])
+                .expect_err("get-buffer should reject non-string/non-buffer args");
+            match err {
+                Flow::Signal(sig) => {
+                    assert_eq!(sig.symbol, "wrong-type-argument");
+                    assert_eq!(sig.data, vec![Value::symbol("stringp"), bad.clone()]);
+                }
+                other => panic!("unexpected flow: {other:?}"),
+            }
+        }
+
+        let dead = builtin_generate_new_buffer(&mut eval, vec![Value::string("*gb-dead*")]).unwrap();
+        let _ = builtin_kill_buffer(&mut eval, vec![dead.clone()]).unwrap();
+        assert_eq!(
+            builtin_get_buffer(&mut eval, vec![dead.clone()]).unwrap(),
+            dead
+        );
     }
 
     #[test]
