@@ -130,6 +130,77 @@ fn line_count_between(eval: &super::eval::Evaluator, start: i64, end: i64) -> us
     (span / 40).max(1)
 }
 
+fn line_col_for_char_index(text: &str, target: usize) -> (usize, usize) {
+    let mut line = 0usize;
+    let mut col = 0usize;
+    for (idx, ch) in text.chars().enumerate() {
+        if idx == target {
+            return (line, col);
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
+}
+
+fn extract_line_columns(line: &str, start_col: usize, end_col: usize) -> String {
+    if start_col >= end_col {
+        return String::new();
+    }
+    let chars: Vec<char> = line.chars().collect();
+    let len = chars.len();
+
+    if start_col >= len {
+        return " ".repeat(end_col - start_col);
+    }
+
+    let mut out: String = chars[start_col..len.min(end_col)].iter().collect();
+    if end_col > len {
+        out.push_str(&" ".repeat(end_col - len));
+    }
+    out
+}
+
+fn rectangle_lines_for_extract(start_line: usize, end_line: usize) -> Vec<usize> {
+    if start_line <= end_line {
+        (start_line..=end_line).collect()
+    } else {
+        vec![start_line]
+    }
+}
+
+fn clamped_rect_inputs(
+    eval: &super::eval::Evaluator,
+    start: i64,
+    end: i64,
+) -> Option<(String, usize, usize, usize, usize, usize, usize)> {
+    let buf = eval.buffers.current_buffer()?;
+    let point_min_char = buf.text.byte_to_char(buf.point_min()) as i64 + 1;
+    let point_max_char = buf.text.byte_to_char(buf.point_max()) as i64 + 1;
+    let clamped_start = start.clamp(point_min_char, point_max_char);
+    let clamped_end = end.clamp(point_min_char, point_max_char);
+    let pmin = buf.point_min();
+    let pmax = buf.point_max();
+    let text = buf.buffer_substring(pmin, pmax);
+
+    let rel_start = (clamped_start - point_min_char).max(0) as usize;
+    let rel_end = (clamped_end - point_min_char).max(0) as usize;
+    let (start_line, start_col) = line_col_for_char_index(&text, rel_start);
+    let (end_line, end_col) = line_col_for_char_index(&text, rel_end);
+    let (left_col, right_col) = if start_col <= end_col {
+        (start_col, end_col)
+    } else {
+        (end_col, start_col)
+    };
+    Some((
+        text, pmin, pmax, start_line, end_line, left_col, right_col,
+    ))
+}
+
 // ---------------------------------------------------------------------------
 // Eval-dependent builtins
 // ---------------------------------------------------------------------------
@@ -173,8 +244,11 @@ pub(crate) fn builtin_extract_rectangle_line(args: Vec<Value>) -> EvalResult {
 /// `(extract-rectangle START END)` -- return a list of strings, one per line,
 /// representing the rectangular region between START and END.
 ///
-/// Stub: returns a list of empty strings based on the line count between
-/// START and END.
+/// Compatibility behavior:
+/// - columns come from START/END positions
+/// - iteration starts at START's line and proceeds downward to END's line
+///   (or just START's line when START is below END)
+/// - lines shorter than the rectangle are padded with spaces
 pub(crate) fn builtin_extract_rectangle(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
@@ -182,8 +256,18 @@ pub(crate) fn builtin_extract_rectangle(
     expect_args("extract-rectangle", &args, 2)?;
     let start = expect_int(&args[0])?;
     let end = expect_int(&args[1])?;
-    let nlines = line_count_between(eval, start, end);
-    let strings: Vec<Value> = (0..nlines).map(|_| Value::string("")).collect();
+    let Some((text, _pmin, _pmax, start_line, end_line, left_col, right_col)) =
+        clamped_rect_inputs(eval, start, end)
+    else {
+        return Ok(Value::list(Vec::new()));
+    };
+
+    let lines: Vec<&str> = text.split('\n').collect();
+    let mut strings: Vec<Value> = Vec::new();
+    for line_index in rectangle_lines_for_extract(start_line, end_line) {
+        let line = lines.get(line_index).copied().unwrap_or("");
+        strings.push(Value::string(extract_line_columns(line, left_col, right_col)));
+    }
     Ok(Value::list(strings))
 }
 
@@ -385,6 +469,61 @@ mod tests {
         let result = builtin_extract_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_list());
+    }
+
+    #[test]
+    fn extract_rectangle_eval_basic_semantics() {
+        let mut eval = super::super::eval::Evaluator::new();
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("abcdef\n123456\n");
+        }
+        let result = builtin_extract_rectangle(&mut eval, vec![Value::Int(1), Value::Int(9)])
+            .expect("extract rectangle");
+        assert_eq!(
+            result,
+            Value::list(vec![Value::string("a"), Value::string("1")])
+        );
+    }
+
+    #[test]
+    fn extract_rectangle_eval_start_line_order_matches_emacs() {
+        let mut eval = super::super::eval::Evaluator::new();
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("abcdef\n123456\n");
+        }
+        let forward = builtin_extract_rectangle(&mut eval, vec![Value::Int(7), Value::Int(8)])
+            .expect("extract rectangle forward");
+        assert_eq!(
+            forward,
+            Value::list(vec![Value::string("abcdef"), Value::string("123456")])
+        );
+
+        let reversed = builtin_extract_rectangle(&mut eval, vec![Value::Int(8), Value::Int(7)])
+            .expect("extract rectangle reversed");
+        assert_eq!(reversed, Value::list(vec![Value::string("123456")]));
+    }
+
+    #[test]
+    fn extract_rectangle_eval_clamps_positions() {
+        let mut eval = super::super::eval::Evaluator::new();
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("abcdef");
+        }
+        let result = builtin_extract_rectangle(&mut eval, vec![Value::Int(20), Value::Int(1)])
+            .expect("extract rectangle clamped");
+        assert_eq!(result, Value::list(vec![Value::string("abcdef")]));
     }
 
     #[test]
