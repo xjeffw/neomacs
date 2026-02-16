@@ -19,6 +19,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `find-coding-system` as a real coding helper builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/coding.rs`
+      - added `find-coding-system` builtin (arity `1`) that resolves known coding systems/aliases to canonical symbols.
+      - returns `nil` for unknown or `nil` inputs.
+      - added focused unit coverage for known and unknown lookups.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `find-coding-system` in evaluator coding dispatch and pure fallback dispatch.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `find-coding-system` to builtin registry.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.forms`
+      - switched helper probe to `(find-coding-system 'utf-8)`.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior (`utf-8`).
+  - verified:
+    - `cargo test find_coding_system --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 26/26)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `bool-vector-complement` as a real char-table/bool-vector helper:
   - updated:
     - `rust/neovm-core/src/elisp/chartable.rs`
