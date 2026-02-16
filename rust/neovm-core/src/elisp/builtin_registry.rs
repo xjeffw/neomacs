@@ -268,6 +268,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "display-visual-class",
     "documentation",
     "documentation-property",
+    "downcase-char",
     "downcase-region",
     "downcase-word",
     "emacs-pid",

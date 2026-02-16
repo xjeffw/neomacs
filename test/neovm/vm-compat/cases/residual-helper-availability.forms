@@ -5,7 +5,7 @@
 (fboundp 'display-line-numbers-update-width)
 (condition-case err (display-line-numbers-update-width) (error err))
 (fboundp 'downcase-char)
-(condition-case err (downcase-char) (error err))
+(condition-case err (downcase-char 65) (error err))
 (fboundp 'extract-rectangle-line)
 (condition-case err (extract-rectangle-line) (error err))
 (fboundp 'find-coding-system)

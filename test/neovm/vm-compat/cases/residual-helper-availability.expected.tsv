@@ -4,8 +4,8 @@
 4	(condition-case err (bool-vector-complement) (error err))	OK (void-function bool-vector-complement)
 5	(fboundp 'display-line-numbers-update-width)	OK nil
 6	(condition-case err (display-line-numbers-update-width) (error err))	OK (void-function display-line-numbers-update-width)
-7	(fboundp 'downcase-char)	OK nil
-8	(condition-case err (downcase-char) (error err))	OK (void-function downcase-char)
+7	(fboundp 'downcase-char)	OK t
+8	(condition-case err (downcase-char 65) (error err))	OK 97
 9	(fboundp 'extract-rectangle-line)	OK nil
 10	(condition-case err (extract-rectangle-line) (error err))	OK (void-function extract-rectangle-line)
 11	(fboundp 'find-coding-system)	OK nil

@@ -7190,6 +7190,7 @@ pub(crate) fn dispatch_builtin(
         "standard-case-table" => super::casetab::builtin_standard_case_table(args),
         "set-case-table" => super::casetab::builtin_set_case_table(args),
         "set-standard-case-table" => super::casetab::builtin_set_standard_case_table(args),
+        "downcase-char" => super::casetab::builtin_downcase_char(args),
         "upcase-char" => super::casetab::builtin_upcase_char(args),
 
         // Category (pure)
