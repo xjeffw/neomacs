@@ -497,10 +497,15 @@ fn subr_arity_value(name: &str) -> Value {
         "string-search" => arity_cons(2, Some(3)),
         "string-version-lessp" => arity_cons(2, Some(2)),
         "subst-char-in-string" => arity_cons(3, Some(4)),
+        "text-char-description" | "threadp" | "y-or-n-p" | "yes-or-no-p" | "zerop" => {
+            arity_cons(1, Some(1))
+        }
         "syntax-ppss" => arity_cons(0, Some(1)),
         "syntax-ppss-flush-cache" => arity_cons(1, None),
         "syntax-table" | "standard-case-table" | "standard-category-table"
         | "standard-syntax-table" => arity_cons(0, Some(0)),
+        "zlib-available-p" => arity_cons(0, Some(0)),
+        "zlib-decompress-region" => arity_cons(2, Some(3)),
         "search-forward" | "search-backward" | "re-search-forward" | "re-search-backward"
         | "posix-search-forward" | "posix-search-backward" | "word-search-forward"
         | "word-search-backward" => arity_cons(1, Some(4)),
@@ -590,7 +595,13 @@ fn subr_arity_value(name: &str) -> Value {
         "scan-sexps" => arity_cons(2, Some(2)),
         "current-kill" => arity_cons(1, Some(2)),
         "current-time-string" | "current-time-zone" => arity_cons(0, Some(2)),
+        "time-add" | "time-equal-p" | "time-less-p" | "time-subtract" => arity_cons(2, Some(2)),
+        "time-convert" => arity_cons(1, Some(2)),
         "system-name" => arity_cons(0, Some(0)),
+        "system-groups" | "system-users" => arity_cons(0, Some(0)),
+        "tab-bar-height" | "tool-bar-height" => arity_cons(0, Some(2)),
+        "user-real-login-name" | "user-real-uid" | "user-uid" => arity_cons(0, Some(0)),
+        "user-full-name" | "user-login-name" => arity_cons(0, Some(1)),
         "emacs-version" => arity_cons(0, Some(1)),
         "line-beginning-position" | "line-end-position" | "line-number-display-width" => {
             arity_cons(0, Some(1))
@@ -1958,6 +1969,31 @@ mod tests {
         assert_subr_arity("standard-case-table", 0, Some(0));
         assert_subr_arity("standard-category-table", 0, Some(0));
         assert_subr_arity("standard-syntax-table", 0, Some(0));
+    }
+
+    #[test]
+    fn subr_arity_time_user_runtime_helpers_match_oracle() {
+        assert_subr_arity("threadp", 1, Some(1));
+        assert_subr_arity("time-add", 2, Some(2));
+        assert_subr_arity("time-convert", 1, Some(2));
+        assert_subr_arity("time-equal-p", 2, Some(2));
+        assert_subr_arity("time-less-p", 2, Some(2));
+        assert_subr_arity("time-subtract", 2, Some(2));
+        assert_subr_arity("system-groups", 0, Some(0));
+        assert_subr_arity("system-users", 0, Some(0));
+        assert_subr_arity("tab-bar-height", 0, Some(2));
+        assert_subr_arity("text-char-description", 1, Some(1));
+        assert_subr_arity("tool-bar-height", 0, Some(2));
+        assert_subr_arity("user-full-name", 0, Some(1));
+        assert_subr_arity("user-login-name", 0, Some(1));
+        assert_subr_arity("user-real-login-name", 0, Some(0));
+        assert_subr_arity("user-real-uid", 0, Some(0));
+        assert_subr_arity("user-uid", 0, Some(0));
+        assert_subr_arity("y-or-n-p", 1, Some(1));
+        assert_subr_arity("yes-or-no-p", 1, Some(1));
+        assert_subr_arity("zerop", 1, Some(1));
+        assert_subr_arity("zlib-available-p", 0, Some(0));
+        assert_subr_arity("zlib-decompress-region", 2, Some(3));
     }
 
     #[test]
