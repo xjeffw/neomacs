@@ -6718,6 +6718,13 @@ Last updated: 2026-02-16
   - verified:
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/charset-api-availability` (pass, 4/4)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` drift count reduced from 48 to 46
+- Aligned thread helper alias startup availability with GNU Emacs `-Q`:
+  - removed default dispatch/registry exposure of `thread-alive-p` (kept canonical `thread-live-p`)
+  - refreshed oracle baseline:
+    - `test/neovm/vm-compat/cases/thread-introspection.expected.tsv`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/thread-introspection` (pass, 44/44)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` drift count reduced from 46 to 45
 
 ## Doing
 
