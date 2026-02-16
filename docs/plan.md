@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `extract-rectangle-line` as a callable rectangle helper builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/rect.rs`
+      - added `extract-rectangle-line` builtin (arity `2..=3`) with integer/string argument validation.
+      - returns empty string compatibility stub and includes focused unit coverage for success/error paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - rectangle evaluator dispatch now routes `extract-rectangle-line`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `extract-rectangle-line` to builtin registry.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.forms`
+      - switched helper probe to callable form `(extract-rectangle-line 1 1)`.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior (`""`).
+  - verified:
+    - `cargo test extract_rectangle_line --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 26/26)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `register-to-string` as a real register helper builtin:
   - updated:
     - `rust/neovm-core/src/elisp/register.rs`
