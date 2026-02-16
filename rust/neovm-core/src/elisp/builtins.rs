@@ -6120,6 +6120,21 @@ fn builtin_key_description(args: Vec<Value>) -> EvalResult {
 }
 
 /// `(help-key-description TRANSLATED UNTRANSLATED)` -> key description for help output.
+fn event_ascii_latin_letter_name(event: &Value) -> Option<String> {
+    let ch = match event {
+        Value::Char(c) => *c,
+        Value::Int(n) if (0..=0x7f).contains(n) => char::from_u32(*n as u32)?,
+        _ => return None,
+    };
+    if ch.is_ascii_lowercase() {
+        Some(format!("LATIN SMALL LETTER {}", ch.to_ascii_uppercase()))
+    } else if ch.is_ascii_uppercase() {
+        Some(format!("LATIN CAPITAL LETTER {ch}"))
+    } else {
+        None
+    }
+}
+
 fn builtin_help_key_description(args: Vec<Value>) -> EvalResult {
     expect_args("help-key-description", &args, 2)?;
 
@@ -6153,14 +6168,20 @@ fn builtin_help_key_description(args: Vec<Value>) -> EvalResult {
         ));
     }
 
-    let translated_desc = if translated.is_nil() {
-        "nil".to_string()
+    let translated_events = if translated.is_nil() {
+        None
     } else {
-        let rendered: Result<Vec<String>, Flow> = key_sequence_values(translated)?
-            .iter()
-            .map(|event| describe_single_key_value(event, false))
-            .collect();
-        rendered?.join(" ")
+        Some(key_sequence_values(translated)?)
+    };
+    let translated_desc = match translated_events.as_ref() {
+        Some(events) => {
+            let rendered: Result<Vec<String>, Flow> = events
+                .iter()
+                .map(|event| describe_single_key_value(event, false))
+                .collect();
+            rendered?.join(" ")
+        }
+        None => "nil".to_string(),
     };
 
     let untranslated_desc = {
@@ -6174,6 +6195,15 @@ fn builtin_help_key_description(args: Vec<Value>) -> EvalResult {
     if translated_desc == untranslated_desc {
         Ok(Value::string(translated_desc))
     } else {
+        if let Some(events) = translated_events.as_ref() {
+            if events.len() == 1 && untranslated_events.len() == 1 {
+                if let Some(name) = event_ascii_latin_letter_name(&events[0]) {
+                    return Ok(Value::string(format!(
+                        "{translated_desc} '{name}' (translated from {untranslated_desc})"
+                    )));
+                }
+            }
+        }
         Ok(Value::string(format!(
             "{translated_desc} (translated from {untranslated_desc})"
         )))

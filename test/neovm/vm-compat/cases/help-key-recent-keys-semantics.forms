@@ -14,6 +14,8 @@
 (string= (help-key-description "ab" nil) "a b")
 (string= (help-key-description "ab" "ab") "a b")
 (string= (help-key-description "ab" "ac") "a b (translated from a c)")
+(string= (help-key-description "a" "b") "a 'LATIN SMALL LETTER A' (translated from b)")
+(string= (help-key-description [97] [98]) "a 'LATIN SMALL LETTER A' (translated from b)")
 (string= (help-key-description [24 6] [24 6]) "C-x C-f")
 (string= (help-key-description [24 6] [24]) "C-x C-f (translated from C-x)")
 (string= (help-key-description nil "a") "nil (translated from a)")
