@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `unibyte-string-p` as a real encoding helper builtin:
+  - updated:
+    - `rust/neovm-core/src/encoding.rs`
+      - added `unibyte-string-p` builtin (arity `1`) as inverse of `multibyte-string-p`.
+      - added focused unit coverage for ASCII/non-ASCII strings and error paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - pure dispatch paths now route `unibyte-string-p`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `unibyte-string-p` to builtin registry.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.forms`
+      - switched helper probe to `(unibyte-string-p "abc")`.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior (`t`).
+  - verified:
+    - `cargo test unibyte_string_p --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 26/26)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `selected-terminal` as a real display helper builtin:
   - updated:
     - `rust/neovm-core/src/elisp/display.rs`
