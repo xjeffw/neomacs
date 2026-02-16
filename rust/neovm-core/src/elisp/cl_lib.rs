@@ -242,6 +242,11 @@ pub(crate) fn builtin_cl_adjoin(args: Vec<Value>) -> EvalResult {
     }
 }
 
+/// `(cl-remove ITEM LIST)` -- CL alias for `remove`.
+pub(crate) fn builtin_cl_remove(args: Vec<Value>) -> EvalResult {
+    super::builtins_extra::builtin_remove(args)
+}
+
 fn seq_position_list_elements(seq: &Value) -> Result<Vec<Value>, Flow> {
     let mut elements = Vec::new();
     let mut cursor = seq.clone();
@@ -1267,6 +1272,21 @@ mod tests {
     #[test]
     fn cl_adjoin_wrong_arity() {
         assert!(builtin_cl_adjoin(vec![Value::symbol("a")]).is_err());
+    }
+
+    #[test]
+    fn cl_remove_filters_equal_items() {
+        let result = builtin_cl_remove(vec![
+            Value::symbol("a"),
+            Value::list(vec![Value::symbol("a"), Value::symbol("b"), Value::symbol("a")]),
+        ])
+        .unwrap();
+        assert_eq!(result, Value::list(vec![Value::symbol("b")]));
+    }
+
+    #[test]
+    fn cl_remove_wrong_arity() {
+        assert!(builtin_cl_remove(vec![Value::symbol("a")]).is_err());
     }
 
     #[test]

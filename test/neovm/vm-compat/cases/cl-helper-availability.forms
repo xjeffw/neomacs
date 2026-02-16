@@ -49,7 +49,7 @@
 (fboundp 'cl-reduce)
 (condition-case err (cl-reduce) (error err))
 (fboundp 'cl-remove)
-(condition-case err (cl-remove) (error err))
+(condition-case err (cl-remove 'a '(a b a)) (error err))
 (fboundp 'cl-remove-duplicates)
 (condition-case err (cl-remove-duplicates) (error err))
 (fboundp 'cl-remove-if)
