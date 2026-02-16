@@ -6657,6 +6657,13 @@ Last updated: 2026-02-16
   - verified:
     - `make -C test/neovm/vm-compat check-neovm FORMS=cases/cxr-4level-fboundp-availability.forms EXPECTED=cases/cxr-4level-fboundp-availability.expected.tsv` (pass, 2/2)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+- Aligned default `global-key-binding` raw string fallback path and locked it in corpus:
+  - runtime now returns `1` for multi-char printable string designators when no explicit global map exists (for example `"ab"` and `"C-z"`), while keeping single-char printable strings on `self-insert-command`
+  - extended and updated oracle corpus:
+    - `test/neovm/vm-compat/cases/key-binding-default-self-insert-semantics.forms`
+    - `test/neovm/vm-compat/cases/key-binding-default-self-insert-semantics.expected.tsv`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/key-binding-default-self-insert-semantics` (pass, 10/10)
 
 ## Doing
 
