@@ -15,6 +15,7 @@ Last updated: 2026-02-16
 - Keep newly landed `help-key-description` / `recent-keys` compatibility slice stable while expanding input/help coverage.
 - Keep newly landed `command-execute` / `compare-strings` / `completing-read` `subr-arity` parity stable while expanding the remaining command/input matrix.
 - Keep newly landed kmacro/command-loop `subr-arity` parity stable while expanding edit-command arity lock-ins.
+- Keep newly landed delete-family command `subr-arity` parity stable while expanding remaining edit/display command arity matrix.
 
 ## Next
 
@@ -26,6 +27,29 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned delete-family command primitive `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(1 . 2)`: `delete-char`
+        - `(2 . 2)`: `delete-region`
+        - `(0 . 1)`: `delete-horizontal-space`
+        - `(0 . 3)`: `delete-indentation`
+        - `(1 . 1)`: `delete-overlay`
+        - `(0 . 1)`: `delete-window`
+      - added unit matrix `subr_arity_delete_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/delete-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/delete-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for delete-family command arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/delete-subr-arity-semantics.forms EXPECTED=cases/delete-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_delete_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/delete-subr-arity-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned kmacro/command-loop primitive `subr-arity` metadata with GNU Emacs:
   - updated:
