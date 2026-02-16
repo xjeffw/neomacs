@@ -7630,6 +7630,7 @@ pub(crate) fn dispatch_builtin(
         "cl-remove-duplicates" => super::cl_lib::builtin_cl_remove_duplicates(args),
         "cl-tenth" => super::cl_lib::builtin_cl_tenth(args),
         "cl-rest" => super::cl_lib::builtin_cl_rest(args),
+        "cl-set-difference" => super::cl_lib::builtin_cl_set_difference(args),
         "cl-subsetp" => super::cl_lib::builtin_cl_subsetp(args),
         "seq-reverse" => super::cl_lib::builtin_seq_reverse(args),
         "seq-drop" => super::cl_lib::builtin_seq_drop(args),
