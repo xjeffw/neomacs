@@ -7888,6 +7888,23 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-neovm CASE=cases/hook-advice-subr-arity-semantics` (pass, 15/15)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
+- Aligned encoding/bool-vector primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - added arity overrides:
+    - `(1 . 3)`: `base64-decode-string`
+    - `(1 . 2)`: `base64-encode-string`, `base64url-encode-string`
+    - `(1 . 1)`: `bool-vector-p`, `bool-vector-count-population`
+    - `(2 . 2)`: `bool-vector-subsetp`
+    - `(2 . 3)`: `bool-vector-exclusive-or`, `bool-vector-intersection`, `bool-vector-union`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/encoding-bool-vector-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/encoding-bool-vector-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/encoding-bool-vector-subr-arity-semantics.forms EXPECTED=cases/encoding-bool-vector-subr-arity-semantics.expected.tsv` (pass)
+    - `cargo test subr_arity_encoding_bool_vector_primitives_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-neovm CASE=cases/encoding-bool-vector-subr-arity-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
