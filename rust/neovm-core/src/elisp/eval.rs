@@ -258,6 +258,27 @@ impl Evaluator {
             "misc",
             "Uppercasify ARG chars starting from point.  Point doesn't move.",
         );
+        seed_autoload(
+            "bounds-of-thing-at-point",
+            "thingatpt",
+            "Determine the start and end buffer locations for the THING at point.",
+        );
+        seed_autoload("thing-at-point", "thingatpt", "Return the THING at point.");
+        seed_autoload(
+            "symbol-at-point",
+            "thingatpt",
+            "Return the symbol at point, or nil if none is found.",
+        );
+        seed_autoload(
+            "safe-date-to-time",
+            "time-date",
+            "Parse a string DATE that represents a date-time and return a time value.",
+        );
+        seed_autoload(
+            "read-passwd",
+            "auth-source",
+            "Read a password, prompting with PROMPT, and return password as a string.",
+        );
         // Some startup helpers are Lisp functions that delegate to primitives.
         // Seed lightweight wrappers so `symbol-function` shape matches GNU Emacs.
         let mut seed_function_wrapper = |name: &str| {
@@ -661,6 +682,9 @@ impl Evaluator {
                 let mut args = Vec::with_capacity(tail.len());
                 for expr in tail {
                     args.push(self.eval(expr)?);
+                }
+                if super::autoload::is_autoload_value(&func) {
+                    return self.apply_named_callable(name, args, Value::Subr(name.clone()), false);
                 }
                 return match self.apply(func, args) {
                     Err(Flow::Signal(sig)) if sig.symbol == "invalid-function" => {
@@ -1979,12 +2003,22 @@ impl Evaluator {
         rewrite_builtin_wrong_arity: bool,
     ) -> EvalResult {
         match self.resolve_named_call_target(name) {
-            NamedCallTarget::Obarray(func) => match self.apply(func, args) {
-                Err(Flow::Signal(sig)) if sig.symbol == "invalid-function" => {
-                    Err(signal("invalid-function", vec![Value::symbol(name)]))
+            NamedCallTarget::Obarray(func) => {
+                if super::autoload::is_autoload_value(&func) {
+                    return self.apply_named_autoload_callable(
+                        name,
+                        func,
+                        args,
+                        rewrite_builtin_wrong_arity,
+                    );
                 }
-                other => other,
-            },
+                match self.apply(func, args) {
+                    Err(Flow::Signal(sig)) if sig.symbol == "invalid-function" => {
+                        Err(signal("invalid-function", vec![Value::symbol(name)]))
+                    }
+                    other => other,
+                }
+            }
             NamedCallTarget::EvaluatorCallable => self.apply_evaluator_callable(name, args),
             NamedCallTarget::Probe => {
                 if let Some(result) = builtins::dispatch_builtin(self, name, args) {
@@ -2025,6 +2059,37 @@ impl Evaluator {
             }
             NamedCallTarget::SpecialForm => Err(signal("invalid-function", vec![invalid_fn])),
             NamedCallTarget::Void => Err(signal("void-function", vec![Value::symbol(name)])),
+        }
+    }
+
+    fn apply_named_autoload_callable(
+        &mut self,
+        name: &str,
+        autoload_form: Value,
+        args: Vec<Value>,
+        rewrite_builtin_wrong_arity: bool,
+    ) -> EvalResult {
+        // Startup wrappers often expose autoload-shaped function cells for names
+        // backed by builtins. Keep the autoload shape while preserving callability.
+        if super::builtin_registry::is_dispatch_builtin_name(name) {
+            if let Some(result) = builtins::dispatch_builtin(self, name, args.clone()) {
+                return if rewrite_builtin_wrong_arity {
+                    result.map_err(|flow| rewrite_wrong_arity_function_object(flow, name))
+                } else {
+                    result
+                };
+            }
+        }
+
+        let loaded = super::autoload::builtin_autoload_do_load(
+            self,
+            vec![autoload_form, Value::symbol(name)],
+        )?;
+        match self.apply(loaded, args) {
+            Err(Flow::Signal(sig)) if sig.symbol == "invalid-function" => {
+                Err(signal("invalid-function", vec![Value::symbol(name)]))
+            }
+            other => other,
         }
     }
 
@@ -2792,6 +2857,21 @@ mod tests {
                      (fset 'car orig)))"
             ),
             "OK (1 shadow)"
+        );
+    }
+
+    #[test]
+    fn named_autoload_function_cell_for_builtin_name_remains_callable() {
+        assert_eq!(
+            eval_one(
+                "(let ((orig (symbol-function 'safe-date-to-time)))
+                   (unwind-protect
+                       (progn
+                         (fset 'safe-date-to-time '(autoload \"missing-file\" nil nil nil))
+                         (consp (safe-date-to-time \"1970-01-01 00:00:00 +0000\")))
+                     (fset 'safe-date-to-time orig)))"
+            ),
+            "OK t"
         );
     }
 

@@ -10726,6 +10726,11 @@ mod tests {
             "string-clean-whitespace",
             "string-glyph-split",
             "upcase-char",
+            "bounds-of-thing-at-point",
+            "thing-at-point",
+            "symbol-at-point",
+            "safe-date-to-time",
+            "read-passwd",
         ] {
             let value = builtin_symbol_function(&mut eval, vec![Value::symbol(name)])
                 .unwrap_or_else(|_| panic!("symbol-function should resolve {name} autoload"));
