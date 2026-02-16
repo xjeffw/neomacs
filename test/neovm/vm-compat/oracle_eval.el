@@ -11,21 +11,24 @@
     (goto-char (point-min))
 
     (let ((index 0)
+          (case-prefix "__NEOVM_CASE__\t")
           form)
       (condition-case nil
           (while t
             (setq form (read (current-buffer)))
             (setq index (1+ index))
-            (princ (number-to-string index))
-            (princ "\t")
-            (prin1 form)
-            (princ "\t")
-            (condition-case err
-                (let ((value (eval form nil)))
-                  (princ "OK ")
-                  (prin1 value))
-              (error
-               (princ "ERR ")
-               (prin1 (list (car err) (cdr err)))))
+            (let* ((rendered-form (prin1-to-string form))
+                   (status
+                    (condition-case err
+                        (let ((value (eval form nil)))
+                          (concat "OK " (prin1-to-string value)))
+                      (error
+                       (concat "ERR " (prin1-to-string (list (car err) (cdr err))))))))
+              (princ case-prefix)
+              (princ (number-to-string index))
+              (princ "\t")
+              (princ rendered-form)
+              (princ "\t")
+              (princ status))
             (terpri))
         (end-of-file nil)))))

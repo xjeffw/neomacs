@@ -54,4 +54,12 @@ fi
 
 NEOVM_FORMS_FILE="$forms_file_abs" \
 NEOVM_DISABLE_LOAD_CACHE_WRITE=1 \
-"$worker_binary" "$forms_file_abs"
+"$worker_binary" "$forms_file_abs" \
+  | awk -v prefix='__NEOVM_CASE__\t' '
+      {
+        pos = index($0, prefix);
+        if (pos > 0) {
+          print substr($0, pos + length(prefix));
+        }
+      }
+    '

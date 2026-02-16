@@ -77,4 +77,12 @@ if [[ "$version_banner" =~ [Nn][Ee][Oo][Mm][Aa][Cc][Ss] ]] || [[ "$emacs_bin" =~
   exit 2
 fi
 
-NEOVM_FORMS_FILE="$forms_file_abs" "$emacs_bin" --batch -Q -l "$oracle_el" 2>/dev/null
+NEOVM_FORMS_FILE="$forms_file_abs" "$emacs_bin" --batch -Q -l "$oracle_el" 2>/dev/null \
+  | awk -v prefix='__NEOVM_CASE__\t' '
+      {
+        pos = index($0, prefix);
+        if (pos > 0) {
+          print substr($0, pos + length(prefix));
+        }
+      }
+    '

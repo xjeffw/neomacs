@@ -6,6 +6,8 @@ use std::fs;
 use std::io::{self, Write};
 use std::time::Duration;
 
+const CASE_PREFIX: &str = "__NEOVM_CASE__\t";
+
 fn render_task_error(err: TaskError) -> String {
     match err {
         TaskError::Cancelled => "ERR (task-cancelled nil)".to_string(),
@@ -21,6 +23,8 @@ fn render_signal(signal: Signal) -> String {
 
 fn write_status_line(index: usize, rendered_form: &str, status_bytes: &[u8]) {
     let mut out = io::stdout().lock();
+    out.write_all(CASE_PREFIX.as_bytes())
+        .expect("failed writing case prefix");
     out.write_all((index + 1).to_string().as_bytes())
         .expect("failed writing case index");
     out.write_all(b"\t")
