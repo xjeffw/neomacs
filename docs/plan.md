@@ -6738,6 +6738,18 @@ Last updated: 2026-02-16
   - updated `test/neovm/vm-compat/cases/builtin-registry-fboundp-allowlist.txt` to include `word-at-point` (kept intentionally exposed for current symbol/word-at-point compatibility flow)
   - verified:
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` now passes (2 drifts, both allowlisted: `neovm-precompile-file`, `word-at-point`)
+- Refined `word-at-point` startup behavior to improve strict startup parity without regressing symbol/word flows:
+  - removed `word-at-point` from default startup dispatch registry surface
+  - added lazy bootstrap in `builtin_symbol_at_point`: first `symbol-at-point` call now materializes a `word-at-point` subr binding in the function cell, matching observed symbol/word flow expectations while keeping startup `fboundp` parity strict
+  - updated allowlist back to startup-intentional-only:
+    - `test/neovm/vm-compat/cases/builtin-registry-fboundp-allowlist.txt` now contains only `neovm-precompile-file`
+  - added unit test:
+    - `symbol_at_point_bootstraps_word_at_point_binding` in `rust/neovm-core/src/elisp/interactive.rs`
+  - verified:
+    - `cargo test symbol_at_point_bootstraps_word_at_point_binding` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/symbol-word-at-point-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` passes with 1 drift (allowlisted `neovm-precompile-file`)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 ## Doing
 
