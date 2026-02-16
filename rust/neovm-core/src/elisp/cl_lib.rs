@@ -218,6 +218,11 @@ pub(crate) fn builtin_cl_concatenate(args: Vec<Value>) -> EvalResult {
     builtin_seq_concatenate(args)
 }
 
+/// `(cl-member ITEM LIST)` -- CL alias for `member`.
+pub(crate) fn builtin_cl_member(args: Vec<Value>) -> EvalResult {
+    super::builtins::builtin_member(args)
+}
+
 fn seq_position_list_elements(seq: &Value) -> Result<Vec<Value>, Flow> {
     let mut elements = Vec::new();
     let mut cursor = seq.clone();
@@ -1178,6 +1183,31 @@ mod tests {
     #[test]
     fn cl_concatenate_wrong_type_symbol() {
         assert!(builtin_cl_concatenate(vec![Value::Int(0), Value::Nil]).is_err());
+    }
+
+    #[test]
+    fn cl_member_found_tail() {
+        let result = builtin_cl_member(vec![
+            Value::symbol("b"),
+            Value::list(vec![Value::symbol("a"), Value::symbol("b"), Value::symbol("c")]),
+        ])
+        .unwrap();
+        assert_eq!(result, Value::list(vec![Value::symbol("b"), Value::symbol("c")]));
+    }
+
+    #[test]
+    fn cl_member_not_found() {
+        let result = builtin_cl_member(vec![
+            Value::symbol("z"),
+            Value::list(vec![Value::symbol("a"), Value::symbol("b")]),
+        ])
+        .unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn cl_member_wrong_arity() {
+        assert!(builtin_cl_member(vec![Value::symbol("a")]).is_err());
     }
 
     #[test]

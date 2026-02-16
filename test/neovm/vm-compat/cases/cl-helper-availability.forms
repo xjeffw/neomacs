@@ -31,7 +31,7 @@
 (fboundp 'cl-map)
 (condition-case err (cl-map) (error err))
 (fboundp 'cl-member)
-(condition-case err (cl-member) (error err))
+(condition-case err (cl-member 'b '(a b c)) (error err))
 (fboundp 'cl-minusp)
 (condition-case err (cl-minusp -1) (error err))
 (fboundp 'cl-ninth)

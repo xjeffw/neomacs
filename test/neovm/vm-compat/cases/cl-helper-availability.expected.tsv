@@ -30,8 +30,8 @@
 30	(condition-case err (cl-intersection) (error err))	OK (void-function cl-intersection)
 31	(fboundp 'cl-map)	OK nil
 32	(condition-case err (cl-map) (error err))	OK (void-function cl-map)
-33	(fboundp 'cl-member)	OK nil
-34	(condition-case err (cl-member) (error err))	OK (void-function cl-member)
+33	(fboundp 'cl-member)	OK t
+34	(condition-case err (cl-member 'b '(a b c)) (error err))	OK (b c)
 35	(fboundp 'cl-minusp)	OK t
 36	(condition-case err (cl-minusp -1) (error err))	OK t
 37	(fboundp 'cl-ninth)	OK t
