@@ -43,6 +43,7 @@ Last updated: 2026-02-16
 - Keep newly landed input-mode helper primitive `subr-arity` parity stable while expanding remaining input/runtime drifts.
 - Keep newly landed charset/json/libxml/display helper primitive `subr-arity` parity stable while expanding remaining arity drifts.
 - Keep newly landed symbol-function alias-wrapper startup parity stable while expanding remaining non-subr introspection drifts.
+- Keep newly landed autoload object error-kind parity stable while expanding remaining non-symbol callable error-path drifts.
 - Keep newly landed filesystem-create helper primitive `subr-arity` parity stable while expanding remaining filesystem helper drifts.
 - Keep newly landed `minor-mode-key-binding` runtime parity slice stable while expanding remaining interactive/keymap stub areas.
 
@@ -55,9 +56,26 @@ Last updated: 2026-02-16
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 7. Continue subr-arity registry drift reduction from `59` remaining mismatches using batched oracle lock-ins.
-8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) while keeping extension behavior intentional and documented.
+8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned evaluator error semantics for autoload object function designators:
+  - changed direct `funcall`/`apply` on autoload objects from:
+    - `(invalid-function <autoload-object>)`
+    - to `(wrong-type-argument symbolp <autoload-object>)` to match GNU Emacs.
+  - added evaluator regression:
+    - `funcall_autoload_object_signals_wrong_type_argument_symbolp`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/autoload-funcall-error-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+      - `test/neovm/vm-compat/cases/introspection.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml funcall_autoload_object_signals_wrong_type_argument_symbolp -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/autoload-funcall-error-semantics` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned remaining core startup autoload wrapper shapes (`rect/help-fns/macros/subr-x`) with GNU Emacs:
   - seeded startup autoload wrapper function cells for:
