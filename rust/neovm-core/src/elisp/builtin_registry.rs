@@ -796,6 +796,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "string-collate-lessp",
     "string-empty-p",
     "string-equal-ignore-case",
+    "string-fill",
     "string-glyph-split",
     "string-lines",
     "string-make-multibyte",
