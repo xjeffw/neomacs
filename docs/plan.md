@@ -21,6 +21,21 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `current-global-map` bootstrap behavior with oracle and added keymap map-selection corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - changed `current-global-map` to lazily initialize/set a global keymap when absent so `(keymapp (current-global-map))` is non-nil by default in batch, matching oracle behavior.
+    - `test/neovm/vm-compat/cases/keymap-map-selection-semantics.forms`
+      - added probes for current global/local map exposure, `use-global-map`/`use-local-map` effects, and arity errors.
+    - `test/neovm/vm-compat/cases/keymap-map-selection-semantics.expected.tsv`
+      - recorded oracle baseline outputs for keymap map-selection behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/keymap-map-selection-semantics` to recurring default compatibility execution.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/keymap-map-selection-semantics` (pass, 13/13)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Added oracle lock-in corpus for keymap binding basics (`global-set-key` / `local-set-key` / `lookup-key` / `key-binding`):
   - updated:
     - `test/neovm/vm-compat/cases/keymap-binding-basics-semantics.forms`
