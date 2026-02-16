@@ -9,18 +9,37 @@ Last updated: 2026-02-16
 - Run targeted vm-compat checks after each behavior-affecting slice.
 - Keep recurring full-corpus `check-all-neovm` gates after each compatibility batch.
 - Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
-- Continue closing coding-system runtime behavior gaps around designator acceptance (`check-coding-system`/derived variants) and unsuitable coding rejections.
-- Shift next compatibility slices to remaining high-impact display/font/input stubs.
+- Continue targeted coding-system follow-ups for remaining corner cases while the new runtime/designator corpora stay green.
+- Shift compatibility slices to remaining high-impact display/font/input stubs.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Expand coding-system compatibility around derived designators and keyboard suitability checks (`utf-8-auto`-style rejection paths).
+2. Land the next evaluator-backed stub replacement outside `rect` (prefer display/input path with high package impact).
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths).
-4. Land the next evaluator-backed stub replacement outside `rect` (prefer display/input path with high package impact).
-5. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
+4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 
 ## Done
+
+- Aligned coding-system designator handling and keyboard suitability behavior with oracle; added dedicated designator corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/coding.rs`
+      - aligned `check-coding-system` acceptance for supported derived `-unix/-dos/-mac` designators while rejecting unsupported derived variants.
+      - aligned keyboard suitability/unsupported error paths for `utf-8-auto` / `prefer-utf-8` and `undecided`.
+      - aligned `set-keyboard-coding-system 'emacs-internal` return/state behavior.
+      - added focused unit coverage for derived designators and keyboard suitability behavior.
+    - `test/neovm/vm-compat/cases/coding-system-designator-semantics.forms`
+      - added oracle probes for derived designators, keyboard suitability rejections, and terminal acceptance behavior.
+    - `test/neovm/vm-compat/cases/coding-system-designator-semantics.expected.tsv`
+      - recorded oracle baseline outputs for coding-system designator behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/coding-system-designator-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test coding_system_ --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/coding-system-designator-semantics` (pass, 17/17)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/coding-system-io-runtime-semantics` (pass, 24/24)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 - Aligned coding-system setter runtime semantics with oracle and added dedicated runtime corpus lock-in:
   - updated:
