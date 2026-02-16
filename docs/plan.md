@@ -23,6 +23,32 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned keymap/key-binding designator handling with `kbd` vector outputs and added dedicated corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/kbd.rs`
+      - added shared key-designator decoder:
+        - accepts string/vector key designators,
+        - decodes `kbd`-encoded integer/symbol events into internal `KeyEvent` sequences,
+        - reports structured wrong-type/parse errors for call-site-specific signaling.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - switched `define-key` / `lookup-key` / `global-set-key` / `local-set-key` key parsing to shared decoder.
+      - aligned non-array key errors to `(wrong-type-argument arrayp KEY)` payload shape.
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - switched `key-binding` / `global-key-binding` / `local-key-binding` to shared key-designator decoding.
+      - added vector-designator support (including `(kbd "M-x")` outputs) and aligned arrayp type-error behavior.
+      - preserved nil return path for `local-key-binding` when no local map is active.
+    - `test/neovm/vm-compat/cases/keymap-kbd-designator-semantics.forms`
+      - added probes for string/vector key designators across define/lookup and key-binding APIs, plus arrayp error payloads.
+    - `test/neovm/vm-compat/cases/keymap-kbd-designator-semantics.expected.tsv`
+      - recorded oracle baseline outputs for keymap/kbd designator semantics.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/keymap-kbd-designator-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test key_binding --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test kbd_ --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/keymap-kbd-designator-semantics` (pass, 13/13)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Aligned builtin `kbd` runtime semantics with oracle-compatible parser/encoding behavior and added dedicated corpus lock-in:
   - updated:
     - `rust/neovm-core/src/elisp/kbd.rs`
