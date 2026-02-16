@@ -49,6 +49,7 @@ Last updated: 2026-02-16
 - Keep newly landed `other-buffer` runtime+`subr-arity` parity stable while expanding remaining buffer/window helper drifts.
 - Keep newly landed `kill-buffer` runtime parity stable while expanding remaining buffer lifecycle/helper drifts.
 - Keep newly landed `set-buffer` deleted-buffer parity stable while expanding remaining buffer designator/runtime drifts.
+- Keep newly landed `get-buffer` designator parity stable while expanding remaining buffer lookup/runtime drifts.
 
 ## Next
 
@@ -62,6 +63,23 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned `get-buffer` designator semantics with GNU Emacs and added oracle lock-in:
+  - updated builtin runtime behavior:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `get-buffer` now:
+      - signals `(wrong-type-argument stringp VALUE)` for non-string/non-buffer inputs
+      - preserves buffer-object identity for buffer arguments, including killed buffers
+  - added evaluator regression:
+    - `get_buffer_rejects_non_string_non_buffer_designators`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/get-buffer-designator-errors-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml get_buffer_rejects_non_string_non_buffer_designators -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/get-buffer-designator-errors-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned `set-buffer` deleted-buffer behavior with GNU Emacs and added oracle lock-in:
   - updated builtin runtime semantics:
