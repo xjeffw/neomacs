@@ -1,0 +1,3 @@
+# Extension builtin symbols intentionally present only in NeoVM.
+# One symbol per line.
+neovm-precompile-file
