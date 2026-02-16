@@ -25,6 +25,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned terminal parameter state semantics with oracle and locked cross-form behavior:
+  - updated:
+    - `rust/neovm-core/src/elisp/display.rs`
+      - `set-terminal-parameter` now returns previous value (or `nil` when absent), matching oracle behavior.
+      - key storage now tracks arbitrary Lisp keys for previous-value semantics while `terminal-parameter` lookup remains symbol-typed.
+      - added/updated focused unit tests for repeat non-symbol key behavior.
+    - `rust/neovm-worker/examples/elisp_compat_runner.rs`
+      - forced single worker thread in vm-compat runner to preserve per-thread runtime state across sequential forms.
+    - `test/neovm/vm-compat/cases/terminal-parameter-state-semantics.forms`
+    - `test/neovm/vm-compat/cases/terminal-parameter-state-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/terminal-parameter-semantics` (pass, 24/24)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/terminal-parameter-state-semantics` (pass, 11/11)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_terminal_parameter_ -- --nocapture` (pass)
+
 - Expanded vm-compat oracle lock-in for `event-convert-list` low-ASCII behavior:
   - added new case:
     - `test/neovm/vm-compat/cases/event-convert-low-ascii-matrix-semantics.forms`
