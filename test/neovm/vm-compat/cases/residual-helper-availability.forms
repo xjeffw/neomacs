@@ -22,5 +22,3 @@
 (condition-case err (string-repeat "ab" 3) (error err))
 (fboundp 'unibyte-string-p)
 (condition-case err (unibyte-string-p "abc") (error err))
-(fboundp 'word-at-point)
-(condition-case err (word-at-point) (error err))

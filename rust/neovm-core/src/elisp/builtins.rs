@@ -6239,7 +6239,6 @@ pub(crate) fn dispatch_builtin(
         }
         "view-register" => return Some(super::register::builtin_view_register(eval, args)),
         "get-register" => return Some(super::register::builtin_get_register(eval, args)),
-        "register-to-string" => return Some(super::register::builtin_register_to_string(eval, args)),
         "set-register" => return Some(super::register::builtin_set_register(eval, args)),
         // Keyboard macro operations (evaluator-dependent)
         "start-kbd-macro" => return Some(super::kmacro::builtin_start_kbd_macro(eval, args)),
@@ -6459,9 +6458,6 @@ pub(crate) fn dispatch_builtin(
         "indent-rigidly" => return Some(super::kill_ring::builtin_indent_rigidly(eval, args)),
 
         // Rectangle operations (evaluator-dependent — buffer access)
-        "extract-rectangle-line" => {
-            return Some(super::rect::builtin_extract_rectangle_line(args))
-        }
         "extract-rectangle" => return Some(super::rect::builtin_extract_rectangle(eval, args)),
         "delete-rectangle" => return Some(super::rect::builtin_delete_rectangle(eval, args)),
         "kill-rectangle" => return Some(super::rect::builtin_kill_rectangle(eval, args)),
@@ -6597,7 +6593,6 @@ pub(crate) fn dispatch_builtin(
                 eval, args,
             ))
         }
-        "selected-terminal" => return Some(super::display::builtin_selected_terminal(args)),
         "terminal-name" => return Some(super::display::builtin_terminal_name_eval(eval, args)),
         "terminal-live-p" => return Some(super::display::builtin_terminal_live_p_eval(eval, args)),
         "terminal-parameter" => {
@@ -6719,7 +6714,6 @@ pub(crate) fn dispatch_builtin(
         }
         "symbol-at-point" => return Some(super::interactive::builtin_symbol_at_point(eval, args)),
         "word-at-point" => return Some(super::interactive::builtin_word_at_point(eval, args)),
-
         // Error hierarchy (evaluator-dependent — reads obarray)
         "error-message-string" => {
             return Some(super::errors::builtin_error_message_string(eval, args))
@@ -6947,13 +6941,6 @@ pub(crate) fn dispatch_builtin(
                 args,
             ))
         }
-        "find-coding-system" => {
-            return Some(super::coding::builtin_find_coding_system(
-                &eval.coding_systems,
-                args,
-            ))
-        }
-
         "seq-position" => return Some(super::cl_lib::builtin_seq_position(eval, args)),
         "cl-position" => return Some(super::cl_lib::builtin_cl_position(eval, args)),
         "seq-contains-p" => return Some(super::cl_lib::builtin_seq_contains_p(eval, args)),
@@ -7251,7 +7238,6 @@ pub(crate) fn dispatch_builtin(
         "standard-case-table" => super::casetab::builtin_standard_case_table(args),
         "set-case-table" => super::casetab::builtin_set_case_table(args),
         "set-standard-case-table" => super::casetab::builtin_set_standard_case_table(args),
-        "downcase-char" => super::casetab::builtin_downcase_char(args),
         "upcase-char" => super::casetab::builtin_upcase_char(args),
 
         // Category (pure)
@@ -7290,7 +7276,6 @@ pub(crate) fn dispatch_builtin(
         "x-display-pixel-width" => super::display::builtin_x_display_pixel_width(args),
         "x-display-pixel-height" => super::display::builtin_x_display_pixel_height(args),
         "x-display-color-p" => super::display::builtin_x_display_color_p(args),
-        "selected-terminal" => super::display::builtin_selected_terminal(args),
         "terminal-name" => super::display::builtin_terminal_name(args),
         "terminal-list" => super::display::builtin_terminal_list(args),
         "frame-terminal" => super::display::builtin_frame_terminal(args),
@@ -7328,7 +7313,6 @@ pub(crate) fn dispatch_builtin(
         "char-width" => crate::encoding::builtin_char_width(args),
         "string-bytes" => crate::encoding::builtin_string_bytes(args),
         "multibyte-string-p" => crate::encoding::builtin_multibyte_string_p(args),
-        "unibyte-string-p" => crate::encoding::builtin_unibyte_string_p(args),
         "encode-coding-string" => crate::encoding::builtin_encode_coding_string(args),
         "decode-coding-string" => crate::encoding::builtin_decode_coding_string(args),
         "char-or-string-p" => crate::encoding::builtin_char_or_string_p(args),
@@ -7573,8 +7557,6 @@ pub(crate) fn dispatch_builtin(
         "hash-table-rehash-threshold" => super::hashtab::builtin_hash_table_rehash_threshold(args),
         "hash-table-weakness" => super::hashtab::builtin_hash_table_weakness(args),
         "copy-hash-table" => super::hashtab::builtin_copy_hash_table(args),
-        "hash-table-keys" => super::hashtab::builtin_hash_table_keys(args),
-        "hash-table-values" => super::hashtab::builtin_hash_table_values(args),
 
         // Threading (pure)
         // Misc (pure)
@@ -7583,7 +7565,6 @@ pub(crate) fn dispatch_builtin(
         "rassq" => super::misc::builtin_rassq(args),
         "assoc-default" => super::misc::builtin_assoc_default(args),
         "make-list" => super::misc::builtin_make_list(args),
-        "string-repeat" => super::misc::builtin_string_repeat(args),
         "safe-length" => super::misc::builtin_safe_length(args),
         "subst-char-in-string" => super::misc::builtin_subst_char_in_string(args),
         "string-to-multibyte" => super::misc::builtin_string_to_multibyte(args),
@@ -7595,7 +7576,6 @@ pub(crate) fn dispatch_builtin(
         "define-coding-system-alias" => {
             super::coding::builtin_define_coding_system_alias(&mut eval.coding_systems, args)
         }
-        "find-coding-system" => super::coding::builtin_find_coding_system(&eval.coding_systems, args),
         "coding-system-p" => super::coding::builtin_coding_system_p(&eval.coding_systems, args),
         "check-coding-system" => {
             super::coding::builtin_check_coding_system(&eval.coding_systems, args)
@@ -7604,10 +7584,6 @@ pub(crate) fn dispatch_builtin(
             super::coding::builtin_set_coding_system_priority(&mut eval.coding_systems, args)
         }
         "locale-info" => super::misc::builtin_locale_info(args),
-        "display-line-numbers-update-width" => {
-            super::misc::builtin_display_line_numbers_update_width(args)
-        }
-
         // Reader/printer (pure)
         "y-or-n-p" => super::reader::builtin_y_or_n_p(args),
         "yes-or-no-p" => super::reader::builtin_yes_or_no_p(args),
@@ -7630,7 +7606,6 @@ pub(crate) fn dispatch_builtin(
         "bool-vector-intersection" => super::chartable::builtin_bool_vector_intersection(args),
         "bool-vector-union" => super::chartable::builtin_bool_vector_union(args),
         "bool-vector-exclusive-or" => super::chartable::builtin_bool_vector_exclusive_or(args),
-        "bool-vector-complement" => super::chartable::builtin_bool_vector_complement(args),
         "bool-vector-subsetp" => super::chartable::builtin_bool_vector_subsetp(args),
 
         // Note: windowp and framep are in the eval-dependent section above
@@ -7699,7 +7674,6 @@ pub(crate) fn dispatch_builtin(
         "base64-encode-string" => super::fns::builtin_base64_encode_string(args),
         "base64-decode-string" => super::fns::builtin_base64_decode_string(args),
         "base64url-encode-string" => super::fns::builtin_base64url_encode_string(args),
-        "base64url-decode-string" => super::fns::builtin_base64url_decode_string(args),
         "md5" => super::fns::builtin_md5(args),
         "secure-hash" => super::fns::builtin_secure_hash(args),
         "equal-including-properties" => super::fns::builtin_equal_including_properties(args),
@@ -7839,7 +7813,6 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "char-width" => crate::encoding::builtin_char_width(args),
         "string-bytes" => crate::encoding::builtin_string_bytes(args),
         "multibyte-string-p" => crate::encoding::builtin_multibyte_string_p(args),
-        "unibyte-string-p" => crate::encoding::builtin_unibyte_string_p(args),
         "encode-coding-string" => crate::encoding::builtin_encode_coding_string(args),
         "decode-coding-string" => crate::encoding::builtin_decode_coding_string(args),
         "char-or-string-p" => crate::encoding::builtin_char_or_string_p(args),
@@ -7849,7 +7822,6 @@ pub(crate) fn dispatch_builtin_pure(name: &str, args: Vec<Value>) -> Option<Eval
         "display-color-p" => super::display::builtin_display_color_p(args),
         "display-pixel-width" => super::display::builtin_display_pixel_width(args),
         "display-pixel-height" => super::display::builtin_display_pixel_height(args),
-        "selected-terminal" => super::display::builtin_selected_terminal(args),
         "terminal-name" => super::display::builtin_terminal_name(args),
         "terminal-live-p" => super::display::builtin_terminal_live_p(args),
         _ => return None,
