@@ -2986,6 +2986,23 @@ mod tests {
     }
 
     #[test]
+    fn minor_mode_key_binding_prefers_overriding_mode_maps() {
+        assert_eq!(
+            eval_one(
+                r#"(let* ((m-over (make-sparse-keymap))
+                          (m-minor (make-sparse-keymap)))
+                     (define-key m-over (kbd "C-a") 'forward-char)
+                     (define-key m-minor (kbd "C-a") 'ignore)
+                     (let ((minor-mode-overriding-map-alist (list (cons 'minor-mode m-over)))
+                           (minor-mode-map-alist (list (cons 'minor-mode m-minor)))
+                           (minor-mode t))
+                       (minor-mode-key-binding (kbd "C-a"))))"#
+            ),
+            "OK ((minor-mode . forward-char))"
+        );
+    }
+
+    #[test]
     fn minor_mode_key_binding_resolves_symbol_emulation_alists() {
         assert_eq!(
             eval_one(
