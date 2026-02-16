@@ -351,6 +351,8 @@ fn subr_arity_value(name: &str) -> Value {
         | "makunbound" => arity_cons(1, Some(1)),
         "fset" | "set" | "get" => arity_cons(2, Some(2)),
         "put" => arity_cons(3, Some(3)),
+        "hash-table-test" | "hash-table-size" | "hash-table-rehash-size"
+        | "hash-table-rehash-threshold" | "hash-table-weakness" => arity_cons(1, Some(1)),
         "assq" | "member" | "memq" | "rassoc" | "rassq" => arity_cons(2, Some(2)),
         "assoc" => arity_cons(2, Some(3)),
         "assoc-default" => arity_cons(2, Some(4)),
@@ -1299,6 +1301,15 @@ mod tests {
         assert_subr_arity("put", 3, Some(3));
         assert_subr_arity("symbol-function", 1, Some(1));
         assert_subr_arity("symbol-value", 1, Some(1));
+    }
+
+    #[test]
+    fn subr_arity_hash_table_introspection_primitives_match_oracle() {
+        assert_subr_arity("hash-table-test", 1, Some(1));
+        assert_subr_arity("hash-table-size", 1, Some(1));
+        assert_subr_arity("hash-table-rehash-size", 1, Some(1));
+        assert_subr_arity("hash-table-rehash-threshold", 1, Some(1));
+        assert_subr_arity("hash-table-weakness", 1, Some(1));
     }
 
     #[test]
