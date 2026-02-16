@@ -1,6 +1,7 @@
 //! Rectangle operation builtins for the Elisp interpreter.
 //!
 //! Implements rectangle manipulation commands:
+//! - `extract-rectangle-line`
 //! - `extract-rectangle`, `delete-rectangle`, `kill-rectangle`
 //! - `yank-rectangle`, `insert-rectangle`, `open-rectangle`
 //! - `clear-rectangle`, `string-rectangle`, `replace-rectangle`
@@ -132,6 +133,21 @@ fn line_count_between(eval: &super::eval::Evaluator, start: i64, end: i64) -> us
 // ---------------------------------------------------------------------------
 // Eval-dependent builtins
 // ---------------------------------------------------------------------------
+
+/// `(extract-rectangle-line STARTCOL ENDCOL &optional LINE)` -- extract one
+/// line of a rectangle as a string.
+///
+/// Compatibility stub: validates argument shapes and returns an empty string.
+pub(crate) fn builtin_extract_rectangle_line(args: Vec<Value>) -> EvalResult {
+    expect_min_args("extract-rectangle-line", &args, 2)?;
+    expect_max_args("extract-rectangle-line", &args, 3)?;
+    let _start_col = expect_int(&args[0])?;
+    let _end_col = expect_int(&args[1])?;
+    if args.len() == 3 {
+        let _line = expect_string(&args[2])?;
+    }
+    Ok(Value::string(""))
+}
 
 /// `(extract-rectangle START END)` -- return a list of strings, one per line,
 /// representing the rectangular region between START and END.
@@ -348,6 +364,22 @@ mod tests {
         let result = builtin_extract_rectangle(&mut eval, vec![Value::Int(1), Value::Int(10)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_list());
+    }
+
+    #[test]
+    fn extract_rectangle_line_returns_string() {
+        let result = builtin_extract_rectangle_line(vec![Value::Int(1), Value::Int(3)]).unwrap();
+        assert_eq!(result.as_str(), Some(""));
+    }
+
+    #[test]
+    fn extract_rectangle_line_validates_args() {
+        assert!(builtin_extract_rectangle_line(vec![]).is_err());
+        assert!(builtin_extract_rectangle_line(vec![Value::Int(1)]).is_err());
+        assert!(
+            builtin_extract_rectangle_line(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+                .is_err()
+        );
     }
 
     #[test]

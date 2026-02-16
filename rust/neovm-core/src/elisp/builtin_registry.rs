@@ -300,6 +300,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "exit-recursive-edit",
     "expand-abbrev",
     "expand-file-name",
+    "extract-rectangle-line",
     "extract-rectangle",
     "face-attribute-relative-p",
     "face-font",

@@ -7,7 +7,7 @@
 (fboundp 'downcase-char)
 (condition-case err (downcase-char 65) (error err))
 (fboundp 'extract-rectangle-line)
-(condition-case err (extract-rectangle-line) (error err))
+(condition-case err (extract-rectangle-line 1 1) (error err))
 (fboundp 'find-coding-system)
 (condition-case err (find-coding-system 'utf-8) (error err))
 (fboundp 'hash-table-keys)
