@@ -635,6 +635,7 @@ pub(crate) fn builtin_split_window(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_max_args("split-window", &args, 4)?;
     let (fid, wid) = resolve_window_id(eval, args.first())?;
 
     // Determine split direction from SIDE argument.
@@ -1615,6 +1616,24 @@ mod tests {
         );
         assert!(results[0].starts_with("OK "));
         assert_eq!(results[1], "OK 2");
+    }
+
+    #[test]
+    fn split_window_enforces_max_arity() {
+        let forms = parse_forms(
+            "(condition-case err (split-window nil nil nil nil nil) (error (car err)))
+             (let ((w (split-window nil nil nil nil)))
+               (window-live-p w))",
+        )
+        .expect("parse");
+        let mut ev = Evaluator::new();
+        let out = ev
+            .eval_forms(&forms)
+            .iter()
+            .map(format_eval_result)
+            .collect::<Vec<_>>();
+        assert_eq!(out[0], "OK wrong-number-of-arguments");
+        assert_eq!(out[1], "OK t");
     }
 
     #[test]
