@@ -34,6 +34,7 @@ Last updated: 2026-02-16
 - Keep newly landed hash-table core primitive `subr-arity` parity stable while expanding remaining hash/runtime behavior drifts.
 - Keep newly landed buffer lookup primitive runtime+`subr-arity` parity stable while expanding remaining buffer helper drifts.
 - Keep newly landed numeric/state helper primitive `subr-arity` parity stable while expanding remaining math/runtime introspection drifts.
+- Keep newly landed text-property/overlay primitive `subr-arity` parity stable while expanding remaining text/UI metadata drifts.
 
 ## Next
 
@@ -45,6 +46,34 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned text-property/overlay primitive `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(4 . 5)`: `put-text-property`, `text-property-any`
+        - `(3 . 4)`: `remove-text-properties`, `move-overlay`
+        - `(2 . 3)`: `get-text-property`, `get-char-property`
+        - `(1 . 2)`: `text-properties-at`, `overlays-at`
+        - `(2 . 4)`: `next-single-property-change`, `previous-single-property-change`
+        - `(1 . 3)`: `next-property-change`
+        - `(2 . 5)`: `make-overlay`
+        - `(3 . 3)`: `overlay-put`
+        - `(2 . 2)`: `overlay-get`, `overlays-in`
+        - `(1 . 1)`: `overlay-start`, `overlay-end`, `overlay-buffer`, `overlay-properties`, `overlayp`
+        - `(0 . 4)`: `remove-overlays`
+      - added unit matrix `subr_arity_text_property_overlay_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/text-property-overlay-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/text-property-overlay-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for text-property/overlay arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/text-property-overlay-subr-arity-semantics.forms EXPECTED=cases/text-property-overlay-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_text_property_overlay_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/text-property-overlay-subr-arity-semantics` (pass, 22/22)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned numeric/state helper primitive `subr-arity` metadata with GNU Emacs:
   - updated:
