@@ -55,6 +55,28 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned search/match primitive runtime arity + `subr-arity` metadata with GNU Emacs:
+  - runtime behavior:
+    - enforced max arity for search primitives: `search-forward`, `search-backward`, `re-search-forward`, `re-search-backward` (1..4).
+    - enforced `looking-at` arity as `1..2` and kept optional second argument accepted.
+    - enforced `string-match` as `2..4`, `string-match-p` as `2..3`, `match-string` as `1..2`, and `replace-match` as `1..5`.
+    - enforced `replace-regexp-in-string` as `3..7`.
+  - `subr-arity` metadata:
+    - added explicit oracle-aligned arities for search/match primitives (`looking-at`, `match-*`, `replace-*`, `string-match`, and search/re-search/posix-search/word-search families).
+  - added/expanded oracle corpus:
+    - `test/neovm/vm-compat/cases/search-match-subr-arity-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/search-match-arity-errors-semantics.{forms,expected.tsv}`
+    - `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `search_match_runtime_arity_edges_match_oracle_contracts`
+    - `subr_arity_search_match_primitives_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml search_match_runtime_arity_edges_match_oracle_contracts -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_search_match_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/search-match-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/search-match-arity-errors-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned `sleep-for` milliseconds type contract with GNU Emacs and locked oracle parity:
   - runtime behavior:
     - `sleep-for` now requires MILLISECONDS to be fixnum-like (`int`/`char`) or `nil`.
