@@ -19,6 +19,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `downcase-char` as a real case helper builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/casetab.rs`
+      - added `downcase-char` builtin using existing case table manager logic.
+      - enforces arity `1` and `characterp`/`integerp` argument shape via shared char coercion.
+      - added focused unit coverage for upper/lower/int payloads and error paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - pure builtin dispatch now routes `downcase-char`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `downcase-char` to builtin registry.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.forms`
+      - switched helper call to `(downcase-char 65)` for parser/form canonicalization stability.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior (`97`).
+  - verified:
+    - `cargo test downcase_char --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 26/26)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `hash-table-keys` and `hash-table-values` helper builtins:
   - updated:
     - `rust/neovm-core/src/elisp/hashtab.rs`
