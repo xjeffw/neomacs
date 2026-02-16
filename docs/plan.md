@@ -20,6 +20,18 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Tightened `insert-rectangle` error payload compatibility:
+  - updated:
+    - `rust/neovm-core/src/elisp/rect.rs`
+      - aligned non-string rectangle item validation to signal `wrong-type-argument` with `buffer-or-string-p` predicate payload.
+    - `test/neovm/vm-compat/cases/rect-insert-semantics.forms`
+      - expanded error probe to capture both error symbol and predicate payload for mixed list elements.
+    - `test/neovm/vm-compat/cases/rect-insert-semantics.expected.tsv`
+      - refreshed oracle baseline for payload-level error lock-in.
+  - verified:
+    - `cargo test insert_rectangle --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/rect-insert-semantics` (pass, 8/8)
+
 - Aligned rectangle kill-buffer variable semantics and locked compatibility corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/rect.rs`
