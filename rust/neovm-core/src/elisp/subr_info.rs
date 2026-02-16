@@ -460,6 +460,22 @@ fn subr_arity_value(name: &str) -> Value {
         "prin1" | "prin1-to-string" => arity_cons(1, Some(3)),
         "princ" | "print" => arity_cons(1, Some(2)),
         "propertize" => arity_cons(1, None),
+        "face-attribute-relative-p" | "font-get" | "internal-merge-in-global-face" => {
+            arity_cons(2, Some(2))
+        }
+        "face-font" | "font-xlfd-name" => arity_cons(1, Some(3)),
+        "face-id" | "fontp" | "internal-make-lisp-face" | "internal-lisp-face-empty-p"
+        | "internal-lisp-face-p" => arity_cons(1, Some(2)),
+        "face-list" => arity_cons(0, Some(0)),
+        "font-put" => arity_cons(3, Some(3)),
+        "internal-copy-lisp-face" => arity_cons(4, Some(4)),
+        "internal-face-x-get-resource" | "internal-get-lisp-face-attribute"
+        | "internal-lisp-face-equal-p" => arity_cons(2, Some(3)),
+        "internal-lisp-face-attribute-values" | "internal-set-alternative-font-family-alist"
+        | "internal-set-alternative-font-registry-alist" | "internal-set-font-selection-order" => {
+            arity_cons(1, Some(1))
+        }
+        "internal-set-lisp-face-attribute" => arity_cons(3, Some(4)),
         "put-image" => arity_cons(2, Some(4)),
         "query-replace" | "query-replace-regexp" => arity_cons(2, Some(7)),
         "quoted-insert" => arity_cons(1, Some(1)),
@@ -1800,6 +1816,31 @@ mod tests {
         assert_subr_arity("move-point-visually", 1, Some(1));
         assert_subr_arity("modify-frame-parameters", 2, Some(2));
         assert_subr_arity("make-frame", 0, Some(1));
+    }
+
+    #[test]
+    fn subr_arity_face_font_helper_primitives_match_oracle() {
+        assert_subr_arity("face-attribute-relative-p", 2, Some(2));
+        assert_subr_arity("face-font", 1, Some(3));
+        assert_subr_arity("face-id", 1, Some(2));
+        assert_subr_arity("face-list", 0, Some(0));
+        assert_subr_arity("font-get", 2, Some(2));
+        assert_subr_arity("font-put", 3, Some(3));
+        assert_subr_arity("font-xlfd-name", 1, Some(3));
+        assert_subr_arity("fontp", 1, Some(2));
+        assert_subr_arity("internal-copy-lisp-face", 4, Some(4));
+        assert_subr_arity("internal-face-x-get-resource", 2, Some(3));
+        assert_subr_arity("internal-get-lisp-face-attribute", 2, Some(3));
+        assert_subr_arity("internal-make-lisp-face", 1, Some(2));
+        assert_subr_arity("internal-lisp-face-attribute-values", 1, Some(1));
+        assert_subr_arity("internal-lisp-face-empty-p", 1, Some(2));
+        assert_subr_arity("internal-lisp-face-equal-p", 2, Some(3));
+        assert_subr_arity("internal-lisp-face-p", 1, Some(2));
+        assert_subr_arity("internal-merge-in-global-face", 2, Some(2));
+        assert_subr_arity("internal-set-alternative-font-family-alist", 1, Some(1));
+        assert_subr_arity("internal-set-alternative-font-registry-alist", 1, Some(1));
+        assert_subr_arity("internal-set-font-selection-order", 1, Some(1));
+        assert_subr_arity("internal-set-lisp-face-attribute", 3, Some(4));
     }
 
     #[test]

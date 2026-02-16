@@ -301,6 +301,7 @@ cases/face-id-semantics
 cases/face-font-semantics
 cases/internal-set-font-selection-order-semantics
 cases/alternative-font-alists-semantics
+cases/face-font-helper-subr-arity-semantics
 cases/internal-lisp-face-semantics
 cases/internal-lisp-face-comparators
 cases/internal-get-lisp-face-attribute-matrix
