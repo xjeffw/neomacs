@@ -27,6 +27,7 @@ Last updated: 2026-02-16
 - Keep newly landed `getenv` runtime+`subr-arity` parity stable while expanding remaining process/environment drifts.
 - Keep newly landed symbol/state primitive `subr-arity` parity stable while expanding remaining introspection drifts.
 - Keep newly landed file stat/predicate `subr-arity` parity stable while expanding remaining filesystem introspection drifts.
+- Keep newly landed runtime identity (`emacs-version`/`system-name`) runtime+`subr-arity` parity stable while expanding remaining identity drifts.
 
 ## Next
 
@@ -38,6 +39,31 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned runtime identity primitive behavior/`subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins_extra.rs`
+      - `emacs-version` now accepts optional arg (`(0 . 1)`):
+        - no arg or `nil` arg returns version string
+        - non-`nil` arg returns `nil`
+      - updated runtime identity arity test coverage in `runtime_identity_arity_contracts`.
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(0 . 1)`: `emacs-version`
+        - `(0 . 0)`: `system-name`
+      - extended `subr_arity_current_state_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/runtime-identity-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/runtime-identity-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for runtime identity arity/optional-arg behavior.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/runtime-identity-subr-arity-semantics.forms EXPECTED=cases/runtime-identity-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml runtime_identity_arity_contracts -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_current_state_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/runtime-identity-subr-arity-semantics` (pass, 9/9)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned file stat/predicate primitive `subr-arity` metadata with GNU Emacs:
   - updated:
