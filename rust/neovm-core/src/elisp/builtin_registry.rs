@@ -156,6 +156,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "char-width",
     "charset-after",
     "charset-id-internal",
+    "charset-list",
     "charset-plist",
     "charset-priority-list",
     "charsetp",

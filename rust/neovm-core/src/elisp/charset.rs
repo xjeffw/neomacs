@@ -254,6 +254,18 @@ pub(crate) fn builtin_charsetp(args: Vec<Value>) -> EvalResult {
     Ok(Value::bool(reg.contains(&name)))
 }
 
+/// `(charset-list)` -- return charset symbols in priority order.
+pub(crate) fn builtin_charset_list(args: Vec<Value>) -> EvalResult {
+    expect_args("charset-list", &args, 0)?;
+    let reg = global_registry().lock().expect("poisoned");
+    let names: Vec<Value> = reg
+        .priority_list()
+        .iter()
+        .map(|name| Value::symbol(name.clone()))
+        .collect();
+    Ok(Value::list(names))
+}
+
 /// `(charset-priority-list &optional HIGHESTP)` -- return list of charsets
 /// in priority order.  If HIGHESTP is non-nil, return only the highest
 /// priority charset.
@@ -598,6 +610,14 @@ mod tests {
     fn charsetp_wrong_arg_count() {
         assert!(builtin_charsetp(vec![]).is_err());
         assert!(builtin_charsetp(vec![Value::Nil, Value::Nil]).is_err());
+    }
+
+    #[test]
+    fn charset_list_returns_priority_order() {
+        let r = builtin_charset_list(vec![]).unwrap();
+        let items = list_to_vec(&r).unwrap();
+        assert!(matches!(&items[0], Value::Symbol(s) if s == "unicode"));
+        assert!(items.len() >= 2);
     }
 
     // -----------------------------------------------------------------------
