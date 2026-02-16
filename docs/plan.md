@@ -19,6 +19,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `string-limit` as a callable subr-x string helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/format.rs`
+      - added `string-limit` builtin (arity `2..=4`) with truncation direction and optional ellipsis handling.
+      - added focused unit coverage for no-op, prefix truncation, end truncation with ellipsis, and type validation.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - format/string utility dispatch now routes `string-limit`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `string-limit` to builtin registry.
+    - `test/neovm/vm-compat/cases/subr-x-string-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`"x"`).
+  - verified:
+    - `cargo test string_limit --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/subr-x-string-helper-availability` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `string-fill` as a callable subr-x string helper:
   - updated:
     - `rust/neovm-core/src/elisp/format.rs`
