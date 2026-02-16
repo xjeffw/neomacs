@@ -7795,6 +7795,18 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-neovm CASE=cases/point-navigation-subr-arity-semantics` (pass, 15/15)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
+- Aligned `cxr` family primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - generalized `subr-arity` handling for all `c[ad]+r` builtin names via pattern-based dispatch (`car`/`cdr` + nested `cxr` accessors)
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/cxr-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/cxr-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/cxr-subr-arity-semantics.forms EXPECTED=cases/cxr-subr-arity-semantics.expected.tsv` (pass)
+    - `cargo test subr_arity_cxr_family_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-neovm CASE=cases/cxr-subr-arity-semantics` (pass, 15/15)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
