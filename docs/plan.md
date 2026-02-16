@@ -25,6 +25,32 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned process primitive `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit process arity overrides:
+        - `call-process` -> `(1 . many)`
+        - `call-process-region` -> `(3 . many)`
+        - `delete-process` -> `(0 . 1)`
+        - `process-buffer` -> `(1 . 1)`
+        - `process-exit-status` -> `(1 . 1)`
+        - `process-list` -> `(0 . 0)`
+        - `process-name` -> `(1 . 1)`
+        - `process-send-string` -> `(2 . 2)`
+        - `process-status` -> `(1 . 1)`
+        - `start-process` -> `(3 . many)`
+    - `test/neovm/vm-compat/cases/process-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/process-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in for startup exposure and process arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/process-subr-arity-semantics.forms EXPECTED=cases/process-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_process_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/process-subr-arity-semantics` (pass, 20/20)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/process-basics` (pass, 29/29)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass)
+
 - Aligned display/terminal `subr-arity` metadata and `x-display-color-p` alias shape with GNU Emacs:
   - updated:
     - `rust/neovm-core/src/elisp/eval.rs`
