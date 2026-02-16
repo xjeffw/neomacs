@@ -58,6 +58,7 @@ Last updated: 2026-02-16
 - Keep newly landed `window-list` bootstrap/frame-arg parity stable while expanding remaining window object-representation drifts.
 - Keep newly landed `get-buffer-window` optional-buffer parity stable while expanding remaining window/buffer helper drifts.
 - Keep newly landed `set-window-buffer` bootstrap parity stable while expanding remaining window lifecycle/helper drifts.
+- Keep newly landed `set-window-dedicated-p` designator parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
@@ -72,6 +73,24 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned `set-window-dedicated-p` designator/error semantics with GNU Emacs and added oracle lock-in:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - `set-window-dedicated-p` now resolves its window argument through shared designator logic (`resolve_window_id`) so:
+      - `nil` window designator targets selected window (bootstrapping initial frame in batch mode).
+      - invalid non-window designators signal `(wrong-type-argument window-live-p VALUE)` instead of integer-only predicate errors.
+      - stale numeric window designators signal `(wrong-type-argument window-live-p VALUE)` instead of leaking `(error "No selected frame")`.
+  - added evaluator regression:
+    - `set_window_dedicated_p_bootstraps_nil_and_validates_designators`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/set-window-dedicated-p-designator-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_window_dedicated_p_bootstraps_nil_and_validates_designators -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/set-window-dedicated-p-designator-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/window-designator-bootstrap-semantics` (pass)
 
 - Aligned `set-window-buffer` nil-window bootstrap semantics with GNU Emacs and added oracle lock-in:
   - updated runtime behavior:
