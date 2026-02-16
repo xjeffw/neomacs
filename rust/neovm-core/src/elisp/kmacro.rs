@@ -472,6 +472,14 @@ pub(crate) fn builtin_last_kbd_macro(
     }
 }
 
+/// (kmacro-p OBJECT) -> non-nil when OBJECT is a keyboard macro value.
+///
+/// Compatibility subset: accepts vector and string macro encodings.
+pub(crate) fn builtin_kmacro_p(args: Vec<Value>) -> EvalResult {
+    expect_args("kmacro-p", &args, 1)?;
+    Ok(Value::bool(matches!(args[0], Value::Vector(_) | Value::Str(_))))
+}
+
 /// (store-kbd-macro-event EVENT) -> nil
 ///
 /// Add EVENT to the keyboard macro currently being recorded.
@@ -811,6 +819,16 @@ mod tests {
         }
 
         assert!(builtin_last_kbd_macro(&mut eval, vec![Value::Nil]).is_err());
+    }
+
+    #[test]
+    fn test_kmacro_p_builtin_subset() {
+        assert_eq!(builtin_kmacro_p(vec![Value::Nil]).unwrap(), Value::Nil);
+        assert_eq!(builtin_kmacro_p(vec![Value::vector(vec![])]).unwrap(), Value::True);
+        assert_eq!(builtin_kmacro_p(vec![Value::string("abc")]).unwrap(), Value::True);
+        assert_eq!(builtin_kmacro_p(vec![Value::Int(1)]).unwrap(), Value::Nil);
+        assert!(builtin_kmacro_p(vec![]).is_err());
+        assert!(builtin_kmacro_p(vec![Value::Nil, Value::Nil]).is_err());
     }
 
     #[test]

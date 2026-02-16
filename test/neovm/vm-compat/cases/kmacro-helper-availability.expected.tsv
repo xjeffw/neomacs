@@ -1,7 +1,7 @@
 1	(fboundp 'kmacro-add-counter)	OK nil
 2	(condition-case err (kmacro-add-counter 1) (error err))	OK (void-function kmacro-add-counter)
-3	(fboundp 'kmacro-p)	OK nil
-4	(condition-case err (kmacro-p nil) (error err))	OK (void-function kmacro-p)
+3	(fboundp 'kmacro-p)	OK t
+4	(condition-case err (kmacro-p nil) (error err))	OK nil
 5	(fboundp 'kmacro-set-counter)	OK nil
 6	(condition-case err (kmacro-set-counter 1) (error err))	OK (void-function kmacro-set-counter)
 7	(fboundp 'kmacro-set-format)	OK nil
