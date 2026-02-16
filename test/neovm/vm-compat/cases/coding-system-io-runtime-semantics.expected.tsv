@@ -1,0 +1,24 @@
+1	(keyboard-coding-system)	OK utf-8-unix
+2	(terminal-coding-system)	OK utf-8-unix
+3	(set-keyboard-coding-system 'utf-8)	OK utf-8-unix
+4	(keyboard-coding-system)	OK utf-8-unix
+5	(set-keyboard-coding-system 'utf-8-dos)	OK utf-8-unix
+6	(keyboard-coding-system)	OK utf-8-unix
+7	(set-keyboard-coding-system 'ascii)	OK us-ascii-unix
+8	(keyboard-coding-system)	OK us-ascii-unix
+9	(set-keyboard-coding-system 'latin-1)	OK iso-latin-1-unix
+10	(keyboard-coding-system)	OK iso-latin-1-unix
+11	(set-keyboard-coding-system nil)	OK nil
+12	(keyboard-coding-system)	OK no-conversion
+13	(set-terminal-coding-system 'utf-8-dos)	OK nil
+14	(terminal-coding-system)	OK utf-8-dos
+15	(set-terminal-coding-system nil)	OK nil
+16	(terminal-coding-system)	OK nil
+17	(condition-case err (set-terminal-coding-system 'no-such-coding) (error err))	OK (coding-system-error no-such-coding)
+18	(condition-case err (set-keyboard-coding-system 'no-such-coding) (error err))	OK (coding-system-error no-such-coding)
+19	(condition-case err (set-terminal-coding-system "utf-8") (error err))	OK (wrong-type-argument symbolp "utf-8")
+20	(condition-case err (set-keyboard-coding-system "utf-8") (error err))	OK (wrong-type-argument symbolp "utf-8")
+21	(condition-case err (set-keyboard-coding-system 'iso-8859-1) (error err))	OK iso-latin-1-unix
+22	(keyboard-coding-system)	OK iso-latin-1-unix
+23	(condition-case err (set-keyboard-coding-system 'latin-1-unix) (error err))	OK latin-1-unix
+24	(keyboard-coding-system)	OK latin-1-unix
