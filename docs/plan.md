@@ -7992,6 +7992,25 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/color-subr-arity-semantics` (pass, 3/3)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
+- Aligned core `cons` and copy-family primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - added arity overrides:
+    - `(2 . 2)`: `cons`
+    - `(1 . 1)`: `copy-alist`, `copy-hash-table`, `copy-sequence`
+    - `(0 . 2)`: `copy-marker`
+    - `(0 . 1)`: `copy-syntax-table`
+    - `(2 . 6)`: `copy-file`
+    - `(2 . 3)`: `copy-region-as-kill`
+    - `(3 . 5)`: `copy-to-register`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/copy-cons-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/copy-cons-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/copy-cons-subr-arity-semantics.forms EXPECTED=cases/copy-cons-subr-arity-semantics.expected.tsv` (pass)
+    - `cargo test subr_arity_copy_cons_primitives_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/copy-cons-subr-arity-semantics` (pass, 9/9)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
