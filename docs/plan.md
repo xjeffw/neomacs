@@ -24,6 +24,7 @@ Last updated: 2026-02-16
 - Keep newly landed `count-lines` runtime+`subr-arity` parity stable while expanding remaining navigation drifts.
 - Keep newly landed thread primitive `subr-arity` oracle matrix coverage stable while expanding remaining parity drifts.
 - Keep newly landed `featurep` runtime+`subr-arity` parity stable while expanding remaining startup/feature drifts.
+- Keep newly landed `getenv` runtime+`subr-arity` parity stable while expanding remaining process/environment drifts.
 
 ## Next
 
@@ -35,6 +36,35 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Aligned `getenv` runtime behavior and `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/process.rs`
+      - `getenv` now accepts `(1 . 2)` arity.
+      - optional 2nd argument now accepts `nil`; non-`nil` signals `wrong-type-argument` with `framep`.
+      - argument validation order now matches Emacs (`FRAME` shape checked before variable name type check).
+      - added regression tests:
+        - `getenv_accepts_optional_nil_frame_arg`
+        - `getenv_rejects_non_nil_frame_arg_before_variable_type_check`
+        - `getenv_rejects_more_than_two_args`
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity override:
+        - `(1 . 2)`: `getenv`
+      - extended `subr_arity_process_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/getenv-optional-frame-semantics.forms`
+    - `test/neovm/vm-compat/cases/getenv-optional-frame-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for `getenv` optional-frame behavior.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/getenv-optional-frame-semantics.forms EXPECTED=cases/getenv-optional-frame-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml getenv_accepts_optional_nil_frame_arg -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml getenv_rejects_non_nil_frame_arg_before_variable_type_check -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml getenv_rejects_more_than_two_args -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_process_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/getenv-optional-frame-semantics` (pass, 7/7)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; allowlisted drift only: `neovm-precompile-file`)
 
 - Aligned `featurep` runtime behavior and `subr-arity` metadata with GNU Emacs:
   - updated:
