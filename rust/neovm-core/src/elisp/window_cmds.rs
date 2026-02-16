@@ -761,8 +761,14 @@ pub(crate) fn builtin_other_window(
     let len = list.len() as i64;
     let new_idx = ((cur_idx as i64 + count) % len + len) % len;
     let new_wid = list[new_idx as usize];
-    if let Some(f) = eval.frames.get_mut(fid) {
-        f.select_window(new_wid);
+    let selected_buffer = if let Some(frame) = eval.frames.get_mut(fid) {
+        frame.select_window(new_wid);
+        frame.find_window(new_wid).and_then(|w| w.buffer_id())
+    } else {
+        None
+    };
+    if let Some(buffer_id) = selected_buffer {
+        eval.buffers.set_current(buffer_id);
     }
     Ok(Value::Nil)
 }
@@ -1679,6 +1685,21 @@ mod tests {
                (/= (selected-window) w1))",
         );
         assert_eq!(results[0], "OK t");
+    }
+
+    #[test]
+    fn other_window_updates_current_buffer_to_selected_window_buffer() {
+        let result = eval_one_with_frame(
+            "(save-current-buffer
+               (let* ((b1 (get-buffer-create \"ow-curbuf-a\"))
+                      (b2 (get-buffer-create \"ow-curbuf-b\")))
+                 (set-window-buffer nil b1)
+                 (let ((w2 (split-window)))
+                   (set-window-buffer w2 b2)
+                   (other-window 1)
+                   (buffer-name (current-buffer)))))",
+        );
+        assert_eq!(result, "OK \"ow-curbuf-b\"");
     }
 
     #[test]

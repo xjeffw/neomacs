@@ -338,6 +338,7 @@ cases/set-window-buffer-bootstrap-semantics
 cases/set-window-dedicated-p-designator-semantics
 cases/select-window-designator-semantics
 cases/select-window-current-buffer-semantics
+cases/other-window-current-buffer-semantics
 cases/window-designator-bootstrap-semantics
 cases/window-size-query-semantics
 cases/window-list-frame-designator-semantics
