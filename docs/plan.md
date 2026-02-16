@@ -25,6 +25,23 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned minibuffer control primitive `subr-arity` metadata with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides:
+        - `(0 . 0)`: `recursive-edit`, `top-level`, `exit-recursive-edit`, `abort-recursive-edit`, `exit-minibuffer`, `minibuffer-depth`, `minibuffer-prompt`, `minibuffer-contents`, `minibuffer-contents-no-properties`
+        - `(0 . 2)`: `minibufferp`
+      - added unit matrix `subr_arity_minibuffer_control_primitives_match_oracle`.
+    - `test/neovm/vm-compat/cases/minibuffer-control-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/minibuffer-control-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in case for minibuffer control subr-arity payloads.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/minibuffer-control-subr-arity-semantics.forms EXPECTED=cases/minibuffer-control-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_minibuffer_control_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minibuffer-control-subr-arity-semantics` (pass, 10/10)
+
 - Aligned core numeric/comparator primitive `subr-arity` metadata with GNU Emacs:
   - updated:
     - `rust/neovm-core/src/elisp/subr_info.rs`
