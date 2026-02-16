@@ -1,0 +1,5 @@
+(subr-arity (symbol-function 'Snarf-documentation))
+(subr-arity (symbol-function 'substitute-command-keys))
+(subr-arity (symbol-function 'documentation))
+(subr-arity (symbol-function 'documentation-property))
+(subr-arity (symbol-function 'help-function-arglist))

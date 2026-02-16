@@ -398,6 +398,11 @@ fn subr_arity_value(name: &str) -> Value {
         "advice-add" => arity_cons(3, Some(4)),
         "advice-remove" | "advice-member-p" => arity_cons(2, Some(2)),
         "autoload-do-load" => arity_cons(1, Some(3)),
+        "Snarf-documentation" => arity_cons(1, Some(1)),
+        "substitute-command-keys" => arity_cons(1, Some(3)),
+        "documentation" => arity_cons(1, Some(2)),
+        "documentation-property" => arity_cons(2, Some(3)),
+        "help-function-arglist" => arity_cons(1, Some(2)),
         "backtrace-frame" => arity_cons(1, Some(2)),
         "run-hook-with-args" => arity_cons(1, None),
         "base64-decode-string" => arity_cons(1, Some(3)),
@@ -1091,6 +1096,15 @@ mod tests {
         assert_subr_arity("autoload-do-load", 1, Some(3));
         assert_subr_arity("backtrace-frame", 1, Some(2));
         assert_subr_arity("run-hook-with-args", 1, None);
+    }
+
+    #[test]
+    fn subr_arity_doc_helper_primitives_match_oracle() {
+        assert_subr_arity("Snarf-documentation", 1, Some(1));
+        assert_subr_arity("substitute-command-keys", 1, Some(3));
+        assert_subr_arity("documentation", 1, Some(2));
+        assert_subr_arity("documentation-property", 2, Some(3));
+        assert_subr_arity("help-function-arglist", 1, Some(2));
     }
 
     #[test]
