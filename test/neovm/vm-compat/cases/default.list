@@ -284,6 +284,7 @@ cases/file-error-conditions
 cases/error-message-string-formatting
 cases/process-error-conditions
 cases/process-basics
+cases/process-subr-arity-semantics
 cases/file-name-concat
 cases/path-predicates
 cases/file-name-types

@@ -306,6 +306,16 @@ fn subr_arity_value(name: &str) -> Value {
         "waiting-for-user-input-p" => arity_cons(0, Some(0)),
         "read-passwd" => arity_cons(1, Some(3)),
         "event-apply-modifier" => arity_cons(4, Some(4)),
+        // Process primitives
+        "call-process" => arity_cons(1, None),
+        "call-process-region" => arity_cons(3, None),
+        "delete-process" => arity_cons(0, Some(1)),
+        "process-buffer" | "process-exit-status" | "process-name" | "process-status" => {
+            arity_cons(1, Some(1))
+        }
+        "process-list" => arity_cons(0, Some(0)),
+        "process-send-string" => arity_cons(2, Some(2)),
+        "start-process" => arity_cons(3, None),
         // Display/terminal query primitives
         "display-images-p" | "display-graphic-p" | "display-color-p" | "display-pixel-width"
         | "display-pixel-height" | "display-mm-width" | "display-mm-height"
@@ -648,6 +658,20 @@ mod tests {
         assert_subr_arity("x-display-grayscale-p", 0, Some(1));
         assert_subr_arity("x-display-pixel-width", 0, Some(1));
         assert_subr_arity("x-display-pixel-height", 0, Some(1));
+    }
+
+    #[test]
+    fn subr_arity_process_primitives_match_oracle() {
+        assert_subr_arity("call-process", 1, None);
+        assert_subr_arity("call-process-region", 3, None);
+        assert_subr_arity("delete-process", 0, Some(1));
+        assert_subr_arity("process-buffer", 1, Some(1));
+        assert_subr_arity("process-exit-status", 1, Some(1));
+        assert_subr_arity("process-list", 0, Some(0));
+        assert_subr_arity("process-name", 1, Some(1));
+        assert_subr_arity("process-send-string", 2, Some(2));
+        assert_subr_arity("process-status", 1, Some(1));
+        assert_subr_arity("start-process", 3, None);
     }
 
     #[test]
