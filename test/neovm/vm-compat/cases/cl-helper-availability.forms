@@ -9,7 +9,7 @@
 (fboundp 'cl-count-if)
 (condition-case err (cl-count-if) (error err))
 (fboundp 'cl-eighth)
-(condition-case err (cl-eighth) (error err))
+(condition-case err (cl-eighth '(a b c d e f g h)) (error err))
 (fboundp 'cl-evenp)
 (condition-case err (cl-evenp) (error err))
 (fboundp 'cl-every)

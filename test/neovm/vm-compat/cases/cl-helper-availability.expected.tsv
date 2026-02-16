@@ -8,8 +8,8 @@
 8	(condition-case err (cl-count) (error err))	OK (void-function cl-count)
 9	(fboundp 'cl-count-if)	OK nil
 10	(condition-case err (cl-count-if) (error err))	OK (void-function cl-count-if)
-11	(fboundp 'cl-eighth)	OK nil
-12	(condition-case err (cl-eighth) (error err))	OK (void-function cl-eighth)
+11	(fboundp 'cl-eighth)	OK t
+12	(condition-case err (cl-eighth '(a b c d e f g h)) (error err))	OK h
 13	(fboundp 'cl-evenp)	OK nil
 14	(condition-case err (cl-evenp) (error err))	OK (void-function cl-evenp)
 15	(fboundp 'cl-every)	OK nil

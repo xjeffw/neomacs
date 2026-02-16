@@ -136,6 +136,12 @@ pub(crate) fn builtin_cl_seventh(args: Vec<Value>) -> EvalResult {
     cl_list_nth(&args[0], 6)
 }
 
+/// `(cl-eighth LIST)` -- return the eighth element of LIST.
+pub(crate) fn builtin_cl_eighth(args: Vec<Value>) -> EvalResult {
+    expect_args("cl-eighth", &args, 1)?;
+    cl_list_nth(&args[0], 7)
+}
+
 fn seq_position_list_elements(seq: &Value) -> Result<Vec<Value>, Flow> {
     let mut elements = Vec::new();
     let mut cursor = seq.clone();
@@ -881,6 +887,33 @@ mod tests {
     #[test]
     fn cl_seventh_wrong_type() {
         assert!(builtin_cl_seventh(vec![Value::Int(1)]).is_err());
+    }
+
+    #[test]
+    fn cl_eighth_list() {
+        let list = Value::list(vec![
+            Value::symbol("a"),
+            Value::symbol("b"),
+            Value::symbol("c"),
+            Value::symbol("d"),
+            Value::symbol("e"),
+            Value::symbol("f"),
+            Value::symbol("g"),
+            Value::symbol("h"),
+        ]);
+        let result = builtin_cl_eighth(vec![list]).unwrap();
+        assert!(matches!(result, Value::Symbol(s) if s == "h"));
+    }
+
+    #[test]
+    fn cl_eighth_nil() {
+        let result = builtin_cl_eighth(vec![Value::Nil]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn cl_eighth_wrong_type() {
+        assert!(builtin_cl_eighth(vec![Value::Int(1)]).is_err());
     }
 
     #[test]
