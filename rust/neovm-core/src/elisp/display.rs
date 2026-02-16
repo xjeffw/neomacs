@@ -8,12 +8,11 @@ use super::error::{signal, EvalResult, Flow};
 use super::value::*;
 use crate::window::{FrameId, WindowId};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 thread_local! {
-    static TERMINAL_PARAMS: RefCell<HashMap<HashKey, Value>> = RefCell::new(HashMap::new());
+    static TERMINAL_PARAMS: RefCell<Vec<(Value, Value)>> = const { RefCell::new(Vec::new()) };
     static TERMINAL_HANDLE: Arc<Mutex<Vec<Value>>> =
         Arc::new(Mutex::new(vec![Value::symbol("--neovm-terminal--")]));
 }
@@ -59,11 +58,9 @@ fn expect_range_args(name: &str, args: &[Value], min: usize, max: usize) -> Resu
     }
 }
 
-fn expect_symbol_key(value: &Value) -> Result<HashKey, Flow> {
+fn expect_symbol_key(value: &Value) -> Result<Value, Flow> {
     match value {
-        Value::Nil | Value::True | Value::Symbol(_) | Value::Keyword(_) => {
-            Ok(value.to_hash_key(&HashTableTest::Eq))
-        }
+        Value::Nil | Value::True | Value::Symbol(_) | Value::Keyword(_) => Ok(value.clone()),
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("symbolp"), other.clone()],
@@ -881,8 +878,14 @@ pub(crate) fn builtin_terminal_parameter(args: Vec<Value>) -> EvalResult {
     TERMINAL_PARAMS.with(|slot| {
         Ok(slot
             .borrow()
-            .get(&key)
-            .cloned()
+            .iter()
+            .find_map(|(stored_key, stored_value)| {
+                if eq_value(stored_key, &key) {
+                    Some(stored_value.clone())
+                } else {
+                    None
+                }
+            })
             .unwrap_or(Value::Nil))
     })
 }
@@ -900,8 +903,14 @@ pub(crate) fn builtin_terminal_parameter_eval(
     TERMINAL_PARAMS.with(|slot| {
         Ok(slot
             .borrow()
-            .get(&key)
-            .cloned()
+            .iter()
+            .find_map(|(stored_key, stored_value)| {
+                if eq_value(stored_key, &key) {
+                    Some(stored_value.clone())
+                } else {
+                    None
+                }
+            })
             .unwrap_or(Value::Nil))
     })
 }
@@ -913,10 +922,21 @@ pub(crate) fn builtin_set_terminal_parameter(args: Vec<Value>) -> EvalResult {
     if matches!(args[1], Value::Str(_)) {
         return Ok(Value::Nil);
     }
-    let key = args[1].to_hash_key(&HashTableTest::Eq);
-    let previous =
-        TERMINAL_PARAMS.with(|slot| slot.borrow_mut().insert(key, args[2].clone()));
-    Ok(previous.unwrap_or(Value::Nil))
+    let key = args[1].clone();
+    TERMINAL_PARAMS.with(|slot| {
+        let mut params = slot.borrow_mut();
+        if let Some((_, stored_value)) = params
+            .iter_mut()
+            .find(|(stored_key, _)| eq_value(stored_key, &key))
+        {
+            let previous = stored_value.clone();
+            *stored_value = args[2].clone();
+            return Ok(previous);
+        }
+
+        params.push((key, args[2].clone()));
+        Ok(Value::Nil)
+    })
 }
 
 /// Evaluator-aware variant of `set-terminal-parameter`.
@@ -931,10 +951,21 @@ pub(crate) fn builtin_set_terminal_parameter_eval(
     if matches!(args[1], Value::Str(_)) {
         return Ok(Value::Nil);
     }
-    let key = args[1].to_hash_key(&HashTableTest::Eq);
-    let previous =
-        TERMINAL_PARAMS.with(|slot| slot.borrow_mut().insert(key, args[2].clone()));
-    Ok(previous.unwrap_or(Value::Nil))
+    let key = args[1].clone();
+    TERMINAL_PARAMS.with(|slot| {
+        let mut params = slot.borrow_mut();
+        if let Some((_, stored_value)) = params
+            .iter_mut()
+            .find(|(stored_key, _)| eq_value(stored_key, &key))
+        {
+            let previous = stored_value.clone();
+            *stored_value = args[2].clone();
+            return Ok(previous);
+        }
+
+        params.push((key, args[2].clone()));
+        Ok(Value::Nil)
+    })
 }
 
 // ---------------------------------------------------------------------------
