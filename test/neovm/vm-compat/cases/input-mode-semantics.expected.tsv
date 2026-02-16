@@ -1,0 +1,13 @@
+1	(current-input-mode)	OK (t nil t 7)
+2	(set-input-mode nil nil nil nil)	OK nil
+3	(current-input-mode)	OK (nil nil t 7)
+4	(set-input-mode t nil nil nil)	OK nil
+5	(current-input-mode)	OK (t nil t 7)
+6	(set-input-mode nil t nil nil)	OK nil
+7	(current-input-mode)	OK (nil nil t 7)
+8	(set-input-mode nil nil nil 65)	OK nil
+9	(current-input-mode)	OK (nil nil t 7)
+10	(condition-case err (set-input-mode nil nil nil) (list (car err) (cdr err)))	OK nil
+11	(condition-case err (set-input-mode nil nil nil nil nil) (list (car err) (cdr err)))	ERR (wrong-number-of-arguments (set-input-mode 5))
+12	(condition-case err (current-input-mode nil) (list (car err) (cdr err)))	ERR (wrong-number-of-arguments (current-input-mode 1))
+13	(let ((ret (set-input-mode t 'flow 'meta 'quit))) (list ret (current-input-mode)))	OK (nil (t nil t 7))
