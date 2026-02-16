@@ -888,7 +888,21 @@ pub(crate) fn builtin_shell_command_to_string(args: Vec<Value>) -> EvalResult {
 
 /// (getenv VARIABLE) -> string or nil
 pub(crate) fn builtin_getenv(args: Vec<Value>) -> EvalResult {
-    expect_args("getenv", &args, 1)?;
+    expect_min_args("getenv", &args, 1)?;
+    if args.len() > 2 {
+        return Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol("getenv"), Value::Int(args.len() as i64)],
+        ));
+    }
+    if let Some(frame) = args.get(1) {
+        if !frame.is_nil() {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("framep"), frame.clone()],
+            ));
+        }
+    }
     let name = expect_string(&args[0])?;
     match std::env::var(&name) {
         Ok(val) => Ok(Value::string(val)),
@@ -1424,6 +1438,30 @@ mod tests {
     fn getenv_nonexistent() {
         let result = eval_one(r#"(getenv "NEOVM_DEFINITELY_NOT_SET_12345")"#);
         assert_eq!(result, "OK nil");
+    }
+
+    #[test]
+    fn getenv_accepts_optional_nil_frame_arg() {
+        let result = eval_one(
+            r#"(condition-case err
+                   (let ((v (getenv "HOME" nil)))
+                     (if (stringp v) 'string v))
+                 (error err))"#,
+        );
+        assert_eq!(result, "OK string");
+    }
+
+    #[test]
+    fn getenv_rejects_non_nil_frame_arg_before_variable_type_check() {
+        let result = eval_one(r#"(condition-case err (getenv 1 '(x)) (error err))"#);
+        assert_eq!(result, "OK (wrong-type-argument framep (x))");
+    }
+
+    #[test]
+    fn getenv_rejects_more_than_two_args() {
+        let result =
+            eval_one(r#"(condition-case err (getenv "HOME" nil nil) (error (car err)))"#);
+        assert_eq!(result, "OK wrong-number-of-arguments");
     }
 
     #[test]

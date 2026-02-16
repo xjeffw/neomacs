@@ -467,6 +467,7 @@ fn subr_arity_value(name: &str) -> Value {
         "process-list" => arity_cons(0, Some(0)),
         "process-send-string" => arity_cons(2, Some(2)),
         "start-process" => arity_cons(3, None),
+        "getenv" => arity_cons(1, Some(2)),
         // Display/terminal query primitives
         "display-images-p" | "display-graphic-p" | "display-color-p" | "display-pixel-width"
         | "display-pixel-height" | "display-mm-width" | "display-mm-height"
@@ -862,6 +863,7 @@ mod tests {
         assert_subr_arity("call-process", 1, None);
         assert_subr_arity("call-process-region", 3, None);
         assert_subr_arity("delete-process", 0, Some(1));
+        assert_subr_arity("getenv", 1, Some(2));
         assert_subr_arity("process-buffer", 1, Some(1));
         assert_subr_arity("process-exit-status", 1, Some(1));
         assert_subr_arity("process-list", 0, Some(0));
