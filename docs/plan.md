@@ -25,6 +25,33 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented `current-input-mode` / `set-input-mode` batch parity and locked oracle coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/eval.rs`
+      - added evaluator-owned batch input-mode state (`input_mode_interrupt`) and accessors for `current-input-mode`.
+    - `rust/neovm-core/src/elisp/reader.rs`
+      - added `current-input-mode` and `set-input-mode` builtins.
+      - batch-compatible behavior:
+        - `current-input-mode` returns `(INTERRUPT nil t 7)`.
+        - `set-input-mode` accepts 3..4 args, returns `nil`, and updates interrupt flag only.
+      - added unit coverage for defaults, arity, 3-arg acceptance, and interrupt toggling.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `current-input-mode` and `set-input-mode` into evaluator dispatch.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added both names to dispatch builtin registry.
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added arity metadata:
+        - `current-input-mode` -> `(0 . 0)`
+        - `set-input-mode` -> `(3 . 4)`
+    - `test/neovm/vm-compat/cases/input-mode-semantics.forms`
+    - `test/neovm/vm-compat/cases/input-mode-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in for state transitions and arity error payloads.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_input_mode -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/input-mode-semantics` (pass, 13/13)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented `discard-input` with dynamic `unread-command-events` mutation parity and locked oracle coverage:
   - updated:
     - `rust/neovm-core/src/elisp/reader.rs`
