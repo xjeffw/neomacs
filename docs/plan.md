@@ -6677,6 +6677,13 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kmacro-helper-availability` (pass, 14/14)
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/kmacro-arity-semantics` (pass, 12/12)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` drift count reduced from 77 to 70
+- Aligned startup `fboundp` surface for bookmark helper functions with GNU Emacs `-Q`:
+  - removed default dispatch/registry exposure of `bookmark-all-names`, `bookmark-get-filename`, `bookmark-get-position`, `bookmark-get-annotation`, and `bookmark-set-annotation`
+  - refreshed oracle baseline:
+    - `test/neovm/vm-compat/cases/bookmark-helper-availability.expected.tsv`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/bookmark-helper-availability` (pass, 10/10)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` drift count reduced from 70 to 65
 
 ## Doing
 
