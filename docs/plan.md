@@ -20,6 +20,19 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Added dedicated `thing-at-point 'line` oracle corpus coverage:
+  - updated:
+    - `test/neovm/vm-compat/cases/thing-at-point-line-semantics.forms`
+      - added line extraction and bounds probes for first/second line positions.
+      - encoded line payloads with `string-to-list` to avoid newline rendering ambiguity in TSV output.
+    - `test/neovm/vm-compat/cases/thing-at-point-line-semantics.expected.tsv`
+      - recorded oracle baseline outputs for line thing-at-point behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/thing-at-point-line-semantics` to recurring compatibility execution.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/thing-at-point-line-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Aligned decimal-dot number point semantics for `thing-at-point` with oracle:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
