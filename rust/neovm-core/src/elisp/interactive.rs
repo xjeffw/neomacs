@@ -850,19 +850,7 @@ pub(crate) fn builtin_local_key_binding(eval: &mut Evaluator, args: Vec<Value>) 
             return Ok(Value::Nil);
         }
     };
-    if events.is_empty() {
-        return Ok(Value::Nil);
-    }
-
-    if events.len() == 1 {
-        if let Some(binding) = eval.keymaps.lookup_key(local_id, &events[0]) {
-            return Ok(key_binding_to_value(binding));
-        }
-    } else if let Some(binding) = eval.keymaps.lookup_key_sequence(local_id, &events) {
-        return Ok(key_binding_to_value(binding));
-    }
-
-    Ok(Value::Nil)
+    Ok(lookup_keymap_with_partial(eval, local_id, &events))
 }
 
 /// `(global-key-binding KEY &optional ACCEPT-DEFAULTS)`
@@ -881,18 +869,8 @@ pub(crate) fn builtin_global_key_binding(eval: &mut Evaluator, args: Vec<Value>)
             return Ok(Value::Nil);
         }
     };
-    if events.is_empty() {
-        return Ok(Value::Nil);
-    }
-
     if let Some(global_id) = eval.keymaps.global_map() {
-        if events.len() == 1 {
-            if let Some(binding) = eval.keymaps.lookup_key(global_id, &events[0]) {
-                return Ok(key_binding_to_value(binding));
-            }
-        } else if let Some(binding) = eval.keymaps.lookup_key_sequence(global_id, &events) {
-            return Ok(key_binding_to_value(binding));
-        }
+        return Ok(lookup_keymap_with_partial(eval, global_id, &events));
     }
 
     Ok(Value::Nil)
@@ -1551,6 +1529,37 @@ fn key_event_to_value(event: &KeyEvent) -> Value {
 
 fn key_sequence_to_value(seq: &[KeyEvent]) -> Value {
     Value::vector(seq.iter().map(key_event_to_value).collect())
+}
+
+fn lookup_keymap_with_partial(eval: &Evaluator, map_id: u64, events: &[KeyEvent]) -> Value {
+    if events.is_empty() {
+        return Value::Int(map_id as i64);
+    }
+
+    if events.len() == 1 {
+        return match eval.keymaps.lookup_key(map_id, &events[0]) {
+            Some(binding) => key_binding_to_value(binding),
+            None => Value::Nil,
+        };
+    }
+
+    let mut current_map = map_id;
+    for (i, key) in events.iter().enumerate() {
+        let Some(binding) = eval.keymaps.lookup_key(current_map, key) else {
+            return if i == 0 { Value::Int(1) } else { Value::Nil };
+        };
+
+        if i == events.len() - 1 {
+            return key_binding_to_value(binding);
+        }
+
+        match binding {
+            KeyBinding::Prefix(next_map) => current_map = *next_map,
+            _ => return Value::Int((i + 1) as i64),
+        }
+    }
+
+    Value::Nil
 }
 
 fn binding_matches_definition(binding: &KeyBinding, definition: &Value) -> bool {
