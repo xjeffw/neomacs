@@ -487,6 +487,20 @@ fn subr_arity_value(name: &str) -> Value {
         "replace-match" => arity_cons(1, Some(5)),
         "replace-regexp-in-string" => arity_cons(3, Some(7)),
         "string-match" => arity_cons(2, Some(4)),
+        "string-as-multibyte" | "string-as-unibyte" | "string-make-multibyte"
+        | "string-make-unibyte" | "string-to-multibyte" | "string-to-syntax"
+        | "string-to-unibyte" | "substitute-in-file-name" | "syntax-after"
+        | "syntax-class-to-char" | "syntax-table-p" => arity_cons(1, Some(1)),
+        "string-collate-equalp" | "string-collate-lessp" => arity_cons(2, Some(4)),
+        "string-lines" => arity_cons(1, Some(3)),
+        "string-replace" => arity_cons(3, Some(3)),
+        "string-search" => arity_cons(2, Some(3)),
+        "string-version-lessp" => arity_cons(2, Some(2)),
+        "subst-char-in-string" => arity_cons(3, Some(4)),
+        "syntax-ppss" => arity_cons(0, Some(1)),
+        "syntax-ppss-flush-cache" => arity_cons(1, None),
+        "syntax-table" | "standard-case-table" | "standard-category-table"
+        | "standard-syntax-table" => arity_cons(0, Some(0)),
         "search-forward" | "search-backward" | "re-search-forward" | "re-search-backward"
         | "posix-search-forward" | "posix-search-backward" | "word-search-forward"
         | "word-search-backward" => arity_cons(1, Some(4)),
@@ -1916,6 +1930,34 @@ mod tests {
         assert_subr_arity("setcdr", 2, Some(2));
         assert_subr_arity("scan-lists", 3, Some(3));
         assert_subr_arity("scan-sexps", 2, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_string_syntax_helpers_match_oracle() {
+        assert_subr_arity("string-as-multibyte", 1, Some(1));
+        assert_subr_arity("string-as-unibyte", 1, Some(1));
+        assert_subr_arity("string-collate-equalp", 2, Some(4));
+        assert_subr_arity("string-collate-lessp", 2, Some(4));
+        assert_subr_arity("string-lines", 1, Some(3));
+        assert_subr_arity("string-make-multibyte", 1, Some(1));
+        assert_subr_arity("string-make-unibyte", 1, Some(1));
+        assert_subr_arity("string-replace", 3, Some(3));
+        assert_subr_arity("string-search", 2, Some(3));
+        assert_subr_arity("string-to-multibyte", 1, Some(1));
+        assert_subr_arity("string-to-syntax", 1, Some(1));
+        assert_subr_arity("string-to-unibyte", 1, Some(1));
+        assert_subr_arity("string-version-lessp", 2, Some(2));
+        assert_subr_arity("subst-char-in-string", 3, Some(4));
+        assert_subr_arity("substitute-in-file-name", 1, Some(1));
+        assert_subr_arity("syntax-after", 1, Some(1));
+        assert_subr_arity("syntax-class-to-char", 1, Some(1));
+        assert_subr_arity("syntax-ppss", 0, Some(1));
+        assert_subr_arity("syntax-ppss-flush-cache", 1, None);
+        assert_subr_arity("syntax-table", 0, Some(0));
+        assert_subr_arity("syntax-table-p", 1, Some(1));
+        assert_subr_arity("standard-case-table", 0, Some(0));
+        assert_subr_arity("standard-category-table", 0, Some(0));
+        assert_subr_arity("standard-syntax-table", 0, Some(0));
     }
 
     #[test]
