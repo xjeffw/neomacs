@@ -25,6 +25,34 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned display/terminal `subr-arity` metadata and `x-display-color-p` alias shape with GNU Emacs:
+  - updated:
+    - `rust/neovm-core/src/elisp/eval.rs`
+      - initialize startup function-cell alias `x-display-color-p -> display-color-p` (GNU startup-compatible alias cell shape).
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added explicit arity overrides for display/terminal primitives:
+        - `(0 . 1)`: `display-images-p`, `display-graphic-p`, `display-color-p`, `display-pixel-width`, `display-pixel-height`, `display-color-cells`, `terminal-name`, `frame-terminal`, `tty-type`, `tty-top-frame`, `x-display-pixel-width`, `x-display-pixel-height`
+        - `(0 . 0)`: `terminal-list`
+        - `(1 . 1)`: `terminal-live-p`
+        - `(2 . 2)`: `terminal-parameter`
+        - `(3 . 3)`: `set-terminal-parameter`
+      - added unit coverage for this arity matrix.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - added coverage asserting `symbol-function` resolves `x-display-color-p` to symbol alias `display-color-p`.
+    - `test/neovm/vm-compat/cases/display-terminal-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/display-terminal-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added oracle lock-in for display/terminal subr arity matrix and alias-cell behavior.
+  - recorded with official GNU Emacs:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/display-terminal-subr-arity-semantics.forms EXPECTED=cases/display-terminal-subr-arity-semantics.expected.tsv` (pass)
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_display_terminal_primitives_match_oracle -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml symbol_function_resolves_builtin_and_special_names -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/display-terminal-subr-arity-semantics` (pass, 19/19)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/x-display-batch-semantics` (pass, 35/35)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Hardened vm-compat runner parsing for stdout-noisy forms (for example `read-passwd` prompts):
   - updated:
     - `test/neovm/vm-compat/oracle_eval.el`
