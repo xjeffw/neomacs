@@ -23,6 +23,10 @@ pub struct WindowId(pub u64);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct FrameId(pub u64);
 
+/// Keep frame and window numeric domains disjoint while both are represented
+/// as Lisp integers.
+const FRAME_ID_BASE: u64 = 1 << 32;
+
 // ---------------------------------------------------------------------------
 // Window geometry
 // ---------------------------------------------------------------------------
@@ -401,7 +405,7 @@ impl FrameManager {
         Self {
             frames: HashMap::new(),
             selected: None,
-            next_frame_id: 1,
+            next_frame_id: FRAME_ID_BASE,
             next_window_id: 1,
         }
     }
