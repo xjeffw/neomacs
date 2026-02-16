@@ -50,6 +50,7 @@ Last updated: 2026-02-16
 - Keep newly landed `kill-buffer` runtime parity stable while expanding remaining buffer lifecycle/helper drifts.
 - Keep newly landed `set-buffer` deleted-buffer parity stable while expanding remaining buffer designator/runtime drifts.
 - Keep newly landed `get-buffer` designator parity stable while expanding remaining buffer lookup/runtime drifts.
+- Keep newly landed buffer creation helper arity-guard parity stable while expanding remaining buffer lifecycle/helper drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
@@ -64,6 +65,21 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Fixed buffer creation helper missing-arg panics and added oracle lock-in:
+  - updated runtime argument guards:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `get-buffer-create`, `generate-new-buffer-name`, and `generate-new-buffer` now enforce `expect_min_args(..., 1)` before indexing argument 0
+    - replaces worker-thread panic path with GNU Emacs-compatible `(wrong-number-of-arguments ...)` signaling
+  - added evaluator regression:
+    - `buffer_creation_helpers_reject_missing_required_name_arg`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/buffer-create-missing-arg-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml buffer_creation_helpers_reject_missing_required_name_arg -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-create-missing-arg-semantics` (pass)
 
 - Aligned window buffer command missing-buffer/designator semantics with GNU Emacs and added oracle lock-in:
   - updated runtime semantics:
