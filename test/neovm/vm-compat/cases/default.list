@@ -331,6 +331,7 @@ cases/rect-delete-semantics
 cases/rect-kill-semantics
 cases/rect-insert-semantics
 cases/rect-yank-semantics
+cases/rect-killed-rectangle-variable-semantics
 cases/rect-open-semantics
 cases/rect-string-semantics
 cases/rect-replace-semantics
