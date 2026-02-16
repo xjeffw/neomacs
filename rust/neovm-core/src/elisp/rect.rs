@@ -90,6 +90,46 @@ fn expect_char_or_string(value: &Value) -> Result<String, Flow> {
     }
 }
 
+fn dynamic_or_global_symbol_value(eval: &super::eval::Evaluator, name: &str) -> Option<Value> {
+    for frame in eval.dynamic.iter().rev() {
+        if let Some(value) = frame.get(name) {
+            return Some(value.clone());
+        }
+    }
+    eval.obarray.symbol_value(name).cloned()
+}
+
+fn rectangle_strings_to_value(rectangle: &[String]) -> Value {
+    Value::list(
+        rectangle
+            .iter()
+            .map(|s| Value::string(s.clone()))
+            .collect(),
+    )
+}
+
+fn rectangle_strings_from_value(value: &Value) -> Result<Vec<String>, Flow> {
+    let items = list_to_vec(value).ok_or_else(|| {
+        signal(
+            "wrong-type-argument",
+            vec![Value::symbol("listp"), value.clone()],
+        )
+    })?;
+    let mut out = Vec::with_capacity(items.len());
+    for item in items {
+        match item {
+            Value::Str(s) => out.push((*s).clone()),
+            other => {
+                return Err(signal(
+                    "wrong-type-argument",
+                    vec![Value::symbol("buffer-or-string-p"), other],
+                ));
+            }
+        }
+    }
+    Ok(out)
+}
+
 // ---------------------------------------------------------------------------
 // RectangleState — stores the last killed rectangle
 // ---------------------------------------------------------------------------
@@ -476,6 +516,10 @@ pub(crate) fn builtin_kill_rectangle(
         .filter_map(|value| value.as_str().map(ToString::to_string))
         .collect();
     eval.rectangle.killed = killed;
+    eval.obarray.set_symbol_value(
+        "killed-rectangle",
+        rectangle_strings_to_value(&eval.rectangle.killed),
+    );
     Ok(extracted)
 }
 
@@ -490,17 +534,24 @@ pub(crate) fn builtin_yank_rectangle(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("yank-rectangle", &args, 0)?;
-    if eval.rectangle.killed.is_empty() {
+    let rectangle = if let Some(value) = dynamic_or_global_symbol_value(eval, "killed-rectangle") {
+        if value.is_nil() {
+            Vec::new()
+        } else {
+            rectangle_strings_from_value(&value)?
+        }
+    } else {
+        eval.rectangle.killed.clone()
+    };
+    if rectangle.is_empty() {
         return Ok(Value::Nil);
     }
-    let rectangle = Value::list(
-        eval.rectangle
-            .killed
-            .iter()
-            .map(|s| Value::string(s.clone()))
-            .collect(),
+    eval.rectangle.killed = rectangle.clone();
+    eval.obarray.set_symbol_value(
+        "killed-rectangle",
+        rectangle_strings_to_value(&rectangle),
     );
-    builtin_insert_rectangle(eval, vec![rectangle])
+    builtin_insert_rectangle(eval, vec![rectangle_strings_to_value(&rectangle)])
 }
 
 /// `(insert-rectangle RECTANGLE)` -- insert RECTANGLE (a list of strings)
@@ -967,6 +1018,13 @@ mod tests {
             Value::list(vec![Value::string("a"), Value::string("1")])
         );
         assert_eq!(eval.rectangle.killed, vec!["a".to_string(), "1".to_string()]);
+        assert_eq!(
+            eval.obarray
+                .symbol_value("killed-rectangle")
+                .cloned()
+                .expect("killed-rectangle set"),
+            Value::list(vec![Value::string("a"), Value::string("1")])
+        );
         let buffer_after = eval
             .buffers
             .current_buffer()
@@ -1004,6 +1062,40 @@ mod tests {
             .expect("current buffer must exist");
         assert_eq!(buf.buffer_string(), "Xabc\nYdef\n");
         assert_eq!(buf.text.byte_to_char(buf.point()) as i64 + 1, 7);
+    }
+
+    #[test]
+    fn yank_rectangle_uses_killed_rectangle_symbol() {
+        let mut eval = super::super::eval::Evaluator::new();
+        {
+            let buf = eval
+                .buffers
+                .current_buffer_mut()
+                .expect("current buffer must exist");
+            buf.insert("abc\ndef\n");
+            buf.goto_char(0);
+        }
+        eval.obarray.set_symbol_value(
+            "killed-rectangle",
+            Value::list(vec![Value::string("Q"), Value::string("W")]),
+        );
+        let result = builtin_yank_rectangle(&mut eval, vec![]);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nil());
+        let buf = eval
+            .buffers
+            .current_buffer()
+            .expect("current buffer must exist");
+        assert_eq!(buf.buffer_string(), "Qabc\nWdef\n");
+        assert_eq!(buf.text.byte_to_char(buf.point()) as i64 + 1, 7);
+    }
+
+    #[test]
+    fn yank_rectangle_non_list_symbol_errors() {
+        let mut eval = super::super::eval::Evaluator::new();
+        eval.obarray.set_symbol_value("killed-rectangle", Value::Int(1));
+        let result = builtin_yank_rectangle(&mut eval, vec![]);
+        assert!(result.is_err());
     }
 
     #[test]
