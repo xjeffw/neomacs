@@ -7962,6 +7962,22 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/abbrev-subr-arity-semantics` (pass, 6/6)
     - `make -C test/neovm/vm-compat validate-case-lists` (pass)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
+- Aligned coding-system primitive `subr-arity` metadata with GNU Emacs and locked parity in corpus:
+  - added arity overrides:
+    - `(1 . 1)`: `coding-system-aliases`, `coding-system-base`, `coding-system-eol-type`, `coding-system-p`, `coding-system-type`
+    - `(2 . 2)`: `coding-system-change-eol-conversion`, `coding-system-change-text-conversion`, `coding-system-get`
+    - `(3 . 3)`: `coding-system-put`
+    - `(0 . 1)`: `coding-system-list`, `coding-system-priority-list`
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/coding-system-subr-arity-semantics.forms`
+    - `test/neovm/vm-compat/cases/coding-system-subr-arity-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `NEOVM_ORACLE_EMACS=/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs make -C test/neovm/vm-compat record FORMS=cases/coding-system-subr-arity-semantics.forms EXPECTED=cases/coding-system-subr-arity-semantics.expected.tsv` (pass)
+    - `cargo test subr_arity_coding_system_primitives_match_oracle -- --nocapture` in `rust/neovm-core` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/coding-system-subr-arity-semantics` (pass, 11/11)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass, 1 allowlisted drift)
 
 ## Doing
 
