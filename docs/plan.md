@@ -19,6 +19,17 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Added recursive-edit/top-level arity compatibility corpus:
+  - updated:
+    - `test/neovm/vm-compat/cases/recursive-top-level-arity-semantics.{forms,expected.tsv}`
+      - added lock-ins for `recursive-edit` and `top-level` over-arity signaling.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/recursive-top-level-arity-semantics`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/recursive-top-level-arity-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Added CCL arity compatibility corpus:
   - updated:
     - `test/neovm/vm-compat/cases/ccl-arity-semantics.{forms,expected.tsv}`
