@@ -419,6 +419,7 @@ fn subr_arity_value(name: &str) -> Value {
             arity_cons(1, Some(1))
         }
         "newline" | "next-line" => arity_cons(0, Some(2)),
+        "previous-line" => arity_cons(0, Some(2)),
         "newline-and-indent" => arity_cons(0, Some(1)),
         "open-line" => arity_cons(1, Some(1)),
         "other-window" | "goto-line" => arity_cons(1, Some(3)),
@@ -575,6 +576,18 @@ fn subr_arity_value(name: &str) -> Value {
         "move-to-window-line" | "move-point-visually" => arity_cons(1, Some(1)),
         "modify-frame-parameters" => arity_cons(2, Some(2)),
         "make-frame" => arity_cons(0, Some(1)),
+        "get-unused-category" => arity_cons(0, Some(1)),
+        "make-category-set" | "flatten-tree" | "forward-comment" | "natnump" => {
+            arity_cons(1, Some(1))
+        }
+        "make-category-table" | "preceding-char" => arity_cons(0, Some(0)),
+        "make-char-table" => arity_cons(1, Some(2)),
+        "modify-category-entry" => arity_cons(2, Some(4)),
+        "modify-syntax-entry" | "plist-get" => arity_cons(2, Some(3)),
+        "plist-put" => arity_cons(3, Some(4)),
+        "parse-partial-sexp" => arity_cons(2, Some(6)),
+        "forward-sexp" => arity_cons(0, Some(2)),
+        "file-attributes-lessp" => arity_cons(2, Some(2)),
         "called-interactively-p" | "float-time" => arity_cons(0, Some(1)),
         "featurep" => arity_cons(1, Some(2)),
         "commandp" => arity_cons(1, Some(2)),
@@ -1841,6 +1854,26 @@ mod tests {
         assert_subr_arity("internal-set-alternative-font-registry-alist", 1, Some(1));
         assert_subr_arity("internal-set-font-selection-order", 1, Some(1));
         assert_subr_arity("internal-set-lisp-face-attribute", 3, Some(4));
+    }
+
+    #[test]
+    fn subr_arity_syntax_category_plist_helpers_match_oracle() {
+        assert_subr_arity("file-attributes-lessp", 2, Some(2));
+        assert_subr_arity("flatten-tree", 1, Some(1));
+        assert_subr_arity("forward-comment", 1, Some(1));
+        assert_subr_arity("forward-sexp", 0, Some(2));
+        assert_subr_arity("get-unused-category", 0, Some(1));
+        assert_subr_arity("make-category-set", 1, Some(1));
+        assert_subr_arity("make-category-table", 0, Some(0));
+        assert_subr_arity("make-char-table", 1, Some(2));
+        assert_subr_arity("modify-category-entry", 2, Some(4));
+        assert_subr_arity("modify-syntax-entry", 2, Some(3));
+        assert_subr_arity("parse-partial-sexp", 2, Some(6));
+        assert_subr_arity("plist-get", 2, Some(3));
+        assert_subr_arity("plist-put", 3, Some(4));
+        assert_subr_arity("natnump", 1, Some(1));
+        assert_subr_arity("preceding-char", 0, Some(0));
+        assert_subr_arity("previous-line", 0, Some(2));
     }
 
     #[test]
