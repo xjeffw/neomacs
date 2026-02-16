@@ -4441,6 +4441,7 @@ pub(crate) fn builtin_get_buffer_create(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_min_args("get-buffer-create", &args, 1)?;
     expect_max_args("get-buffer-create", &args, 2)?;
     let name = expect_string(&args[0])?;
     if let Some(id) = eval.buffers.find_buffer_by_name(&name) {
@@ -5085,6 +5086,7 @@ pub(crate) fn builtin_generate_new_buffer_name(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_min_args("generate-new-buffer-name", &args, 1)?;
     expect_max_args("generate-new-buffer-name", &args, 2)?;
     if args.len() == 2
         && !matches!(
@@ -5106,6 +5108,7 @@ pub(crate) fn builtin_generate_new_buffer(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
+    expect_min_args("generate-new-buffer", &args, 1)?;
     expect_max_args("generate-new-buffer", &args, 2)?;
     let base = expect_string(&args[0])?;
     let name = eval.buffers.generate_new_buffer_name(&base);
@@ -9873,6 +9876,47 @@ mod tests {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-number-of-arguments");
                 assert_eq!(sig.data, vec![Value::symbol("get-buffer-create"), Value::Int(3)]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn buffer_creation_helpers_reject_missing_required_name_arg() {
+        let mut eval = super::super::eval::Evaluator::new();
+
+        let err = builtin_get_buffer_create(&mut eval, vec![])
+            .expect_err("get-buffer-create should reject missing required arg");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(sig.data, vec![Value::symbol("get-buffer-create"), Value::Int(0)]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+
+        let err = builtin_generate_new_buffer_name(&mut eval, vec![])
+            .expect_err("generate-new-buffer-name should reject missing required arg");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("generate-new-buffer-name"), Value::Int(0)]
+                );
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+
+        let err = builtin_generate_new_buffer(&mut eval, vec![])
+            .expect_err("generate-new-buffer should reject missing required arg");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("generate-new-buffer"), Value::Int(0)]
+                );
             }
             other => panic!("unexpected flow: {other:?}"),
         }
