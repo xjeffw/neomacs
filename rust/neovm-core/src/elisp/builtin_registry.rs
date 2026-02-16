@@ -466,6 +466,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "kill-whole-line",
     "kill-word",
     "ldexp",
+    "last-kbd-macro",
     "last-nonminibuffer-frame",
     "length",
     "libxml-available-p",

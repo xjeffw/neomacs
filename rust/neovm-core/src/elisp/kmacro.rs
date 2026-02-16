@@ -460,6 +460,18 @@ pub(crate) fn builtin_executing_kbd_macro_p(
     Ok(Value::bool(eval.kmacro.executing))
 }
 
+/// (last-kbd-macro) -> last recorded macro vector or nil.
+pub(crate) fn builtin_last_kbd_macro(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("last-kbd-macro", &args, 0)?;
+    match &eval.kmacro.last_macro {
+        Some(keys) => Ok(Value::vector(keys.clone())),
+        None => Ok(Value::Nil),
+    }
+}
+
 /// (store-kbd-macro-event EVENT) -> nil
 ///
 /// Add EVENT to the keyboard macro currently being recorded.
@@ -778,6 +790,27 @@ mod tests {
 
         assert!(builtin_defining_kbd_macro_p(&mut eval, vec![Value::Nil]).is_err());
         assert!(builtin_executing_kbd_macro_p(&mut eval, vec![Value::Nil]).is_err());
+    }
+
+    #[test]
+    fn test_last_kbd_macro_builtin() {
+        use super::super::eval::Evaluator;
+
+        let mut eval = Evaluator::new();
+
+        assert_eq!(builtin_last_kbd_macro(&mut eval, vec![]).unwrap(), Value::Nil);
+
+        eval.kmacro.last_macro = Some(vec![Value::Char('x'), Value::Char('y')]);
+        let value = builtin_last_kbd_macro(&mut eval, vec![]).unwrap();
+        match value {
+            Value::Vector(v) => {
+                let items = v.lock().expect("poisoned");
+                assert_eq!(*items, vec![Value::Char('x'), Value::Char('y')]);
+            }
+            other => panic!("expected vector, got {other:?}"),
+        }
+
+        assert!(builtin_last_kbd_macro(&mut eval, vec![Value::Nil]).is_err());
     }
 
     #[test]
