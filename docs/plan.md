@@ -10,16 +10,36 @@ Last updated: 2026-02-16
 - Keep recurring full-corpus `check-all-neovm` gates after each compatibility batch.
 - Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
 - Keep recent coding-system compatibility slices stable while shifting primary focus to display/font/input stubs.
-- Shift compatibility slices to remaining high-impact display/font/input stubs.
+- Keep low-risk list/alist primitive semantics aligned while shifting compatibility slices to remaining high-impact display/font/input stubs.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
 2. Land the next evaluator-backed stub replacement outside `rect` (prefer display/input path with high package impact).
-3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths).
+3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 
 ## Done
+
+- Aligned `assoc-default` / `make-list` runtime semantics with oracle and added dedicated corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/misc.rs`
+      - `assoc-default` now enforces `listp` on alist argument (`wrong-type-argument listp` on non-list).
+      - `assoc-default` now rejects unsupported `TEST` designators with `invalid-function`.
+      - `assoc-default` now returns nil on misses (including when DEFAULT is provided), matching oracle behavior.
+      - `make-list` now validates length with `wholenump` (`wrong-type-argument wholenump` on invalid length).
+      - expanded focused unit coverage for new error/value paths.
+    - `test/neovm/vm-compat/cases/assoc-default-make-list-semantics.forms`
+      - added oracle probes for assoc-default list/type/test edges and make-list length/type edges.
+    - `test/neovm/vm-compat/cases/assoc-default-make-list-semantics.expected.tsv`
+      - recorded oracle baseline outputs for assoc-default/make-list semantics.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/assoc-default-make-list-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test assoc_default --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test make_list --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/assoc-default-make-list-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
 
 - Aligned `locale-info` runtime semantics with oracle for day/month/paper payloads and expanded corpus lock-in:
   - updated:
