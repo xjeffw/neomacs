@@ -84,6 +84,27 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `frame-selected-window` runtime+`subr-arity` behavior with GNU Emacs and added oracle lock-in:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - added evaluator-backed `frame-selected-window` builtin implementation with optional frame designator handling.
+    - argument validation now signals `(wrong-type-argument frame-live-p VALUE)` for invalid/stale frame designators.
+  - updated dispatch/introspection wiring:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+    - registered builtin dispatch entry and `subr-arity` metadata `(0 . 1)`.
+  - added evaluator regression:
+    - `frame_selected_window_arity_and_designators`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/frame-selected-window-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml frame_selected_window_arity_and_designators` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/frame-selected-window-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-commandp` (pass)
+
 - Aligned `set-window-buffer` max-arity runtime behavior with GNU Emacs and added oracle lock-in:
   - updated runtime behavior:
     - `rust/neovm-core/src/elisp/window_cmds.rs`
