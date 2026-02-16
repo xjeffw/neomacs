@@ -400,6 +400,12 @@ fn subr_arity_value(name: &str) -> Value {
         "end-kbd-macro" | "call-last-kbd-macro" => arity_cons(0, Some(2)),
         "execute-kbd-macro" | "execute-extended-command" => arity_cons(1, Some(3)),
         "describe-key-briefly" => arity_cons(0, Some(3)),
+        "delete-char" => arity_cons(1, Some(2)),
+        "delete-region" => arity_cons(2, Some(2)),
+        "delete-horizontal-space" => arity_cons(0, Some(1)),
+        "delete-indentation" => arity_cons(0, Some(3)),
+        "delete-overlay" => arity_cons(1, Some(1)),
+        "delete-window" => arity_cons(0, Some(1)),
         "help-key-description" => arity_cons(2, Some(2)),
         "recent-keys" => arity_cons(0, Some(1)),
         "input-pending-p" => arity_cons(0, Some(1)),
@@ -992,6 +998,16 @@ mod tests {
         assert_subr_arity("execute-kbd-macro", 1, Some(3));
         assert_subr_arity("execute-extended-command", 1, Some(3));
         assert_subr_arity("describe-key-briefly", 0, Some(3));
+    }
+
+    #[test]
+    fn subr_arity_delete_primitives_match_oracle() {
+        assert_subr_arity("delete-char", 1, Some(2));
+        assert_subr_arity("delete-region", 2, Some(2));
+        assert_subr_arity("delete-horizontal-space", 0, Some(1));
+        assert_subr_arity("delete-indentation", 0, Some(3));
+        assert_subr_arity("delete-overlay", 1, Some(1));
+        assert_subr_arity("delete-window", 0, Some(1));
     }
 
     #[test]
