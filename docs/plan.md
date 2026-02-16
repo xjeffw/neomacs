@@ -25,6 +25,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `event-convert-list` control-code integer semantics for already-controlled ASCII (`0..31`) with oracle:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - when `control` modifier is applied to integer codepoints already in `0..31`, clear `KEY_CHAR_CTRL` bit so result stays plain control code.
+    - `test/neovm/vm-compat/cases/event-builtins-semantics.forms`
+      - added explicit probes:
+        - `(event-convert-list '(control 0))`
+        - `(event-convert-list '(control 1))`
+        - `(event-convert-list '(control 31))`
+    - `test/neovm/vm-compat/cases/event-builtins-semantics.expected.tsv`
+      - refreshed oracle baseline for expanded control-code integer matrix.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/event-builtins-semantics` (pass, 56/56)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only allowlisted `neovm-precompile-file` drift)
+
 - Aligned `event-apply-modifier` shift-edge tilde behavior with oracle:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
