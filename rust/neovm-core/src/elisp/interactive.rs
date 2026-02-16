@@ -894,6 +894,16 @@ pub(crate) fn builtin_global_key_binding(eval: &mut Evaluator, args: Vec<Value>)
     if let Some(global_id) = eval.keymaps.global_map() {
         return Ok(lookup_keymap_with_partial(eval, global_id, &events));
     }
+    if let Some(raw) = args[0].as_str() {
+        if let Some(first) = raw.chars().next() {
+            if !first.is_control() && first != '\u{7f}' {
+                if raw.chars().nth(1).is_none() {
+                    return Ok(Value::symbol("self-insert-command"));
+                }
+                return Ok(Value::Int(1));
+            }
+        }
+    }
     if events.len() == 1 && is_plain_printable_char_event(&events[0]) {
         return Ok(Value::symbol("self-insert-command"));
     }
@@ -2696,6 +2706,20 @@ mod tests {
         let mut ev = Evaluator::new();
         let result = builtin_global_key_binding(&mut ev, vec![Value::string("a")]).unwrap();
         assert_eq!(result.as_symbol_name(), Some("self-insert-command"));
+    }
+
+    #[test]
+    fn global_key_binding_default_multichar_string_returns_prefix_len() {
+        let mut ev = Evaluator::new();
+        let result = builtin_global_key_binding(&mut ev, vec![Value::string("ab")]).unwrap();
+        assert_eq!(result, Value::Int(1));
+    }
+
+    #[test]
+    fn global_key_binding_default_c_dash_z_string_returns_prefix_len() {
+        let mut ev = Evaluator::new();
+        let result = builtin_global_key_binding(&mut ev, vec![Value::string("C-z")]).unwrap();
+        assert_eq!(result, Value::Int(1));
     }
 
     #[test]
