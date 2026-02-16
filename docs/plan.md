@@ -20,6 +20,9 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Re-ran full `vm-compat` post-slice gate after rectangle compatibility expansion:
+  - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Tightened `insert-rectangle` error payload compatibility:
   - updated:
     - `rust/neovm-core/src/elisp/rect.rs`
