@@ -7615,6 +7615,7 @@ pub(crate) fn dispatch_builtin(
         "seq-reverse" => super::cl_lib::builtin_seq_reverse(args),
         "seq-drop" => super::cl_lib::builtin_seq_drop(args),
         "seq-take" => super::cl_lib::builtin_seq_take(args),
+        "cl-subseq" => super::cl_lib::builtin_cl_subseq(args),
         "seq-subseq" => super::cl_lib::builtin_seq_subseq(args),
         "seq-concatenate" => super::cl_lib::builtin_seq_concatenate(args),
         "seq-empty-p" => super::cl_lib::builtin_seq_empty_p(args),

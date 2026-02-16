@@ -32,6 +32,17 @@ fn expect_min_args(name: &str, args: &[Value], min: usize) -> Result<(), Flow> {
     }
 }
 
+fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
+    if args.len() > max {
+        Err(signal(
+            "wrong-number-of-arguments",
+            vec![Value::symbol(name), Value::Int(args.len() as i64)],
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn expect_int(val: &Value) -> Result<i64, Flow> {
     match val {
         Value::Int(n) => Ok(*n),
@@ -193,6 +204,13 @@ pub(crate) fn builtin_cl_minusp(args: Vec<Value>) -> EvalResult {
     expect_args("cl-minusp", &args, 1)?;
     let n = expect_number_or_marker(&args[0])?;
     Ok(Value::bool(n < 0.0))
+}
+
+/// `(cl-subseq SEQ START &optional END)` -- CL alias for `seq-subseq`.
+pub(crate) fn builtin_cl_subseq(args: Vec<Value>) -> EvalResult {
+    expect_min_args("cl-subseq", &args, 2)?;
+    expect_max_args("cl-subseq", &args, 3)?;
+    builtin_seq_subseq(args)
 }
 
 fn seq_position_list_elements(seq: &Value) -> Result<Vec<Value>, Flow> {
@@ -1112,6 +1130,30 @@ mod tests {
     #[test]
     fn cl_minusp_wrong_type() {
         assert!(builtin_cl_minusp(vec![Value::string("x")]).is_err());
+    }
+
+    #[test]
+    fn cl_subseq_list() {
+        let result = builtin_cl_subseq(vec![
+            Value::list(vec![Value::symbol("a"), Value::symbol("b"), Value::symbol("c")]),
+            Value::Int(1),
+            Value::Int(3),
+        ])
+        .unwrap();
+        assert_eq!(
+            result,
+            Value::list(vec![Value::symbol("b"), Value::symbol("c")])
+        );
+    }
+
+    #[test]
+    fn cl_subseq_wrong_arity() {
+        assert!(builtin_cl_subseq(vec![Value::Int(0)]).is_err());
+    }
+
+    #[test]
+    fn cl_subseq_wrong_type() {
+        assert!(builtin_cl_subseq(vec![Value::Int(0), Value::Int(0)]).is_err());
     }
 
     #[test]
