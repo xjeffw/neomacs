@@ -774,7 +774,27 @@ pub(crate) fn builtin_read_number(
 }
 
 // ---------------------------------------------------------------------------
-// 8. completing-read (stub)
+// 8. read-passwd (stub)
+// ---------------------------------------------------------------------------
+
+/// `(read-passwd PROMPT &optional CONFIRM DEFAULT)`
+///
+/// Batch-mode behavior: signal `end-of-file`.
+pub(crate) fn builtin_read_passwd(
+    _eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("read-passwd", &args, 1)?;
+    expect_max_args("read-passwd", &args, 3)?;
+    let _prompt = expect_string(&args[0])?;
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
+}
+
+// ---------------------------------------------------------------------------
+// 9. completing-read (stub)
 // ---------------------------------------------------------------------------
 
 /// `(completing-read PROMPT COLLECTION ...)`
@@ -827,7 +847,7 @@ fn non_character_input_event_error() -> Flow {
 }
 
 // ---------------------------------------------------------------------------
-// 9. input-pending-p
+// 10. input-pending-p
 // ---------------------------------------------------------------------------
 
 /// `(input-pending-p &optional CHECK-TIMERS)`
@@ -843,7 +863,7 @@ pub(crate) fn builtin_input_pending_p(
 }
 
 // ---------------------------------------------------------------------------
-// 10. discard-input
+// 11. discard-input
 // ---------------------------------------------------------------------------
 
 /// `(discard-input)`
@@ -859,7 +879,7 @@ pub(crate) fn builtin_discard_input(
 }
 
 // ---------------------------------------------------------------------------
-// 11. current-input-mode / set-input-mode
+// 12. current-input-mode / set-input-mode
 // ---------------------------------------------------------------------------
 
 /// `(current-input-mode)` -> `(INTERRUPT FLOW META QUIT)`
@@ -892,7 +912,7 @@ pub(crate) fn builtin_set_input_mode(
 }
 
 // ---------------------------------------------------------------------------
-// 12. input mode helper setters
+// 13. input mode helper setters
 // ---------------------------------------------------------------------------
 
 /// `(set-input-interrupt-mode INTERRUPT)`
@@ -931,7 +951,7 @@ pub(crate) fn builtin_set_quit_char(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 13. waiting-for-user-input-p
+// 14. waiting-for-user-input-p
 // ---------------------------------------------------------------------------
 
 /// `(waiting-for-user-input-p)`
@@ -943,7 +963,7 @@ pub(crate) fn builtin_waiting_for_user_input_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 14. y-or-n-p (stub)
+// 15. y-or-n-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(y-or-n-p PROMPT)`
@@ -967,7 +987,7 @@ pub(crate) fn builtin_y_or_n_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 15. yes-or-no-p (stub)
+// 16. yes-or-no-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(yes-or-no-p PROMPT)`
@@ -983,7 +1003,7 @@ pub(crate) fn builtin_yes_or_no_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 16. read-char (stub)
+// 17. read-char (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-char &optional PROMPT ...)`
@@ -1038,7 +1058,7 @@ pub(crate) fn builtin_read_key(
 }
 
 // ---------------------------------------------------------------------------
-// 17. read-key-sequence (stub)
+// 18. read-key-sequence (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-key-sequence PROMPT)`
@@ -1592,6 +1612,58 @@ mod tests {
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
+    }
+
+    #[test]
+    fn read_passwd_signals_end_of_file() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_passwd(&mut ev, vec![Value::string("")]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"
+        ));
+    }
+
+    #[test]
+    fn read_passwd_accepts_optional_args_and_signals_end_of_file() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_passwd(
+            &mut ev,
+            vec![Value::string(""), Value::True, Value::symbol("default")],
+        );
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "end-of-file"
+        ));
+    }
+
+    #[test]
+    fn read_passwd_rejects_non_string_prompt() {
+        let mut ev = Evaluator::new();
+        let result = builtin_read_passwd(&mut ev, vec![Value::Int(123)]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
+        ));
+    }
+
+    #[test]
+    fn read_passwd_rejects_wrong_arity() {
+        let mut ev = Evaluator::new();
+        let too_few = builtin_read_passwd(&mut ev, vec![]);
+        assert!(matches!(
+            too_few,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+
+        let too_many = builtin_read_passwd(
+            &mut ev,
+            vec![Value::string(""), Value::Nil, Value::Nil, Value::Nil],
+        );
+        assert!(matches!(
+            too_many,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
         ));
     }
 

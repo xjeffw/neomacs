@@ -304,6 +304,7 @@ fn subr_arity_value(name: &str) -> Value {
         }
         "set-output-flow-control" => arity_cons(1, Some(2)),
         "waiting-for-user-input-p" => arity_cons(0, Some(0)),
+        "read-passwd" => arity_cons(1, Some(3)),
         "event-apply-modifier" => arity_cons(4, Some(4)),
         // Threading primitives
         "thread-join" | "thread-name" | "thread-live-p" | "mutexp" | "mutex-name"

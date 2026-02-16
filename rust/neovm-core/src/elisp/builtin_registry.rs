@@ -663,6 +663,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "read-key-sequence-vector",
     "read-non-nil-coding-system",
     "read-number",
+    "read-passwd",
     "read-string",
     "read-variable",
     "recent-keys",
@@ -961,6 +962,7 @@ mod tests {
         assert!(is_dispatch_builtin_name("set-output-flow-control"));
         assert!(is_dispatch_builtin_name("set-quit-char"));
         assert!(is_dispatch_builtin_name("waiting-for-user-input-p"));
+        assert!(is_dispatch_builtin_name("read-passwd"));
         assert!(is_dispatch_builtin_name("minibuffer-prompt"));
         assert!(is_dispatch_builtin_name("minibuffer-contents"));
         assert!(is_dispatch_builtin_name(
