@@ -19,6 +19,26 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented evaluator-aware charset region/point semantics and locked oracle corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/charset.rs`
+      - added evaluator-aware `find-charset-region` behavior with range validation, swap normalization, and charset classification over current buffer text.
+      - added evaluator-aware `charset-after` behavior with point/position lookup, out-of-range nil semantics, and charset mapping (`ascii`/`unicode-bmp`/`unicode`/`eight-bit`).
+      - added focused unit coverage for both evaluator-aware paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - routed evaluator dispatch for `find-charset-region` and `charset-after` to evaluator-aware charset implementations.
+    - `test/neovm/vm-compat/cases/charset-region-after-semantics.forms`
+      - added oracle-backed probes for region charset detection, error classification, and point/position charset lookup.
+    - `test/neovm/vm-compat/cases/charset-region-after-semantics.expected.tsv`
+      - recorded oracle baseline outputs for the new charset corpus.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/charset-region-after-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test find_charset_region_eval --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test charset_after_eval --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/charset-region-after-semantics` (pass, 2/2)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Implemented `extract-rectangle-line` optional `LINE` semantics and locked in neovm-only corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/rect.rs`
