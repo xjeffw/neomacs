@@ -52,6 +52,7 @@ Last updated: 2026-02-16
 - Keep newly landed `get-buffer` designator parity stable while expanding remaining buffer lookup/runtime drifts.
 - Keep newly landed buffer creation helper arity-guard parity stable while expanding remaining buffer lifecycle/helper drifts.
 - Keep newly landed deleted-buffer default parity for `buffer-size`/`buffer-modified-p` stable while expanding remaining buffer metadata drifts.
+- Keep newly landed buffer undo helper designator parity stable while expanding remaining buffer lifecycle/error-path drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
@@ -66,6 +67,25 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned buffer undo helper designator semantics with GNU Emacs and added oracle lock-in:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+    - `buffer-enable-undo`:
+      - deleted buffer objects now return `nil`
+      - missing string designators continue signaling `(error "No buffer named ...")`
+    - `buffer-disable-undo`:
+      - missing string designators now signal `(wrong-type-argument stringp nil)`
+      - deleted buffer objects now signal `(error "Selecting deleted buffer")`
+  - added evaluator regression:
+    - `buffer_undo_designators_match_deleted_and_missing_buffer_semantics`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/buffer-undo-designator-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml buffer_undo_designators_match_deleted_and_missing_buffer_semantics -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-undo-designator-semantics` (pass)
 
 - Aligned deleted-buffer defaults for `buffer-size`/`buffer-modified-p` with GNU Emacs and added oracle lock-in:
   - updated runtime semantics:
