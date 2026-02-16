@@ -19,6 +19,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Enforced buffer/point helper arity compatibility:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - `current-buffer`, `buffer-string`, `point`, `point-min`, and `point-max`
+        now enforce zero arity.
+      - `buffer-name` and `buffer-file-name` now enforce max arity `1`.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/buffer-point-arity-semantics.{forms,expected.tsv}`
+        - locks return-shape and over-arity signaling for core buffer/point helpers.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/buffer-point-arity-semantics`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/buffer-point-arity-semantics` (pass, 17/17)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Enforced runtime identity helper arity contracts:
   - updated:
     - `rust/neovm-core/src/elisp/builtins_extra.rs`
