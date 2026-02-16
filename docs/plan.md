@@ -25,6 +25,21 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented `read-passwd` batch compatibility in reader path:
+  - updated:
+    - `rust/neovm-core/src/elisp/reader.rs`
+      - added `read-passwd` builtin with arity `(1 . 3)`, `PROMPT` string type validation, and batch `end-of-file` signaling (`\"Error reading from stdin\"` payload).
+      - added unit coverage for arity, prompt-type validation, and batch EOF behavior across optional args.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - wired `read-passwd` into evaluator dispatch.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `read-passwd` to dispatch builtin registry.
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added `subr-arity` metadata `(1 . 3)` for `read-passwd`.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml read_passwd -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass)
+
 - Implemented input-mode helper setter compatibility (`set-input-interrupt-mode`, `set-input-meta-mode`, `set-output-flow-control`, `set-quit-char`) and locked oracle coverage:
   - updated:
     - `rust/neovm-core/src/elisp/reader.rs`
