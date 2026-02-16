@@ -41,6 +41,7 @@ Last updated: 2026-02-16
 - Keep newly landed list/sequence helper primitive `subr-arity` parity stable while expanding remaining sequence/search helper drifts.
 - Keep newly landed read-core helper primitive `subr-arity` parity stable while expanding remaining minibuffer/input drifts.
 - Keep newly landed input-mode helper primitive `subr-arity` parity stable while expanding remaining input/runtime drifts.
+- Keep newly landed charset/json/libxml/display helper primitive `subr-arity` parity stable while expanding remaining arity drifts.
 - Keep newly landed filesystem-create helper primitive `subr-arity` parity stable while expanding remaining filesystem helper drifts.
 - Keep newly landed `minor-mode-key-binding` runtime parity slice stable while expanding remaining interactive/keymap stub areas.
 
@@ -52,8 +53,35 @@ Last updated: 2026-02-16
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
+7. Continue subr-arity registry drift reduction from `65` remaining mismatches using batched oracle lock-ins.
 
 ## Done
+
+- Aligned charset/json/libxml/display helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `(3 . 3)`: `merge-face-attribute`, `lookup-image-map`
+    - `(1 . 1)`: `multibyte-char-to-unibyte`, `multibyte-string-p`, `matching-paren`
+    - `(2 . 5)`: `secure-hash`
+    - `(1 . 4)`: `format-mode-line`
+    - `(1 . 5)`: `md5`, `insert-image`
+    - `(2 . 2)`: `make-bool-vector`
+    - `(4 . 4)`: `find-composition-internal`
+    - `(1 . many)`: `json-insert`, `json-parse-string`, `json-serialize`
+    - `(0 . 0)`: `line-pixel-height`, `long-line-optimizations-p`, `libxml-available-p`
+    - `(2 . 3)`: `find-charset-region`
+    - `(1 . 2)`: `find-charset-string`, `insert-abbrev-table-description`
+    - `(17 . many)`: `define-charset-internal`
+    - `(0 . 4)`: `libxml-parse-html-region`, `libxml-parse-xml-region`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/charset-json-libxml-display-subr-arity-semantics.{forms,expected.tsv}`
+    - wired into default suite: `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `subr_arity_charset_json_libxml_display_helpers_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_charset_json_libxml_display_helpers_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/charset-json-libxml-display-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+    - registry scan status: `CURRENT_SUBR_ARITY_MISMATCHES=65`
 
 - Aligned replace/window/io helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
