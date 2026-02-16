@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `cl-gensym` as a callable CL helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - added `cl-gensym` builtin with thread-safe atomic counter and optional string prefix.
+      - added focused unit coverage for default/custom prefix and wrong-type paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - pure CL/seq dispatch now routes `cl-gensym`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `cl-gensym` to builtin registry.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.forms`
+      - switched helper probe to stable callable check `(symbolp (cl-gensym))`.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`t`).
+  - verified:
+    - `cargo test cl_gensym --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `cl-notany` and `cl-notevery` as callable CL helpers:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
