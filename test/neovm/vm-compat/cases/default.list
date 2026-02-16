@@ -348,6 +348,7 @@ cases/other-window-arity-semantics
 cases/window-accessor-arity-semantics
 cases/next-previous-window-arity-semantics
 cases/frame-ops-arity-semantics
+cases/frame-visible-p-semantics
 cases/window-designator-bootstrap-semantics
 cases/window-size-query-semantics
 cases/window-list-frame-designator-semantics
