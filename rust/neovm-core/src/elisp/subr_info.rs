@@ -354,6 +354,12 @@ fn subr_arity_value(name: &str) -> Value {
         "category-table" | "clear-charset-maps" => arity_cons(0, Some(0)),
         "case-table-p" | "category-table-p" | "ccl-program-p" | "check-coding-system"
         | "clear-abbrev-table" => arity_cons(1, Some(1)),
+        "coding-system-aliases" | "coding-system-base" | "coding-system-eol-type"
+        | "coding-system-p" | "coding-system-type" => arity_cons(1, Some(1)),
+        "coding-system-change-eol-conversion" | "coding-system-change-text-conversion"
+        | "coding-system-get" => arity_cons(2, Some(2)),
+        "coding-system-put" => arity_cons(3, Some(3)),
+        "coding-system-list" | "coding-system-priority-list" => arity_cons(0, Some(1)),
         "category-docstring" => arity_cons(1, Some(2)),
         "ccl-execute" => arity_cons(2, Some(2)),
         "ccl-execute-on-string" => arity_cons(3, Some(5)),
@@ -954,6 +960,21 @@ mod tests {
         assert_subr_arity("category-docstring", 1, Some(2));
         assert_subr_arity("ccl-execute", 2, Some(2));
         assert_subr_arity("ccl-execute-on-string", 3, Some(5));
+    }
+
+    #[test]
+    fn subr_arity_coding_system_primitives_match_oracle() {
+        assert_subr_arity("coding-system-aliases", 1, Some(1));
+        assert_subr_arity("coding-system-base", 1, Some(1));
+        assert_subr_arity("coding-system-change-eol-conversion", 2, Some(2));
+        assert_subr_arity("coding-system-change-text-conversion", 2, Some(2));
+        assert_subr_arity("coding-system-eol-type", 1, Some(1));
+        assert_subr_arity("coding-system-get", 2, Some(2));
+        assert_subr_arity("coding-system-list", 0, Some(1));
+        assert_subr_arity("coding-system-p", 1, Some(1));
+        assert_subr_arity("coding-system-priority-list", 0, Some(1));
+        assert_subr_arity("coding-system-put", 3, Some(3));
+        assert_subr_arity("coding-system-type", 1, Some(1));
     }
 
     #[test]
