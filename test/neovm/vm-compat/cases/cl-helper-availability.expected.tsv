@@ -68,10 +68,10 @@
 68	(condition-case err (cl-sixth '(a b c d e f)) (error err))	OK f
 69	(fboundp 'cl-some)	OK t
 70	(condition-case err (cl-some #'numberp '("x" 2)) (error err))	OK t
-71	(fboundp 'cl-sort)	OK nil
-72	(condition-case err (cl-sort) (error err))	OK (void-function cl-sort)
-73	(fboundp 'cl-stable-sort)	OK nil
-74	(condition-case err (cl-stable-sort) (error err))	OK (void-function cl-stable-sort)
+71	(fboundp 'cl-sort)	OK t
+72	(condition-case err (cl-sort '(3 1 2) #'<) (error err))	OK (1 2 3)
+73	(fboundp 'cl-stable-sort)	OK t
+74	(condition-case err (cl-stable-sort '(3 1 2) #'<) (error err))	OK (1 2 3)
 75	(fboundp 'cl-subseq)	OK t
 76	(condition-case err (cl-subseq '(a b c d) 1 3) (error err))	OK (b c)
 77	(fboundp 'cl-subsetp)	OK t

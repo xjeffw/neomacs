@@ -199,6 +199,8 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "cl-seventh",
     "cl-sixth",
     "cl-some",
+    "cl-sort",
+    "cl-stable-sort",
     "cl-subseq",
     "cl-subsetp",
     "cl-substitute",

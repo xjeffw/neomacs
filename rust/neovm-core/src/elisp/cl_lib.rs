@@ -874,6 +874,19 @@ pub(crate) fn builtin_cl_substitute(args: Vec<Value>) -> EvalResult {
     Ok(Value::list(replaced))
 }
 
+/// `(cl-sort SEQ PREDICATE)` -- CL alias for `sort`.
+pub(crate) fn builtin_cl_sort(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    super::builtins::builtin_sort(eval, args)
+}
+
+/// `(cl-stable-sort SEQ PREDICATE)` -- CL alias for stable `sort`.
+pub(crate) fn builtin_cl_stable_sort(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    super::builtins::builtin_sort(eval, args)
+}
+
 /// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
 pub(crate) fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !(2..=3).contains(&args.len()) {
@@ -1874,5 +1887,23 @@ mod tests {
     #[test]
     fn cl_substitute_wrong_arity() {
         assert!(builtin_cl_substitute(vec![Value::Nil]).is_err());
+    }
+
+    #[test]
+    fn cl_sort_with_eval() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let seq = Value::list(vec![Value::Int(3), Value::Int(1), Value::Int(2)]);
+        let result = builtin_cl_sort(&mut evaluator, vec![seq, Value::Subr("<".to_string())]).unwrap();
+        assert_eq!(result, Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
+    }
+
+    #[test]
+    fn cl_stable_sort_with_eval() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let seq = Value::list(vec![Value::Int(3), Value::Int(1), Value::Int(2)]);
+        let result =
+            builtin_cl_stable_sort(&mut evaluator, vec![seq, Value::Subr("<".to_string())])
+                .unwrap();
+        assert_eq!(result, Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
     }
 }

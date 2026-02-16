@@ -6952,6 +6952,8 @@ pub(crate) fn dispatch_builtin(
         "cl-notany" => return Some(super::cl_lib::builtin_cl_notany(eval, args)),
         "cl-notevery" => return Some(super::cl_lib::builtin_cl_notevery(eval, args)),
         "seq-sort" => return Some(super::cl_lib::builtin_seq_sort(eval, args)),
+        "cl-sort" => return Some(super::cl_lib::builtin_cl_sort(eval, args)),
+        "cl-stable-sort" => return Some(super::cl_lib::builtin_cl_stable_sort(eval, args)),
         "json-parse-buffer" => return Some(super::json::builtin_json_parse_buffer(eval, args)),
         "json-insert" => return Some(super::json::builtin_json_insert(eval, args)),
 
