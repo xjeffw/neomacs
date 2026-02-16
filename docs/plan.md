@@ -19,6 +19,23 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `bookmark-get-annotation` as a callable bookmark helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/bookmark.rs`
+      - added `bookmark-get-annotation` builtin (arity `1`) accepting bookmark names or bookmark-record alists.
+      - returns annotation string when present, `nil` for missing bookmarks/fields.
+      - added focused unit coverage for hit/miss lookup behavior.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - bookmark evaluator dispatch now routes `bookmark-get-annotation`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `bookmark-get-annotation` to builtin registry.
+    - `test/neovm/vm-compat/cases/bookmark-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`nil` on missing bookmark).
+  - verified:
+    - `cargo test bookmark_get_annotation --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/bookmark-helper-availability` (pass, 10/10)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `bookmark-get-position` as a callable bookmark helper:
   - updated:
     - `rust/neovm-core/src/elisp/bookmark.rs`
