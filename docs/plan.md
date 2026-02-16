@@ -19,6 +19,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `custom-group-p` as a callable custom helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/custom.rs`
+      - added `custom-group-p` builtin (arity `1`) mapped to the custom-group registry.
+      - added unit coverage validating `defgroup` integration and miss behavior.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - custom evaluator dispatch now routes `custom-group-p`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `custom-group-p` to builtin registry.
+    - `test/neovm/vm-compat/cases/custom-group-p-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`nil` for unresolved group).
+  - verified:
+    - `cargo test custom_group_p --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/custom-group-p-availability` (pass, 2/2)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `bookmark-set-annotation` as a callable bookmark helper:
   - updated:
     - `rust/neovm-core/src/elisp/bookmark.rs`
