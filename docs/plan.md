@@ -25,6 +25,21 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Fixed terminal parameter pointer-key identity/lifetime semantics to match oracle:
+  - updated:
+    - `rust/neovm-core/src/elisp/display.rs`
+      - replaced transient pointer-hash storage for terminal parameters with retained Lisp key/value entries.
+      - lookup/update now use `eq`-style key identity over retained keys, preventing false previous-value hits from pointer address reuse.
+      - preserved symbol-like lookup typing for `terminal-parameter` and string-key ignore semantics for `set-terminal-parameter`.
+    - `test/neovm/vm-compat/cases/terminal-parameter-state-semantics.forms`
+      - added pointer-identity probes for inline quoted list/vector keys and same-object variable keys.
+    - `test/neovm/vm-compat/cases/terminal-parameter-state-semantics.expected.tsv`
+      - refreshed oracle baseline for the expanded key-identity matrix.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/terminal-parameter-state-semantics` (pass, 26/26)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/terminal-parameter-semantics` (pass, 24/24)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml set_terminal_parameter_ -- --nocapture` (pass)
+
 - Aligned `terminal-parameter` symbol-key lookup semantics (`symbol`/`keyword`/`nil`/`t`) with oracle:
   - updated:
     - `rust/neovm-core/src/elisp/display.rs`
