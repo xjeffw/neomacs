@@ -305,7 +305,15 @@ fn subr_arity_value(name: &str) -> Value {
         "beginning-of-line" | "end-of-line" | "beginning-of-buffer" | "end-of-buffer"
         | "forward-char" | "backward-char" | "forward-word" | "backward-word"
         | "forward-line" => arity_cons(0, Some(1)),
-        "point-max" | "point-min" | "bobp" | "eobp" | "bolp" | "eolp" => arity_cons(0, Some(0)),
+        "current-buffer" | "buffer-string" | "point" | "point-max" | "point-min" | "bobp"
+        | "eobp" | "bolp" | "eolp" | "erase-buffer" | "widen" => arity_cons(0, Some(0)),
+        "buffer-file-name" | "buffer-name" | "buffer-size" | "buffer-modified-p"
+        | "buffer-list" | "buffer-disable-undo" | "buffer-enable-undo" | "buffer-hash"
+        | "buffer-local-variables" => arity_cons(0, Some(1)),
+        "buffer-live-p" => arity_cons(1, Some(1)),
+        "buffer-local-value" | "buffer-substring" | "buffer-substring-no-properties" => {
+            arity_cons(2, Some(2))
+        }
         "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
         "defining-kbd-macro" => arity_cons(1, Some(2)),
         "help-key-description" => arity_cons(2, Some(2)),
@@ -775,6 +783,30 @@ mod tests {
         assert_subr_arity("eobp", 0, Some(0));
         assert_subr_arity("bolp", 0, Some(0));
         assert_subr_arity("eolp", 0, Some(0));
+    }
+
+    #[test]
+    fn subr_arity_buffer_point_primitives_match_oracle() {
+        assert_subr_arity("current-buffer", 0, Some(0));
+        assert_subr_arity("buffer-string", 0, Some(0));
+        assert_subr_arity("point", 0, Some(0));
+        assert_subr_arity("point-min", 0, Some(0));
+        assert_subr_arity("point-max", 0, Some(0));
+        assert_subr_arity("erase-buffer", 0, Some(0));
+        assert_subr_arity("widen", 0, Some(0));
+        assert_subr_arity("buffer-file-name", 0, Some(1));
+        assert_subr_arity("buffer-name", 0, Some(1));
+        assert_subr_arity("buffer-size", 0, Some(1));
+        assert_subr_arity("buffer-modified-p", 0, Some(1));
+        assert_subr_arity("buffer-list", 0, Some(1));
+        assert_subr_arity("buffer-disable-undo", 0, Some(1));
+        assert_subr_arity("buffer-enable-undo", 0, Some(1));
+        assert_subr_arity("buffer-hash", 0, Some(1));
+        assert_subr_arity("buffer-local-variables", 0, Some(1));
+        assert_subr_arity("buffer-live-p", 1, Some(1));
+        assert_subr_arity("buffer-local-value", 2, Some(2));
+        assert_subr_arity("buffer-substring", 2, Some(2));
+        assert_subr_arity("buffer-substring-no-properties", 2, Some(2));
     }
 
     #[test]
