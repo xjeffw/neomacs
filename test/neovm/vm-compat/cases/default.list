@@ -69,6 +69,7 @@ cases/eval-subr-arity-semantics
 cases/define-default-subr-arity-semantics
 cases/category-ccl-subr-arity-semantics
 cases/syntax-category-plist-subr-arity-semantics
+cases/set-scan-subr-arity-semantics
 cases/coding-system-subr-arity-semantics
 cases/color-subr-arity-semantics
 cases/copy-cons-subr-arity-semantics

@@ -552,6 +552,7 @@ fn subr_arity_value(name: &str) -> Value {
         "global-key-binding" | "local-key-binding" | "key-description" => arity_cons(1, Some(2)),
         "lookup-key" => arity_cons(2, Some(3)),
         "global-set-key" | "local-set-key" => arity_cons(2, Some(2)),
+        "set-keymap-parent" => arity_cons(2, Some(2)),
         "key-binding" => arity_cons(1, Some(4)),
         "keyboard-coding-system" => arity_cons(0, Some(1)),
         "keyboard-quit" => arity_cons(0, Some(0)),
@@ -559,6 +560,20 @@ fn subr_arity_value(name: &str) -> Value {
         "current-bidi-paragraph-direction" => arity_cons(0, Some(1)),
         "current-case-table" | "current-column" | "current-global-map"
         | "current-indentation" | "current-local-map" => arity_cons(0, Some(0)),
+        "set-buffer" | "set-buffer-modified-p" | "set-case-table" | "set-category-table"
+        | "set-default-file-modes" | "set-standard-case-table" | "set-syntax-table"
+        | "set-time-zone-rule" => arity_cons(1, Some(1)),
+        "set-default" | "set-window-dedicated-p" | "setcar" | "setcdr" => {
+            arity_cons(2, Some(2))
+        }
+        "set-char-table-parent" => arity_cons(2, Some(2)),
+        "set-char-table-extra-slot" | "set-char-table-range" => arity_cons(3, Some(3)),
+        "set-file-modes" => arity_cons(2, Some(3)),
+        "set-file-times" => arity_cons(1, Some(3)),
+        "set-keyboard-coding-system" | "set-match-data" => arity_cons(1, Some(2)),
+        "set-terminal-coding-system" => arity_cons(1, Some(3)),
+        "scan-lists" => arity_cons(3, Some(3)),
+        "scan-sexps" => arity_cons(2, Some(2)),
         "current-kill" => arity_cons(1, Some(2)),
         "current-time-string" | "current-time-zone" => arity_cons(0, Some(2)),
         "system-name" => arity_cons(0, Some(0)),
@@ -1874,6 +1889,33 @@ mod tests {
         assert_subr_arity("natnump", 1, Some(1));
         assert_subr_arity("preceding-char", 0, Some(0));
         assert_subr_arity("previous-line", 0, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_set_scan_helpers_match_oracle() {
+        assert_subr_arity("set-buffer", 1, Some(1));
+        assert_subr_arity("set-buffer-modified-p", 1, Some(1));
+        assert_subr_arity("set-case-table", 1, Some(1));
+        assert_subr_arity("set-category-table", 1, Some(1));
+        assert_subr_arity("set-char-table-extra-slot", 3, Some(3));
+        assert_subr_arity("set-char-table-parent", 2, Some(2));
+        assert_subr_arity("set-char-table-range", 3, Some(3));
+        assert_subr_arity("set-default", 2, Some(2));
+        assert_subr_arity("set-default-file-modes", 1, Some(1));
+        assert_subr_arity("set-file-modes", 2, Some(3));
+        assert_subr_arity("set-file-times", 1, Some(3));
+        assert_subr_arity("set-keyboard-coding-system", 1, Some(2));
+        assert_subr_arity("set-keymap-parent", 2, Some(2));
+        assert_subr_arity("set-match-data", 1, Some(2));
+        assert_subr_arity("set-standard-case-table", 1, Some(1));
+        assert_subr_arity("set-syntax-table", 1, Some(1));
+        assert_subr_arity("set-terminal-coding-system", 1, Some(3));
+        assert_subr_arity("set-time-zone-rule", 1, Some(1));
+        assert_subr_arity("set-window-dedicated-p", 2, Some(2));
+        assert_subr_arity("setcar", 2, Some(2));
+        assert_subr_arity("setcdr", 2, Some(2));
+        assert_subr_arity("scan-lists", 3, Some(3));
+        assert_subr_arity("scan-sexps", 2, Some(2));
     }
 
     #[test]
