@@ -19,6 +19,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `unibyte-charset` as a callable charset helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/charset.rs`
+      - added `unibyte-charset` builtin (arity `0`) returning `eight-bit`.
+      - added focused unit coverage for return symbol behavior.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - charset pure dispatch now routes `unibyte-charset`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `unibyte-charset` to builtin registry.
+    - `test/neovm/vm-compat/cases/charset-api-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`eight-bit`).
+  - verified:
+    - `cargo test unibyte_charset --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/charset-api-availability` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `charset-list` as a callable charset helper:
   - updated:
     - `rust/neovm-core/src/elisp/charset.rs`
