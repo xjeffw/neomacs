@@ -286,10 +286,17 @@ fn arity_cons(min: usize, max: Option<usize>) -> Value {
     Value::cons(min_val, max_val)
 }
 
+fn is_cxr_subr_name(name: &str) -> bool {
+    let Some(inner) = name.strip_prefix('c').and_then(|s| s.strip_suffix('r')) else {
+        return false;
+    };
+    !inner.is_empty() && inner.chars().all(|ch| ch == 'a' || ch == 'd')
+}
+
 fn subr_arity_value(name: &str) -> Value {
     match name {
         // Oracle-compatible overrides for core subrs used in vm-compat.
-        "car" | "cdr" => arity_cons(1, Some(1)),
+        n if is_cxr_subr_name(n) => arity_cons(1, Some(1)),
         "message" => arity_cons(1, None),
         "/" | "<" | "<=" | "=" | ">" | ">=" | "apply" => arity_cons(1, None),
         "1+" | "1-" | "abs" => arity_cons(1, Some(1)),
@@ -768,6 +775,40 @@ mod tests {
         assert_subr_arity("eobp", 0, Some(0));
         assert_subr_arity("bolp", 0, Some(0));
         assert_subr_arity("eolp", 0, Some(0));
+    }
+
+    #[test]
+    fn subr_arity_cxr_family_match_oracle() {
+        assert_subr_arity("car", 1, Some(1));
+        assert_subr_arity("cdr", 1, Some(1));
+        assert_subr_arity("caar", 1, Some(1));
+        assert_subr_arity("cadr", 1, Some(1));
+        assert_subr_arity("cdar", 1, Some(1));
+        assert_subr_arity("cddr", 1, Some(1));
+        assert_subr_arity("caaar", 1, Some(1));
+        assert_subr_arity("caadr", 1, Some(1));
+        assert_subr_arity("cadar", 1, Some(1));
+        assert_subr_arity("caddr", 1, Some(1));
+        assert_subr_arity("cdaar", 1, Some(1));
+        assert_subr_arity("cdadr", 1, Some(1));
+        assert_subr_arity("cddar", 1, Some(1));
+        assert_subr_arity("cdddr", 1, Some(1));
+        assert_subr_arity("caaaar", 1, Some(1));
+        assert_subr_arity("caaadr", 1, Some(1));
+        assert_subr_arity("caadar", 1, Some(1));
+        assert_subr_arity("caaddr", 1, Some(1));
+        assert_subr_arity("cadaar", 1, Some(1));
+        assert_subr_arity("cadadr", 1, Some(1));
+        assert_subr_arity("caddar", 1, Some(1));
+        assert_subr_arity("cadddr", 1, Some(1));
+        assert_subr_arity("cdaaar", 1, Some(1));
+        assert_subr_arity("cdaadr", 1, Some(1));
+        assert_subr_arity("cdadar", 1, Some(1));
+        assert_subr_arity("cdaddr", 1, Some(1));
+        assert_subr_arity("cddaar", 1, Some(1));
+        assert_subr_arity("cddadr", 1, Some(1));
+        assert_subr_arity("cdddar", 1, Some(1));
+        assert_subr_arity("cddddr", 1, Some(1));
     }
 
     #[test]
