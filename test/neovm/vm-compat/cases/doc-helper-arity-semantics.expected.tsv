@@ -15,4 +15,4 @@
 15	(condition-case err (describe-function 'car nil) (error (car err)))	OK wrong-number-of-arguments
 16	(fboundp 'describe-variable)	OK t
 17	(condition-case err (describe-variable) (error (car err)))	OK wrong-number-of-arguments
-18	(condition-case err (describe-variable 'fill-column nil) (error (car err)))	OK wrong-number-of-arguments
+18	(let nil (setq neovm-doc-helper-probe 1) (condition-case err (stringp (describe-variable 'neovm-doc-helper-probe nil)) (error (car err))))	OK t

@@ -21,4 +21,8 @@
 
 (fboundp 'describe-variable)
 (condition-case err (describe-variable) (error (car err)))
-(condition-case err (describe-variable 'fill-column nil) (error (car err)))
+(let ()
+  (setq neovm-doc-helper-probe 1)
+  (condition-case err
+      (stringp (describe-variable 'neovm-doc-helper-probe nil))
+    (error (car err))))

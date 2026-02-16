@@ -144,7 +144,7 @@ pub(crate) fn builtin_describe_variable(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("describe-variable", &args, 1)?;
+    expect_min_max_args("describe-variable", &args, 1, 2)?;
 
     let name = match args[0].as_symbol_name() {
         Some(n) => n.to_string(),
@@ -1014,6 +1014,19 @@ mod tests {
         let mut evaluator = super::super::eval::Evaluator::new();
         let result = builtin_describe_variable(&mut evaluator, vec![Value::Int(42)]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn describe_variable_accepts_optional_second_arg() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        evaluator.obarray.set_symbol_value("x", Value::Int(10));
+
+        let result = builtin_describe_variable(
+            &mut evaluator,
+            vec![Value::symbol("x"), Value::Nil],
+        );
+        assert!(result.is_ok());
+        assert!(result.unwrap().as_str().is_some());
     }
 
     #[test]
