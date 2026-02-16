@@ -22,6 +22,7 @@ Last updated: 2026-02-16
 - Keep newly landed startup-helper primitive `subr-arity` parity stable while expanding remaining high-volume drifts.
 - Keep newly landed define/default primitive runtime+`subr-arity` parity stable while expanding remaining startup drifts.
 - Keep newly landed `count-lines` runtime+`subr-arity` parity stable while expanding remaining navigation drifts.
+- Keep newly landed thread primitive `subr-arity` oracle matrix coverage stable while expanding remaining parity drifts.
 
 ## Next
 
@@ -33,6 +34,19 @@ Last updated: 2026-02-16
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
 
 ## Done
+
+- Added full thread primitive `subr-arity` unit matrix coverage in NeoVM:
+  - updated:
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added `subr_arity_thread_primitives_match_oracle` for:
+        - `thread-join`, `thread-yield`, `thread-name`, `thread-live-p`, `thread-signal`, `thread-last-error`
+        - `make-thread`, `make-mutex`, `mutexp`, `mutex-name`, `mutex-lock`, `mutex-unlock`
+        - `make-condition-variable`, `condition-variable-p`, `condition-wait`, `condition-notify`
+        - `current-thread`, `all-threads`
+      - aligns unit coverage with `test/neovm/vm-compat/cases/thread-subr-arity.forms`.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_thread_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/thread-subr-arity` (pass, 18/18)
 
 - Aligned `count-lines` runtime arity behavior and `subr-arity` metadata with GNU Emacs:
   - updated:
