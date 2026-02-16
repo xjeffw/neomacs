@@ -19,6 +19,20 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Extended `cl-map` compatibility with `'string` result-type support:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - added `'string` branch in `cl-map` result shaping with character validation.
+      - added focused unit coverage for string mapping and unsupported-type path.
+    - `test/neovm/vm-compat/cases/cl-setops-semantics.forms`
+      - added `(cl-map 'string #'identity "ab")` probe.
+    - `test/neovm/vm-compat/cases/cl-setops-semantics.expected.tsv`
+      - refreshed neovm baseline for expanded set-ops corpus.
+  - verified:
+    - `cargo test cl_map --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-setops-semantics` (pass, 13/13)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Exposed `thread-alive-p` compatibility alias:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
