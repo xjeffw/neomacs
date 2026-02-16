@@ -1,6 +1,6 @@
 # NeoVM / Neomacs Plan
 
-Last updated: 2026-02-15
+Last updated: 2026-02-16
 
 ## Doing
 
@@ -18,6 +18,31 @@ Last updated: 2026-02-15
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 
 ## Done
+
+- Aligned user identity builtin contracts with optional argument compatibility:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins_extra.rs`
+      - `user-login-name` now enforces max arity `1`, accepts optional numeric UID,
+        and resolves UID lookup via `/etc/passwd` (returns `nil` when unresolved).
+      - `user-real-login-name` now enforces zero arity and resolves against real UID.
+      - `user-full-name` now enforces max arity `1`, accepts optional numeric UID
+        or login name string, and resolves full names via `/etc/passwd` GECOS data.
+      - added focused unit tests for arity/type contracts and optional argument paths.
+    - added corpus:
+      - `test/neovm/vm-compat/cases/user-identity-semantics.{forms,expected.tsv}`
+        - locks availability and argument/error semantics for:
+          - `user-login-name`
+          - `user-real-login-name`
+          - `user-full-name`
+          - `user-real-uid`
+          - `group-gid`
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/user-identity-semantics`.
+  - verified:
+    - `cargo test builtins_extra::tests::user_ --manifest-path rust/neovm-core/Cargo.toml -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/user-identity-semantics` (pass, 22/22)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
 
 - Extended `minibuffer-batch` arity lock-ins:
   - updated:
