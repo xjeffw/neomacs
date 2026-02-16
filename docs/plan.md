@@ -20,6 +20,9 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Re-ran full `vm-compat` gate after thing-at-point compatibility slices:
+  - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Aligned filename thing-at-point boundary behavior with oracle and refreshed filename corpus:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
