@@ -1,0 +1,8 @@
+1	(fboundp 'read-passwd)	OK t
+2	(condition-case err (read-passwd "pw: ") (error err))	OK (end-of-file "Error reading from stdin")
+3	(condition-case err (read-passwd "pw: " t) (error err))	OK (end-of-file "Error reading from stdin")
+4	(condition-case err (read-passwd "pw: " nil "confirm: ") (error err))	OK (end-of-file "Error reading from stdin")
+5	(condition-case err (read-passwd 1) (error err))	OK (wrong-type-argument stringp 1)
+6	(condition-case err (read-passwd "pw: " nil 1) (error err))	OK (end-of-file "Error reading from stdin")
+7	(condition-case err (read-passwd) (error err))	OK (wrong-number-of-arguments read-passwd 0)
+8	(condition-case err (read-passwd "pw: " nil nil nil) (error err))	OK (wrong-number-of-arguments read-passwd 4)

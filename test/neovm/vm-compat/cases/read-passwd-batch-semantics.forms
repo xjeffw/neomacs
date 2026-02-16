@@ -1,0 +1,11 @@
+(fboundp 'read-passwd)
+
+(condition-case err (read-passwd "pw: ") (error err))
+(condition-case err (read-passwd "pw: " t) (error err))
+(condition-case err (read-passwd "pw: " nil "confirm: ") (error err))
+
+(condition-case err (read-passwd 1) (error err))
+(condition-case err (read-passwd "pw: " nil 1) (error err))
+
+(condition-case err (read-passwd) (error err))
+(condition-case err (read-passwd "pw: " nil nil nil) (error err))
