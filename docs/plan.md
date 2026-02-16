@@ -47,6 +47,20 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned line-position helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `line-beginning-position`, `line-end-position`, `line-number-display-width`: `(0 . 1)`
+    - `line-number-at-pos`: `(0 . 2)`
+    - `line-pixel-height`: `(0 . 0)`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/line-position-subr-arity-semantics`
+  - wired into default vm-compat suite:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_line_position_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/line-position-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned symbol/obarray helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `intern`, `intern-soft`, `indirect-function`, `unintern`: `(1 . 2)`
