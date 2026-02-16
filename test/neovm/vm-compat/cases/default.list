@@ -8,6 +8,7 @@ cases/fboundp-macro-boundary
 cases/symbol-function-core
 cases/symbol-function-alias-wrapper-semantics
 cases/bookmark-autoload-wrapper-semantics
+cases/format-subrx-autoload-wrapper-semantics
 cases/subr-primitive-wrapper-semantics
 cases/subr-native-elisp-alias-semantics
 cases/symbol-function-error-paths

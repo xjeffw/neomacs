@@ -233,6 +233,31 @@ impl Evaluator {
             "bookmark",
             "Set a bookmark named NAME at the current location.",
         );
+        seed_autoload(
+            "format-seconds",
+            "time-date",
+            "Use format control STRING to format the number SECONDS.",
+        );
+        seed_autoload(
+            "format-spec",
+            "format-spec",
+            "Return a string based on FORMAT and SPECIFICATION.",
+        );
+        seed_autoload(
+            "string-clean-whitespace",
+            "subr-x",
+            "Clean up whitespace in STRING.",
+        );
+        seed_autoload(
+            "string-glyph-split",
+            "subr-x",
+            "Split STRING into a list of strings representing separate glyphs.",
+        );
+        seed_autoload(
+            "upcase-char",
+            "misc",
+            "Uppercasify ARG chars starting from point.  Point doesn't move.",
+        );
 
         // Mark standard variables as special (dynamically bound)
         for name in &[

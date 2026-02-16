@@ -10720,6 +10720,17 @@ mod tests {
             builtin_symbol_function(&mut eval, vec![Value::symbol("bookmark-delete")])
                 .expect("symbol-function should resolve bookmark-delete autoload");
         assert!(crate::elisp::autoload::is_autoload_value(&bookmark_delete));
+        for name in [
+            "format-seconds",
+            "format-spec",
+            "string-clean-whitespace",
+            "string-glyph-split",
+            "upcase-char",
+        ] {
+            let value = builtin_symbol_function(&mut eval, vec![Value::symbol(name)])
+                .unwrap_or_else(|_| panic!("symbol-function should resolve {name} autoload"));
+            assert!(crate::elisp::autoload::is_autoload_value(&value));
+        }
 
         let throw_fn = builtin_symbol_function(&mut eval, vec![Value::symbol("throw")])
             .expect("symbol-function should resolve throw as callable subr");

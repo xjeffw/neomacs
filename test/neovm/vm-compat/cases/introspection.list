@@ -4,6 +4,7 @@ cases/fboundp-dispatch
 cases/fboundp-macro-boundary
 cases/symbol-function-core
 cases/bookmark-autoload-wrapper-semantics
+cases/format-subrx-autoload-wrapper-semantics
 cases/subr-primitive-wrapper-semantics
 cases/symbol-function-error-paths
 cases/indirect-function-core
