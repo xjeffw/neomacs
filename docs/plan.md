@@ -19,6 +19,23 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `word-at-point` as an evaluator helper builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - added `word-at-point` wrapper with arity range `0..=1`.
+      - routes through existing `thing-at-point` evaluator logic for `word`.
+      - added focused unit coverage for word extraction and arity errors.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator dispatch now routes `word-at-point`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `word-at-point` to dispatch builtin registry.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior.
+  - verified:
+    - `cargo test word_at_point --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 26/26)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `kmacro-set-format` as a real helper builtin:
   - updated:
     - `rust/neovm-core/src/elisp/kmacro.rs`
