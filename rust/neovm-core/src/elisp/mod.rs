@@ -49,6 +49,7 @@ pub mod indent;
 pub mod interactive;
 pub mod isearch;
 pub mod json;
+pub mod kbd;
 pub mod keymap;
 pub mod kill_ring;
 pub mod kmacro;

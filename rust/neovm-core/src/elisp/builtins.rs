@@ -5413,8 +5413,8 @@ fn builtin_keymapp(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalR
     }
 }
 
-/// (kbd STRING) -> STRING
-/// Validates and normalizes the key description string.
+/// (kbd STRING) -> string-or-vector
+/// Parses key description text and returns Emacs-style event encoding.
 fn builtin_kbd(args: Vec<Value>) -> EvalResult {
     expect_args("kbd", &args, 1)?;
     let desc = match &args[0] {
@@ -5426,9 +5426,7 @@ fn builtin_kbd(args: Vec<Value>) -> EvalResult {
             ));
         }
     };
-    let events = KeymapManager::parse_key_description(desc)
-        .map_err(|msg| signal("error", vec![Value::string(msg)]))?;
-    Ok(Value::string(KeymapManager::format_key_sequence(&events)))
+    super::kbd::parse_kbd_string(desc).map_err(|msg| signal("error", vec![Value::string(msg)]))
 }
 
 // ===========================================================================
