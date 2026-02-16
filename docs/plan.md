@@ -68,12 +68,13 @@ Last updated: 2026-02-16
 - Keep newly landed window accessor max-arity parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed `next-window` / `previous-window` max-arity parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed frame-op max-arity parity stable while expanding remaining window/frame lifecycle/helper drifts.
+- Keep newly landed `set-window-buffer` max-arity parity stable while expanding remaining window/buffer lifecycle drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Land the next evaluator-backed stub replacement after the frame-op max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
+2. Land the next evaluator-backed stub replacement after the `set-window-buffer` max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
@@ -82,6 +83,21 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned `set-window-buffer` max-arity runtime behavior with GNU Emacs and added oracle lock-in:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - `set-window-buffer` now enforces max arity `3` and signals `wrong-number-of-arguments` on oversized calls.
+  - expanded evaluator regression:
+    - `switch_display_pop_enforce_max_arity` now also checks `set-window-buffer` oversized-call behavior.
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/set-window-buffer-arity-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml switch_display_pop_enforce_max_arity` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/set-window-buffer-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned frame-op max-arity runtime behavior with GNU Emacs and added oracle lock-in:
   - updated runtime behavior:
