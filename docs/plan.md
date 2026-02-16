@@ -19,6 +19,22 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `string-fill` as a callable subr-x string helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/format.rs`
+      - added `string-fill` builtin (arity `2..=4`) with whitespace-word wrapping and optional-arg compatibility.
+      - added focused unit coverage for no-wrap, wrapping, blank-line preservation, and type validation.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - format/string utility dispatch now routes `string-fill`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `string-fill` to builtin registry.
+    - `test/neovm/vm-compat/cases/subr-x-string-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`"x"`).
+  - verified:
+    - `cargo test string_fill --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/subr-x-string-helper-availability` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `string-pad` as a callable subr-x string helper:
   - updated:
     - `rust/neovm-core/src/elisp/format.rs`
