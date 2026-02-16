@@ -6004,14 +6004,16 @@ fn builtin_event_apply_modifier(args: Vec<Value>) -> EvalResult {
     let modifier = args[1].as_symbol_name();
     if modifier == Some("control") {
         let code = event & KEY_CHAR_CODE_MASK;
-        if let Some(resolved) = resolve_control_code(code) {
-            let mut mod_bits = event & !KEY_CHAR_CODE_MASK;
-            if (65..=90).contains(&code) || (mod_bits & KEY_CHAR_SHIFT) != 0 {
-                mod_bits |= KEY_CHAR_SHIFT;
+        let mut mod_bits = event & !KEY_CHAR_CODE_MASK;
+        if code != 32 && code != 63 {
+            if let Some(resolved) = resolve_control_code(code) {
+                if (65..=90).contains(&code) || (mod_bits & KEY_CHAR_SHIFT) != 0 {
+                    mod_bits |= KEY_CHAR_SHIFT;
+                }
+                return Ok(Value::Int(mod_bits | resolved));
             }
-            return Ok(Value::Int(mod_bits | resolved));
         }
-        return Ok(Value::Int(event));
+        return Ok(Value::Int(mod_bits | (code | 1)));
     }
 
     if modifier == Some("shift") {
