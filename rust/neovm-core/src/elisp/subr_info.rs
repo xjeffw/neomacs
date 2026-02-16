@@ -329,11 +329,17 @@ fn subr_arity_value(name: &str) -> Value {
             arity_cons(2, Some(2))
         }
         "goto-char" => arity_cons(1, Some(1)),
+        "exchange-point-and-mark" => arity_cons(0, Some(1)),
         "beginning-of-line" | "end-of-line" | "beginning-of-buffer" | "end-of-buffer"
         | "forward-char" | "backward-char" | "forward-word" | "backward-word"
         | "forward-line" => arity_cons(0, Some(1)),
         "current-buffer" | "buffer-string" | "point" | "point-max" | "point-min" | "bobp"
         | "eobp" | "bolp" | "eolp" | "erase-buffer" | "widen" => arity_cons(0, Some(0)),
+        "mark-marker" | "point-marker" | "point-max-marker" | "point-min-marker" | "pop-mark" => {
+            arity_cons(0, Some(0))
+        }
+        "mark" => arity_cons(0, Some(1)),
+        "push-mark" => arity_cons(0, Some(3)),
         "group-gid" | "group-real-gid" | "interactive-p" | "last-nonminibuffer-frame" => {
             arity_cons(0, Some(0))
         }
@@ -341,6 +347,9 @@ fn subr_arity_value(name: &str) -> Value {
         "buffer-file-name" | "buffer-name" | "buffer-size" | "buffer-modified-p"
         | "buffer-list" | "buffer-disable-undo" | "buffer-enable-undo" | "buffer-hash"
         | "buffer-local-variables" => arity_cons(0, Some(1)),
+        "marker-buffer" | "marker-insertion-type" | "marker-position" | "markerp" => {
+            arity_cons(1, Some(1))
+        }
         "get-byte" => arity_cons(0, Some(2)),
         "get-buffer" | "get-file-buffer" => arity_cons(1, Some(1)),
         "get-buffer-create" | "generate-new-buffer-name" | "generate-new-buffer" => {
@@ -376,8 +385,10 @@ fn subr_arity_value(name: &str) -> Value {
         "make-symbol" | "symbol-name" | "symbol-plist" => arity_cons(1, Some(1)),
         "intern" | "intern-soft" | "indirect-function" | "unintern" => arity_cons(1, Some(2)),
         "symbol-file" => arity_cons(1, Some(3)),
-        "fset" | "set" | "get" => arity_cons(2, Some(2)),
+        "fset" | "set" | "get" | "set-marker-insertion-type" => arity_cons(2, Some(2)),
         "put" => arity_cons(3, Some(3)),
+        "set-mark" | "set-mark-command" => arity_cons(1, Some(1)),
+        "set-marker" => arity_cons(2, Some(3)),
         "hash-table-p" | "clrhash" | "hash-table-count" => arity_cons(1, Some(1)),
         "gethash" => arity_cons(2, Some(3)),
         "puthash" => arity_cons(3, Some(3)),
@@ -1084,6 +1095,26 @@ mod tests {
         assert_subr_arity("buffer-local-value", 2, Some(2));
         assert_subr_arity("buffer-substring", 2, Some(2));
         assert_subr_arity("buffer-substring-no-properties", 2, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_mark_marker_primitives_match_oracle() {
+        assert_subr_arity("exchange-point-and-mark", 0, Some(1));
+        assert_subr_arity("mark", 0, Some(1));
+        assert_subr_arity("mark-marker", 0, Some(0));
+        assert_subr_arity("point-marker", 0, Some(0));
+        assert_subr_arity("point-min-marker", 0, Some(0));
+        assert_subr_arity("point-max-marker", 0, Some(0));
+        assert_subr_arity("marker-buffer", 1, Some(1));
+        assert_subr_arity("marker-insertion-type", 1, Some(1));
+        assert_subr_arity("marker-position", 1, Some(1));
+        assert_subr_arity("markerp", 1, Some(1));
+        assert_subr_arity("push-mark", 0, Some(3));
+        assert_subr_arity("pop-mark", 0, Some(0));
+        assert_subr_arity("set-mark", 1, Some(1));
+        assert_subr_arity("set-mark-command", 1, Some(1));
+        assert_subr_arity("set-marker", 2, Some(3));
+        assert_subr_arity("set-marker-insertion-type", 2, Some(2));
     }
 
     #[test]
