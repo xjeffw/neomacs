@@ -25,6 +25,26 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned subtraction zero-arg runtime behavior and `help-function-arglist` introspection with oracle:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - changed `(-)` to return `0` (matching Emacs) instead of signaling wrong-number-of-arguments.
+    - `rust/neovm-core/src/elisp/doc.rs`
+      - added explicit `help-function-arglist` mapping for `-`:
+        - default mode: `(&rest rest)`
+        - preserve-names mode: `(&optional number-or-marker &rest more-numbers-or-markers)`
+      - added focused unit tests for both arglist shapes.
+    - `test/neovm/vm-compat/cases/sub-zero-arity-semantics.forms`
+      - new corpus covering `(-)`, `(funcall #'-)`, `(apply #'- nil)`, and arglist/arity probes.
+    - `test/neovm/vm-compat/cases/sub-zero-arity-semantics.expected.tsv`
+      - recorded oracle baseline for the new subtraction case.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/sub-zero-arity-semantics` to recurring default compatibility execution.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/sub-zero-arity-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only allowlisted `neovm-precompile-file` drift)
+
 - Refined `help-key-description` translation detail parity for single-char cases:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
