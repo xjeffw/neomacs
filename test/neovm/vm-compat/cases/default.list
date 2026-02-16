@@ -36,6 +36,7 @@ cases/kbd-modifier-composition-semantics
 cases/key-description-semantics
 cases/vector-literal-self-eval-semantics
 cases/sub-zero-arity-semantics
+cases/core-math-subr-arity-semantics
 cases/help-key-recent-keys-semantics
 cases/this-command-keys-readers-semantics
 cases/event-builtins-semantics

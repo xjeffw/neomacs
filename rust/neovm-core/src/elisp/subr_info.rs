@@ -291,6 +291,9 @@ fn subr_arity_value(name: &str) -> Value {
         // Oracle-compatible overrides for core subrs used in vm-compat.
         "car" | "cdr" => arity_cons(1, Some(1)),
         "message" => arity_cons(1, None),
+        "/" | "<" | "<=" | "=" | ">" | ">=" | "apply" => arity_cons(1, None),
+        "1+" | "1-" | "abs" => arity_cons(1, Some(1)),
+        "%" | "/=" | "ash" => arity_cons(2, Some(2)),
         "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
         "defining-kbd-macro" => arity_cons(1, Some(2)),
         "help-key-description" => arity_cons(2, Some(2)),
@@ -705,6 +708,23 @@ mod tests {
         assert_subr_arity("process-send-string", 2, Some(2));
         assert_subr_arity("process-status", 1, Some(1));
         assert_subr_arity("start-process", 3, None);
+    }
+
+    #[test]
+    fn subr_arity_core_math_primitives_match_oracle() {
+        assert_subr_arity("%", 2, Some(2));
+        assert_subr_arity("/", 1, None);
+        assert_subr_arity("/=", 2, Some(2));
+        assert_subr_arity("1+", 1, Some(1));
+        assert_subr_arity("1-", 1, Some(1));
+        assert_subr_arity("<", 1, None);
+        assert_subr_arity("<=", 1, None);
+        assert_subr_arity("=", 1, None);
+        assert_subr_arity(">", 1, None);
+        assert_subr_arity(">=", 1, None);
+        assert_subr_arity("abs", 1, Some(1));
+        assert_subr_arity("ash", 2, Some(2));
+        assert_subr_arity("apply", 1, None);
     }
 
     #[test]
