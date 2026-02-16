@@ -19,6 +19,25 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `base64url-decode-string` as a real fns helper builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/fns.rs`
+      - added `base64url-decode-string` builtin (arity `1..=2`) using URL alphabet decode table.
+      - returns decoded UTF-8 string on success, `nil` on invalid payload.
+      - added focused unit coverage for valid/invalid decode paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - pure dispatch now routes `base64url-decode-string`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `base64url-decode-string` to builtin registry.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.forms`
+      - switched helper probe to `(base64url-decode-string "YQ")`.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior (`"a"`).
+  - verified:
+    - `cargo test base64url_decode --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 26/26)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `unibyte-string-p` as a real encoding helper builtin:
   - updated:
     - `rust/neovm-core/src/encoding.rs`
