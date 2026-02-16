@@ -25,6 +25,35 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Replaced `event-apply-modifier` placeholder behavior with oracle-locked runtime and introspection parity:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - changed arity from placeholder 9-arg error path to real 4-arg contract.
+      - implemented compatibility behavior for integer events:
+        - control modifier normalization paths
+        - shift modifier normalization paths
+        - generic bit-or modifier application via `lshiftby`
+      - aligned non-integer event behavior with oracle error/no-op paths used by corpus.
+    - `rust/neovm-core/src/elisp/subr_info.rs`
+      - added `subr-arity` override for `event-apply-modifier` => `(4 . 4)`.
+      - added focused arity unit test.
+    - `rust/neovm-core/src/elisp/doc.rs`
+      - added `help-function-arglist` mapping for `event-apply-modifier`:
+        - default: `(arg1 arg2 arg3 arg4)`
+        - preserve-names: `(event symbol lshiftby prefix)`
+      - added focused arglist unit tests.
+    - `test/neovm/vm-compat/cases/event-key-helpers-semantics.forms`
+      - expanded event-apply-modifier block with:
+        - introspection probes (`subr-arity`, `help-function-arglist`)
+        - 4-arg runtime semantics probes
+        - type/arity edge probes.
+    - `test/neovm/vm-compat/cases/event-key-helpers-semantics.expected.tsv`
+      - refreshed oracle baseline for the expanded event-apply-modifier matrix.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/event-key-helpers-semantics` (pass, 76/76)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` (pass; only allowlisted `neovm-precompile-file` drift)
+
 - Aligned subtraction zero-arg runtime behavior and `help-function-arglist` introspection with oracle:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
