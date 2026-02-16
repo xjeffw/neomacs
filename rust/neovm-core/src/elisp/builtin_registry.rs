@@ -172,6 +172,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "cl-concatenate",
     "cl-count",
     "cl-count-if",
+    "cl-every",
     "cl-eighth",
     "cl-evenp",
     "cl-fifth",

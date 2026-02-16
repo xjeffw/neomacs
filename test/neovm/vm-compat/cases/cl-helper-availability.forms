@@ -13,7 +13,7 @@
 (fboundp 'cl-evenp)
 (condition-case err (cl-evenp 2) (error err))
 (fboundp 'cl-every)
-(condition-case err (cl-every) (error err))
+(condition-case err (cl-every #'numberp '(1 2 3)) (error err))
 (fboundp 'cl-fifth)
 (condition-case err (cl-fifth '(a b c d e)) (error err))
 (fboundp 'cl-find)

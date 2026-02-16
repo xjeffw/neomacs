@@ -719,6 +719,11 @@ pub(crate) fn builtin_cl_some(eval: &mut super::eval::Evaluator, args: Vec<Value
     builtin_seq_some(eval, args)
 }
 
+/// `(cl-every PREDICATE SEQ)` -- CL alias for `seq-every-p`.
+pub(crate) fn builtin_cl_every(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    builtin_seq_every_p(eval, args)
+}
+
 /// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
 pub(crate) fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !(2..=3).contains(&args.len()) {
@@ -1490,6 +1495,15 @@ mod tests {
         let func = Value::Subr("numberp".to_string());
         let seq = Value::list(vec![Value::string("x"), Value::Int(2)]);
         let result = builtin_cl_some(&mut evaluator, vec![func, seq]).unwrap();
+        assert!(result.is_truthy());
+    }
+
+    #[test]
+    fn cl_every_with_eval() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let func = Value::Subr("numberp".to_string());
+        let seq = Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+        let result = builtin_cl_every(&mut evaluator, vec![func, seq]).unwrap();
         assert!(result.is_truthy());
     }
 }
