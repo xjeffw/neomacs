@@ -60,6 +60,20 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Added oracle corpus lock-in for batch prompt-reader error semantics:
+  - added case:
+    - `test/neovm/vm-compat/cases/reader-prompt-batch-error-semantics.{forms,expected.tsv}`
+    - covers `read-from-minibuffer`, `read-string`, `read-number`, `completing-read`, `y-or-n-p`, `yes-or-no-p`:
+      - argument-count boundaries
+      - prompt/initial-input type contracts
+      - batch-mode `end-of-file` signaling payload shape
+  - wired into:
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/reader-prompt-batch-error-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Added builtin registry `commandp` parity guard to strict vm-compat:
   - added strict checker:
     - `test/neovm/vm-compat/check-builtin-registry-commandp.sh`
