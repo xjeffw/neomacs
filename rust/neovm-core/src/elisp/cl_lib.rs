@@ -925,6 +925,36 @@ pub(crate) fn builtin_cl_remove_if_not(
     Ok(Value::list(out))
 }
 
+/// `(cl-map RESULT-TYPE FUNCTION SEQ...)` -- CL map with explicit result type.
+pub(crate) fn builtin_cl_map(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
+    expect_min_args("cl-map", &args, 3)?;
+    let result_type = args[0].clone();
+    let func = args[1].clone();
+    let seqs = args[2..].to_vec();
+
+    let mut forwarded = Vec::with_capacity(1 + seqs.len());
+    forwarded.push(func);
+    forwarded.extend(seqs);
+    let mapped = builtin_seq_mapn(eval, forwarded)?;
+
+    match result_type {
+        Value::Symbol(s) if s == "list" => Ok(mapped),
+        Value::Symbol(s) if s == "vector" => {
+            let items = list_to_vec(&mapped).ok_or_else(|| {
+                signal("wrong-type-argument", vec![Value::symbol("listp"), mapped.clone()])
+            })?;
+            Ok(Value::vector(items))
+        }
+        other => Err(signal(
+            "error",
+            vec![Value::string(format!(
+                "Unsupported cl-map result type: {}",
+                super::print::print_value(&other)
+            ))],
+        )),
+    }
+}
+
 /// `(seq-contains-p SEQ ELT &optional TESTFN)` — membership test for sequence.
 pub(crate) fn builtin_seq_contains_p(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     if !(2..=3).contains(&args.len()) {
@@ -1971,5 +2001,34 @@ mod tests {
         )
         .unwrap();
         assert_eq!(result, Value::list(vec![Value::Int(1), Value::Int(2)]));
+    }
+
+    #[test]
+    fn cl_map_list_with_eval() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        let result = builtin_cl_map(
+            &mut evaluator,
+            vec![
+                Value::symbol("list"),
+                Value::Subr("1+".to_string()),
+                Value::list(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+            ],
+        )
+        .unwrap();
+        assert_eq!(result, Value::list(vec![Value::Int(2), Value::Int(3), Value::Int(4)]));
+    }
+
+    #[test]
+    fn cl_map_unsupported_type() {
+        let mut evaluator = super::super::eval::Evaluator::new();
+        assert!(builtin_cl_map(
+            &mut evaluator,
+            vec![
+                Value::symbol("string"),
+                Value::Subr("identity".to_string()),
+                Value::list(vec![Value::Int(1)]),
+            ],
+        )
+        .is_err());
     }
 }

@@ -6938,6 +6938,7 @@ pub(crate) fn dispatch_builtin(
         "cl-position" => return Some(super::cl_lib::builtin_cl_position(eval, args)),
         "seq-contains-p" => return Some(super::cl_lib::builtin_seq_contains_p(eval, args)),
         "seq-mapn" => return Some(super::cl_lib::builtin_seq_mapn(eval, args)),
+        "cl-map" => return Some(super::cl_lib::builtin_cl_map(eval, args)),
         "seq-do" => return Some(super::cl_lib::builtin_seq_do(eval, args)),
         "seq-count" => return Some(super::cl_lib::builtin_seq_count(eval, args)),
         "cl-count" => return Some(super::cl_lib::builtin_cl_count(eval, args)),

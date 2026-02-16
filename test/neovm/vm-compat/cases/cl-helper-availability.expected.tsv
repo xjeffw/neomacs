@@ -28,8 +28,8 @@
 28	(condition-case err (symbolp (cl-gensym)) (error err))	OK t
 29	(fboundp 'cl-intersection)	OK t
 30	(condition-case err (cl-intersection '(a b c) '(b d c)) (error err))	OK (b c)
-31	(fboundp 'cl-map)	OK nil
-32	(condition-case err (cl-map) (error err))	OK (void-function cl-map)
+31	(fboundp 'cl-map)	OK t
+32	(condition-case err (cl-map 'list #'1+ '(1 2 3)) (error err))	OK (2 3 4)
 33	(fboundp 'cl-member)	OK t
 34	(condition-case err (cl-member 'b '(a b c)) (error err))	OK (b c)
 35	(fboundp 'cl-minusp)	OK t

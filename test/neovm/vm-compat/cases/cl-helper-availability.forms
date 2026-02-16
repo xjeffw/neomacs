@@ -29,7 +29,7 @@
 (fboundp 'cl-intersection)
 (condition-case err (cl-intersection '(a b c) '(b d c)) (error err))
 (fboundp 'cl-map)
-(condition-case err (cl-map) (error err))
+(condition-case err (cl-map 'list #'1+ '(1 2 3)) (error err))
 (fboundp 'cl-member)
 (condition-case err (cl-member 'b '(a b c)) (error err))
 (fboundp 'cl-minusp)
