@@ -39,6 +39,7 @@ cases/sub-zero-arity-semantics
 cases/core-math-subr-arity-semantics
 cases/point-navigation-subr-arity-semantics
 cases/buffer-point-subr-arity-semantics
+cases/buffer-lookup-subr-arity-semantics
 cases/char-charset-subr-arity-semantics
 cases/assoc-predicate-subr-arity-semantics
 cases/navigation-case-subr-arity-semantics

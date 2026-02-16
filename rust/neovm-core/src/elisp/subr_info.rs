@@ -331,6 +331,10 @@ fn subr_arity_value(name: &str) -> Value {
         "buffer-file-name" | "buffer-name" | "buffer-size" | "buffer-modified-p"
         | "buffer-list" | "buffer-disable-undo" | "buffer-enable-undo" | "buffer-hash"
         | "buffer-local-variables" => arity_cons(0, Some(1)),
+        "get-buffer" | "get-file-buffer" => arity_cons(1, Some(1)),
+        "get-buffer-create" | "generate-new-buffer-name" | "generate-new-buffer" => {
+            arity_cons(1, Some(2))
+        }
         "buffer-live-p" => arity_cons(1, Some(1)),
         "buffer-local-value" | "buffer-substring" | "buffer-substring-no-properties" => {
             arity_cons(2, Some(2))
@@ -1326,6 +1330,15 @@ mod tests {
         assert_subr_arity("clrhash", 1, Some(1));
         assert_subr_arity("hash-table-count", 1, Some(1));
         assert_subr_arity("maphash", 2, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_buffer_lookup_primitives_match_oracle() {
+        assert_subr_arity("get-buffer", 1, Some(1));
+        assert_subr_arity("get-buffer-create", 1, Some(2));
+        assert_subr_arity("get-file-buffer", 1, Some(1));
+        assert_subr_arity("generate-new-buffer-name", 1, Some(2));
+        assert_subr_arity("generate-new-buffer", 1, Some(2));
     }
 
     #[test]

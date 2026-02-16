@@ -4441,7 +4441,7 @@ pub(crate) fn builtin_get_buffer_create(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("get-buffer-create", &args, 1)?;
+    expect_max_args("get-buffer-create", &args, 2)?;
     let name = expect_string(&args[0])?;
     if let Some(id) = eval.buffers.find_buffer_by_name(&name) {
         Ok(Value::Buffer(id))
@@ -4990,7 +4990,18 @@ pub(crate) fn builtin_generate_new_buffer_name(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("generate-new-buffer-name", &args, 1)?;
+    expect_max_args("generate-new-buffer-name", &args, 2)?;
+    if args.len() == 2
+        && !matches!(
+            &args[1],
+            Value::Nil | Value::True | Value::Str(_) | Value::Symbol(_) | Value::Keyword(_)
+        )
+    {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), args[1].clone()],
+        ));
+    }
     let base = expect_string(&args[0])?;
     Ok(Value::string(eval.buffers.generate_new_buffer_name(&base)))
 }
@@ -5000,7 +5011,7 @@ pub(crate) fn builtin_generate_new_buffer(
     eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
-    expect_args("generate-new-buffer", &args, 1)?;
+    expect_max_args("generate-new-buffer", &args, 2)?;
     let base = expect_string(&args[0])?;
     let name = eval.buffers.generate_new_buffer_name(&base);
     let id = eval.buffers.create_buffer(&name);
@@ -9666,6 +9677,112 @@ mod tests {
         assert_eq!(by_name, Value::Nil);
         let nil_arg = builtin_buffer_live_p(&mut eval, vec![Value::Nil]).unwrap();
         assert_eq!(nil_arg, Value::Nil);
+    }
+
+    #[test]
+    fn get_buffer_create_accepts_optional_second_arg() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let first =
+            builtin_get_buffer_create(&mut eval, vec![Value::string("*gbc-opt*"), Value::Int(7)])
+                .unwrap();
+        let second =
+            builtin_get_buffer_create(&mut eval, vec![Value::string("*gbc-opt*"), Value::Nil])
+                .unwrap();
+        assert_eq!(first, second);
+
+        let err = builtin_get_buffer_create(
+            &mut eval,
+            vec![Value::string("*gbc-opt*"), Value::Nil, Value::Nil],
+        )
+        .expect_err("get-buffer-create should reject more than two args");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(sig.data, vec![Value::symbol("get-buffer-create"), Value::Int(3)]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn generate_new_buffer_accepts_optional_second_arg() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let one =
+            builtin_generate_new_buffer(&mut eval, vec![Value::string("*gnb-opt*"), Value::Nil])
+                .unwrap();
+        let two =
+            builtin_generate_new_buffer(&mut eval, vec![Value::string("*gnb-opt*"), Value::Int(1)])
+                .unwrap();
+        assert!(matches!(one, Value::Buffer(_)));
+        assert!(matches!(two, Value::Buffer(_)));
+        assert_ne!(one, two);
+
+        let err = builtin_generate_new_buffer(
+            &mut eval,
+            vec![Value::string("*gnb-opt*"), Value::Nil, Value::Nil],
+        )
+        .expect_err("generate-new-buffer should reject more than two args");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-number-of-arguments");
+                assert_eq!(sig.data, vec![Value::symbol("generate-new-buffer"), Value::Int(3)]);
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn generate_new_buffer_name_optional_arg_matches_expected_types() {
+        let mut eval = super::super::eval::Evaluator::new();
+        let _ = builtin_get_buffer_create(&mut eval, vec![Value::string("*gnbn-opt*")]).unwrap();
+
+        let with_nil = builtin_generate_new_buffer_name(
+            &mut eval,
+            vec![Value::string("*gnbn-opt*"), Value::Nil],
+        )
+        .unwrap();
+        let with_true = builtin_generate_new_buffer_name(
+            &mut eval,
+            vec![Value::string("*gnbn-opt*"), Value::True],
+        )
+        .unwrap();
+        let with_symbol = builtin_generate_new_buffer_name(
+            &mut eval,
+            vec![Value::string("*gnbn-opt*"), Value::symbol("ignored")],
+        )
+        .unwrap();
+        let with_keyword = builtin_generate_new_buffer_name(
+            &mut eval,
+            vec![Value::string("*gnbn-opt*"), Value::Keyword("ignored".to_string())],
+        )
+        .unwrap();
+        let with_string = builtin_generate_new_buffer_name(
+            &mut eval,
+            vec![Value::string("*gnbn-opt*"), Value::string("*gnbn-opt*<9>")],
+        )
+        .unwrap();
+
+        assert_eq!(with_nil, Value::string("*gnbn-opt*<2>"));
+        assert_eq!(with_true, Value::string("*gnbn-opt*<2>"));
+        assert_eq!(with_symbol, Value::string("*gnbn-opt*<2>"));
+        assert_eq!(with_keyword, Value::string("*gnbn-opt*<2>"));
+        assert_eq!(with_string, Value::string("*gnbn-opt*<2>"));
+
+        let err = builtin_generate_new_buffer_name(
+            &mut eval,
+            vec![Value::string("*gnbn-opt*"), Value::list(vec![Value::Int(1)])],
+        )
+        .expect_err("generate-new-buffer-name should reject non string/symbol optional arg");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("stringp"), Value::list(vec![Value::Int(1)])]
+                );
+            }
+            other => panic!("unexpected flow: {other:?}"),
+        }
     }
 
     #[test]
