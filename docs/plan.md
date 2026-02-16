@@ -19,6 +19,23 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `selected-terminal` as a real display helper builtin:
+  - updated:
+    - `rust/neovm-core/src/elisp/display.rs`
+      - added `selected-terminal` (arity `0`) returning current terminal handle.
+      - reuses existing terminal handle object model (`#<terminal 0 on initial_terminal>`).
+      - added focused unit coverage for return-shape and arity errors.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator and pure dispatch paths now route `selected-terminal`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `selected-terminal` to builtin registry.
+    - `test/neovm/vm-compat/cases/residual-helper-availability.expected.tsv`
+      - updated expectations from `void-function` to callable helper behavior.
+  - verified:
+    - `cargo test selected_terminal --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/residual-helper-availability` (pass, 26/26)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `downcase-char` as a real case helper builtin:
   - updated:
     - `rust/neovm-core/src/elisp/casetab.rs`
