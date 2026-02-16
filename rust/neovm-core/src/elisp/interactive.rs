@@ -1069,8 +1069,8 @@ pub(crate) fn builtin_thing_at_point(eval: &mut Evaluator, args: Vec<Value>) -> 
         "sexp" => Ok(extract_thing_symbol(&text, idx)),   // simplified
         "whitespace" => Ok(extract_thing_whitespace(&text, idx)),
         "number" => Ok(extract_thing_number(&text, idx)),
-        "url" => Ok(Value::Nil),   // stub
-        "email" => Ok(Value::Nil), // stub
+        "url" => Ok(extract_thing_url(&text, idx)),
+        "email" => Ok(extract_thing_email(&text, idx)),
         "filename" => Ok(extract_thing_filename(&text, idx)),
         _ => Ok(Value::Nil),
     }
@@ -1109,6 +1109,8 @@ pub(crate) fn builtin_bounds_of_thing_at_point(
         "line" => bounds_line(&text, idx),
         "whitespace" => bounds_whitespace(&text, idx),
         "number" => bounds_number(&text, idx),
+        "url" => bounds_url(&text, idx),
+        "email" => bounds_email(&text, idx),
         _ => None,
     };
 
@@ -1711,6 +1713,20 @@ fn extract_thing_number(text: &str, idx: usize) -> Value {
     }
 }
 
+fn extract_thing_url(text: &str, idx: usize) -> Value {
+    match bounds_url(text, idx) {
+        Some((start, end)) => Value::string(&text[start..end]),
+        None => Value::Nil,
+    }
+}
+
+fn extract_thing_email(text: &str, idx: usize) -> Value {
+    match bounds_email(text, idx) {
+        Some((start, end)) => Value::string(&text[start..end]),
+        None => Value::Nil,
+    }
+}
+
 fn extract_thing_filename(text: &str, idx: usize) -> Value {
     let chars: Vec<char> = text.chars().collect();
     if idx >= chars.len() {
@@ -1835,6 +1851,65 @@ fn bounds_number(text: &str, idx: usize) -> Option<(usize, usize)> {
     let byte_start: usize = chars[..start].iter().map(|c| c.len_utf8()).sum();
     let byte_end: usize = chars[..end].iter().map(|c| c.len_utf8()).sum();
     Some((byte_start, byte_end))
+}
+
+fn char_index_to_byte_offset(text: &str, idx: usize) -> Option<usize> {
+    if idx > text.chars().count() {
+        return None;
+    }
+    if idx == text.chars().count() {
+        return Some(text.len());
+    }
+    text.char_indices().nth(idx).map(|(offset, _)| offset)
+}
+
+fn trim_url_trailing_punctuation(text: &str, start: usize, mut end: usize) -> usize {
+    while end > start {
+        match text.as_bytes()[end - 1] {
+            b',' | b'.' | b';' | b':' | b'!' | b'?' | b')' | b']' | b'}' | b'>' => end -= 1,
+            _ => break,
+        }
+    }
+    end
+}
+
+fn bounds_matching_regex(text: &str, idx: usize, pattern: &str) -> Option<(usize, usize)> {
+    let byte_idx = char_index_to_byte_offset(text, idx)?;
+    let re = regex::Regex::new(pattern).ok()?;
+
+    for m in re.find_iter(text) {
+        let start = m.start();
+        let end = m.end();
+        if start <= byte_idx && byte_idx <= end {
+            return Some((start, end));
+        }
+    }
+
+    None
+}
+
+fn bounds_url(text: &str, idx: usize) -> Option<(usize, usize)> {
+    let byte_idx = char_index_to_byte_offset(text, idx)?;
+    let re = regex::Regex::new(r#"(?i)\b(?:https?://|ftp://|www\.)[^\s<>"]+"#).ok()?;
+
+    for m in re.find_iter(text) {
+        let start = m.start();
+        let raw_end = m.end();
+        let canonical_end = trim_url_trailing_punctuation(text, start, raw_end);
+
+        if start <= byte_idx && byte_idx <= canonical_end {
+            return Some((start, canonical_end));
+        }
+        if canonical_end < byte_idx && byte_idx <= raw_end {
+            return Some((start, raw_end));
+        }
+    }
+
+    None
+}
+
+fn bounds_email(text: &str, idx: usize) -> Option<(usize, usize)> {
+    bounds_matching_regex(text, idx, r#"(?i)\b[^\s<>"@]+@[^\s<>"]+"#)
 }
 
 // ---------------------------------------------------------------------------
@@ -2548,6 +2623,24 @@ mod tests {
     }
 
     #[test]
+    fn thing_at_point_url_and_email() {
+        let mut ev = Evaluator::new();
+        eval_all_with(
+            &mut ev,
+            r#"(get-buffer-create "tap4")
+               (set-buffer "tap4")
+               (insert "site https://example.com/path?a=1 and mail user@example.com")
+               (goto-char 10)"#,
+        );
+        let url = builtin_thing_at_point(&mut ev, vec![Value::symbol("url")]).unwrap();
+        assert_eq!(url.as_str(), Some("https://example.com/path?a=1"));
+
+        eval_all_with(&mut ev, "(goto-char 46)");
+        let email = builtin_thing_at_point(&mut ev, vec![Value::symbol("email")]).unwrap();
+        assert_eq!(email.as_str(), Some("user@example.com"));
+    }
+
+    #[test]
     fn thing_at_point_no_buffer() {
         let mut ev = Evaluator::new();
         // No buffer set
@@ -2601,6 +2694,38 @@ mod tests {
         let result =
             builtin_bounds_of_thing_at_point(&mut ev, vec![Value::symbol("word")]).unwrap();
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn bounds_of_thing_at_point_url_and_email() {
+        let mut ev = Evaluator::new();
+        eval_all_with(
+            &mut ev,
+            r#"(get-buffer-create "bnd3")
+               (set-buffer "bnd3")
+               (insert "site https://example.com/path?a=1 and mail user@example.com.")
+               (goto-char 10)"#,
+        );
+
+        let url = builtin_bounds_of_thing_at_point(&mut ev, vec![Value::symbol("url")]).unwrap();
+        if let Value::Cons(cell) = &url {
+            let cell = cell.lock().expect("cons lock");
+            assert_eq!(cell.car.as_int(), Some(6));
+            assert_eq!(cell.cdr.as_int(), Some(34));
+        } else {
+            panic!("expected url bounds cons, got {url:?}");
+        }
+
+        eval_all_with(&mut ev, "(goto-char 46)");
+        let email =
+            builtin_bounds_of_thing_at_point(&mut ev, vec![Value::symbol("email")]).unwrap();
+        if let Value::Cons(cell) = &email {
+            let cell = cell.lock().expect("cons lock");
+            assert_eq!(cell.car.as_int(), Some(44));
+            assert_eq!(cell.cdr.as_int(), Some(61));
+        } else {
+            panic!("expected email bounds cons, got {email:?}");
+        }
     }
 
     // -------------------------------------------------------------------
