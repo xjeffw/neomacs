@@ -801,7 +801,13 @@ pub(crate) fn builtin_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> Eva
         }
     };
     if events.is_empty() {
-        return Ok(Value::Nil);
+        let global_id = ensure_global_keymap(eval);
+        let mut maps = Vec::new();
+        if let Some(local_id) = eval.current_local_map {
+            maps.push(Value::Int(local_id as i64));
+        }
+        maps.push(Value::Int(global_id as i64));
+        return Ok(Value::list(maps));
     }
 
     // Try local map first, then global
@@ -869,6 +875,9 @@ pub(crate) fn builtin_global_key_binding(eval: &mut Evaluator, args: Vec<Value>)
             return Ok(Value::Nil);
         }
     };
+    if events.is_empty() {
+        return Ok(Value::Int(ensure_global_keymap(eval) as i64));
+    }
     if let Some(global_id) = eval.keymaps.global_map() {
         return Ok(lookup_keymap_with_partial(eval, global_id, &events));
     }
@@ -1491,6 +1500,16 @@ fn key_binding_to_value(binding: &KeyBinding) -> Value {
         KeyBinding::Command(name) => Value::symbol(name.clone()),
         KeyBinding::LispValue(v) => v.clone(),
         KeyBinding::Prefix(id) => Value::symbol(format!("keymap-{}", id)),
+    }
+}
+
+fn ensure_global_keymap(eval: &mut Evaluator) -> u64 {
+    if let Some(id) = eval.keymaps.global_map() {
+        id
+    } else {
+        let id = eval.keymaps.make_keymap();
+        eval.keymaps.set_global_map(id);
+        id
     }
 }
 
@@ -2558,6 +2577,14 @@ mod tests {
     }
 
     #[test]
+    fn key_binding_empty_returns_keymap_list() {
+        assert_eq!(
+            eval_one(r#"(let ((m (key-binding ""))) (and (consp m) (keymapp (car m))))"#),
+            "OK t"
+        );
+    }
+
+    #[test]
     fn global_key_binding_returns_binding() {
         let mut ev = Evaluator::new();
         let map_id = ev.keymaps.make_keymap();
@@ -2571,6 +2598,11 @@ mod tests {
 
         let result = builtin_global_key_binding(&mut ev, vec![Value::string("M-x")]).unwrap();
         assert_eq!(result.as_symbol_name(), Some("execute-extended-command"));
+    }
+
+    #[test]
+    fn global_key_binding_empty_bootstraps_keymap() {
+        assert_eq!(eval_one(r#"(keymapp (global-key-binding ""))"#), "OK t");
     }
 
     #[test]
