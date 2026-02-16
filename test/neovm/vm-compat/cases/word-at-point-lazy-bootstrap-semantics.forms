@@ -1,0 +1,3 @@
+(fboundp 'word-at-point)
+(save-current-buffer (let ((b (get-buffer-create "wlp"))) (set-buffer b) (erase-buffer) (insert "alpha beta") (goto-char 3) (symbol-at-point) (fboundp 'word-at-point)))
+(save-current-buffer (let ((b (get-buffer "wlp"))) (set-buffer b) (goto-char 3) (word-at-point)))
