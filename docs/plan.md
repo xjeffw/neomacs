@@ -6750,6 +6750,14 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/symbol-word-at-point-semantics` (pass, 6/6)
     - `make -C test/neovm/vm-compat check-builtin-registry-fboundp` passes with 1 drift (allowlisted `neovm-precompile-file`)
     - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+- Added explicit vm-compat lock-in for lazy `word-at-point` bootstrap flow:
+  - added and enabled oracle corpus:
+    - `test/neovm/vm-compat/cases/word-at-point-lazy-bootstrap-semantics.forms`
+    - `test/neovm/vm-compat/cases/word-at-point-lazy-bootstrap-semantics.expected.tsv`
+    - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/word-at-point-lazy-bootstrap-semantics` (pass, 3/3)
 
 ## Doing
 
