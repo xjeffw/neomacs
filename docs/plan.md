@@ -39,9 +39,13 @@ Last updated: 2026-02-16
     - `test/neovm/vm-compat/run-oracle.sh`
       - added guard to reject oracle binaries that identify as Neomacs via binary path or version banner.
       - added actionable error guidance to set `NEOVM_ORACLE_EMACS` / `ORACLE_EMACS` to an official GNU Emacs binary.
+    - `test/neovm/vm-compat/run-ert-allowlist.sh`
+      - applied the same Neomacs-oracle rejection guard used by the standard oracle runner, so ERT allowlist baselines enforce official GNU Emacs source parity.
   - verified:
     - `NEOVM_ORACLE_EMACS=/nix/store/qn885snj89prad9jbndjbg80d4rxbc3z-emacs-git-20240702.0/bin/emacs test/neovm/vm-compat/run-oracle.sh test/neovm/vm-compat/cases/core.forms` (pass)
     - `NEOVM_ORACLE_EMACS=/nix/store/v3r0n1yqmf52j6b6gp2xgq4j2s844gyx-neomacs-30.0.50-neomacs/bin/emacs test/neovm/vm-compat/run-oracle.sh test/neovm/vm-compat/cases/core.forms` (fails with explicit oracle-binary rejection)
+    - `NEOVM_ORACLE_EMACS=/nix/store/qn885snj89prad9jbndjbg80d4rxbc3z-emacs-git-20240702.0/bin/emacs test/neovm/vm-compat/run-ert-allowlist.sh test/neovm/vm-compat/cases/ert-allowlist-smoke.txt test/neovm/vm-compat/cases/ert-allowlist-fixtures/smoke-tests.el` (pass)
+    - `NEOVM_ORACLE_EMACS=/nix/store/v3r0n1yqmf52j6b6gp2xgq4j2s844gyx-neomacs-30.0.50-neomacs/bin/emacs test/neovm/vm-compat/run-ert-allowlist.sh test/neovm/vm-compat/cases/ert-allowlist-smoke.txt test/neovm/vm-compat/cases/ert-allowlist-fixtures/smoke-tests.el` (fails with explicit oracle-binary rejection)
 
 - Aligned `define-charset-internal` arity with oracle and added charset internal arity corpus lock-in:
   - updated:
