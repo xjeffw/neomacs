@@ -20,6 +20,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Added `bounds-of-thing-at-point` filename support and locked oracle corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - added `filename` branch in `bounds-of-thing-at-point`.
+      - implemented `bounds_filename` helper reusing existing filename token rules.
+      - added focused unit coverage for filename extraction and filename bounds shape.
+    - `test/neovm/vm-compat/cases/thing-at-point-filename-semantics.forms`
+      - added oracle probes for filename extraction, filename bounds, and non-path word behavior.
+    - `test/neovm/vm-compat/cases/thing-at-point-filename-semantics.expected.tsv`
+      - recorded oracle baseline outputs for filename thing-at-point behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/thing-at-point-filename-semantics` to recurring compatibility execution.
+  - verified:
+    - `cargo test thing_at_point_filename --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test bounds_of_thing_at_point_filename --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/thing-at-point-filename-semantics` (pass, 4/4)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented `thing-at-point` URL/email extraction semantics and locked oracle corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
