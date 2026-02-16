@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `string-chop-newline` as a callable subr-x string helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/format.rs`
+      - added `string-chop-newline` builtin (arity `1`) trimming trailing CR/LF runs.
+      - added focused unit coverage for no-op, LF, CRLF-run, and wrong-type paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - format/string utility dispatch now routes `string-chop-newline`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `string-chop-newline` to builtin registry.
+    - `test/neovm/vm-compat/cases/subr-x-string-helper-availability.forms`
+      - switched helper probe to callable form `(string-chop-newline "x\n")`.
+    - `test/neovm/vm-compat/cases/subr-x-string-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`"x"`).
+  - verified:
+    - `cargo test string_chop_newline --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/subr-x-string-helper-availability` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `extract-rectangle-line` as a callable rectangle helper builtin:
   - updated:
     - `rust/neovm-core/src/elisp/rect.rs`
