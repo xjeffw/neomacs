@@ -19,6 +19,23 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Implemented oracle-aligned `insert-rectangle` mutation/point semantics and locked compatibility corpus coverage:
+  - updated:
+    - `rust/neovm-core/src/elisp/rect.rs`
+      - replaced no-op stub behavior with real rectangle insertion from point line/column.
+      - added space-padding for short lines, automatic line growth for multi-row inserts, and final point placement at the end of the last inserted segment.
+      - added focused unit coverage for mutation, point movement, line-growth/padding, and empty-rectangle no-op behavior.
+    - `test/neovm/vm-compat/cases/rect-insert-semantics.forms`
+      - added oracle-backed probes for insertion at different columns, line growth/padding, empty rectangle variants, and type errors.
+    - `test/neovm/vm-compat/cases/rect-insert-semantics.expected.tsv`
+      - recorded oracle baseline outputs for insert-rectangle behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/rect-insert-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test insert_rectangle --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/rect-insert-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Implemented oracle-aligned `delete-rectangle` return/value semantics and locked compatibility corpus coverage:
   - updated:
     - `rust/neovm-core/src/elisp/rect.rs`
