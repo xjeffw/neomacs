@@ -19,6 +19,24 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `cl-find-if` as a callable CL helper:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - added eval-dependent `cl-find-if` builtin for first-match element selection by predicate.
+      - added focused unit coverage for positive match and wrong-arity paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator-dependent dispatch now routes `cl-find-if`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `cl-find-if` to builtin registry.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.forms`
+      - switched helper probe to callable form `(cl-find-if #'numberp '("x" 2))`.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.expected.tsv`
+      - updated expectations from missing helper to callable behavior (`2`).
+  - verified:
+    - `cargo test cl_find_if --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `cl-find` as a callable CL helper:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
