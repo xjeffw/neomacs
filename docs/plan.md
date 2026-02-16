@@ -55,6 +55,28 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned syntax/category/plist helper primitive `subr-arity` metadata with GNU Emacs:
+  - added explicit arity lock-ins for:
+    - `(2 . 2)`: `file-attributes-lessp`
+    - `(1 . 1)`: `flatten-tree`, `forward-comment`, `make-category-set`, `natnump`
+    - `(0 . 2)`: `forward-sexp`, `previous-line`
+    - `(0 . 1)`: `get-unused-category`
+    - `(0 . 0)`: `make-category-table`, `preceding-char`
+    - `(1 . 2)`: `make-char-table`
+    - `(2 . 4)`: `modify-category-entry`
+    - `(2 . 3)`: `modify-syntax-entry`, `plist-get`
+    - `(3 . 4)`: `plist-put`
+    - `(2 . 6)`: `parse-partial-sexp`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/syntax-category-plist-subr-arity-semantics.{forms,expected.tsv}`
+    - wired into default suite: `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `subr_arity_syntax_category_plist_helpers_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_syntax_category_plist_helpers_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/syntax-category-plist-subr-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned face/font helper primitive `subr-arity` metadata with GNU Emacs:
   - added explicit arity lock-ins for:
     - `(2 . 2)`: `face-attribute-relative-p`, `font-get`, `internal-merge-in-global-face`
