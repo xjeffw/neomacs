@@ -167,6 +167,13 @@ pub(crate) fn builtin_cl_rest(args: Vec<Value>) -> EvalResult {
     }
 }
 
+/// `(cl-evenp N)` -- return t if N is even.
+pub(crate) fn builtin_cl_evenp(args: Vec<Value>) -> EvalResult {
+    expect_args("cl-evenp", &args, 1)?;
+    let n = expect_int(&args[0])?;
+    Ok(Value::bool(n % 2 == 0))
+}
+
 fn seq_position_list_elements(seq: &Value) -> Result<Vec<Value>, Flow> {
     let mut elements = Vec::new();
     let mut cursor = seq.clone();
@@ -1016,6 +1023,23 @@ mod tests {
     #[test]
     fn cl_rest_wrong_type() {
         assert!(builtin_cl_rest(vec![Value::Int(1)]).is_err());
+    }
+
+    #[test]
+    fn cl_evenp_true() {
+        let result = builtin_cl_evenp(vec![Value::Int(2)]).unwrap();
+        assert!(result.is_truthy());
+    }
+
+    #[test]
+    fn cl_evenp_false() {
+        let result = builtin_cl_evenp(vec![Value::Int(3)]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn cl_evenp_wrong_type() {
+        assert!(builtin_cl_evenp(vec![Value::string("x")]).is_err());
     }
 
     #[test]

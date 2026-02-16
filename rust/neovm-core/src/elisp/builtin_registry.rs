@@ -168,6 +168,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "clear-image-cache",
     "clear-rectangle",
     "cl-eighth",
+    "cl-evenp",
     "cl-fifth",
     "cl-first",
     "cl-fourth",

@@ -7605,6 +7605,7 @@ pub(crate) fn dispatch_builtin(
         "cl-sixth" => super::cl_lib::builtin_cl_sixth(args),
         "cl-seventh" => super::cl_lib::builtin_cl_seventh(args),
         "cl-eighth" => super::cl_lib::builtin_cl_eighth(args),
+        "cl-evenp" => super::cl_lib::builtin_cl_evenp(args),
         "cl-ninth" => super::cl_lib::builtin_cl_ninth(args),
         "cl-tenth" => super::cl_lib::builtin_cl_tenth(args),
         "cl-rest" => super::cl_lib::builtin_cl_rest(args),

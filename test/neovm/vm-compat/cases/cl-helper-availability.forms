@@ -11,7 +11,7 @@
 (fboundp 'cl-eighth)
 (condition-case err (cl-eighth '(a b c d e f g h)) (error err))
 (fboundp 'cl-evenp)
-(condition-case err (cl-evenp) (error err))
+(condition-case err (cl-evenp 2) (error err))
 (fboundp 'cl-every)
 (condition-case err (cl-every) (error err))
 (fboundp 'cl-fifth)
