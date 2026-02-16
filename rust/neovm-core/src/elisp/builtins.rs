@@ -5155,7 +5155,7 @@ pub(crate) fn builtin_buffer_local_value(
 // ===========================================================================
 // Keymap builtins
 // ===========================================================================
-use super::keymap::{KeyBinding, KeyEvent, KeymapManager};
+use super::keymap::{KeyBinding, KeyEvent};
 
 /// Extract a keymap id from a Value, signaling wrong-type-argument if invalid.
 fn expect_keymap_id(eval: &super::eval::Evaluator, value: &Value) -> Result<u64, Flow> {
@@ -5206,17 +5206,16 @@ fn value_to_key_binding(eval: &super::eval::Evaluator, value: &Value) -> KeyBind
 
 /// Parse a key description from a Value (must be a string).
 fn expect_key_description(value: &Value) -> Result<Vec<KeyEvent>, Flow> {
-    let desc = match value {
-        Value::Str(s) => s.as_str(),
-        other => {
-            return Err(signal(
-                "wrong-type-argument",
-                vec![Value::symbol("stringp"), other.clone()],
-            ));
+    match super::kbd::key_events_from_designator(value) {
+        Ok(events) => Ok(events),
+        Err(super::kbd::KeyDesignatorError::WrongType(other)) => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("arrayp"), other],
+        )),
+        Err(super::kbd::KeyDesignatorError::Parse(msg)) => {
+            Err(signal("error", vec![Value::string(msg)]))
         }
-    };
-    KeymapManager::parse_key_description(desc)
-        .map_err(|msg| signal("error", vec![Value::string(msg)]))
+    }
 }
 
 /// Helper: define a key in a keymap, auto-creating prefix maps for multi-key sequences.

@@ -6,12 +6,19 @@
 //! - angle-bracket symbolic events (`<f1>`, `C-<return>`, ...),
 //! - string return when all events are plain chars, otherwise vector.
 
-use super::value::Value;
+use super::{keymap::KeyEvent, value::Value};
 
 const CHAR_META: i64 = 0x8000000;
 const CHAR_CTL: i64 = 0x4000000;
 const CHAR_SHIFT: i64 = 0x2000000;
 const CHAR_SUPER: i64 = 0x0800000;
+const CHAR_MODIFIER_MASK: i64 = CHAR_META | CHAR_CTL | CHAR_SHIFT | CHAR_SUPER;
+
+#[derive(Clone, Debug)]
+pub(crate) enum KeyDesignatorError {
+    WrongType(Value),
+    Parse(String),
+}
 
 #[derive(Clone, Copy, Default)]
 struct Modifiers {
@@ -65,6 +72,90 @@ pub(crate) fn parse_kbd_string(desc: &str) -> Result<Value, String> {
         })
         .collect();
     Ok(Value::vector(values))
+}
+
+pub(crate) fn key_events_from_designator(designator: &Value) -> Result<Vec<KeyEvent>, KeyDesignatorError> {
+    match designator {
+        Value::Str(s) => {
+            let encoded = parse_kbd_string(s).map_err(KeyDesignatorError::Parse)?;
+            decode_encoded_key_events(&encoded).map_err(KeyDesignatorError::Parse)
+        }
+        Value::Vector(_) => decode_encoded_key_events(designator).map_err(KeyDesignatorError::Parse),
+        other => Err(KeyDesignatorError::WrongType(other.clone())),
+    }
+}
+
+fn decode_encoded_key_events(encoded: &Value) -> Result<Vec<KeyEvent>, String> {
+    match encoded {
+        Value::Str(s) => Ok(s
+            .chars()
+            .map(|ch| KeyEvent::Char {
+                code: ch,
+                ctrl: false,
+                meta: false,
+                shift: false,
+                super_: false,
+            })
+            .collect()),
+        Value::Vector(v) => {
+            let guard = v.lock().expect("vector lock poisoned");
+            guard.iter().map(decode_vector_event).collect()
+        }
+        other => Err(format!(
+            "expected kbd-encoded string or vector, got {}",
+            other.type_name()
+        )),
+    }
+}
+
+fn decode_vector_event(item: &Value) -> Result<KeyEvent, String> {
+    match item {
+        Value::Int(n) => decode_int_event(*n),
+        Value::Char(ch) => Ok(KeyEvent::Char {
+            code: *ch,
+            ctrl: false,
+            meta: false,
+            shift: false,
+            super_: false,
+        }),
+        Value::Symbol(name) => decode_symbol_event(name),
+        Value::Nil => decode_symbol_event("nil"),
+        Value::True => decode_symbol_event("t"),
+        other => Err(format!(
+            "invalid key vector element type: {}",
+            other.type_name()
+        )),
+    }
+}
+
+fn decode_int_event(code: i64) -> Result<KeyEvent, String> {
+    let mods = code & CHAR_MODIFIER_MASK;
+    let base = code & !CHAR_MODIFIER_MASK;
+    if !(0..=0x10FFFF).contains(&base) {
+        return Err(format!("invalid key event code: {code}"));
+    }
+    let ch = char::from_u32(base as u32).ok_or_else(|| format!("invalid key event code: {code}"))?;
+    Ok(KeyEvent::Char {
+        code: ch,
+        ctrl: (mods & CHAR_CTL) != 0,
+        meta: (mods & CHAR_META) != 0,
+        shift: (mods & CHAR_SHIFT) != 0,
+        super_: (mods & CHAR_SUPER) != 0,
+    })
+}
+
+fn decode_symbol_event(symbol: &str) -> Result<KeyEvent, String> {
+    let (mods, _prefix, remainder) = parse_modifiers(symbol);
+    if remainder.is_empty() {
+        return Err("invalid empty key symbol".to_string());
+    }
+    Ok(KeyEvent::Function {
+        name: remainder.to_string(),
+        ctrl: mods.ctrl,
+        meta: mods.meta,
+        shift: mods.shift,
+        super_: mods.super_,
+    })
 }
 
 fn parse_token(token: &str, out: &mut Vec<EncodedEvent>) -> Result<(), String> {
@@ -347,5 +438,49 @@ mod tests {
     fn kbd_modifier_chain_uses_consumed_prefix_in_error() {
         let err = parse_kbd_string("C-M-BS").expect_err("C-M-BS should fail");
         assert_eq!(err, "C-M- must prefix a single character, not BS");
+    }
+
+    #[test]
+    fn key_events_from_designator_accepts_kbd_string_and_vector() {
+        let from_string = key_events_from_designator(&Value::string("M-x")).expect("decode string");
+        assert_eq!(
+            from_string,
+            vec![KeyEvent::Char {
+                code: 'x',
+                ctrl: false,
+                meta: true,
+                shift: false,
+                super_: false,
+            }]
+        );
+
+        let from_vector = key_events_from_designator(&Value::vector(vec![Value::Int(134_217_848)]))
+            .expect("decode vector int");
+        assert_eq!(from_vector, from_string);
+    }
+
+    #[test]
+    fn key_events_from_designator_decodes_symbol_events() {
+        let events = key_events_from_designator(&Value::vector(vec![Value::symbol("C-f1")]))
+            .expect("decode symbol");
+        assert_eq!(
+            events,
+            vec![KeyEvent::Function {
+                name: "f1".to_string(),
+                ctrl: true,
+                meta: false,
+                shift: false,
+                super_: false,
+            }]
+        );
+    }
+
+    #[test]
+    fn key_events_from_designator_rejects_non_array_types() {
+        let err = key_events_from_designator(&Value::Int(1)).expect_err("int should fail");
+        match err {
+            KeyDesignatorError::WrongType(v) => assert_eq!(v, Value::Int(1)),
+            other => panic!("expected WrongType error, got {other:?}"),
+        }
     }
 }

@@ -788,20 +788,24 @@ fn command_name_display(value: &Value) -> String {
 pub(crate) fn builtin_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("key-binding", &args, 1)?;
 
-    let key_desc = match args[0].as_str() {
-        Some(s) => s.to_string(),
-        None => {
-            // Try vector of key events
+    let events = match super::kbd::key_events_from_designator(&args[0]) {
+        Ok(events) => events,
+        Err(super::kbd::KeyDesignatorError::WrongType(other)) => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("arrayp"), other],
+            ));
+        }
+        Err(super::kbd::KeyDesignatorError::Parse(_)) => {
             return Ok(Value::Nil);
         }
     };
+    if events.is_empty() {
+        return Ok(Value::Nil);
+    }
 
     // Try local map first, then global
     if let Some(local_id) = eval.current_local_map {
-        let events = match KeymapManager::parse_key_description(&key_desc) {
-            Ok(e) => e,
-            Err(_) => return Ok(Value::Nil),
-        };
         if events.len() == 1 {
             if let Some(binding) = eval.keymaps.lookup_key(local_id, &events[0]) {
                 return Ok(key_binding_to_value(binding));
@@ -812,10 +816,6 @@ pub(crate) fn builtin_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> Eva
     }
 
     if let Some(global_id) = eval.keymaps.global_map() {
-        let events = match KeymapManager::parse_key_description(&key_desc) {
-            Ok(e) => e,
-            Err(_) => return Ok(Value::Nil),
-        };
         if events.len() == 1 {
             if let Some(binding) = eval.keymaps.lookup_key(global_id, &events[0]) {
                 return Ok(key_binding_to_value(binding));
@@ -832,23 +832,34 @@ pub(crate) fn builtin_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> Eva
 pub(crate) fn builtin_local_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("local-key-binding", &args, 1)?;
 
-    let key_desc = match args[0].as_str() {
-        Some(s) => s.to_string(),
-        None => return Ok(Value::Nil),
+    let Some(local_id) = eval.current_local_map else {
+        // Oracle batch behavior: when no local map is active, non-array KEY does
+        // not error and local-key-binding simply returns nil.
+        return Ok(Value::Nil);
     };
 
-    if let Some(local_id) = eval.current_local_map {
-        let events = match KeymapManager::parse_key_description(&key_desc) {
-            Ok(e) => e,
-            Err(_) => return Ok(Value::Nil),
-        };
-        if events.len() == 1 {
-            if let Some(binding) = eval.keymaps.lookup_key(local_id, &events[0]) {
-                return Ok(key_binding_to_value(binding));
-            }
-        } else if let Some(binding) = eval.keymaps.lookup_key_sequence(local_id, &events) {
+    let events = match super::kbd::key_events_from_designator(&args[0]) {
+        Ok(events) => events,
+        Err(super::kbd::KeyDesignatorError::WrongType(other)) => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("arrayp"), other],
+            ));
+        }
+        Err(super::kbd::KeyDesignatorError::Parse(_)) => {
+            return Ok(Value::Nil);
+        }
+    };
+    if events.is_empty() {
+        return Ok(Value::Nil);
+    }
+
+    if events.len() == 1 {
+        if let Some(binding) = eval.keymaps.lookup_key(local_id, &events[0]) {
             return Ok(key_binding_to_value(binding));
         }
+    } else if let Some(binding) = eval.keymaps.lookup_key_sequence(local_id, &events) {
+        return Ok(key_binding_to_value(binding));
     }
 
     Ok(Value::Nil)
@@ -858,16 +869,23 @@ pub(crate) fn builtin_local_key_binding(eval: &mut Evaluator, args: Vec<Value>) 
 pub(crate) fn builtin_global_key_binding(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("global-key-binding", &args, 1)?;
 
-    let key_desc = match args[0].as_str() {
-        Some(s) => s.to_string(),
-        None => return Ok(Value::Nil),
+    let events = match super::kbd::key_events_from_designator(&args[0]) {
+        Ok(events) => events,
+        Err(super::kbd::KeyDesignatorError::WrongType(other)) => {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("arrayp"), other],
+            ));
+        }
+        Err(super::kbd::KeyDesignatorError::Parse(_)) => {
+            return Ok(Value::Nil);
+        }
     };
+    if events.is_empty() {
+        return Ok(Value::Nil);
+    }
 
     if let Some(global_id) = eval.keymaps.global_map() {
-        let events = match KeymapManager::parse_key_description(&key_desc) {
-            Ok(e) => e,
-            Err(_) => return Ok(Value::Nil),
-        };
         if events.len() == 1 {
             if let Some(binding) = eval.keymaps.lookup_key(global_id, &events[0]) {
                 return Ok(key_binding_to_value(binding));
@@ -2511,7 +2529,8 @@ mod tests {
         let mut ev = Evaluator::new();
         let map_id = ev.keymaps.make_keymap();
         ev.keymaps.set_global_map(map_id);
-        let events = KeymapManager::parse_key_description("C-f").unwrap();
+        let events = crate::elisp::kbd::key_events_from_designator(&Value::string("C-f"))
+            .expect("key designator should decode");
         ev.keymaps.define_key(
             map_id,
             events[0].clone(),
