@@ -67,12 +67,13 @@ Last updated: 2026-02-16
 - Keep newly landed `other-window` max-arity parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed window accessor max-arity parity stable while expanding remaining window lifecycle/helper drifts.
 - Keep newly landed `next-window` / `previous-window` max-arity parity stable while expanding remaining window lifecycle/helper drifts.
+- Keep newly landed frame-op max-arity parity stable while expanding remaining window/frame lifecycle/helper drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Land the next evaluator-backed stub replacement after the `next-window` / `previous-window` max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
+2. Land the next evaluator-backed stub replacement after the frame-op max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
 3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
@@ -81,6 +82,26 @@ Last updated: 2026-02-16
 8. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
+
+- Aligned frame-op max-arity runtime behavior with GNU Emacs and added oracle lock-in:
+  - updated runtime behavior:
+    - `rust/neovm-core/src/elisp/window_cmds.rs`
+    - `make-frame` now enforces max arity `1`.
+    - `delete-frame` now enforces max arity `2`.
+    - `frame-parameter` now enforces exact arity `2` (via min+max guards).
+    - `frame-parameters` now enforces max arity `1`.
+    - `modify-frame-parameters` now enforces exact arity `2` (via min+max guards).
+    - `frame-visible-p` now enforces max arity `1`.
+  - added evaluator regression:
+    - `frame_ops_enforce_max_arity`
+  - added oracle corpus case:
+    - `test/neovm/vm-compat/cases/frame-ops-arity-semantics.{forms,expected.tsv}`
+    - wired into:
+      - `test/neovm/vm-compat/cases/default.list`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml frame_ops_enforce_max_arity` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/frame-ops-arity-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
 - Aligned `next-window` / `previous-window` max-arity runtime behavior with GNU Emacs and added oracle lock-in:
   - updated runtime behavior:
