@@ -5370,10 +5370,15 @@ fn builtin_current_local_map(eval: &mut super::eval::Evaluator, args: Vec<Value>
 /// (current-global-map) -> keymap-id or nil
 fn builtin_current_global_map(eval: &mut super::eval::Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("current-global-map", &args, 0)?;
-    match eval.keymaps.global_map() {
-        Some(id) => Ok(Value::Int(id as i64)),
-        None => Ok(Value::Nil),
-    }
+    let id = match eval.keymaps.global_map() {
+        Some(id) => id,
+        None => {
+            let id = eval.keymaps.make_keymap();
+            eval.keymaps.set_global_map(id);
+            id
+        }
+    };
+    Ok(Value::Int(id as i64))
 }
 
 /// (keymap-parent KEYMAP) -> keymap-id or nil
