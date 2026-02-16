@@ -908,11 +908,13 @@ pub(crate) fn builtin_read_key(
     }
     expect_optional_prompt_string(&args)?;
     if let Some(event) = eval.pop_unread_command_event() {
+        eval.set_read_command_keys(vec![event.clone()]);
         if let Some(n) = event_to_int(&event) {
             return Ok(Value::Int(n));
         }
         return Ok(event);
     }
+    eval.clear_read_command_keys();
     Ok(Value::Nil)
 }
 
@@ -931,11 +933,13 @@ pub(crate) fn builtin_read_key_sequence(
     expect_max_args("read-key-sequence", &args, 6)?;
     expect_optional_prompt_string(&args)?;
     if let Some(event) = eval.pop_unread_command_event() {
+        eval.set_read_command_keys(vec![event.clone()]);
         if let Some(c) = event_to_char(&event) {
             return Ok(Value::string(c.to_string()));
         }
         return Ok(Value::vector(vec![event]));
     }
+    eval.clear_read_command_keys();
     Ok(Value::string(""))
 }
 
@@ -951,11 +955,13 @@ pub(crate) fn builtin_read_key_sequence_vector(
     expect_max_args("read-key-sequence-vector", &args, 6)?;
     expect_optional_prompt_string(&args)?;
     if let Some(event) = eval.pop_unread_command_event() {
+        eval.set_read_command_keys(vec![event.clone()]);
         if let Some(n) = event_to_int(&event) {
             return Ok(Value::vector(vec![Value::Int(n)]));
         }
         return Ok(Value::vector(vec![event]));
     }
+    eval.clear_read_command_keys();
     Ok(Value::vector(vec![]))
 }
 
@@ -1730,6 +1736,7 @@ mod tests {
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
         let result = builtin_read_key(&mut ev, vec![]).unwrap();
         assert_eq!(result.as_int(), Some(97));
+        assert_eq!(ev.read_command_keys(), &[Value::Int(97)]);
     }
 
     #[test]
@@ -1778,6 +1785,7 @@ mod tests {
             .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
         let result = builtin_read_key_sequence(&mut ev, vec![Value::string("key: ")]).unwrap();
         assert!(matches!(result, Value::Str(s) if s.as_str() == "a"));
+        assert_eq!(ev.read_command_keys(), &[Value::Int(97)]);
     }
 
     #[test]
@@ -1838,6 +1846,7 @@ mod tests {
             }
             other => panic!("expected vector, got {other:?}"),
         }
+        assert_eq!(ev.read_command_keys(), &[Value::Int(97)]);
     }
 
     #[test]

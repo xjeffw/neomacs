@@ -1083,6 +1083,14 @@ pub(crate) fn builtin_describe_key_briefly(eval: &mut Evaluator, args: Vec<Value
 /// `(this-command-keys)` -> string of keys that invoked current command.
 pub(crate) fn builtin_this_command_keys(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_args("this-command-keys", &args, 0)?;
+    let read_keys = eval.read_command_keys();
+    if !read_keys.is_empty() {
+        if let Some(rendered) = command_key_events_to_string(read_keys) {
+            return Ok(Value::string(rendered));
+        }
+        return Ok(Value::vector(read_keys.to_vec()));
+    }
+
     let keys = eval.interactive.this_command_keys();
     Ok(Value::string(keys.join(" ")))
 }
@@ -1093,9 +1101,27 @@ pub(crate) fn builtin_this_command_keys_vector(
     args: Vec<Value>,
 ) -> EvalResult {
     expect_args("this-command-keys-vector", &args, 0)?;
+    let read_keys = eval.read_command_keys();
+    if !read_keys.is_empty() {
+        return Ok(Value::vector(read_keys.to_vec()));
+    }
+
     let keys = eval.interactive.this_command_keys();
     let vals: Vec<Value> = keys.iter().map(|k| Value::string(k.clone())).collect();
     Ok(Value::vector(vals))
+}
+
+fn command_key_events_to_string(events: &[Value]) -> Option<String> {
+    let mut out = String::new();
+    for event in events {
+        let ch = match event {
+            Value::Char(c) => *c,
+            Value::Int(n) if *n >= 0 => char::from_u32(*n as u32)?,
+            _ => return None,
+        };
+        out.push(ch);
+    }
+    Some(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -2625,6 +2651,42 @@ mod tests {
             assert_eq!(v.len(), 1);
         } else {
             panic!("expected vector");
+        }
+    }
+
+    #[test]
+    fn this_command_keys_prefers_read_command_key_chars() {
+        let mut ev = Evaluator::new();
+        ev.interactive
+            .set_this_command_keys(vec!["C-x".to_string(), "C-f".to_string()]);
+        ev.set_read_command_keys(vec![Value::Int(97)]);
+
+        let text = builtin_this_command_keys(&mut ev, vec![]).unwrap();
+        assert_eq!(text.as_str(), Some("a"));
+
+        let vec_result = builtin_this_command_keys_vector(&mut ev, vec![]).unwrap();
+        match vec_result {
+            Value::Vector(v) => {
+                let items = v.lock().expect("poisoned");
+                assert_eq!(items.as_slice(), &[Value::Int(97)]);
+            }
+            other => panic!("expected vector, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn this_command_keys_returns_vector_for_non_char_read_command_keys() {
+        let mut ev = Evaluator::new();
+        ev.set_read_command_keys(vec![Value::list(vec![Value::symbol("mouse-1")])]);
+
+        let result = builtin_this_command_keys(&mut ev, vec![]).unwrap();
+        match result {
+            Value::Vector(v) => {
+                let items = v.lock().expect("poisoned");
+                assert_eq!(items.len(), 1);
+                assert!(matches!(items[0], Value::Cons(_)));
+            }
+            other => panic!("expected vector, got {other:?}"),
         }
     }
 

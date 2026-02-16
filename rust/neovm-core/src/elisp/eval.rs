@@ -92,6 +92,8 @@ pub struct Evaluator {
     pub(crate) interactive: InteractiveRegistry,
     /// Input events consumed by read* APIs, used by `recent-keys`.
     recent_input_events: Vec<Value>,
+    /// Last key sequence captured by read-key/read-key-sequence/read-event paths.
+    read_command_keys: Vec<Value>,
     /// Frame manager — owns all frames and windows.
     pub(crate) frames: FrameManager,
     /// Mode registry — major/minor modes.
@@ -207,6 +209,7 @@ impl Evaluator {
             rectangle: RectangleState::new(),
             interactive: InteractiveRegistry::new(),
             recent_input_events: Vec::new(),
+            read_command_keys: Vec::new(),
             frames: FrameManager::new(),
             modes: ModeRegistry::new(),
             threads: ThreadManager::new(),
@@ -232,6 +235,18 @@ impl Evaluator {
 
     pub(crate) fn recent_input_events(&self) -> &[Value] {
         &self.recent_input_events
+    }
+
+    pub(crate) fn set_read_command_keys(&mut self, keys: Vec<Value>) {
+        self.read_command_keys = keys;
+    }
+
+    pub(crate) fn clear_read_command_keys(&mut self) {
+        self.read_command_keys.clear();
+    }
+
+    pub(crate) fn read_command_keys(&self) -> &[Value] {
+        &self.read_command_keys
     }
 
     pub(crate) fn pop_unread_command_event(&mut self) -> Option<Value> {
