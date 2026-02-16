@@ -240,14 +240,67 @@ impl ImageCache {
 
     /// Decode image file with size constraints
     fn decode_file(path: &str, max_width: u32, max_height: u32) -> Option<(u32, u32, Vec<u8>)> {
-        let img = image::open(path).ok()?;
-        Self::process_image(img, max_width, max_height)
+        if let Ok(img) = image::open(path) {
+            return Self::process_image(img, max_width, max_height);
+        }
+        // Fallback: try SVG via resvg
+        let data = std::fs::read(path).ok()?;
+        Self::decode_svg_data(&data, max_width, max_height)
     }
 
     /// Decode image data with size constraints
     fn decode_data(data: &[u8], max_width: u32, max_height: u32) -> Option<(u32, u32, Vec<u8>)> {
-        let img = image::load_from_memory(data).ok()?;
-        Self::process_image(img, max_width, max_height)
+        if let Ok(img) = image::load_from_memory(data) {
+            return Self::process_image(img, max_width, max_height);
+        }
+        // Fallback: try SVG via resvg
+        Self::decode_svg_data(data, max_width, max_height)
+    }
+
+    /// Decode SVG data via resvg, returning RGBA pixels
+    fn decode_svg_data(data: &[u8], max_width: u32, max_height: u32) -> Option<(u32, u32, Vec<u8>)> {
+        let tree = resvg::usvg::Tree::from_data(data, &resvg::usvg::Options::default()).ok()?;
+        let svg_size = tree.size();
+        let svg_w = svg_size.width();
+        let svg_h = svg_size.height();
+        if svg_w <= 0.0 || svg_h <= 0.0 {
+            return None;
+        }
+
+        // Determine render size respecting max constraints
+        let mut w = svg_w.ceil() as u32;
+        let mut h = svg_h.ceil() as u32;
+        let mw = if max_width > 0 { max_width } else { MAX_TEXTURE_SIZE };
+        let mh = if max_height > 0 { max_height } else { MAX_TEXTURE_SIZE };
+        if w > mw {
+            h = (h as f64 * mw as f64 / w as f64) as u32;
+            w = mw;
+        }
+        if h > mh {
+            w = (w as f64 * mh as f64 / h as f64) as u32;
+            h = mh;
+        }
+        w = w.max(1);
+        h = h.max(1);
+
+        let mut pixmap = resvg::tiny_skia::Pixmap::new(w, h)?;
+        let scale_x = w as f32 / svg_w;
+        let scale_y = h as f32 / svg_h;
+        let transform = resvg::tiny_skia::Transform::from_scale(scale_x, scale_y);
+        resvg::render(&tree, transform, &mut pixmap.as_mut());
+
+        // tiny_skia produces premultiplied RGBA; convert to straight alpha for wgpu
+        let mut rgba = pixmap.take();
+        for pixel in rgba.chunks_exact_mut(4) {
+            let a = pixel[3] as f32 / 255.0;
+            if a > 0.0 && a < 1.0 {
+                pixel[0] = (pixel[0] as f32 / a).min(255.0) as u8;
+                pixel[1] = (pixel[1] as f32 / a).min(255.0) as u8;
+                pixel[2] = (pixel[2] as f32 / a).min(255.0) as u8;
+            }
+        }
+
+        Some((w, h, rgba))
     }
 
     /// Process decoded image: resize if needed, convert to RGBA
@@ -412,25 +465,45 @@ impl ImageCache {
         let reader = BufReader::new(file);
 
         // Use image crate's dimension reader (reads header only)
-        let (width, height) = image::io::Reader::new(reader)
+        if let Ok(dims) = image::io::Reader::new(reader)
             .with_guessed_format()
             .ok()?
             .into_dimensions()
-            .ok()?;
+        {
+            return Some(ImageDimensions { width: dims.0, height: dims.1 });
+        }
 
-        Some(ImageDimensions { width, height })
+        // Fallback: try SVG via resvg
+        let data = std::fs::read(path).ok()?;
+        Self::query_svg_dimensions(&data)
     }
 
     /// Query image data dimensions (fast - reads header only)
     pub fn query_data_dimensions(data: &[u8]) -> Option<ImageDimensions> {
         let cursor = std::io::Cursor::new(data);
-        let (width, height) = image::io::Reader::new(BufReader::new(cursor))
+        if let Ok(dims) = image::io::Reader::new(BufReader::new(cursor))
             .with_guessed_format()
             .ok()?
             .into_dimensions()
-            .ok()?;
+        {
+            return Some(ImageDimensions { width: dims.0, height: dims.1 });
+        }
 
-        Some(ImageDimensions { width, height })
+        // Fallback: try SVG via resvg
+        Self::query_svg_dimensions(data)
+    }
+
+    /// Query SVG dimensions without full rendering
+    fn query_svg_dimensions(data: &[u8]) -> Option<ImageDimensions> {
+        let tree = resvg::usvg::Tree::from_data(data, &resvg::usvg::Options::default()).ok()?;
+        let size = tree.size();
+        let w = size.width().ceil() as u32;
+        let h = size.height().ceil() as u32;
+        if w > 0 && h > 0 {
+            Some(ImageDimensions { width: w, height: h })
+        } else {
+            None
+        }
     }
 
     /// Load image from file (async)
@@ -439,6 +512,24 @@ impl ImageCache {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         self.load_file_with_id(id, path, max_width, max_height);
         id
+    }
+
+    /// Load image from data with a pre-allocated ID (for threaded mode)
+    pub fn load_data_with_id(&mut self, id: u32, data: &[u8], max_width: u32, max_height: u32) {
+        // Query dimensions first (fast)
+        if let Some(dims) = Self::query_data_dimensions(data) {
+            let (w, h) = Self::constrain_dimensions(dims.width, dims.height, max_width, max_height);
+            self.pending_dimensions.insert(id, ImageDimensions { width: w, height: h });
+        }
+
+        // Queue for async decode
+        self.states.insert(id, ImageState::Pending);
+        let _ = self.decode_tx.send(DecodeRequest {
+            id,
+            source: ImageSource::Data(data.to_vec()),
+            max_width,
+            max_height,
+        });
     }
 
     /// Load image from file with a pre-allocated ID (for threaded mode)

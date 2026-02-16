@@ -12969,6 +12969,30 @@ neomacs_image_p (Lisp_Object object)
   return 1;
 }
 
+/* Generate neomacs-backed validator for standard image type.
+   These reuse the neomacs keyword format but accept a different :type symbol,
+   allowing (image-type-available-p 'png) etc. to return t.  */
+#define NEOMACS_TYPE_VALIDATOR(typename, typesym)                       \
+static bool                                                             \
+neomacs_##typename##_image_p (Lisp_Object object)                      \
+{                                                                       \
+  struct image_keyword kw[NEOMACS_LAST];                               \
+  memcpy (kw, neomacs_format, sizeof kw);                              \
+  if (!parse_image_spec (object, kw, NEOMACS_LAST, typesym))           \
+    return 0;                                                           \
+  if (!kw[NEOMACS_FILE].count && !kw[NEOMACS_DATA].count               \
+      && !kw[NEOMACS_ID].count)                                        \
+    return 0;                                                           \
+  return 1;                                                             \
+}
+
+NEOMACS_TYPE_VALIDATOR(png, Qpng)
+NEOMACS_TYPE_VALIDATOR(jpeg, Qjpeg)
+NEOMACS_TYPE_VALIDATOR(gif, Qgif)
+NEOMACS_TYPE_VALIDATOR(tiff, Qtiff)
+NEOMACS_TYPE_VALIDATOR(webp, Qwebp)
+NEOMACS_TYPE_VALIDATOR(svg, Qsvg)
+
 /* Load a neomacs image.
    Query dimensions from GPU backend for proper scaling.  */
 static bool
@@ -13117,6 +13141,13 @@ neomacs_load (struct frame *f, struct image *img)
 
 static struct image_type const image_types[] =
 {
+ /* Neomacs GPU-backed image types (unconditional, Rust decoding) */
+ { SYMBOL_INDEX (Qpng),  neomacs_png_image_p,  neomacs_load, image_clear_image },
+ { SYMBOL_INDEX (Qjpeg), neomacs_jpeg_image_p, neomacs_load, image_clear_image },
+ { SYMBOL_INDEX (Qgif),  neomacs_gif_image_p,  neomacs_load, image_clear_image },
+ { SYMBOL_INDEX (Qtiff), neomacs_tiff_image_p, neomacs_load, image_clear_image },
+ { SYMBOL_INDEX (Qwebp), neomacs_webp_image_p, neomacs_load, image_clear_image },
+ { SYMBOL_INDEX (Qsvg),  neomacs_svg_image_p,  neomacs_load, image_clear_image },
 #ifdef HAVE_GHOSTSCRIPT
  { SYMBOL_INDEX (Qpostscript), gs_image_p, gs_load, image_clear_image },
 #endif
@@ -13315,6 +13346,16 @@ non-numeric, there is no explicit limit on the size of images.  */);
   DEFSYM (Qneomacs, "neomacs");
   add_image_type (Qneomacs);
 
+  /* Neomacs: register all standard image types unconditionally.
+     Rust decodes PNG/JPEG/GIF/TIFF/WebP via the `image` crate
+     and SVG via `resvg` — no C library dependencies needed.  */
+  DEFSYM (Qpng, "png");   add_image_type (Qpng);
+  DEFSYM (Qjpeg, "jpeg"); add_image_type (Qjpeg);
+  DEFSYM (Qgif, "gif");   add_image_type (Qgif);
+  DEFSYM (Qtiff, "tiff"); add_image_type (Qtiff);
+  DEFSYM (Qwebp, "webp"); add_image_type (Qwebp);
+  DEFSYM (Qsvg, "svg");   add_image_type (Qsvg);
+
 #if defined (HAVE_XPM) || defined (HAVE_NS) \
   || defined (HAVE_HAIKU) || defined (HAVE_PGTK) \
   || defined (HAVE_ANDROID)
@@ -13324,22 +13365,18 @@ non-numeric, there is no explicit limit on the size of images.  */);
 
 #if defined (HAVE_JPEG) || defined (HAVE_NATIVE_IMAGE_API)
   DEFSYM (Qjpeg, "jpeg");
-  add_image_type (Qjpeg);
 #endif
 
 #if defined (HAVE_TIFF) || defined (HAVE_NATIVE_IMAGE_API)
   DEFSYM (Qtiff, "tiff");
-  add_image_type (Qtiff);
 #endif
 
 #if defined (HAVE_GIF) || defined (HAVE_NATIVE_IMAGE_API)
   DEFSYM (Qgif, "gif");
-  add_image_type (Qgif);
 #endif
 
 #if defined (HAVE_PNG) || defined (HAVE_NATIVE_IMAGE_API)
   DEFSYM (Qpng, "png");
-  add_image_type (Qpng);
 #endif
 
 #if defined (HAVE_WEBP)						\
@@ -13347,15 +13384,6 @@ non-numeric, there is no explicit limit on the size of images.  */);
       && (defined (HAVE_NS) || defined (HAVE_HAIKU)))
   DEFSYM (Qwebp, "webp");
   DEFSYM (Qwebpdemux, "webpdemux");
-#if !defined (NS_IMPL_GNUSTEP) || defined (HAVE_WEBP)
-  add_image_type (Qwebp);
-#else
-
-  /* On GNUstep, WEBP support is provided via ImageMagick only if
-     gnustep-gui is built with --enable-imagemagick.  */
-  if (image_can_use_native_api (Qwebp))
-    add_image_type (Qwebp);
-#endif /* NS_IMPL_GNUSTEP && !HAVE_WEBP */
 #endif
 
 #if defined (HAVE_IMAGEMAGICK)

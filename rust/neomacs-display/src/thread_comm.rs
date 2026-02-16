@@ -152,6 +152,13 @@ pub enum RenderCommand {
         max_width: u32,
         max_height: u32,
     },
+    /// Load image from encoded data bytes (PNG, JPEG, SVG, etc.)
+    ImageLoadData {
+        id: u32,
+        data: Vec<u8>,
+        max_width: u32,
+        max_height: u32,
+    },
     /// Load image from raw ARGB32 pixel data
     ImageLoadArgb32 {
         id: u32,

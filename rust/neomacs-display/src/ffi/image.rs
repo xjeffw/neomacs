@@ -259,12 +259,30 @@ pub unsafe extern "C" fn neomacs_display_load_image_data(
     data: *const u8,
     len: usize,
 ) -> u32 {
-    if handle.is_null() || data.is_null() || len == 0 {
+    if data.is_null() || len == 0 {
+        return 0;
+    }
+
+    let data_slice = std::slice::from_raw_parts(data, len);
+
+    // Threaded path: send encoded data to render thread
+    if let Some(ref state) = THREADED_STATE {
+        let id = IMAGE_ID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let cmd = RenderCommand::ImageLoadData {
+            id,
+            data: data_slice.to_vec(),
+            max_width: 0,
+            max_height: 0,
+        };
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+        return id;
+    }
+
+    // Non-threaded path: direct renderer access
+    if handle.is_null() {
         return 0;
     }
     let display = &mut *handle;
-
-    let data_slice = std::slice::from_raw_parts(data, len);
 
     if let Some(ref mut backend) = display.winit_backend {
         if let Some(renderer) = backend.renderer_mut() {
@@ -283,12 +301,30 @@ pub unsafe extern "C" fn neomacs_display_load_image_data_scaled(
     max_width: c_int,
     max_height: c_int,
 ) -> u32 {
-    if handle.is_null() || data.is_null() || len == 0 {
+    if data.is_null() || len == 0 {
+        return 0;
+    }
+
+    let data_slice = std::slice::from_raw_parts(data, len);
+
+    // Threaded path: send encoded data to render thread
+    if let Some(ref state) = THREADED_STATE {
+        let id = IMAGE_ID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let cmd = RenderCommand::ImageLoadData {
+            id,
+            data: data_slice.to_vec(),
+            max_width: max_width.max(0) as u32,
+            max_height: max_height.max(0) as u32,
+        };
+        let _ = state.emacs_comms.cmd_tx.try_send(cmd);
+        return id;
+    }
+
+    // Non-threaded path: direct renderer access
+    if handle.is_null() {
         return 0;
     }
     let display = &mut *handle;
-
-    let data_slice = std::slice::from_raw_parts(data, len);
 
     if let Some(ref mut backend) = display.winit_backend {
         if let Some(renderer) = backend.renderer_mut() {

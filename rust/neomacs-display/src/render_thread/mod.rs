@@ -633,6 +633,26 @@ impl RenderApp {
                         log::warn!("Renderer not initialized, cannot load image {}", id);
                     }
                 }
+                RenderCommand::ImageLoadData { id, data, max_width, max_height } => {
+                    log::info!("Loading image data {}: {} bytes (max {}x{})", id, data.len(), max_width, max_height);
+                    if let Some(ref mut renderer) = self.renderer {
+                        renderer.load_image_data_with_id(id, &data, max_width, max_height);
+                        // Get dimensions and notify Emacs
+                        if let Some((w, h)) = renderer.get_image_size(id) {
+                            if let Ok(mut dims) = self.image_dimensions.lock() {
+                                dims.insert(id, (w, h));
+                            }
+                            self.comms.send_input(InputEvent::ImageDimensionsReady {
+                                id,
+                                width: w,
+                                height: h,
+                            });
+                            log::debug!("Sent ImageDimensionsReady for image data {}: {}x{}", id, w, h);
+                        }
+                    } else {
+                        log::warn!("Renderer not initialized, cannot load image data {}", id);
+                    }
+                }
                 RenderCommand::ImageLoadArgb32 { id, data, width, height, stride } => {
                     log::debug!("Loading ARGB32 image {}: {}x{} stride={}", id, width, height, stride);
                     if let Some(ref mut renderer) = self.renderer {

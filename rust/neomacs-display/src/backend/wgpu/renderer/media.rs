@@ -26,6 +26,11 @@ impl WgpuRenderer {
         self.image_cache.load_data(data, max_width, max_height)
     }
 
+    /// Load image from data with pre-allocated ID (for threaded mode)
+    pub fn load_image_data_with_id(&mut self, id: u32, data: &[u8], max_width: u32, max_height: u32) {
+        self.image_cache.load_data_with_id(id, data, max_width, max_height)
+    }
+
     /// Load image from raw ARGB32 pixel data
     pub fn load_image_argb32(&mut self, data: &[u8], width: u32, height: u32, stride: u32) -> u32 {
         self.image_cache.load_raw_argb32(data, width, height, stride, 0, 0)
