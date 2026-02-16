@@ -241,6 +241,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "delete-rectangle",
     "delete-region",
     "delete-window",
+    "discard-input",
     "describe-function",
     "describe-key-briefly",
     "describe-variable",
@@ -945,6 +946,7 @@ mod tests {
         assert!(is_dispatch_builtin_name("read-key"));
         assert!(is_dispatch_builtin_name("read-char-exclusive"));
         assert!(is_dispatch_builtin_name("input-pending-p"));
+        assert!(is_dispatch_builtin_name("discard-input"));
         assert!(is_dispatch_builtin_name("minibuffer-prompt"));
         assert!(is_dispatch_builtin_name("minibuffer-contents"));
         assert!(is_dispatch_builtin_name(

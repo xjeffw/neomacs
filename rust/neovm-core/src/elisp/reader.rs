@@ -843,7 +843,23 @@ pub(crate) fn builtin_input_pending_p(
 }
 
 // ---------------------------------------------------------------------------
-// 10. y-or-n-p (stub)
+// 10. discard-input
+// ---------------------------------------------------------------------------
+
+/// `(discard-input)`
+///
+/// Discard pending unread command events for the current scope.
+pub(crate) fn builtin_discard_input(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_args("discard-input", &args, 0)?;
+    eval.assign("unread-command-events", Value::Nil);
+    Ok(Value::Nil)
+}
+
+// ---------------------------------------------------------------------------
+// 11. y-or-n-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(y-or-n-p PROMPT)`
@@ -867,7 +883,7 @@ pub(crate) fn builtin_y_or_n_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 11. yes-or-no-p (stub)
+// 12. yes-or-no-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(yes-or-no-p PROMPT)`
@@ -883,7 +899,7 @@ pub(crate) fn builtin_yes_or_no_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 12. read-char (stub)
+// 13. read-char (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-char &optional PROMPT ...)`
@@ -938,7 +954,7 @@ pub(crate) fn builtin_read_key(
 }
 
 // ---------------------------------------------------------------------------
-// 13. read-key-sequence (stub)
+// 14. read-key-sequence (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-key-sequence PROMPT)`
@@ -1740,6 +1756,49 @@ mod tests {
     fn input_pending_p_rejects_more_than_one_arg() {
         let mut ev = Evaluator::new();
         let result = builtin_input_pending_p(&mut ev, vec![Value::Nil, Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
+    }
+
+    #[test]
+    fn discard_input_returns_nil() {
+        let mut ev = Evaluator::new();
+        let result = builtin_discard_input(&mut ev, vec![]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn discard_input_clears_unread_command_events() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let result = builtin_discard_input(&mut ev, vec![]).unwrap();
+        assert!(result.is_nil());
+        assert_eq!(ev.obarray.symbol_value("unread-command-events"), Some(&Value::Nil));
+    }
+
+    #[test]
+    fn discard_input_uses_dynamic_unread_command_events_binding() {
+        let mut ev = Evaluator::new();
+        ev.obarray
+            .set_symbol_value("unread-command-events", Value::list(vec![Value::Int(97)]));
+        let forms =
+            parse_forms("(let ((unread-command-events (list 98))) (discard-input) unread-command-events)")
+                .unwrap();
+        let result = ev.eval_expr(&forms[0]).unwrap();
+        assert!(result.is_nil());
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Int(97)]))
+        );
+    }
+
+    #[test]
+    fn discard_input_rejects_args() {
+        let mut ev = Evaluator::new();
+        let result = builtin_discard_input(&mut ev, vec![Value::Nil]);
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
