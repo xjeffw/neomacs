@@ -325,9 +325,11 @@ fn subr_arity_value(name: &str) -> Value {
         | "charset-priority-list" => arity_cons(0, Some(1)),
         "char-category-set" | "char-or-string-p" | "char-resolve-modifiers" | "char-syntax"
         | "char-width" | "char-table-p" | "char-table-parent" | "char-table-subtype"
-        | "charset-plist" => arity_cons(1, Some(1)),
+        | "charset-plist" | "charsetp" | "closurep" | "compiled-function-p" | "custom-variable-p"
+        | "default-value" => arity_cons(1, Some(1)),
         "char-charset" => arity_cons(1, Some(2)),
         "char-table-extra-slot" | "char-table-range" => arity_cons(2, Some(2)),
+        "decode-char" => arity_cons(2, Some(2)),
         "bignump" | "boundp" | "byte-code-function-p" | "car-safe" | "cdr-safe" => {
             arity_cons(1, Some(1))
         }
@@ -1040,6 +1042,16 @@ mod tests {
         assert_subr_arity("composition-get-gstring", 4, Some(4));
         assert_subr_arity("composition-sort-rules", 1, Some(1));
         assert_subr_arity("deactivate-mark", 0, Some(1));
+    }
+
+    #[test]
+    fn subr_arity_predicate_core_primitives_match_oracle() {
+        assert_subr_arity("charsetp", 1, Some(1));
+        assert_subr_arity("closurep", 1, Some(1));
+        assert_subr_arity("compiled-function-p", 1, Some(1));
+        assert_subr_arity("custom-variable-p", 1, Some(1));
+        assert_subr_arity("decode-char", 2, Some(2));
+        assert_subr_arity("default-value", 1, Some(1));
     }
 
     #[test]
