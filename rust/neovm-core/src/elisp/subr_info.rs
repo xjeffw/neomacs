@@ -307,6 +307,10 @@ fn subr_arity_value(name: &str) -> Value {
         }
         "set-output-flow-control" => arity_cons(1, Some(2)),
         "waiting-for-user-input-p" => arity_cons(0, Some(0)),
+        "minibufferp" => arity_cons(0, Some(2)),
+        "recursive-edit" | "top-level" | "exit-recursive-edit" | "abort-recursive-edit"
+        | "exit-minibuffer" | "minibuffer-depth" | "minibuffer-prompt" | "minibuffer-contents"
+        | "minibuffer-contents-no-properties" => arity_cons(0, Some(0)),
         "read-passwd" => arity_cons(1, Some(3)),
         "event-apply-modifier" => arity_cons(4, Some(4)),
         "open-termscript" | "x-close-connection" => arity_cons(1, Some(1)),
@@ -725,6 +729,20 @@ mod tests {
         assert_subr_arity("abs", 1, Some(1));
         assert_subr_arity("ash", 2, Some(2));
         assert_subr_arity("apply", 1, None);
+    }
+
+    #[test]
+    fn subr_arity_minibuffer_control_primitives_match_oracle() {
+        assert_subr_arity("recursive-edit", 0, Some(0));
+        assert_subr_arity("top-level", 0, Some(0));
+        assert_subr_arity("exit-recursive-edit", 0, Some(0));
+        assert_subr_arity("abort-recursive-edit", 0, Some(0));
+        assert_subr_arity("exit-minibuffer", 0, Some(0));
+        assert_subr_arity("minibuffer-depth", 0, Some(0));
+        assert_subr_arity("minibufferp", 0, Some(2));
+        assert_subr_arity("minibuffer-prompt", 0, Some(0));
+        assert_subr_arity("minibuffer-contents", 0, Some(0));
+        assert_subr_arity("minibuffer-contents-no-properties", 0, Some(0));
     }
 
     #[test]
