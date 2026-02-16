@@ -95,6 +95,21 @@ Last updated: 2026-02-16
     - `make -C test/neovm/vm-compat check-builtin-registry-extension-policy` (pass)
     - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
 
+- Added NeoVM-only corpus lock-in for `neovm-precompile-file` function-cell shape:
+  - added case:
+    - `test/neovm/vm-compat/cases/neovm-precompile-function-cell-semantics.{forms,expected.tsv}`
+    - verifies:
+      - `fboundp`
+      - `subrp`
+      - `subr-name`
+      - `subr-arity`
+      - `functionp`
+  - wired into:
+    - `test/neovm/vm-compat/cases/neovm-only.list`
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/neovm-precompile-function-cell-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned evaluator error semantics for autoload object function designators:
   - changed direct `funcall`/`apply` on autoload objects from:
     - `(invalid-function <autoload-object>)`
