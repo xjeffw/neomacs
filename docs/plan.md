@@ -23,6 +23,26 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Aligned `key-binding` / `global-key-binding` / `local-key-binding` arity caps with oracle and added dedicated corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/interactive.rs`
+      - enforced max arity:
+        - `key-binding`: up to 4 args
+        - `global-key-binding`: up to 2 args
+        - `local-key-binding`: up to 2 args
+      - added focused unit coverage for each too-many-args error path.
+    - `test/neovm/vm-compat/cases/key-binding-arity-semantics.forms`
+      - added oracle probes for wrong-number-of-arguments edges and accepted max-arity calls in sparse-map context.
+    - `test/neovm/vm-compat/cases/key-binding-arity-semantics.expected.tsv`
+      - recorded oracle baseline outputs for key-binding family arity behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/key-binding-arity-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml too_many_args_errors` (pass)
+    - `make -C test/neovm/vm-compat check-neovm FORMS=cases/key-binding-arity-semantics.forms EXPECTED=cases/key-binding-arity-semantics.expected.tsv` (pass, 6/6)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/key-binding-arity-semantics` (pass, 6/6)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Aligned `minor-mode-key-binding` arity semantics with oracle and added dedicated corpus lock-in:
   - updated:
     - `rust/neovm-core/src/elisp/interactive.rs`
