@@ -892,7 +892,19 @@ pub(crate) fn builtin_set_input_mode(
 }
 
 // ---------------------------------------------------------------------------
-// 12. y-or-n-p (stub)
+// 12. waiting-for-user-input-p
+// ---------------------------------------------------------------------------
+
+/// `(waiting-for-user-input-p)`
+///
+/// Batch-mode compatibility: always returns nil.
+pub(crate) fn builtin_waiting_for_user_input_p(args: Vec<Value>) -> EvalResult {
+    expect_args("waiting-for-user-input-p", &args, 0)?;
+    Ok(Value::Nil)
+}
+
+// ---------------------------------------------------------------------------
+// 13. y-or-n-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(y-or-n-p PROMPT)`
@@ -916,7 +928,7 @@ pub(crate) fn builtin_y_or_n_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 13. yes-or-no-p (stub)
+// 14. yes-or-no-p (stub)
 // ---------------------------------------------------------------------------
 
 /// `(yes-or-no-p PROMPT)`
@@ -932,7 +944,7 @@ pub(crate) fn builtin_yes_or_no_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 14. read-char (stub)
+// 15. read-char (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-char &optional PROMPT ...)`
@@ -987,7 +999,7 @@ pub(crate) fn builtin_read_key(
 }
 
 // ---------------------------------------------------------------------------
-// 15. read-key-sequence (stub)
+// 16. read-key-sequence (stub)
 // ---------------------------------------------------------------------------
 
 /// `(read-key-sequence PROMPT)`
@@ -1911,6 +1923,21 @@ mod tests {
             builtin_current_input_mode(&mut ev, vec![]).unwrap(),
             Value::list(vec![Value::Nil, Value::Nil, Value::True, Value::Int(7)])
         );
+    }
+
+    #[test]
+    fn waiting_for_user_input_p_returns_nil() {
+        let result = builtin_waiting_for_user_input_p(vec![]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn waiting_for_user_input_p_rejects_args() {
+        let result = builtin_waiting_for_user_input_p(vec![Value::Nil]);
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
+        ));
     }
 
     #[test]

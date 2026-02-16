@@ -893,6 +893,7 @@ const DISPATCH_BUILTIN_NAMES: &[&str] = &[
     "user-real-uid",
     "user-uid",
     "view-register",
+    "waiting-for-user-input-p",
     "where-is-internal",
     "wholenump",
     "widen",
@@ -951,6 +952,7 @@ mod tests {
         assert!(is_dispatch_builtin_name("discard-input"));
         assert!(is_dispatch_builtin_name("current-input-mode"));
         assert!(is_dispatch_builtin_name("set-input-mode"));
+        assert!(is_dispatch_builtin_name("waiting-for-user-input-p"));
         assert!(is_dispatch_builtin_name("minibuffer-prompt"));
         assert!(is_dispatch_builtin_name("minibuffer-contents"));
         assert!(is_dispatch_builtin_name(
