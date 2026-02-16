@@ -78,6 +78,23 @@ Last updated: 2026-02-16
       - core drifts: `0`
       - extension-only intentional delta: `neovm-precompile-file` (`fboundp=nil` in GNU Emacs, `subr` in NeoVM)
 
+- Added builtin registry extension policy guard to strict vm-compat:
+  - added extension policy file:
+    - `test/neovm/vm-compat/cases/builtin-registry-extension-policy.txt`
+    - currently pins extension-only builtin set to:
+      - `neovm-precompile-file`
+  - added strict checker:
+    - `test/neovm/vm-compat/check-builtin-registry-extension-policy.sh`
+    - enforces:
+      - registry extension set exactly matches policy file
+      - extension names are `fboundp=nil` in GNU Emacs oracle
+      - extension names are `fboundp=t` in NeoVM
+  - wired into strict gate:
+    - `test/neovm/vm-compat/Makefile` (`check-all-neovm-strict`)
+  - verified:
+    - `make -C test/neovm/vm-compat check-builtin-registry-extension-policy` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+
 - Aligned evaluator error semantics for autoload object function designators:
   - changed direct `funcall`/`apply` on autoload objects from:
     - `(invalid-function <autoload-object>)`
