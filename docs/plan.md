@@ -19,6 +19,21 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Enforced `gensym` arity + semantic lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - `gensym` now enforces max arity `1` (`wrong-number-of-arguments` on extra args).
+    - added corpus:
+      - `test/neovm/vm-compat/cases/gensym-semantics.{forms,expected.tsv}`
+        - locks `gensym` availability, uniqueness, string-prefix behavior, and
+          arity/type signaling.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/gensym-semantics`.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/gensym-semantics` (pass, 5/5)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Implemented `float-time` optional time-value decoding + arity lock-in:
   - updated:
     - `rust/neovm-core/src/elisp/builtins.rs`
