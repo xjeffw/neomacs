@@ -20,6 +20,20 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Tightened `define-charset-internal` exact-arity stub with oracle-aligned early array type validation:
+  - updated:
+    - `rust/neovm-core/src/elisp/charset.rs`
+      - for exact 17-argument calls, added early `arrayp` type checks for required array arguments before returning nil stub result.
+      - expanded focused unit coverage for wrong-type payload (`(wrong-type-argument arrayp nil)`) and exact-arity success path with array arguments.
+    - `test/neovm/vm-compat/cases/charset-internal-arity-semantics.forms`
+      - added 17-argument nil payload probe to lock wrong-type-argument behavior.
+    - `test/neovm/vm-compat/cases/charset-internal-arity-semantics.expected.tsv`
+      - refreshed oracle baseline for the expanded 17-argument type-validation probe.
+  - verified:
+    - `cargo test define_charset_internal --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/charset-internal-arity-semantics` (pass, 8/8)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
+
 - Hardened vm-compat oracle runner to prevent accidental Neomacs-as-oracle baselines:
   - updated:
     - `test/neovm/vm-compat/run-oracle.sh`
