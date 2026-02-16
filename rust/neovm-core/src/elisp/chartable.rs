@@ -620,6 +620,29 @@ pub(crate) fn builtin_bool_vector_exclusive_or(args: Vec<Value>) -> EvalResult {
     }
 }
 
+/// `(bool-vector-complement A &optional B)` -- bitwise NOT.
+///
+/// If B is provided, store result in B and return B; otherwise return a new
+/// bool-vector.
+pub(crate) fn builtin_bool_vector_complement(args: Vec<Value>) -> EvalResult {
+    expect_min_args("bool-vector-complement", &args, 1)?;
+    expect_max_args("bool-vector-complement", &args, 2)?;
+    let arc = match &args[0] {
+        Value::Vector(arc) if is_bool_vector(&args[0]) => arc,
+        _ => return Err(wrong_type("bool-vector-p", &args[0])),
+    };
+    let vec = arc.lock().expect("poisoned");
+    let bits = bv_bits(&vec);
+    drop(vec);
+    let result_bits: Vec<bool> = bits.into_iter().map(|b| !b).collect();
+    if args.len() == 2 {
+        store_bv_result(&args[1], &result_bits)?;
+        Ok(args[1].clone())
+    } else {
+        Ok(bv_from_bits(&result_bits))
+    }
+}
+
 /// `(bool-vector-subsetp A B)` -- return t if every true bit in A is also true
 /// in B.
 pub(crate) fn builtin_bool_vector_subsetp(args: Vec<Value>) -> EvalResult {
@@ -954,6 +977,22 @@ mod tests {
     }
 
     #[test]
+    fn bool_vector_complement() {
+        let a = make_bv(&[true, false, true, false]);
+        let result = builtin_bool_vector_complement(vec![a]).unwrap();
+        assert_bv_bits(&result, &[false, true, false, true]);
+    }
+
+    #[test]
+    fn bool_vector_complement_into_dest() {
+        let a = make_bv(&[false, false, true]);
+        let dest = make_bv(&[false, false, false]);
+        let result = builtin_bool_vector_complement(vec![a, dest.clone()]).unwrap();
+        assert_eq!(result, dest);
+        assert_bv_bits(&dest, &[true, true, false]);
+    }
+
+    #[test]
     fn bool_vector_subsetp_true() {
         let a = make_bv(&[true, false, false]);
         let b = make_bv(&[true, true, false]);
@@ -1043,6 +1082,8 @@ mod tests {
         assert!(builtin_make_bool_vector(vec![]).is_err());
         assert!(builtin_bool_vector_p(vec![]).is_err());
         assert!(builtin_bool_vector_subsetp(vec![Value::Nil]).is_err());
+        assert!(builtin_bool_vector_complement(vec![]).is_err());
+        assert!(builtin_bool_vector_complement(vec![Value::Nil, Value::Nil, Value::Nil]).is_err());
     }
 
     #[test]
