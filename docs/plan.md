@@ -9,16 +9,40 @@ Last updated: 2026-02-16
 - Run targeted vm-compat checks after each behavior-affecting slice.
 - Keep recurring full-corpus `check-all-neovm` gates after each compatibility batch.
 - Keep `.elc` reader/exec compatibility corpora explicitly non-default while `.elc` binary compatibility remains disabled.
-- Shift next compatibility slices from rectangle helpers to remaining high-impact display/font/input stubs.
+- Continue closing coding-system runtime behavior gaps (setter return values and nil semantics) after arity/default lock-in.
+- Shift next compatibility slices to remaining high-impact display/font/input stubs.
 
 ## Next
 
 1. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-2. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths).
-3. Land the next evaluator-backed stub replacement outside `rect` (prefer display/input path with high package impact).
-4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
+2. Lock oracle corpus for coding-system setter runtime semantics (`set-keyboard-coding-system` / `set-terminal-coding-system`) and align behavior.
+3. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths).
+4. Land the next evaluator-backed stub replacement outside `rect` (prefer display/input path with high package impact).
+5. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 
 ## Done
+
+- Aligned coding-system I/O builtin arity and default getter semantics with oracle; added dedicated corpus lock-in:
+  - updated:
+    - `rust/neovm-core/src/elisp/coding.rs`
+      - added local max-arity helper and enforced optional-argument arity limits for:
+        - `keyboard-coding-system` (max 1)
+        - `terminal-coding-system` (max 1)
+        - `set-keyboard-coding-system` (min 1, max 2)
+        - `set-terminal-coding-system` (min 1, max 3)
+      - aligned initial keyboard/terminal coding defaults to `utf-8-unix` to match oracle batch behavior.
+      - expanded focused unit coverage for getter/setter arity edges and default-value expectations.
+    - `test/neovm/vm-compat/cases/coding-system-io-arity-semantics.forms`
+      - added oracle probes for coding-system I/O builtin availability and arity edge behavior.
+    - `test/neovm/vm-compat/cases/coding-system-io-arity-semantics.expected.tsv`
+      - recorded oracle baseline outputs for coding-system I/O arity/default behavior.
+    - `test/neovm/vm-compat/cases/default.list`
+      - added `cases/coding-system-io-arity-semantics` to recurring default compatibility execution.
+  - verified:
+    - `cargo test coding_system_ --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/coding-system-io-arity-semantics` (pass, 17/17)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass)
 
 - Aligned marker accessor builtin arity with oracle and added dedicated marker accessor corpus lock-in:
   - updated:
