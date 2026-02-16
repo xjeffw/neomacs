@@ -271,6 +271,8 @@ extern "C" {
         right_fringe_bg_out: *mut u32,
         before_naligns_out: *mut c_int,
         after_naligns_out: *mut c_int,
+        overlay_display_out: *mut DisplayPropFFI,
+        overlay_display_end_out: *mut i64,
     ) -> c_int;
 
     // ========================================================================

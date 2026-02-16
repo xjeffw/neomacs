@@ -1218,6 +1218,8 @@ impl LayoutEngine {
                 let mut ovl_right_fringe_bg: u32 = 0;
                 overlay_before_naligns = 0;
                 overlay_after_naligns = 0;
+                let mut overlay_display = DisplayPropFFI::default();
+                let mut overlay_display_end: i64 = 0;
                 neomacs_layout_overlay_strings_at(
                     buffer, window, charpos,
                     overlay_before_buf.as_mut_ptr(),
@@ -1238,7 +1240,68 @@ impl LayoutEngine {
                     &mut ovl_right_fringe_bg,
                     &mut overlay_before_naligns,
                     &mut overlay_after_naligns,
+                    &mut overlay_display,
+                    &mut overlay_display_end,
                 );
+
+                // Handle overlay display property (e.g., pdf-tools images).
+                // When an overlay has a 'display property, it replaces the
+                // covered text with the display spec.
+                if overlay_display.prop_type == 4 && overlay_display.image_gpu_id != 0 {
+                    // Flush any pending ligature run
+                    flush_run(&self.run_buf, frame_glyphs, ligatures);
+                    self.run_buf.clear();
+
+                    // Emit image glyph (same logic as text display prop image)
+                    let img_w = overlay_display.image_width as f32;
+                    let img_h = overlay_display.image_height as f32;
+                    let hmargin = overlay_display.image_hmargin as f32;
+                    let vmargin = overlay_display.image_vmargin as f32;
+                    let total_w = img_w + hmargin * 2.0;
+                    let total_h = img_h + vmargin * 2.0;
+
+                    if row < max_rows {
+                        let gx = content_x + x_offset + hmargin;
+                        let gy_base = row_y[row as usize];
+                        let gy = if total_h <= char_h {
+                            let img_ascent = overlay_display.image_ascent;
+                            let ascent_px = if img_ascent == -1 {
+                                (total_h + ascent - (char_h - ascent) + 1.0) / 2.0
+                            } else {
+                                total_h * (img_ascent as f32 / 100.0)
+                            };
+                            gy_base + ascent - ascent_px + vmargin
+                        } else {
+                            gy_base + vmargin
+                        };
+
+                        frame_glyphs.add_image(
+                            overlay_display.image_gpu_id,
+                            gx, gy, img_w, img_h,
+                        );
+                        let img_cols = (total_w / char_w).ceil() as i32;
+                        col += img_cols;
+                        x_offset += total_w;
+                        if total_h > row_max_height {
+                            row_max_height = total_h;
+                        }
+                    }
+
+                    // Skip buffer text to overlay end
+                    let skip_to = overlay_display_end;
+                    while charpos < skip_to {
+                        if byte_idx >= bytes_read as usize { break; }
+                        let (_, ch_len) = decode_utf8(&text[byte_idx..]);
+                        byte_idx += ch_len;
+                        charpos += 1;
+                    }
+                    window_end_charpos = charpos;
+                    current_face_id = -1;
+                    next_display_check = charpos;
+                    next_invis_check = charpos;
+                    next_face_check = charpos;
+                    continue;
+                }
 
                 // Store fringe bitmaps from overlay display properties
                 let r = row as usize;
@@ -3011,6 +3074,8 @@ impl LayoutEngine {
             let mut eob_right_fringe_bg: u32 = 0;
             let mut eob_before_naligns: i32 = 0;
             let mut eob_after_naligns: i32 = 0;
+            let mut eob_overlay_display = DisplayPropFFI::default();
+            let mut eob_overlay_display_end: i64 = 0;
             neomacs_layout_overlay_strings_at(
                 buffer, window, charpos,
                 overlay_before_buf.as_mut_ptr(),
@@ -3031,6 +3096,8 @@ impl LayoutEngine {
                 &mut eob_right_fringe_bg,
                 &mut eob_before_naligns,
                 &mut eob_after_naligns,
+                &mut eob_overlay_display,
+                &mut eob_overlay_display_end,
             );
 
             // Store fringe bitmaps from overlay display properties at EOB

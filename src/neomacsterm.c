@@ -3402,6 +3402,50 @@ struct DisplayPropFFI {
   int display_nruns;      /* number of face runs in display string (type=1) */
 };
 
+/* Resolve a display spec that is an image into DisplayPropFFI.
+   Returns true if the spec was a valid image and was resolved. */
+static bool
+resolve_display_image (struct frame *f, struct window *w,
+                       Lisp_Object spec, struct DisplayPropFFI *out)
+{
+  if (!valid_image_p (spec))
+    return false;
+
+  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+  if (!dpyinfo || !dpyinfo->display_handle)
+    return false;
+
+  int face_id = DEFAULT_FACE_ID;
+  if (w)
+    {
+      face_id = lookup_named_face (w, f, Qdefault, false);
+      if (face_id < 0)
+        face_id = DEFAULT_FACE_ID;
+    }
+
+  ptrdiff_t img_id = lookup_image (f, spec, face_id);
+  if (img_id < 0)
+    return false;
+
+  struct image *img = IMAGE_FROM_ID (f, img_id);
+  if (!img)
+    return false;
+
+  prepare_image_for_display (f, img);
+  uint32_t gpu_id = neomacs_get_or_load_image (dpyinfo, img);
+  if (gpu_id == 0)
+    return false;
+
+  out->type = 4;
+  out->image_gpu_id = gpu_id;
+  out->image_width = img->width > 0 ? img->width : 100;
+  out->image_height = img->height > 0 ? img->height : 100;
+  out->image_hmargin = img->hmargin;
+  out->image_vmargin = img->vmargin;
+  out->image_ascent = img->ascent;
+  return true;
+}
+
 /* Check for a 'display text property at charpos.
    Handles:
      - String replacement: (put-text-property ... 'display "text")
@@ -3913,43 +3957,7 @@ neomacs_layout_check_display_prop (void *buffer_ptr, void *window_ptr,
           struct window *w = window_ptr ? (struct window *) window_ptr : NULL;
           struct frame *f = w ? XFRAME (WINDOW_FRAME (w)) : NULL;
           if (f)
-            {
-              struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
-              if (dpyinfo && dpyinfo->display_handle)
-                {
-                  /* Get face for this position (needed by lookup_image for fg/bg) */
-                  int face_id = DEFAULT_FACE_ID;
-                  if (w)
-                    {
-                      face_id = lookup_named_face (w, f, Qdefault, false);
-                      if (face_id < 0)
-                        face_id = DEFAULT_FACE_ID;
-                    }
-
-                  ptrdiff_t img_id = lookup_image (f, display_prop, face_id);
-                  if (img_id >= 0)
-                    {
-                      struct image *img = IMAGE_FROM_ID (f, img_id);
-                      if (img)
-                        {
-                          prepare_image_for_display (f, img);
-                          uint32_t gpu_id = neomacs_get_or_load_image (dpyinfo, img);
-                          if (gpu_id != 0)
-                            {
-                              out->type = 4;
-                              out->image_gpu_id = gpu_id;
-                              out->image_width = img->width > 0 ? img->width : 100;
-                              out->image_height = img->height > 0 ? img->height : 100;
-                              out->image_hmargin = img->hmargin;
-                              out->image_vmargin = img->vmargin;
-                              out->image_ascent = img->ascent;
-                              set_buffer_internal_1 (old);
-                              return 0;
-                            }
-                        }
-                    }
-                }
-            }
+            resolve_display_image (f, w, display_prop, out);
           set_buffer_internal_1 (old);
           return 0;
         }
@@ -4293,7 +4301,9 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
                                    uint32_t *right_fringe_fg_out,
                                    uint32_t *right_fringe_bg_out,
                                    int *before_naligns_out,
-                                   int *after_naligns_out)
+                                   int *after_naligns_out,
+                                   void *overlay_display_out,
+                                   int64_t *overlay_display_end_out)
 {
   struct buffer *buf = (struct buffer *) buffer_ptr;
   struct window *w = window_ptr ? (struct window *) window_ptr : NULL;
@@ -4310,6 +4320,15 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
   *right_fringe_bg_out = 0;
   *before_naligns_out = 0;
   *after_naligns_out = 0;
+
+  /* Initialize overlay display output. */
+  struct DisplayPropFFI *odout = (struct DisplayPropFFI *) overlay_display_out;
+  if (odout)
+    {
+      memset (odout, 0, sizeof *odout);
+      odout->image_ascent = 50;  /* DEFAULT_IMAGE_ASCENT */
+    }
+  *overlay_display_end_out = 0;
 
   if (!buf)
     return -1;
@@ -4347,6 +4366,55 @@ neomacs_layout_overlay_strings_at (void *buffer_ptr, void *window_ptr,
 
       ptrdiff_t ostart = OVERLAY_START (overlay);
       ptrdiff_t oend = OVERLAY_END (overlay);
+
+      /* Check for overlay 'display property (e.g., pdf-tools images).
+         When present, this replaces the overlay's covered text with
+         the display spec.  First overlay with a display prop wins. */
+      if (odout && odout->type == 0 && ostart <= pos && oend > pos)
+        {
+          Lisp_Object odisp = Foverlay_get (overlay, Qdisplay);
+          if (!NILP (odisp) && f)
+            {
+              /* Try image spec: (image ...) */
+              if (CONSP (odisp) && EQ (XCAR (odisp), Qimage))
+                {
+                  if (resolve_display_image (f, w, odisp, odout))
+                    *overlay_display_end_out = oend;
+                }
+              /* Handle ((slice ...) image) — sliced image from pdf-tools */
+              else if (CONSP (odisp) && CONSP (XCAR (odisp))
+                       && EQ (XCAR (XCAR (odisp)), Qslice))
+                {
+                  Lisp_Object rest = XCDR (odisp);
+                  if (CONSP (rest))
+                    {
+                      Lisp_Object img_spec = XCAR (rest);
+                      if (CONSP (img_spec)
+                          && EQ (XCAR (img_spec), Qimage))
+                        {
+                          if (resolve_display_image (f, w, img_spec, odout))
+                            *overlay_display_end_out = oend;
+                        }
+                    }
+                }
+              /* Try string replacement */
+              else if (STRINGP (odisp))
+                {
+                  ptrdiff_t slen = SBYTES (odisp);
+                  ptrdiff_t copy = slen;
+                  if (copy > before_buf_len - 1)
+                    copy = before_buf_len - 1;
+                  if (copy > 0)
+                    {
+                      odout->type = 1;
+                      odout->str_len = (int) copy;
+                      memcpy (before_buf, SDATA (odisp), copy);
+                      before_buf[copy] = 0;
+                      *overlay_display_end_out = oend;
+                    }
+                }
+            }
+        }
 
       /* Before-string: render at overlay start. */
       if (ostart == pos)
