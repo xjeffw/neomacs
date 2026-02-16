@@ -1354,8 +1354,11 @@ pub(crate) fn builtin_color_defined_p(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// `(color-values COLOR &optional FRAME)` -- parse common color names and hex
-/// colors to a list `(R G B)` with 16-bit component values (0..65535).
+/// `(color-values COLOR &optional FRAME)` -- resolve COLOR and return a
+/// terminal-compatible `(R G B)` list with 16-bit component values.
+///
+/// In batch/TTY compatibility mode we approximate resolved colors to the
+/// nearest entry in the 8-color terminal palette.
 pub(crate) fn builtin_color_values(args: Vec<Value>) -> EvalResult {
     expect_min_args("color-values", &args, 1)?;
     expect_max_args("color-values", &args, 2)?;
@@ -1364,66 +1367,13 @@ pub(crate) fn builtin_color_values(args: Vec<Value>) -> EvalResult {
         _ => return Ok(Value::Nil),
     };
     let lower = color_name.trim().to_lowercase();
-
-    // Try hex format first: #RGB, #RRGGBB, #RRRRGGGGBBBB
-    if lower.starts_with('#') {
-        let hex = &lower[1..];
-        return match hex.len() {
-            3 => {
-                // #RGB -> expand each digit to 16-bit
-                let r = u16_from_hex_digit(hex.as_bytes()[0]);
-                let g = u16_from_hex_digit(hex.as_bytes()[1]);
-                let b = u16_from_hex_digit(hex.as_bytes()[2]);
-                Ok(Value::list(vec![
-                    Value::Int((r | (r << 4) | (r << 8) | (r << 12)) as i64),
-                    Value::Int((g | (g << 4) | (g << 8) | (g << 12)) as i64),
-                    Value::Int((b | (b << 4) | (b << 8) | (b << 12)) as i64),
-                ]))
-            }
-            6 => {
-                // #RRGGBB -> scale 8-bit to 16-bit (multiply by 257)
-                let r = u16::from_str_radix(&hex[0..2], 16).unwrap_or(0) as i64 * 257;
-                let g = u16::from_str_radix(&hex[2..4], 16).unwrap_or(0) as i64 * 257;
-                let b = u16::from_str_radix(&hex[4..6], 16).unwrap_or(0) as i64 * 257;
-                Ok(Value::list(vec![
-                    Value::Int(r),
-                    Value::Int(g),
-                    Value::Int(b),
-                ]))
-            }
-            12 => {
-                // #RRRRGGGGBBBB -> already 16-bit
-                let r = u16::from_str_radix(&hex[0..4], 16).unwrap_or(0) as i64;
-                let g = u16::from_str_radix(&hex[4..8], 16).unwrap_or(0) as i64;
-                let b = u16::from_str_radix(&hex[8..12], 16).unwrap_or(0) as i64;
-                Ok(Value::list(vec![
-                    Value::Int(r),
-                    Value::Int(g),
-                    Value::Int(b),
-                ]))
-            }
-            _ => Ok(Value::Nil),
-        };
-    }
-
-    // Named colors (basic set).
-    let (r, g, b) = match lower.as_str() {
-        "black" => (0, 0, 0),
-        "white" => (65535, 65535, 65535),
-        "red" => (65535, 0, 0),
-        "green" => (0, 65535, 0),
-        "blue" => (0, 0, 65535),
-        "yellow" => (65535, 65535, 0),
-        "cyan" => (0, 65535, 65535),
-        "magenta" => (65535, 0, 65535),
-        "gray" | "grey" => (48573, 48573, 48573),
-        "dark gray" | "dark grey" | "darkgray" | "darkgrey" => (43690, 43690, 43690),
-        "light gray" | "light grey" | "lightgray" | "lightgrey" => (55512, 55512, 55512),
-        "orange" => (65535, 42405, 0),
-        "pink" => (65535, 49344, 52171),
-        "brown" => (42405, 10794, 10794),
-        "purple" => (32896, 0, 32896),
-        _ => return Ok(Value::Nil),
+    let resolved = if let Some(hex) = lower.strip_prefix('#') {
+        parse_hex_color_16bit(hex)
+    } else {
+        parse_named_color_16bit(&lower)
+    };
+    let Some((r, g, b)) = resolved.map(approximate_tty_color) else {
+        return Ok(Value::Nil);
     };
     Ok(Value::list(vec![
         Value::Int(r),
@@ -1432,14 +1382,77 @@ pub(crate) fn builtin_color_values(args: Vec<Value>) -> EvalResult {
     ]))
 }
 
-/// Helper: convert a single hex digit char to a 4-bit value.
-fn u16_from_hex_digit(byte: u8) -> u16 {
-    match byte {
-        b'0'..=b'9' => (byte - b'0') as u16,
-        b'a'..=b'f' => (byte - b'a' + 10) as u16,
-        b'A'..=b'F' => (byte - b'A' + 10) as u16,
-        _ => 0,
+fn parse_hex_color_16bit(hex: &str) -> Option<(i64, i64, i64)> {
+    match hex.len() {
+        3 => {
+            let r = i64::from(hex[0..1].chars().next()?.to_digit(16)? as u16);
+            let g = i64::from(hex[1..2].chars().next()?.to_digit(16)? as u16);
+            let b = i64::from(hex[2..3].chars().next()?.to_digit(16)? as u16);
+            Some((
+                r | (r << 4) | (r << 8) | (r << 12),
+                g | (g << 4) | (g << 8) | (g << 12),
+                b | (b << 4) | (b << 8) | (b << 12),
+            ))
+        }
+        6 => Some((
+            i64::from(u16::from_str_radix(&hex[0..2], 16).ok()?) * 257,
+            i64::from(u16::from_str_radix(&hex[2..4], 16).ok()?) * 257,
+            i64::from(u16::from_str_radix(&hex[4..6], 16).ok()?) * 257,
+        )),
+        12 => Some((
+            i64::from(u16::from_str_radix(&hex[0..4], 16).ok()?),
+            i64::from(u16::from_str_radix(&hex[4..8], 16).ok()?),
+            i64::from(u16::from_str_radix(&hex[8..12], 16).ok()?),
+        )),
+        _ => None,
     }
+}
+
+fn parse_named_color_16bit(name: &str) -> Option<(i64, i64, i64)> {
+    match name {
+        "black" => Some((0, 0, 0)),
+        "white" => Some((65535, 65535, 65535)),
+        "red" => Some((65535, 0, 0)),
+        "green" => Some((0, 65535, 0)),
+        "blue" => Some((0, 0, 65535)),
+        "yellow" => Some((65535, 65535, 0)),
+        "cyan" => Some((0, 65535, 65535)),
+        "magenta" => Some((65535, 0, 65535)),
+        "gray" | "grey" => Some((48573, 48573, 48573)),
+        "dark gray" | "dark grey" | "darkgray" | "darkgrey" => Some((43690, 43690, 43690)),
+        "light gray" | "light grey" | "lightgray" | "lightgrey" => Some((55512, 55512, 55512)),
+        "orange" => Some((65535, 42405, 0)),
+        "orange red" | "orangered" => Some((65535, 17990, 0)),
+        "pink" => Some((65535, 49344, 52171)),
+        "brown" => Some((42405, 10794, 10794)),
+        "purple" => Some((32896, 0, 32896)),
+        _ => None,
+    }
+}
+
+fn approximate_tty_color((r, g, b): (i64, i64, i64)) -> (i64, i64, i64) {
+    // Emacs batch/TTY behavior is effectively a coarse 8-color quantization.
+    // A narrow channel spread is treated as gray, otherwise channels are
+    // quantized relative to the local min/max midpoint.
+    const GRAY_BAND: i64 = 0x1111;
+    const BRIGHT_THRESHOLD: i64 = 0x8888;
+
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    if max - min <= GRAY_BAND {
+        return if max >= BRIGHT_THRESHOLD {
+            (65535, 65535, 65535)
+        } else {
+            (0, 0, 0)
+        };
+    }
+
+    let mid = (max + min) / 2;
+    (
+        if r >= mid { 65535 } else { 0 },
+        if g >= mid { 65535 } else { 0 },
+        if b >= mid { 65535 } else { 0 },
+    )
 }
 
 /// `(defined-colors &optional FRAME)` -- return a list of defined color names.
@@ -2187,6 +2200,9 @@ mod tests {
         let missing = builtin_color_defined_p(vec![Value::string("anything")]).unwrap();
         assert!(missing.is_nil());
 
+        let invalid_hex = builtin_color_defined_p(vec![Value::string("#ggg")]).unwrap();
+        assert!(invalid_hex.is_nil());
+
         let non_string = builtin_color_defined_p(vec![Value::Int(1)]).unwrap();
         assert!(non_string.is_nil());
     }
@@ -2212,7 +2228,7 @@ mod tests {
 
     #[test]
     fn color_values_hex_rrggbb() {
-        // #FF0000 -> red (255*257 = 65535, 0, 0)
+        // Hex colors are approximated to terminal palette colors in batch mode.
         let result = builtin_color_values(vec![Value::string("#FF0000")]).unwrap();
         let rgb = list_to_vec(&result).unwrap();
         assert_eq!(rgb[0].as_int(), Some(65535));
@@ -2222,17 +2238,17 @@ mod tests {
 
     #[test]
     fn color_values_hex_short() {
-        // #F00 -> red
+        // #F00 resolves and approximates to red.
         let result = builtin_color_values(vec![Value::string("#F00")]).unwrap();
         let rgb = list_to_vec(&result).unwrap();
-        assert!(rgb[0].as_int().unwrap() > 0);
+        assert_eq!(rgb[0].as_int(), Some(65535));
         assert_eq!(rgb[1].as_int(), Some(0));
         assert_eq!(rgb[2].as_int(), Some(0));
     }
 
     #[test]
     fn color_values_hex_12digit() {
-        // #FFFF00000000
+        // 12-digit hex resolves and approximates to red.
         let result = builtin_color_values(vec![Value::string("#FFFF00000000")]).unwrap();
         let rgb = list_to_vec(&result).unwrap();
         assert_eq!(rgb[0].as_int(), Some(65535));
@@ -2445,8 +2461,24 @@ mod tests {
     fn color_values_hex_lowercase() {
         let result = builtin_color_values(vec![Value::string("#ff8000")]).unwrap();
         let rgb = list_to_vec(&result).unwrap();
-        assert_eq!(rgb[0].as_int(), Some(255 * 257)); // 65535
-        assert_eq!(rgb[1].as_int(), Some(128 * 257)); // 32896
+        // #ff8000 approximates to yellow in the terminal palette.
+        assert_eq!(rgb[0].as_int(), Some(65535));
+        assert_eq!(rgb[1].as_int(), Some(65535));
         assert_eq!(rgb[2].as_int(), Some(0));
+    }
+
+    #[test]
+    fn color_values_invalid_hex_returns_nil() {
+        let result = builtin_color_values(vec![Value::string("#ggg")]).unwrap();
+        assert!(result.is_nil());
+    }
+
+    #[test]
+    fn color_values_dark_gray_approximates_to_white() {
+        let result = builtin_color_values(vec![Value::string("DarkGray")]).unwrap();
+        let rgb = list_to_vec(&result).unwrap();
+        assert_eq!(rgb[0].as_int(), Some(65535));
+        assert_eq!(rgb[1].as_int(), Some(65535));
+        assert_eq!(rgb[2].as_int(), Some(65535));
     }
 }

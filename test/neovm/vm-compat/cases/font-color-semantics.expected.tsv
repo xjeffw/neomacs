@@ -8,8 +8,18 @@
 8	(color-values "NO-SUCH-COLOR")	OK nil
 9	(color-values nil)	OK nil
 10	(color-values 1)	OK nil
-11	(condition-case err (color-values "red" nil nil) (error (car err)))	OK wrong-number-of-arguments
-12	(fboundp 'defined-colors)	OK t
-13	(let ((cs (defined-colors))) (and (listp cs) (not (null (member "red" cs)))))	OK t
-14	(let ((cs (defined-colors nil))) (and (listp cs) (not (null (member "red" cs)))))	OK t
-15	(condition-case err (defined-colors nil nil) (error (car err)))	OK wrong-number-of-arguments
+11	(color-values "#abc")	OK (0 65535 65535)
+12	(color-values "#aabbcc")	OK (0 65535 65535)
+13	(color-values "#aaaabbbbcccc")	OK (0 65535 65535)
+14	(color-values "#ggg")	OK nil
+15	(color-values "DarkGray")	OK (65535 65535 65535)
+16	(color-values "light gray")	OK (65535 65535 65535)
+17	(color-values "orange red")	OK (65535 0 0)
+18	(condition-case err (color-values "red" nil nil) (error (car err)))	OK wrong-number-of-arguments
+19	(fboundp 'defined-colors)	OK t
+20	(let ((cs (defined-colors))) (and (listp cs) (not (null (member "red" cs)))))	OK t
+21	(let ((cs (defined-colors nil))) (and (listp cs) (not (null (member "red" cs)))))	OK t
+22	(condition-case err (defined-colors nil nil) (error (car err)))	OK wrong-number-of-arguments
+23	(color-defined-p "#abc")	OK t
+24	(color-defined-p "#ggg")	OK nil
+25	(color-defined-p "orange red")	OK t
