@@ -412,6 +412,16 @@ pub(crate) fn builtin_define_charset_internal(args: Vec<Value>) -> EvalResult {
         }
     }
 
+    if let Value::Vector(v) = &args[2] {
+        let vec = v.lock().expect("poisoned");
+        if vec.len() <= 1 {
+            return Err(signal(
+                "args-out-of-range",
+                vec![args[2].clone(), Value::Int(vec.len() as i64)],
+            ));
+        }
+    }
+
     Ok(Value::Nil)
 }
 
@@ -964,6 +974,24 @@ mod tests {
         args[2] = Value::vector(vec![Value::Int(0), Value::Int(1)]);
         let r = builtin_define_charset_internal(args).unwrap();
         assert!(r.is_nil());
+    }
+
+    #[test]
+    fn define_charset_internal_short_dimension_vector_signals_args_out_of_range() {
+        let mut args = vec![Value::Nil; 17];
+        args[1] = Value::vector(vec![Value::Int(0)]);
+        args[2] = Value::vector(vec![Value::Int(0)]);
+        let err = builtin_define_charset_internal(args).unwrap_err();
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "args-out-of-range");
+                assert_eq!(
+                    sig.data,
+                    vec![Value::vector(vec![Value::Int(0)]), Value::Int(1)]
+                );
+            }
+            other => panic!("expected args-out-of-range signal, got {other:?}"),
+        }
     }
 
     // -----------------------------------------------------------------------
