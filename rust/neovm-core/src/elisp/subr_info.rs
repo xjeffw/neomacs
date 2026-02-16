@@ -419,6 +419,7 @@ fn subr_arity_value(name: &str) -> Value {
             arity_cons(1, Some(1))
         }
         "newline" | "next-line" => arity_cons(0, Some(2)),
+        "reindent-then-newline-and-indent" => arity_cons(0, Some(0)),
         "previous-line" => arity_cons(0, Some(2)),
         "newline-and-indent" => arity_cons(0, Some(1)),
         "open-line" => arity_cons(1, Some(1)),
@@ -2057,6 +2058,7 @@ mod tests {
         assert_subr_arity("store-kbd-macro-event", 1, Some(1));
         assert_subr_arity("switch-to-buffer", 1, Some(3));
         assert_subr_arity("take", 2, Some(2));
+        assert_subr_arity("reindent-then-newline-and-indent", 0, Some(0));
         assert_subr_arity("this-command-keys", 0, Some(0));
         assert_subr_arity("this-command-keys-vector", 0, Some(0));
         assert_subr_arity("transient-mark-mode", 0, Some(1));
