@@ -314,6 +314,13 @@ fn subr_arity_value(name: &str) -> Value {
         "buffer-local-value" | "buffer-substring" | "buffer-substring-no-properties" => {
             arity_cons(2, Some(2))
         }
+        "char-after" | "char-before" | "charset-after" | "charset-id-internal"
+        | "charset-priority-list" => arity_cons(0, Some(1)),
+        "char-category-set" | "char-or-string-p" | "char-resolve-modifiers" | "char-syntax"
+        | "char-width" | "char-table-p" | "char-table-parent" | "char-table-subtype"
+        | "charset-plist" => arity_cons(1, Some(1)),
+        "char-charset" => arity_cons(1, Some(2)),
+        "char-table-extra-slot" | "char-table-range" => arity_cons(2, Some(2)),
         "if" => Value::cons(Value::Int(2), Value::symbol("unevalled")),
         "defining-kbd-macro" => arity_cons(1, Some(2)),
         "help-key-description" => arity_cons(2, Some(2)),
@@ -807,6 +814,27 @@ mod tests {
         assert_subr_arity("buffer-local-value", 2, Some(2));
         assert_subr_arity("buffer-substring", 2, Some(2));
         assert_subr_arity("buffer-substring-no-properties", 2, Some(2));
+    }
+
+    #[test]
+    fn subr_arity_char_charset_primitives_match_oracle() {
+        assert_subr_arity("char-after", 0, Some(1));
+        assert_subr_arity("char-before", 0, Some(1));
+        assert_subr_arity("char-category-set", 1, Some(1));
+        assert_subr_arity("char-charset", 1, Some(2));
+        assert_subr_arity("char-or-string-p", 1, Some(1));
+        assert_subr_arity("char-resolve-modifiers", 1, Some(1));
+        assert_subr_arity("char-syntax", 1, Some(1));
+        assert_subr_arity("char-width", 1, Some(1));
+        assert_subr_arity("char-table-p", 1, Some(1));
+        assert_subr_arity("char-table-parent", 1, Some(1));
+        assert_subr_arity("char-table-subtype", 1, Some(1));
+        assert_subr_arity("char-table-extra-slot", 2, Some(2));
+        assert_subr_arity("char-table-range", 2, Some(2));
+        assert_subr_arity("charset-after", 0, Some(1));
+        assert_subr_arity("charset-id-internal", 0, Some(1));
+        assert_subr_arity("charset-plist", 1, Some(1));
+        assert_subr_arity("charset-priority-list", 0, Some(1));
     }
 
     #[test]
