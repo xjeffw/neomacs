@@ -39,6 +39,7 @@ cases/key-description-semantics
 cases/vector-literal-self-eval-semantics
 cases/sub-zero-arity-semantics
 cases/core-math-subr-arity-semantics
+cases/line-position-subr-arity-semantics
 cases/point-navigation-subr-arity-semantics
 cases/buffer-point-subr-arity-semantics
 cases/buffer-lookup-subr-arity-semantics

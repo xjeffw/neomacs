@@ -445,6 +445,11 @@ fn subr_arity_value(name: &str) -> Value {
         "current-time-string" | "current-time-zone" => arity_cons(0, Some(2)),
         "system-name" => arity_cons(0, Some(0)),
         "emacs-version" => arity_cons(0, Some(1)),
+        "line-beginning-position" | "line-end-position" | "line-number-display-width" => {
+            arity_cons(0, Some(1))
+        }
+        "line-number-at-pos" => arity_cons(0, Some(2)),
+        "line-pixel-height" => arity_cons(0, Some(0)),
         "called-interactively-p" | "float-time" => arity_cons(0, Some(1)),
         "featurep" => arity_cons(1, Some(2)),
         "commandp" => arity_cons(1, Some(2)),
@@ -1453,6 +1458,15 @@ mod tests {
         assert_subr_arity("unintern", 1, Some(2));
         assert_subr_arity("indirect-function", 1, Some(2));
         assert_subr_arity("symbol-file", 1, Some(3));
+    }
+
+    #[test]
+    fn subr_arity_line_position_primitives_match_oracle() {
+        assert_subr_arity("line-beginning-position", 0, Some(1));
+        assert_subr_arity("line-end-position", 0, Some(1));
+        assert_subr_arity("line-number-at-pos", 0, Some(2));
+        assert_subr_arity("line-number-display-width", 0, Some(1));
+        assert_subr_arity("line-pixel-height", 0, Some(0));
     }
 
     #[test]
