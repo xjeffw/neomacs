@@ -19,6 +19,27 @@ Last updated: 2026-02-16
 
 ## Done
 
+- Exposed `cl-sort` and `cl-stable-sort` as callable CL helpers:
+  - updated:
+    - `rust/neovm-core/src/elisp/cl_lib.rs`
+      - added eval-dependent `cl-sort` and `cl-stable-sort` builtins as aliases over `sort`.
+      - added focused unit coverage for both sorted numeric paths.
+    - `rust/neovm-core/src/elisp/builtins.rs`
+      - evaluator-dependent dispatch now routes `cl-sort` and `cl-stable-sort`.
+    - `rust/neovm-core/src/elisp/builtin_registry.rs`
+      - added `cl-sort` and `cl-stable-sort` to builtin registry.
+    - `test/neovm/vm-compat/cases/cl-helper-availability.forms`
+      - switched helper probes to callable forms:
+        - `(cl-sort '(3 1 2) #'<)`
+        - `(cl-stable-sort '(3 1 2) #'<)`
+    - `test/neovm/vm-compat/cases/cl-helper-availability.expected.tsv`
+      - updated expectations from missing helpers to callable behavior (`(1 2 3)` / `(1 2 3)`).
+  - verified:
+    - `cargo test cl_sort --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `cargo test cl_stable_sort --manifest-path rust/neovm-core/Cargo.toml` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/cl-helper-availability` (pass, 86/86)
+    - `make -C test/neovm/vm-compat validate-case-lists` (pass)
+
 - Exposed `cl-substitute` as a callable CL helper:
   - updated:
     - `rust/neovm-core/src/elisp/cl_lib.rs`
