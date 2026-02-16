@@ -195,6 +195,7 @@ cases/exit-recursive-edit-semantics
 cases/recursive-top-level-arity-semantics
 cases/minibuffer-contents-no-properties-semantics
 cases/transient-mark-mode-semantics
+cases/discard-input-semantics
 cases/input-batch-readers
 cases/input-pending-semantics
 cases/input-unread-command-events-dynamic-semantics

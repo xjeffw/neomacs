@@ -1,0 +1,8 @@
+1	(discard-input)	OK nil
+2	(let ((unread-command-events (list 97 98))) (list (discard-input) unread-command-events))	OK (nil nil)
+3	(let ((unread-command-events (list 'foo 97))) (progn (discard-input) unread-command-events))	OK nil
+4	(let ((unread-command-events 7)) (list (discard-input) unread-command-events))	OK (nil nil)
+5	(let ((unread-command-events (cons nil 7))) (list (discard-input) unread-command-events))	OK (nil nil)
+6	(let ((unread-command-events (list 97))) (list (discard-input) (input-pending-p)))	OK (nil nil)
+7	(let ((unread-command-events (list 97))) (discard-input) unread-command-events)	OK nil
+8	(condition-case err (discard-input nil) (list (car err) (cdr err)))	ERR (wrong-number-of-arguments (discard-input 1))
