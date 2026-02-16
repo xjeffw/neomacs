@@ -54,9 +54,28 @@ Last updated: 2026-02-16
 4. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
 6. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
-7. Continue subr-arity registry drift reduction from `61` remaining mismatches using batched oracle lock-ins.
+7. Continue subr-arity registry drift reduction from `60` remaining mismatches using batched oracle lock-ins.
 
 ## Done
+
+- Aligned `subr-native-elisp-p` startup alias behavior with GNU Emacs:
+  - seeded startup function alias:
+    - `subr-native-elisp-p -> native-comp-function-p`
+  - added `native-comp-function-p` builtin dispatch + arity lock-in:
+    - runtime behavior: temporary stub returns `nil` (no native-compiled function model yet)
+    - arity lock-in: `(1 . 1)`
+  - added oracle corpus lock-in case:
+    - `test/neovm/vm-compat/cases/subr-native-elisp-alias-semantics.{forms,expected.tsv}`
+    - wired into default suite: `test/neovm/vm-compat/cases/default.list`
+  - unit coverage:
+    - `symbol_function_resolves_builtin_and_special_names`
+    - `subr_arity_symbol_state_primitives_match_oracle`
+  - verified:
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml symbol_function_resolves_builtin_and_special_names -- --nocapture` (pass)
+    - `cargo test --manifest-path rust/neovm-core/Cargo.toml subr_arity_symbol_state_primitives_match_oracle -- --nocapture` (pass)
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/subr-native-elisp-alias-semantics` (pass)
+    - `make -C test/neovm/vm-compat check-all-neovm-strict` (pass)
+    - registry scan status: `CURRENT_SUBR_ARITY_MISMATCHES=60`
 
 - Aligned startup `symbol-function` alias wrappers with GNU Emacs for wrapper names:
   - seeded startup function aliases:
