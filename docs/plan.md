@@ -19,6 +19,16 @@ Last updated: 2026-02-15
 
 ## Done
 
+- Extended `minibuffer-batch` arity lock-ins:
+  - updated:
+    - `test/neovm/vm-compat/cases/minibuffer-batch.forms`
+      - added `minibuffer-depth` over-arity probe.
+    - `test/neovm/vm-compat/cases/minibuffer-batch.expected.tsv`
+      - locked expected `wrong-number-of-arguments` outcome.
+  - verified:
+    - `make -C test/neovm/vm-compat check-one-neovm CASE=cases/minibuffer-batch` (pass, 41/41)
+    - `make -C test/neovm/vm-compat check-all-neovm` (pass, full default + neovm-only corpus)
+
 - Added recursive-edit/top-level arity compatibility corpus:
   - updated:
     - `test/neovm/vm-compat/cases/recursive-top-level-arity-semantics.{forms,expected.tsv}`
