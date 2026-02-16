@@ -456,6 +456,13 @@ fn subr_arity_value(name: &str) -> Value {
             arity_cons(1, Some(1))
         }
         "remove-overlays" => arity_cons(0, Some(4)),
+        "primitive-undo" => arity_cons(2, Some(2)),
+        "prin1" | "prin1-to-string" => arity_cons(1, Some(3)),
+        "princ" | "print" => arity_cons(1, Some(2)),
+        "propertize" => arity_cons(1, None),
+        "put-image" => arity_cons(2, Some(4)),
+        "query-replace" | "query-replace-regexp" => arity_cons(2, Some(7)),
+        "quoted-insert" => arity_cons(1, Some(1)),
         "looking-at" => arity_cons(1, Some(2)),
         "match-beginning" | "match-end" => arity_cons(1, Some(1)),
         "match-data" => arity_cons(0, Some(3)),
@@ -1759,6 +1766,20 @@ mod tests {
         assert_subr_arity("region-beginning", 0, Some(0));
         assert_subr_arity("region-end", 0, Some(0));
         assert_subr_arity("regexp-quote", 1, Some(1));
+    }
+
+    #[test]
+    fn subr_arity_print_replace_edit_primitives_match_oracle() {
+        assert_subr_arity("primitive-undo", 2, Some(2));
+        assert_subr_arity("prin1", 1, Some(3));
+        assert_subr_arity("prin1-to-string", 1, Some(3));
+        assert_subr_arity("princ", 1, Some(2));
+        assert_subr_arity("print", 1, Some(2));
+        assert_subr_arity("propertize", 1, None);
+        assert_subr_arity("put-image", 2, Some(4));
+        assert_subr_arity("query-replace", 2, Some(7));
+        assert_subr_arity("query-replace-regexp", 2, Some(7));
+        assert_subr_arity("quoted-insert", 1, Some(1));
     }
 
     #[test]

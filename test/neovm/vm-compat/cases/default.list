@@ -79,6 +79,7 @@ cases/register-helper-subr-arity-semantics
 cases/list-sequence-subr-arity-semantics
 cases/search-match-arity-errors-semantics
 cases/search-match-subr-arity-semantics
+cases/print-replace-edit-subr-arity-semantics
 cases/composition-subr-arity-semantics
 cases/predicate-core-subr-arity-semantics
 cases/abbrev-subr-arity-semantics
