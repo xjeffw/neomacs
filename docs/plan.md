@@ -10,7 +10,7 @@ Last updated: 2026-02-17
 4. [x] Continue `xdisp`/display no-op surface audit with one behavior lock-in per commit (`move-point-visually`, `invisible-p` edge cases).
 5. [x] Expand thread concurrency matrix coverage for argument errors and join edge-cases.
 6. [x] Land next `font`/`font-lock` behavior lock-in slice with oracle-backed `font-spec` checks.
-7. [ ] Expand input queue edge cases for `read-key`/`read-event` mixed payload tails.
+7. [x] Expand input queue edge cases for `read-key`/`read-event` mixed payload tails.
 8. [ ] Add negative path cases for `terminal-parameter` argument validation and storage behavior.
 9. [ ] Tighten `indent` semantics around arity and read-only mutation boundaries in interactive buffer-mode.
 10. [ ] Sweep remaining display compatibility notes and convert stub wording to explicit behavior.
@@ -61,6 +61,9 @@ Last updated: 2026-02-17
 - Completed font behavior lock-in slice:
   - Added `font-spec` edge-coverage in `cases/font-object-semantics`.
   - Verified with `make -C test/neovm/vm-compat check-one-neovm CASE=cases/font-object-semantics`.
+- Expanded mixed input queue-tail coverage:
+  - Added symbol/char/vector mixed-tail cases to `cases/read-event-symbol-vector-tail-semantics` and `cases/read-key-symbol-vector-tail-semantics`.
+  - Verified with `make -C test/neovm/vm-compat check-one-neovm CASE=cases/read-event-symbol-vector-tail-semantics` and corresponding read-key case.
 - Keep builtin dispatch surface and registry in lock-step for `fboundp`/introspection parity.
 - Run targeted vm-compat checks after each behavior-affecting slice.
 - Keep recurring full-corpus `check-all-neovm` gates after each compatibility batch.
