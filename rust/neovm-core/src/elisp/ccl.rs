@@ -3,8 +3,8 @@
 //! CCL is a low-level bytecode language for efficient character/text conversion.
 //! This implementation provides stubs for basic CCL operations:
 //! - `ccl-program-p` — basic predicate for vector-shaped CCL program headers
-//! - `ccl-execute` — execute CCL program on status vector (stub, returns nil)
-//! - `ccl-execute-on-string` — execute CCL program on string (stub, returns string unchanged)
+//! - `ccl-execute` — execute CCL program on status vector (stub, validates status/program shape)
+//! - `ccl-execute-on-string` — execute CCL program on string (stub, validates status/program shape)
 //! - `register-ccl-program` — register a CCL program (stub, returns nil)
 //! - `register-code-conversion-map` — register a code conversion map (stub, returns nil)
 //!
@@ -97,7 +97,25 @@ pub(crate) fn builtin_ccl_execute(args: Vec<Value>) -> EvalResult {
         ));
     }
 
-    Ok(Value::Nil)
+    let status_len = match &args[1] {
+        Value::Vector(vec) => vec.lock().expect("poisoned").len(),
+        _ => unreachable!("status already validated as vector"),
+    };
+    if status_len != 8 {
+        return Err(signal(
+            "error",
+            vec![Value::string("Length of vector REGISTERS is not 8")],
+        ));
+    }
+
+    if is_valid_ccl_program(&args[0]) {
+        return Err(signal(
+            "error",
+            vec![Value::string("Error in CCL program at 4th code")],
+        ));
+    }
+
+    Err(signal("error", vec![Value::string("Invalid CCL program")]))
 }
 
 /// (ccl-execute-on-string CCL-PROGRAM STATUS STRING &optional CONTINUE UNIBYTE-P) -> STRING
@@ -111,6 +129,20 @@ pub(crate) fn builtin_ccl_execute_on_string(args: Vec<Value>) -> EvalResult {
             vec![Value::symbol("vectorp"), args[1].clone()],
         ));
     }
+    let status_len = match &args[1] {
+        Value::Vector(vec) => vec.lock().expect("poisoned").len(),
+        _ => unreachable!("status already validated as vector"),
+    };
+    if status_len != 9 {
+        return Err(signal(
+            "error",
+            vec![Value::string("Length of vector STATUS is not 9")],
+        ));
+    }
+
+    if !is_valid_ccl_program(&args[0]) {
+        return Err(signal("error", vec![Value::string("Invalid CCL program")]));
+    }
 
     // Arguments:
     //   0: CCL-PROGRAM (we don't use)
@@ -119,9 +151,11 @@ pub(crate) fn builtin_ccl_execute_on_string(args: Vec<Value>) -> EvalResult {
     //   3: CONTINUE (optional, we don't use)
     //   4: UNIBYTE-P (optional, we don't use)
 
-    // Extract and return the string argument unchanged
-    match &args[2] {
-        Value::Str(s) => Ok(Value::Str(s.clone())),
+        match &args[2] {
+            Value::Str(_s) => Err(signal(
+            "error",
+            vec![Value::string("Error in CCL program at 4th code")],
+        )),
         other => {
             // Type error: STRING must be a string or nil
             Err(signal(
@@ -178,8 +212,46 @@ mod tests {
     }
 
     #[test]
-    fn ccl_execute_on_string_returns_string_payload() {
-        let out = builtin_ccl_execute_on_string(vec![
+    fn ccl_execute_requires_registers_vector_length_eight() {
+        let err = builtin_ccl_execute(vec![
+            Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
+            Value::vector(vec![Value::Int(0), Value::Int(0), Value::Int(0)]),
+        ])
+        .expect_err("registers length should be checked");
+        match err {
+            Flow::Signal(sig) => assert_eq!(
+                sig.data[0],
+                Value::string("Length of vector REGISTERS is not 8")
+            ),
+            other => panic!("expected error signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ccl_execute_reports_invalid_program_before_success() {
+        let err = builtin_ccl_execute(vec![
+            Value::Int(1),
+            Value::vector(vec![
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+            ]),
+        ])
+        .expect_err("non-vector program must be rejected");
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.data[0], Value::string("Invalid CCL program")),
+            other => panic!("expected error signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ccl_execute_on_string_requires_status_vector_length_nine() {
+        let err = builtin_ccl_execute_on_string(vec![
             Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
             Value::vector(vec![
                 Value::Int(0),
@@ -189,8 +261,14 @@ mod tests {
             ]),
             Value::string("abc"),
         ])
-        .expect("string payload should be returned");
-        assert_eq!(out, Value::string("abc"));
+        .expect_err("status length should be checked");
+        match err {
+            Flow::Signal(sig) => assert_eq!(
+                sig.data[0],
+                Value::string("Length of vector STATUS is not 9")
+            ),
+            other => panic!("expected error signal, got {other:?}"),
+        }
     }
 
     #[test]
@@ -216,6 +294,11 @@ mod tests {
                 Value::Int(0),
                 Value::Int(0),
                 Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
             ]),
             Value::Int(1),
         ])
@@ -231,6 +314,11 @@ mod tests {
         let err = builtin_ccl_execute_on_string(vec![
             Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
             Value::vector(vec![
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
+                Value::Int(0),
                 Value::Int(0),
                 Value::Int(0),
                 Value::Int(0),
