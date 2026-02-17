@@ -20,7 +20,7 @@ Last updated: 2026-02-17
 14. [x] Add dedicated `font`/`face` batch-mode argument validation corpus for no-op paths.
 15. [ ] Add `subr-primitive-p` parity slice if function-kind policy changes.
 16. [x] Keep `compat-stub-index` JSON snapshots committed for dashboard ingestion (`test/neovm/vm-compat/compat-stub-index.json`).
-17. [ ] Expand `seq`/`alist` matrix for improper argument paths while preserving existing arity lock-ins.
+17. [x] Expand `seq`/`alist` matrix for improper argument paths while preserving existing arity lock-ins.
 18. [ ] Add regression case for `backtrace-frame` documentation introspection with stale function-cell handles.
 19. [ ] Expand `image` stubs with validated `t`/`nil` behavior for optional args.
 20. [x] Add periodic `make compat-progress` output diff check in PR review templates.
@@ -36,6 +36,9 @@ Last updated: 2026-02-17
 - Completed timer integer/float edge slice:
   - Added `cases/timer-float-int-edge-semantics` to lock in number parsing behavior for `run-at-time`/`run-with-timer` payloads.
   - Validated via `make -C test/neovm/vm-compat check-one-neovm CASE=cases/timer-float-int-edge-semantics`.
+- Completed `seq`/`alist` improper argument matrix:
+  - Added `cases/seq-alist-improper-semantics` covering arity/type drift for `seq-contains-p`, `seq-length`, `seq-into`, `alist-get`, `assoc`, and `assq`.
+  - Added the new case into `test/neovm/vm-compat/cases/default.list` and validated with `check-one-neovm` before proceeding to commit.
 - Completed local search builtin hardening:
   - `looking-at-p` now has explicit arity and match-data-preservation tests in `rust/neovm-core/src/elisp/search.rs`.
   - Pure `looking-at`/`looking-at-p` docs updated and compatibility checks kept passing (`cases/looking-at-semantics`).
