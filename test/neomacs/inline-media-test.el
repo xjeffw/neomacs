@@ -92,35 +92,58 @@
        (inline-media-test-log "WebKit: ERROR %S" err)))
     (insert "\n")
 
-    ;; === Section 2: Inline Video (two side-by-side) ===
-    (insert "--- 2. Inline Video (x2 side-by-side) ---\n")
+    ;; === Section 2: Inline Video (display property with loop+autoplay) ===
+    (insert "--- 2. Inline Video (display prop, loop+autoplay) ---\n")
     (if (and inline-media-test-video-path inline-media-test-video-path-2)
         (condition-case err
             (progn
-              ;; Insert both videos on the same line, then play both
-              (let ((video-id-1 (neomacs-video-insert inline-media-test-video-path
-                                                      media-width media-height)))
-                ;; Point is now after video 1 (same line, no newline)
-                (let ((video-id-2 (neomacs-video-insert inline-media-test-video-path-2
-                                                        media-width media-height)))
-                  ;; Now play both simultaneously
-                  (when video-id-1 (neomacs-video-play video-id-1))
-                  (when video-id-2 (neomacs-video-play video-id-2))
-                  (cond
-                   ((and video-id-1 video-id-2)
-                    (insert "\n")
-                    (insert (format "Video 1: %s (ID %d), Video 2: %s (ID %d) — %dx%d each\n"
-                                    (file-name-nondirectory inline-media-test-video-path)
-                                    video-id-1
-                                    (file-name-nondirectory inline-media-test-video-path-2)
-                                    video-id-2
-                                    media-width media-height))
-                    (insert "Playing both videos simultaneously...\n")
-                    (setq success-count (1+ success-count))
-                    (inline-media-test-log "Video: OK (id1=%d, id2=%d)" video-id-1 video-id-2))
-                   (t
-                    (insert "\n[Video creation failed]\n")
-                    (inline-media-test-log "Video: FAILED (one or both returned nil)"))))))
+              ;; Load videos and insert via display properties directly
+              ;; (tests :loop-count and :autoplay pipeline end-to-end)
+              (let* ((uri-1 (concat "file://" (expand-file-name
+                                               inline-media-test-video-path)))
+                     (uri-2 (concat "file://" (expand-file-name
+                                               inline-media-test-video-path-2)))
+                     (video-id-1 (neomacs-video-load uri-1))
+                     (video-id-2 (neomacs-video-load uri-2)))
+                (when video-id-1
+                  (let ((start (point)))
+                    (insert " ")
+                    (put-text-property start (point) 'display
+                      `(video :id ,video-id-1
+                              :width ,media-width :height ,media-height
+                              :loop-count -1 :autoplay t))
+                    (put-text-property start (point)
+                                       'neomacs-video-id video-id-1))
+                  (neomacs-video-play video-id-1))
+                (when video-id-2
+                  (let ((start (point)))
+                    (insert " ")
+                    (put-text-property start (point) 'display
+                      `(video :id ,video-id-2
+                              :width ,media-width :height ,media-height
+                              :loop-count 3 :autoplay t))
+                    (put-text-property start (point)
+                                       'neomacs-video-id video-id-2))
+                  (neomacs-video-play video-id-2))
+                (cond
+                 ((and video-id-1 video-id-2)
+                  (insert "\n")
+                  (insert (format
+                    "Video 1: %s (ID %d, loop=-1) Video 2: %s (ID %d, loop=3) %dx%d\n"
+                    (file-name-nondirectory inline-media-test-video-path)
+                    video-id-1
+                    (file-name-nondirectory inline-media-test-video-path-2)
+                    video-id-2
+                    media-width media-height))
+                  (insert "Both auto-playing via display property.\n")
+                  (setq success-count (1+ success-count))
+                  (inline-media-test-log
+                    "Video: OK (id1=%d loop=-1, id2=%d loop=3)"
+                    video-id-1 video-id-2))
+                 (t
+                  (insert "\n[Video creation failed]\n")
+                  (inline-media-test-log
+                    "Video: FAILED (one or both returned nil)")))))
           (error
            (insert (format "[Video error: %S]\n" err))
            (inline-media-test-log "Video: ERROR %S" err)))
