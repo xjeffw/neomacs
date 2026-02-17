@@ -58,8 +58,13 @@ printf '  legacy-elc: %s\n' "$(count_lines "$script_dir/cases/legacy-elc-literal
 printf '  introspection: %s\n' "$(count_lines "$script_dir/cases/introspection.list")"
 printf '  thread: %s\n' "$(count_lines "$script_dir/cases/thread.list")"
 printf '  total unique tracked: %s\n' "$tracked_unique"
-printf '  total .forms artifacts: %s\n' "$(find "$script_dir/cases" -name '*.forms' | wc -l | tr -d ' ')"
-printf '  total expected artifacts: %s\n' "$(find "$script_dir/cases" -name '*.expected.tsv' | wc -l | tr -d ' ')"
+forms_count="$(find "$script_dir/cases" -name '*.forms' | wc -l | tr -d ' ')"
+expected_count="$(find "$script_dir/cases" -name '*.expected.tsv' | wc -l | tr -d ' ')"
+printf '  total .forms artifacts: %s\n' "$forms_count"
+printf '  total expected artifacts: %s\n' "$expected_count"
+if [[ "$expected_count" -ne "$forms_count" ]]; then
+  printf '  corpus artifact delta (expected - forms): %+d\n' "$((expected_count - forms_count))"
+fi
 
 printf 'builtin registry:\n'
 printf '  total dispatch entries: %s\n' "$all_builtins"
