@@ -1279,8 +1279,7 @@ mod tests {
     #[test]
     fn builtin_try_completion_rejects_more_than_three_args() {
         let coll = Value::list(vec![Value::string("a")]);
-        let result =
-            builtin_try_completion(vec![Value::string(""), coll, Value::Nil, Value::Nil]);
+        let result = builtin_try_completion(vec![Value::string(""), coll, Value::Nil, Value::Nil]);
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
@@ -1332,8 +1331,7 @@ mod tests {
     #[test]
     fn builtin_test_completion_rejects_more_than_three_args() {
         let coll = Value::list(vec![Value::string("a")]);
-        let result =
-            builtin_test_completion(vec![Value::string(""), coll, Value::Nil, Value::Nil]);
+        let result = builtin_test_completion(vec![Value::string(""), coll, Value::Nil, Value::Nil]);
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
@@ -1377,7 +1375,7 @@ mod tests {
     }
 
     #[test]
-    fn builtin_recursive_edit_stub_returns_nil() {
+    fn builtin_recursive_edit_returns_nil() {
         let result = builtin_recursive_edit(vec![]).unwrap();
         assert!(matches!(result, Value::Nil));
     }
@@ -1392,7 +1390,7 @@ mod tests {
     }
 
     #[test]
-    fn builtin_top_level_stub_returns_nil() {
+    fn builtin_top_level_returns_nil() {
         let result = builtin_top_level(vec![]).unwrap();
         assert!(matches!(result, Value::Nil));
     }
@@ -1574,7 +1572,8 @@ mod tests {
 
     #[test]
     fn builtin_read_directory_name_validates_dir_default_and_initial() {
-        let bad_dir = builtin_read_directory_name(vec![Value::string("Directory: "), Value::Int(1)]);
+        let bad_dir =
+            builtin_read_directory_name(vec![Value::string("Directory: "), Value::Int(1)]);
         assert!(matches!(
             bad_dir,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-type-argument"
@@ -1629,7 +1628,8 @@ mod tests {
 
     #[test]
     fn builtin_read_variable_rejects_more_than_two_args() {
-        let result = builtin_read_variable(vec![Value::string("Variable: "), Value::Nil, Value::Nil]);
+        let result =
+            builtin_read_variable(vec![Value::string("Variable: "), Value::Nil, Value::Nil]);
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"

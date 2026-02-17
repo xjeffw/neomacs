@@ -79,7 +79,9 @@ fn replacement_region_bounds(
         let mark = buf.mark().ok_or_else(|| {
             signal(
                 "error",
-                vec![Value::string("The mark is not set now, so there is no region")],
+                vec![Value::string(
+                    "The mark is not set now, so there is no region",
+                )],
             )
         })?;
         let pt = buf.point();
@@ -199,11 +201,7 @@ fn resolve_search_whitespace_regexp(eval: &super::eval::Evaluator) -> Option<Str
     Some(super::regex::translate_emacs_regex(&raw))
 }
 
-fn build_lax_whitespace_pattern(
-    pattern: &str,
-    whitespace_regex: &str,
-    case_fold: bool,
-) -> String {
+fn build_lax_whitespace_pattern(pattern: &str, whitespace_regex: &str, case_fold: bool) -> String {
     let mut raw = String::new();
     let mut literal = String::new();
     let mut in_space_run = false;
@@ -1391,7 +1389,9 @@ fn replace_string_eval_impl(
             if buf.mark().is_none() {
                 return Err(signal(
                     "error",
-                    vec![Value::string("The mark is not set now, so there is no region")],
+                    vec![Value::string(
+                        "The mark is not set now, so there is no region",
+                    )],
                 ));
             }
             buf.point_max()
@@ -1429,10 +1429,7 @@ fn replace_string_eval_impl(
             return Ok(Value::Nil);
         }
         if read_only {
-            return Err(signal(
-                "buffer-read-only",
-                vec![Value::string(buffer_name)],
-            ));
+            return Err(signal("buffer-read-only", vec![Value::string(buffer_name)]));
         }
         let mut out = String::with_capacity(source.len() + to.len() * source.chars().count());
         if backward {
@@ -1476,12 +1473,11 @@ fn replace_string_eval_impl(
 
     let case_fold = case_fold_for_pattern(eval, &from);
     let preserve_match_case = case_fold && case_replace_enabled(eval);
-    let lax_whitespace_regex =
-        if replace_lax_whitespace_enabled(eval) && from.contains(' ') {
-            resolve_search_whitespace_regexp(eval)
-        } else {
-            None
-        };
+    let lax_whitespace_regex = if replace_lax_whitespace_enabled(eval) && from.contains(' ') {
+        resolve_search_whitespace_regexp(eval)
+    } else {
+        None
+    };
     let mut out = String::with_capacity(source.len());
     let mut replaced = 0usize;
     let mut backward_point = None;
@@ -1548,10 +1544,7 @@ fn replace_string_eval_impl(
         return Ok(Value::Nil);
     }
     if read_only {
-        return Err(signal(
-            "buffer-read-only",
-            vec![Value::string(buffer_name)],
-        ));
+        return Err(signal("buffer-read-only", vec![Value::string(buffer_name)]));
     }
 
     let buf = eval
@@ -1609,7 +1602,9 @@ fn replace_regexp_eval_impl(
             if buf.mark().is_none() {
                 return Err(signal(
                     "error",
-                    vec![Value::string("The mark is not set now, so there is no region")],
+                    vec![Value::string(
+                        "The mark is not set now, so there is no region",
+                    )],
                 ));
             }
             buf.point_max()
@@ -1646,8 +1641,12 @@ fn replace_regexp_eval_impl(
     let case_fold = case_fold_for_pattern(eval, &from);
     let preserve_match_case = case_fold && case_replace_enabled(eval);
     let pattern = build_regex_pattern(&from, case_fold);
-    let re = Regex::new(&pattern)
-        .map_err(|e| signal("invalid-regexp", vec![Value::string(format!("Invalid regexp: {e}"))]))?;
+    let re = Regex::new(&pattern).map_err(|e| {
+        signal(
+            "invalid-regexp",
+            vec![Value::string(format!("Invalid regexp: {e}"))],
+        )
+    })?;
 
     let mut out = String::with_capacity(source.len());
     let mut last = 0usize;
@@ -1709,10 +1708,7 @@ fn replace_regexp_eval_impl(
         return Ok(Value::Nil);
     }
     if read_only {
-        return Err(signal(
-            "buffer-read-only",
-            vec![Value::string(buffer_name)],
-        ));
+        return Err(signal("buffer-read-only", vec![Value::string(buffer_name)]));
     }
 
     let buf = eval
@@ -1796,7 +1792,12 @@ pub(crate) fn builtin_keep_lines_eval(
             .current_buffer()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         let (start, end) = line_operation_region_bounds(buf, args.get(1), args.get(2))?;
-        (buf.point_min(), start, end, buf.buffer_substring(buf.point_min(), buf.point_max()))
+        (
+            buf.point_min(),
+            start,
+            end,
+            buf.buffer_substring(buf.point_min(), buf.point_max()),
+        )
     };
 
     let case_fold = case_fold_for_pattern(eval, &regexp);
@@ -1864,7 +1865,12 @@ pub(crate) fn builtin_flush_lines_eval(
             .current_buffer()
             .ok_or_else(|| signal("error", vec![Value::string("No current buffer")]))?;
         let (start, end) = line_operation_region_bounds(buf, args.get(1), args.get(2))?;
-        (buf.point_min(), start, end, buf.buffer_substring(buf.point_min(), buf.point_max()))
+        (
+            buf.point_min(),
+            start,
+            end,
+            buf.buffer_substring(buf.point_min(), buf.point_max()),
+        )
     };
 
     let case_fold = case_fold_for_pattern(eval, &regexp);
@@ -2922,7 +2928,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn builtin_isearch_forward_signals_batch_stub_error() {
+    fn builtin_isearch_forward_signals_batch_buffer_error() {
         let result = builtin_isearch_forward(vec![]);
         assert!(matches!(
             result,
@@ -2933,7 +2939,7 @@ mod tests {
     }
 
     #[test]
-    fn builtin_isearch_backward_signals_batch_stub_error() {
+    fn builtin_isearch_backward_signals_batch_buffer_error() {
         let result = builtin_isearch_backward(vec![]);
         assert!(matches!(
             result,
@@ -2962,5 +2968,4 @@ mod tests {
                 if sig.symbol == "wrong-number-of-arguments"
         ));
     }
-
 }
