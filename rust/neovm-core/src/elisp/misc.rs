@@ -180,8 +180,8 @@ pub(crate) fn sf_save_current_buffer(
     result
 }
 
-/// `(track-mouse BODY...)` -- stub: just evaluates body forms.
-/// In real Emacs this enables mouse tracking; we skip that for now.
+/// `(track-mouse BODY...)` -- evaluate BODY forms.
+/// In batch/terminal mode, this is an effective no-op wrapper around `progn`.
 pub(crate) fn sf_track_mouse(eval: &mut super::eval::Evaluator, tail: &[Expr]) -> EvalResult {
     eval.sf_progn(tail)
 }
