@@ -184,6 +184,68 @@ impl WgpuRenderer {
             offset_x, offset_y,
             cursor_visible, animated_cursor,
         );
+
+        // === Rounded corner clipping ===
+        // After all content is rendered, apply a corner mask that zeros out
+        // pixels outside the rounded rect. Uses dst = dst * src_alpha blend
+        // mode: alpha=1 inside the rounded rect (preserved), alpha=0 in the
+        // corners (erased). The mask covers the full frame+border area.
+        if corner_radius > 0.0 {
+            use wgpu::util::DeviceExt;
+
+            let effective_bw = if bw > 0.0 { bw } else { 0.0 };
+            let mask_x = offset_x - effective_bw;
+            let mask_y = offset_y - effective_bw;
+            let mask_w = frame_w + 2.0 * effective_bw;
+            let mask_h = frame_h + 2.0 * effective_bw;
+
+            let mut vertices: Vec<RoundedRectVertex> = Vec::new();
+            self.add_rounded_rect(
+                &mut vertices,
+                mask_x, mask_y, mask_w, mask_h,
+                0.0,            // border_width=0 → filled mode in SDF shader
+                corner_radius,
+                &Color::new(1.0, 1.0, 1.0, 1.0),
+            );
+
+            if !vertices.is_empty() {
+                let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Child Frame Corner Mask Buffer"),
+                    contents: bytemuck::cast_slice(&vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+                let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Child Frame Corner Mask Encoder"),
+                });
+                {
+                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("Child Frame Corner Mask Pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Load,
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
+                    });
+                    pass.set_pipeline(&self.corner_mask_pipeline);
+                    pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                    pass.set_vertex_buffer(0, buffer.slice(..));
+                    pass.draw(0..vertices.len() as u32, 0..1);
+                }
+                self.queue.submit(Some(encoder.finish()));
+            }
+
+            log::debug!(
+                "render_child_frame: corner mask applied at ({:.1},{:.1}) {:.0}x{:.0} radius={:.1}",
+                mask_x, mask_y, mask_w, mask_h, corner_radius,
+            );
+        }
     }
 
     /// Render floating videos from the scene.
