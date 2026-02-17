@@ -15,6 +15,9 @@ Last updated: 2026-02-16
 - Added stale-tail queue lock-in for `read-key-sequence` and `read-key-sequence-vector`:
   - Non-character head events are returned and numeric tails stay queued.
   - Added oracle lock-in cases plus evaluator unit coverage in `reader.rs`.
+- Added explicit `read-event` batch lock-ins for character and mixed event queues:
+  - Non-character head event now returns immediately with numeric tail preserved.
+  - Character head consumes its own event and empties queue as expected.
 - Continue compatibility-first maintenance with small commit slices.
 - Keep builtin dispatch surface and registry in lock-step for `fboundp`/introspection parity.
 - Run targeted vm-compat checks after each behavior-affecting slice.
