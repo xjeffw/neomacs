@@ -525,13 +525,11 @@ impl WpeWebView {
             while plat::g_main_context_iteration(ctx, 0) != 0 {
                 // Process all pending events
             }
-            // Also iterate the default context in case signals are attached there
-            let default_ctx = plat::g_main_context_default();
-            if default_ctx != ctx {
-                while plat::g_main_context_iteration(default_ctx, 0) != 0 {
-                    // Process default context events
-                }
-            }
+            // NOTE: Do NOT iterate g_main_context_default() here.
+            // The Emacs main thread already dispatches the default context
+            // via xg_select(). Dispatching it from the render thread races
+            // with pselect() and causes EBADF crashes when GLib closes FDs
+            // that are still in the main thread's select set.
 
             // Update title
             let title_ptr = wk::webkit_web_view_get_title(self.web_view);

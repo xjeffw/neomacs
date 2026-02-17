@@ -1575,11 +1575,11 @@ impl RenderApp {
             // Non-blocking iteration - process all pending events
             while plat::g_main_context_iteration(ctx, 0) != 0 {}
 
-            // Also check default context if different
-            let default_ctx = plat::g_main_context_default();
-            if default_ctx != ctx {
-                while plat::g_main_context_iteration(default_ctx, 0) != 0 {}
-            }
+            // NOTE: Do NOT iterate g_main_context_default() here.
+            // The Emacs main thread already dispatches the default context
+            // via xg_select(). Dispatching it from the render thread races
+            // with pselect() and causes EBADF crashes when GLib closes FDs
+            // that are still in the main thread's select set.
         }
 
         // Update all webkit views and send state change events
