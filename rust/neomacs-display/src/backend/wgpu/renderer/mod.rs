@@ -21,6 +21,7 @@ use super::vertex::{GlyphVertex, RectVertex, RoundedRectVertex, Uniforms};
 mod media;
 mod effects_state;
 mod glyphs;
+mod content;
 mod transitions;
 mod overlays;
 mod cursor_effects;
