@@ -151,8 +151,8 @@ pub(crate) fn builtin_ccl_execute_on_string(args: Vec<Value>) -> EvalResult {
     //   3: CONTINUE (optional, we don't use)
     //   4: UNIBYTE-P (optional, we don't use)
 
-        match &args[2] {
-            Value::Str(_s) => Err(signal(
+    match &args[2] {
+        Value::Str(_s) => Err(signal(
             "error",
             vec![Value::string("Error in CCL program at 4th code")],
         )),
@@ -170,22 +170,40 @@ pub(crate) fn builtin_ccl_execute_on_string(args: Vec<Value>) -> EvalResult {
 /// Stub: accepts and discards the CCL program registration.
 pub(crate) fn builtin_register_ccl_program(args: Vec<Value>) -> EvalResult {
     expect_args("register-ccl-program", &args, 2)?;
+    if !args[0].is_symbol() {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("symbolp"), args[0].clone()],
+        ));
+    }
+
+    if !is_valid_ccl_program(&args[1]) {
+        return Err(signal("error", vec![Value::string("Error in CCL program")]));
+    }
+
     // Arguments:
     //   0: NAME (symbol name for the program)
     //   1: CCL-PROG (the program definition)
     // We accept both but don't store anything since we don't support CCL
-    Ok(Value::Nil)
+    Ok(Value::Int(1))
 }
 
 /// (register-code-conversion-map SYMBOL MAP) -> nil
 /// Stub: accepts and discards the code conversion map.
 pub(crate) fn builtin_register_code_conversion_map(args: Vec<Value>) -> EvalResult {
     expect_args("register-code-conversion-map", &args, 2)?;
+    if !args[0].is_symbol() {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("symbolp"), args[0].clone()],
+        ));
+    }
+
     // Arguments:
     //   0: SYMBOL (name for the conversion map)
     //   1: MAP (the conversion map definition, typically a char-table)
     // We accept both but don't store anything since we don't support CCL
-    Ok(Value::Nil)
+    Ok(Value::Int(0))
 }
 
 #[cfg(test)]
@@ -334,5 +352,72 @@ mod tests {
             Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
             other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn register_ccl_program_requires_symbol_name() {
+        let err =
+            builtin_register_ccl_program(vec![Value::Int(1), Value::vector(vec![Value::Int(10)])])
+                .expect_err("register-ccl-program name must be symbol");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn register_ccl_program_rejects_invalid_program_shape() {
+        let err = builtin_register_ccl_program(vec![
+            Value::symbol("foo"),
+            Value::vector(vec![Value::Int(1)]),
+        ])
+        .expect_err("invalid program must be rejected");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.data[0], Value::string("Error in CCL program"));
+            }
+            other => panic!("expected error signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn register_ccl_program_returns_success_code() {
+        assert_eq!(
+            builtin_register_ccl_program(vec![
+                Value::symbol("foo"),
+                Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
+            ])
+            .expect("valid registration should succeed"),
+            Value::Int(1)
+        );
+    }
+
+    #[test]
+    fn register_code_conversion_map_requires_symbol_name() {
+        let err = builtin_register_code_conversion_map(vec![
+            Value::Int(1),
+            Value::vector(vec![Value::Int(0)]),
+        ])
+        .expect_err("register-code-conversion-map name must be symbol");
+        match err {
+            Flow::Signal(sig) => {
+                assert_eq!(sig.symbol, "wrong-type-argument");
+            }
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn register_code_conversion_map_returns_success_code() {
+        assert_eq!(
+            builtin_register_code_conversion_map(vec![
+                Value::symbol("foo"),
+                Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
+            ])
+            .expect("valid registration should succeed"),
+            Value::Int(0)
+        );
     }
 }

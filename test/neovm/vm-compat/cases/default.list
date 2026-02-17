@@ -33,6 +33,7 @@ cases/doc-helper-subr-arity-semantics
 cases/ccl-arity-semantics
 cases/ccl-semantics
 cases/ccl-runtime-semantics
+cases/ccl-registration-semantics
 cases/commandp-semantics
 cases/commandp-builtin-command-matrix
 cases/commandp-core-command-matrix-extra
