@@ -405,11 +405,6 @@ pub(crate) fn builtin_set_match_data(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_looking_at(args: Vec<Value>) -> EvalResult {
     expect_range_args("looking-at", &args, 1, 2)?;
     let pattern = expect_string(&args[0])?;
-    if let Some(limit) = args.get(1) {
-        if !limit.is_nil() {
-            expect_integer_or_marker(limit)?;
-        }
-    }
     let rust_pattern = super::regex::translate_emacs_regex(&pattern);
     let _ = regex::Regex::new(&rust_pattern)
         .map_err(|e| signal("invalid-regexp", vec![Value::string(e.to_string())]))?;
@@ -679,12 +674,9 @@ mod tests {
     }
 
     #[test]
-    fn looking_at_invalid_limit_signals_wrong_type() {
-        let result = builtin_looking_at(vec![Value::string("foo"), Value::string("bar")]);
-        match result {
-            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "wrong-type-argument"),
-            _ => panic!("Expected wrong-type-argument signal"),
-        }
+    fn looking_at_with_limit_any_value() {
+        let result = builtin_looking_at(vec![Value::string("foo"), Value::True]);
+        assert_nil(result.unwrap());
     }
 
     #[test]
