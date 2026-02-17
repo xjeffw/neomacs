@@ -3,6 +3,7 @@
 (invisible-p 'foo)
 (condition-case err (invisible-p 0) (error (car err)))
 (with-temp-buffer (insert "abc") (invisible-p -1))
+(condition-case err (invisible-p "x") (error (car err)))
 (condition-case err (invisible-p) (error (car err)))
 (condition-case err (invisible-p 1 2) (error (car err)))
 
