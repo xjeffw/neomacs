@@ -452,6 +452,13 @@ Use `--with-neovm-core-backend=` to select which core backend gets compiled:
 
 ---
 
+## Platform Support
+
+- **Linux** – primary supported platform. The steps above document a validated Arch Linux workflow, but other distributions should follow similar dependency installation with their package manager.
+- **macOS** – experimental. There is ongoing work tracked in [issue #22](https://github.com/eval-exec/neomacs/issues/22); check before attempting a build.
+- **Windows** – not currently supported. Running Neomacs inside WSL2, a Linux VM, or a container is recommended.
+
+
 ## Roadmap: Rust Display Engine Rewrite
 
 We are rewriting the Emacs display engine entirely in Rust. The current system extracts glyphs from Emacs's C glyph matrices and sends them to the GPU — the next step is replacing the C layout engine (`xdisp.c`, `dispnew.c`, ~40k LOC) with a Rust layout engine that reads buffer data directly and produces GPU-ready glyph batches. One layout engine, two renderers: **wgpu (GPU)** and **TUI (terminal)**.
