@@ -16,8 +16,8 @@ forms_dir="$(cd "$(dirname "$forms_file")" && pwd)"
 forms_file_abs="$forms_dir/$(basename "$forms_file")"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$script_dir/oracle-emacs-path.sh"
 oracle_el="$script_dir/oracle_eval.el"
-hardcoded_oracle_emacs="/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs"
 emacs_bin="${NEOVM_ORACLE_EMACS:-${ORACLE_EMACS:-$hardcoded_oracle_emacs}}"
 
 if [[ ! -x "$emacs_bin" ]]; then

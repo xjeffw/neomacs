@@ -18,7 +18,7 @@ allowlist_abs="$allowlist_dir/$(basename "$allowlist_file")"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 runner_el="$script_dir/ert_allowlist_eval.el"
-hardcoded_oracle_emacs="/nix/store/hql3zwz5b4ywd2qwx8jssp4dyb7nx4cb-emacs-30.2/bin/emacs"
+source "$script_dir/oracle-emacs-path.sh"
 emacs_bin="${NEOVM_ORACLE_EMACS:-${ORACLE_EMACS:-$hardcoded_oracle_emacs}}"
 
 if [[ ! -x "$emacs_bin" ]]; then
