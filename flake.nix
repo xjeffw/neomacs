@@ -293,7 +293,9 @@
               unset -f _detect_display_env
 
               if [ -n "$DISPLAY" ]; then
-                echo "Display: DISPLAY=$DISPLAY XAUTHORITY=''${XAUTHORITY:-(unset)}"
+                echo "Display: DISPLAY=$DISPLAY  XAUTHORITY=''${XAUTHORITY:-(unset)}"
+              else
+                echo "Display: (no X11/Wayland display detected)"
               fi
 
               # Set default log levels (can be overridden before entering nix develop)
