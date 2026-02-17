@@ -6,6 +6,7 @@ repo_root="$(cd "$script_dir/../../.." && pwd)"
 registry_file="$repo_root/rust/neovm-core/src/elisp/builtin_registry.rs"
 allowlist_file="$script_dir/cases/builtin-registry-fboundp-allowlist.txt"
 source "$script_dir/lib/builtin-registry.sh"
+compat_stub_index_script="$script_dir/compat-stub-index.sh"
 
 if [[ ! -f "$registry_file" ]]; then
   echo "missing registry file: $registry_file" >&2
@@ -73,6 +74,8 @@ forms_count="$(find "$script_dir/cases" -name '*.forms' | wc -l | tr -d ' ')"
 expected_count="$(find "$script_dir/cases" -name '*.expected.tsv' | wc -l | tr -d ' ')"
 printf '  total .forms artifacts: %s\n' "$forms_count"
 printf '  total expected artifacts: %s\n' "$expected_count"
+stub_count="$("$compat_stub_index_script" 2>/dev/null | awk '/^explicitly annotated function stubs:/ { print $5 }')"
+printf '  explicit function stubs: %s\n' "${stub_count:-0}"
 if [[ "$expected_count" -ne "$forms_count" ]]; then
   printf '  corpus artifact delta (expected - forms): %+d\n' "$((expected_count - forms_count))"
   while IFS= read -r path; do
