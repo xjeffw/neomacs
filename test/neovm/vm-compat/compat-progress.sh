@@ -58,6 +58,8 @@ printf '  legacy-elc: %s\n' "$(count_lines "$script_dir/cases/legacy-elc-literal
 printf '  introspection: %s\n' "$(count_lines "$script_dir/cases/introspection.list")"
 printf '  thread: %s\n' "$(count_lines "$script_dir/cases/thread.list")"
 printf '  total unique tracked: %s\n' "$tracked_unique"
+printf '  total .forms artifacts: %s\n' "$(find "$script_dir/cases" -name '*.forms' | wc -l | tr -d ' ')"
+printf '  total expected artifacts: %s\n' "$(find "$script_dir/cases" -name '*.expected.tsv' | wc -l | tr -d ' ')"
 
 printf 'builtin registry:\n'
 printf '  total dispatch entries: %s\n' "$all_builtins"
