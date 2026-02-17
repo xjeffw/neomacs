@@ -724,7 +724,7 @@ pub(crate) fn builtin_x_server_version(args: Vec<Value>) -> EvalResult {
         }
         Some(Value::Str(display)) => Err(signal(
             "error",
-            vec![Value::string(format!("Display {display} can't be opened"))],
+            vec![Value::string(format!("Display {display} can’t be opened"))],
         )),
         Some(other) => Err(signal(
             "wrong-type-argument",
@@ -761,7 +761,7 @@ pub(crate) fn builtin_x_server_max_request_size(args: Vec<Value>) -> EvalResult 
         }
         Some(Value::Str(display)) => Err(signal(
             "error",
-            vec![Value::string(format!("Display {display} can't be opened"))],
+            vec![Value::string(format!("Display {display} can’t be opened"))],
         )),
         Some(other) => Err(signal(
             "wrong-type-argument",
@@ -798,7 +798,7 @@ pub(crate) fn builtin_x_display_grayscale_p(args: Vec<Value>) -> EvalResult {
         }
         Some(Value::Str(display)) => Err(signal(
             "error",
-            vec![Value::string(format!("Display {display} can't be opened"))],
+            vec![Value::string(format!("Display {display} can’t be opened"))],
         )),
         Some(other) => Err(signal(
             "wrong-type-argument",
@@ -828,7 +828,7 @@ pub(crate) fn builtin_x_open_connection(args: Vec<Value>) -> EvalResult {
     match &args[0] {
         Value::Str(display) => Err(signal(
             "error",
-            vec![Value::string(format!("Display {display} can't be opened"))],
+            vec![Value::string(format!("Display {display} can’t be opened"))],
         )),
         other => Err(signal(
             "wrong-type-argument",
@@ -848,7 +848,7 @@ pub(crate) fn builtin_x_close_connection(args: Vec<Value>) -> EvalResult {
         )),
         Value::Str(display) => Err(signal(
             "error",
-            vec![Value::string(format!("Display {display} can't be opened"))],
+            vec![Value::string(format!("Display {display} can’t be opened"))],
         )),
         other => {
             if let Some(err) = terminal_not_x_display_error(other) {
@@ -902,7 +902,7 @@ pub(crate) fn builtin_x_display_pixel_width(args: Vec<Value>) -> EvalResult {
         }
         Some(Value::Str(display)) => Err(signal(
             "error",
-            vec![Value::string(format!("Display {display} can't be opened"))],
+            vec![Value::string(format!("Display {display} can’t be opened"))],
         )),
         Some(other) => Err(signal(
             "wrong-type-argument",
@@ -951,7 +951,7 @@ pub(crate) fn builtin_x_display_pixel_height(args: Vec<Value>) -> EvalResult {
         }
         Some(Value::Str(display)) => Err(signal(
             "error",
-            vec![Value::string(format!("Display {display} can't be opened"))],
+            vec![Value::string(format!("Display {display} can’t be opened"))],
         )),
         Some(other) => Err(signal(
             "wrong-type-argument",

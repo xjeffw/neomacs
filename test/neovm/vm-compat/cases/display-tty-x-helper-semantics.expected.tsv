@@ -54,3 +54,5 @@
 54	(condition-case err (frame-edges nil 1) (error err))	OK (0 0 80 25)
 55	(condition-case err (frame-edges 1) (error err))	OK (error "1 is not a live frame")
 56	(condition-case err (frame-edges nil nil nil) (error err))	OK (wrong-number-of-arguments frame-edges 3)
+57	(condition-case err (error-message-string (x-open-connection "foo")) (error (error-message-string err)))	OK "Display foo can’t be opened"
+58	(condition-case err (error-message-string (x-close-connection "foo")) (error (error-message-string err)))	OK "Display foo can’t be opened"

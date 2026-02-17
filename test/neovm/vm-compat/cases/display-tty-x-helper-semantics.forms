@@ -61,3 +61,11 @@
 (condition-case err (frame-edges nil 1) (error err))
 (condition-case err (frame-edges 1) (error err))
 (condition-case err (frame-edges nil nil nil) (error err))
+
+(condition-case err
+    (error-message-string (x-open-connection "foo"))
+  (error (error-message-string err)))
+
+(condition-case err
+    (error-message-string (x-close-connection "foo"))
+  (error (error-message-string err)))
