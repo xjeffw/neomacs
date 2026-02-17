@@ -35,6 +35,7 @@ tmp_expected_only="$(mktemp)"
 tmp_forms_only="$(mktemp)"
 tmp_function_kind_check="$(mktemp)"
 tmp_fboundp_check="$(mktemp)"
+tmp_stub_budget="$(mktemp)"
 cleanup() {
   rm -f \
     "$tmp_all" \
@@ -45,7 +46,8 @@ cleanup() {
     "$tmp_expected_only" \
     "$tmp_forms_only" \
     "$tmp_function_kind_check" \
-    "$tmp_fboundp_check"
+    "$tmp_fboundp_check" \
+    "$tmp_stub_budget"
 }
 trap cleanup EXIT
 
@@ -96,6 +98,12 @@ printf '  total .forms artifacts: %s\n' "$forms_count"
 printf '  total expected artifacts: %s\n' "$expected_count"
 stub_count="$("$compat_stub_index_script" 2>/dev/null | awk '/^explicitly annotated function stubs:/ { print $5 }')"
 printf '  explicit function stubs: %s\n' "${stub_count:-0}"
+if ! "$script_dir/check-stub-budget.sh" > "$tmp_stub_budget" 2>&1; then
+  echo "  explicit stub budget: budget check failed"
+  sed 's/^/    /' "$tmp_stub_budget"
+  exit 1
+fi
+printf '  explicit stub budget: %s\n' "$(sed -n '1p' "$tmp_stub_budget")"
 if [[ "$expected_count" -ne "$forms_count" ]]; then
   printf '  corpus artifact delta (expected - forms): %+d\n' "$((expected_count - forms_count))"
   while IFS= read -r path; do
