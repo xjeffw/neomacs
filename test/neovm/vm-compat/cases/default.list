@@ -348,8 +348,15 @@ cases/display-monitor-semantics
 cases/display-monitor-frames-semantics
 cases/image-clear-cache-semantics
 cases/image-batch-query-semantics
+cases/create-image-type-resolution
+cases/image-type-semantics
+cases/image-area-semantics
+cases/image-flush-semantics
+cases/image-remove-semantics
+cases/image-insert-put-semantics
 cases/tty-batch-semantics
 cases/font-batch-semantics
+cases/font-xlfd-arity-semantics
 cases/font-color-semantics
 cases/font-object-semantics
 cases/font-face-helper-semantics
