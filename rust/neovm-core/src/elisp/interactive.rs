@@ -732,6 +732,8 @@ pub(crate) fn builtin_command_execute(eval: &mut Evaluator, args: Vec<Value>) ->
     expect_max_args("command-execute", &args, 4)?;
     expect_optional_command_keys_vector(args.get(2))?;
 
+    record_optional_command_keys(eval, args.get(2));
+
     let cmd = &args[0];
     if !command_designator_p(eval, cmd) {
         return Err(signal(
