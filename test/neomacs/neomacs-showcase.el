@@ -83,7 +83,7 @@ Each line is prefixed with a relative timestamp from showcase start."
     ("Inline Media"             13  showcase--section-media)
     ("Child Frames"             16  showcase--section-child-frames)
     ("Retro / Visual Madness"    8  showcase--section-retro)
-    ("Grand Finale"              8  showcase--section-finale))
+    ("Grand Finale"             10  showcase--section-finale))
   "Alist of (NAME DURATION-SECS FUNCTION).")
 
 (defvar showcase--rust-code
@@ -1183,13 +1183,18 @@ The future of text editing is here.  It's called Neomacs.
           (unwind-protect
               (progn
                 (select-frame f 'norecord)
-                (condition-case nil
+                (condition-case err
                     (progn
+                      (showcase--log "  child-frames: calling neomacs-webkit-init")
                       (neomacs-webkit-init)
+                      (showcase--log "  child-frames: calling neomacs-webkit-insert")
                       (neomacs-webkit-insert
                        "https://github.com/eval-exec/neomacs"
-                       750 420 t))
-                  (error (insert "[webkit error]"))))
+                       750 420 t)
+                      (showcase--log "  child-frames: webkit inserted OK"))
+                  (error
+                   (showcase--log "  child-frames: webkit ERROR: %S" err)
+                   (insert "[webkit error]"))))
             (when (frame-live-p f)
               (select-frame f 'norecord))
             (when (buffer-live-p (get-buffer "*showcase-cf-web*"))
