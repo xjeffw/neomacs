@@ -1,8 +1,1 @@
-cases/load-suffixes
-cases/load-policy
-cases/precompile
 cases/neovm-precompile-function-cell-semantics
-cases/bytecode-literal-default-policy
-cases/cl-setops-semantics
-cases/rect-extract-line-semantics
-cases/image-insert-put-semantics

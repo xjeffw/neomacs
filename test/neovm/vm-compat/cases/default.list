@@ -517,6 +517,7 @@ cases/cxr-4level-second-batch-semantics
 cases/cxr-4level-fboundp-availability
 cases/cxr-subr-arity-semantics
 cases/assoc-default-make-list-semantics
+cases/cl-setops-semantics
 cases/member-assoc-semantics
 cases/alist-get-semantics
 cases/plist-semantics
@@ -541,6 +542,7 @@ cases/garbage-collect-semantics
 cases/memory-use-counts-semantics
 cases/match-data
 cases/rect-extract-semantics
+cases/rect-extract-line-semantics
 cases/rect-delete-extract-semantics
 cases/rect-delete-semantics
 cases/rect-kill-semantics
