@@ -41,6 +41,7 @@ cases/commandp-builtin-command-matrix
 cases/commandp-core-command-matrix-extra
 cases/command-dispatch-semantics
 cases/command-keys-arg-semantics
+cases/command-keys-recent-keys-semantics
 cases/called-interactively-p-semantics
 cases/interactive-p-semantics
 cases/where-is-internal-semantics
