@@ -15,7 +15,7 @@ Last updated: 2026-02-17
 9. [x] Tighten `indent` semantics around arity and read-only mutation boundaries in interactive buffer-mode.
 10. [x] Sweep remaining display compatibility notes and convert stub wording to explicit behavior (`display-tty-x-helper-semantics` message assertions for open/close connection).
 11. [x] Add focused `check-stub-budget` step in vm-compat CI workflow for dashboard observability.
-12. [ ] Expand `window` and `frame` lifecycle cases around stale buffer references.
+12. [x] Expand `window` and `frame` lifecycle cases around stale buffer references.
 13. [ ] Extend `timer` unit handling to integer/float edge payloads already in parser.
 14. [x] Add dedicated `font`/`face` batch-mode argument validation corpus for no-op paths.
 15. [ ] Add `subr-primitive-p` parity slice if function-kind policy changes.
@@ -135,6 +135,7 @@ Last updated: 2026-02-17
 - Keep newly landed frame-op max-arity parity stable while expanding remaining window/frame lifecycle/helper drifts.
 - Keep newly landed `set-window-buffer` max-arity parity stable while expanding remaining window/buffer lifecycle drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
+- Keep window stale-reference behavior lock-in stable after `kill-buffer` now rewires dead windows and evaluator printing for buffer ids is now name-aware in nested forms.
 
 ## Next
 1. Completed: added `read-char` non-character numeric-edge lock-in (`1.0`) for queue-tail truncation parity.
@@ -152,7 +153,7 @@ Last updated: 2026-02-17
 5. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 6. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
 7. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
-8. Current registry status is `fboundp`/function-cell: 0 drifts, `function-kind`: 28 allowlisted drifts.
+8. Current registry status is `fboundp`/function-cell: 0 drifts, `function-kind`: 0 drifts.
 9. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
 
 ## Done
