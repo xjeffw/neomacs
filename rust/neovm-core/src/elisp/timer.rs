@@ -928,6 +928,14 @@ mod tests {
             parse_run_at_time_delay(&Value::string("4fortnight")).expect("4fortnight should parse"),
             4_838_400.0
         );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("2.5day")).expect("2.5day should parse"),
+            216_000.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("2.5 day")).expect("2.5 day should parse"),
+            216_000.0
+        );
         assert!(matches!(
             parse_run_at_time_delay(&Value::string("4 foo")),
             Err(_)
