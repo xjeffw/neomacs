@@ -77,7 +77,7 @@ Last updated: 2026-02-16
 
 ## Next
 
-1. Expand `read-char`/`read-key`/`read-key-sequence` event semantics beyond single-event returns and lock in oracle coverage for queue consumption edge-cases.
+1. Keep input-event queue edge cases for `read-char`/`read-key`/`read-key-sequence` aligned against oracle corpus (`invalid-event` and queue-empty paths).
 2. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
 3. Land the next evaluator-backed stub replacement after the `set-window-buffer` max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
 4. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
