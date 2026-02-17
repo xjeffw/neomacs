@@ -348,23 +348,19 @@ mod tests {
         assert_eq!(size, Value::Float(1.5));
         assert_eq!(threshold, Value::Float(0.8125));
 
-        assert!(
-            builtin_make_hash_table(vec![
-                Value::keyword(":rehash-size"),
-                Value::string("x"),
-                Value::keyword(":rehash-threshold"),
-                Value::Float(1.5),
-            ])
-            .is_ok()
-        );
-        assert!(
-            builtin_make_hash_table(vec![
-                Value::keyword(":rehash-threshold"),
-                Value::string("x"),
-                Value::keyword(":rehash-size"),
-                Value::Float(1.5),
-            ])
-            .is_ok()
-        );
+        assert!(builtin_make_hash_table(vec![
+            Value::keyword(":rehash-size"),
+            Value::string("x"),
+            Value::keyword(":rehash-threshold"),
+            Value::Float(1.5),
+        ])
+        .is_ok());
+        assert!(builtin_make_hash_table(vec![
+            Value::keyword(":rehash-threshold"),
+            Value::string("x"),
+            Value::keyword(":rehash-size"),
+            Value::Float(1.5),
+        ])
+        .is_ok());
     }
 }

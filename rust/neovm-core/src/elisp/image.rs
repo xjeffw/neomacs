@@ -473,7 +473,10 @@ pub(crate) fn builtin_clear_image_cache(args: Vec<Value>) -> EvalResult {
     if args.len() > 2 {
         return Err(signal(
             "wrong-number-of-arguments",
-            vec![Value::symbol("clear-image-cache"), Value::Int(args.len() as i64)],
+            vec![
+                Value::symbol("clear-image-cache"),
+                Value::Int(args.len() as i64),
+            ],
         ));
     }
 

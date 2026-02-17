@@ -124,12 +124,10 @@ fn expect_frame_designator(value: &Value) -> Result<(), Flow> {
     match value {
         Value::Int(id) if *id >= 0 => Ok(()),
         v if v.is_nil() => Ok(()),
-        _ => {
-        Err(signal(
+        _ => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("frame-live-p"), value.clone()],
-        ))
-        }
+        )),
     }
 }
 

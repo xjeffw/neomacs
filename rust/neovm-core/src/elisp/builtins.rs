@@ -2029,11 +2029,7 @@ pub(crate) fn builtin_make_hash_table(args: Vec<Value>) -> EvalResult {
         }
     }
     Ok(Value::hash_table_with_options(
-        test,
-        size,
-        weakness,
-        1.5,
-        0.8125,
+        test, size, weakness, 1.5, 0.8125,
     ))
 }
 
@@ -5824,15 +5820,15 @@ fn key_sequence_values(value: &Value) -> Result<Vec<Value>, Flow> {
 
 fn resolve_control_code(code: i64) -> Option<i64> {
     match code {
-        32 => Some(0), // SPC
-        63 => Some(127), // ?
-        64 => Some(0), // @
-        65..=90 => Some(code - 64), // A-Z
-        91 => Some(27),             // [
-        92 => Some(28),             // \
-        93 => Some(29),             // ]
-        94 => Some(30),             // ^
-        95 => Some(31),             // _
+        32 => Some(0),               // SPC
+        63 => Some(127),             // ?
+        64 => Some(0),               // @
+        65..=90 => Some(code - 64),  // A-Z
+        91 => Some(27),              // [
+        92 => Some(28),              // \
+        93 => Some(29),              // ]
+        94 => Some(30),              // ^
+        95 => Some(31),              // _
         97..=122 => Some(code - 96), // a-z
         _ => None,
     }
@@ -5918,7 +5914,10 @@ fn builtin_event_convert_list(args: Vec<Value>) -> EvalResult {
             }
             base = Some(item);
         } else {
-            return Err(signal("error", vec![Value::string("Invalid event description")]));
+            return Err(signal(
+                "error",
+                vec![Value::string("Invalid event description")],
+            ));
         }
     }
 
@@ -5959,17 +5958,27 @@ fn builtin_event_convert_list(args: Vec<Value>) -> EvalResult {
             if mod_bits == 0 {
                 Ok(Value::symbol(name))
             } else {
-                Ok(Value::symbol(format!("{}{}", event_modifier_prefix(mod_bits), name)))
+                Ok(Value::symbol(format!(
+                    "{}{}",
+                    event_modifier_prefix(mod_bits),
+                    name
+                )))
             }
         }
         Value::Nil | Value::True => {
             if mod_bits == 0 {
                 Ok(base)
             } else {
-                Err(signal("error", vec![Value::string("Invalid event description")]))
+                Err(signal(
+                    "error",
+                    vec![Value::string("Invalid event description")],
+                ))
             }
         }
-        _ => Err(signal("error", vec![Value::string("Invalid event description")])),
+        _ => Err(signal(
+            "error",
+            vec![Value::string("Invalid event description")],
+        )),
     }
 }
 
@@ -6362,7 +6371,9 @@ fn builtin_key_valid_p(args: Vec<Value>) -> EvalResult {
 fn builtin_single_key_description(args: Vec<Value>) -> EvalResult {
     expect_range_args("single-key-description", &args, 1, 2)?;
     let no_angles = args.get(1).is_some_and(Value::is_truthy);
-    Ok(Value::string(describe_single_key_value(&args[0], no_angles)?))
+    Ok(Value::string(describe_single_key_value(
+        &args[0], no_angles,
+    )?))
 }
 
 /// `(key-description KEYS &optional PREFIX)` -> string
@@ -7055,11 +7066,15 @@ pub(crate) fn dispatch_builtin(
         "set-match-data" => return Some(builtin_set_match_data_eval(eval, args)),
         "replace-match" => return Some(builtin_replace_match(eval, args)),
         "replace-regexp-in-string" => {
-            return Some(super::search::builtin_replace_regexp_in_string_eval(eval, args))
+            return Some(super::search::builtin_replace_regexp_in_string_eval(
+                eval, args,
+            ))
         }
         "query-replace" => return Some(super::isearch::builtin_query_replace_eval(eval, args)),
         "query-replace-regexp" => {
-            return Some(super::isearch::builtin_query_replace_regexp_eval(eval, args))
+            return Some(super::isearch::builtin_query_replace_regexp_eval(
+                eval, args,
+            ))
         }
         "replace-string" => return Some(super::isearch::builtin_replace_string_eval(eval, args)),
         "replace-regexp" => return Some(super::isearch::builtin_replace_regexp_eval(eval, args)),
@@ -7074,7 +7089,9 @@ pub(crate) fn dispatch_builtin(
         "charset-after" => return Some(super::charset::builtin_charset_after_eval(eval, args)),
         // composite (evaluator-dependent)
         "compose-region-internal" => {
-            return Some(super::composite::builtin_compose_region_internal_eval(eval, args))
+            return Some(super::composite::builtin_compose_region_internal_eval(
+                eval, args,
+            ))
         }
         // xdisp (evaluator-dependent)
         "format-mode-line" => return Some(super::xdisp::builtin_format_mode_line_eval(eval, args)),
@@ -7084,7 +7101,9 @@ pub(crate) fn dispatch_builtin(
             ))
         }
         "pos-visible-in-window-p" => {
-            return Some(super::xdisp::builtin_pos_visible_in_window_p_eval(eval, args))
+            return Some(super::xdisp::builtin_pos_visible_in_window_p_eval(
+                eval, args,
+            ))
         }
         "tool-bar-height" => return Some(super::xdisp::builtin_tool_bar_height_eval(eval, args)),
         "tab-bar-height" => return Some(super::xdisp::builtin_tab_bar_height_eval(eval, args)),
@@ -7152,7 +7171,9 @@ pub(crate) fn dispatch_builtin(
             ))
         }
         "file-newer-than-file-p" => {
-            return Some(super::fileio::builtin_file_newer_than_file_p_eval(eval, args))
+            return Some(super::fileio::builtin_file_newer_than_file_p_eval(
+                eval, args,
+            ))
         }
         "file-equal-p" => return Some(super::fileio::builtin_file_equal_p_eval(eval, args)),
         "file-in-directory-p" => {
@@ -7519,7 +7540,9 @@ pub(crate) fn dispatch_builtin(
             return Some(super::window_cmds::builtin_get_buffer_window(eval, args))
         }
         "get-buffer-window-list" => {
-            return Some(super::window_cmds::builtin_get_buffer_window_list(eval, args))
+            return Some(super::window_cmds::builtin_get_buffer_window_list(
+                eval, args,
+            ))
         }
         "fit-window-to-buffer" => {
             return Some(super::window_cmds::builtin_fit_window_to_buffer(eval, args))
@@ -7584,7 +7607,9 @@ pub(crate) fn dispatch_builtin(
         "framep" => return Some(super::window_cmds::builtin_framep(eval, args)),
         "window-frame" => return Some(super::window_cmds::builtin_window_frame(eval, args)),
         "frame-selected-window" => {
-            return Some(super::window_cmds::builtin_frame_selected_window(eval, args))
+            return Some(super::window_cmds::builtin_frame_selected_window(
+                eval, args,
+            ))
         }
         "display-graphic-p" => {
             return Some(super::display::builtin_display_graphic_p_eval(eval, args))
@@ -7637,11 +7662,13 @@ pub(crate) fn dispatch_builtin(
                 eval, args,
             ))
         }
-        "display-images-p" => return Some(super::display::builtin_display_images_p_eval(eval, args)),
+        "display-images-p" => {
+            return Some(super::display::builtin_display_images_p_eval(eval, args))
+        }
         "display-supports-face-attributes-p" => {
-            return Some(super::display::builtin_display_supports_face_attributes_p_eval(
-                eval, args,
-            ))
+            return Some(
+                super::display::builtin_display_supports_face_attributes_p_eval(eval, args),
+            )
         }
         "terminal-name" => return Some(super::display::builtin_terminal_name_eval(eval, args)),
         "terminal-live-p" => return Some(super::display::builtin_terminal_live_p_eval(eval, args)),
@@ -7649,7 +7676,9 @@ pub(crate) fn dispatch_builtin(
             return Some(super::display::builtin_terminal_parameter_eval(eval, args))
         }
         "set-terminal-parameter" => {
-            return Some(super::display::builtin_set_terminal_parameter_eval(eval, args))
+            return Some(super::display::builtin_set_terminal_parameter_eval(
+                eval, args,
+            ))
         }
         "tty-type" => return Some(super::display::builtin_tty_type_eval(eval, args)),
         "tty-top-frame" => return Some(super::display::builtin_tty_top_frame_eval(eval, args)),
@@ -7657,15 +7686,15 @@ pub(crate) fn dispatch_builtin(
             return Some(super::display::builtin_tty_display_color_p_eval(eval, args))
         }
         "tty-display-color-cells" => {
-            return Some(super::display::builtin_tty_display_color_cells_eval(eval, args))
+            return Some(super::display::builtin_tty_display_color_cells_eval(
+                eval, args,
+            ))
         }
         "tty-no-underline" => {
             return Some(super::display::builtin_tty_no_underline_eval(eval, args))
         }
         "controlling-tty-p" => {
-            return Some(super::display::builtin_controlling_tty_p_eval(
-                eval, args,
-            ))
+            return Some(super::display::builtin_controlling_tty_p_eval(eval, args))
         }
         "suspend-tty" => return Some(super::display::builtin_suspend_tty_eval(eval, args)),
         "resume-tty" => return Some(super::display::builtin_resume_tty_eval(eval, args)),
@@ -7692,18 +7721,20 @@ pub(crate) fn dispatch_builtin(
             return Some(super::display::builtin_x_server_version_eval(eval, args))
         }
         "x-server-max-request-size" => {
-            return Some(super::display::builtin_x_server_max_request_size_eval(eval, args))
+            return Some(super::display::builtin_x_server_max_request_size_eval(
+                eval, args,
+            ))
         }
         "x-display-grayscale-p" => {
-            return Some(super::display::builtin_x_display_grayscale_p_eval(eval, args))
+            return Some(super::display::builtin_x_display_grayscale_p_eval(
+                eval, args,
+            ))
         }
         "x-display-color-p" => {
             return Some(super::display::builtin_x_display_color_p_eval(eval, args))
         }
         "x-close-connection" => {
-            return Some(super::display::builtin_x_close_connection_eval(
-                eval, args,
-            ))
+            return Some(super::display::builtin_x_close_connection_eval(eval, args))
         }
 
         // Interactive / command system (evaluator-dependent)
@@ -7896,22 +7927,30 @@ pub(crate) fn dispatch_builtin(
         "point-max-marker" => return Some(super::marker::builtin_point_max_marker(eval, args)),
 
         // Case table (evaluator-dependent)
-        "current-case-table" => return Some(super::casetab::builtin_current_case_table_eval(eval, args)),
+        "current-case-table" => {
+            return Some(super::casetab::builtin_current_case_table_eval(eval, args))
+        }
         "standard-case-table" => {
             return Some(super::casetab::builtin_standard_case_table_eval(eval, args))
         }
         "set-case-table" => return Some(super::casetab::builtin_set_case_table_eval(eval, args)),
         "set-standard-case-table" => {
-            return Some(super::casetab::builtin_set_standard_case_table_eval(eval, args))
+            return Some(super::casetab::builtin_set_standard_case_table_eval(
+                eval, args,
+            ))
         }
 
         // Category (evaluator-dependent)
-        "define-category" => return Some(super::category::builtin_define_category_eval(eval, args)),
+        "define-category" => {
+            return Some(super::category::builtin_define_category_eval(eval, args))
+        }
         "category-docstring" => {
             return Some(super::category::builtin_category_docstring_eval(eval, args))
         }
         "get-unused-category" => {
-            return Some(super::category::builtin_get_unused_category_eval(eval, args))
+            return Some(super::category::builtin_get_unused_category_eval(
+                eval, args,
+            ))
         }
         "modify-category-entry" => {
             return Some(super::category::builtin_modify_category_entry(eval, args))
@@ -7919,7 +7958,9 @@ pub(crate) fn dispatch_builtin(
         "char-category-set" => return Some(super::category::builtin_char_category_set(eval, args)),
         "category-table" => return Some(super::category::builtin_category_table_eval(eval, args)),
         "standard-category-table" => {
-            return Some(super::category::builtin_standard_category_table_eval(eval, args))
+            return Some(super::category::builtin_standard_category_table_eval(
+                eval, args,
+            ))
         }
         "set-category-table" => {
             return Some(super::category::builtin_set_category_table_eval(eval, args))
@@ -8921,16 +8962,14 @@ pub(crate) fn builtin_search_forward(
     let mut last_pos = None;
     for _ in 0..opts.steps {
         let result = match opts.direction {
-            SearchDirection::Forward => {
-                super::regex::search_forward(
-                    buf,
-                    &pattern,
-                    opts.bound,
-                    false,
-                    case_fold,
-                    &mut eval.match_data,
-                )
-            }
+            SearchDirection::Forward => super::regex::search_forward(
+                buf,
+                &pattern,
+                opts.bound,
+                false,
+                case_fold,
+                &mut eval.match_data,
+            ),
             SearchDirection::Backward => super::regex::search_backward(
                 buf,
                 &pattern,
@@ -9139,16 +9178,14 @@ pub(crate) fn builtin_search_backward(
     let mut last_pos = None;
     for _ in 0..opts.steps {
         let result = match opts.direction {
-            SearchDirection::Forward => {
-                super::regex::search_forward(
-                    buf,
-                    &pattern,
-                    opts.bound,
-                    false,
-                    case_fold,
-                    &mut eval.match_data,
-                )
-            }
+            SearchDirection::Forward => super::regex::search_forward(
+                buf,
+                &pattern,
+                opts.bound,
+                false,
+                case_fold,
+                &mut eval.match_data,
+            ),
             SearchDirection::Backward => super::regex::search_backward(
                 buf,
                 &pattern,
@@ -9858,7 +9895,10 @@ mod tests {
         match missing {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "error");
-                assert_eq!(sig.data, vec![Value::string("No buffer named *kb-opt-missing*")]);
+                assert_eq!(
+                    sig.data,
+                    vec![Value::string("No buffer named *kb-opt-missing*")]
+                );
             }
             other => panic!("unexpected flow: {other:?}"),
         }
@@ -9892,7 +9932,8 @@ mod tests {
     #[test]
     fn set_buffer_rejects_deleted_buffer_object() {
         let mut eval = super::super::eval::Evaluator::new();
-        let dead = builtin_generate_new_buffer(&mut eval, vec![Value::string("*sb-dead*")]).unwrap();
+        let dead =
+            builtin_generate_new_buffer(&mut eval, vec![Value::string("*sb-dead*")]).unwrap();
         let _ = builtin_kill_buffer(&mut eval, vec![dead.clone()]).unwrap();
 
         let err = builtin_set_buffer(&mut eval, vec![dead])
@@ -9934,7 +9975,10 @@ mod tests {
         match err {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-number-of-arguments");
-                assert_eq!(sig.data, vec![Value::symbol("get-buffer-create"), Value::Int(3)]);
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("get-buffer-create"), Value::Int(3)]
+                );
             }
             other => panic!("unexpected flow: {other:?}"),
         }
@@ -9949,7 +9993,10 @@ mod tests {
         match err {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-number-of-arguments");
-                assert_eq!(sig.data, vec![Value::symbol("get-buffer-create"), Value::Int(0)]);
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("get-buffer-create"), Value::Int(0)]
+                );
             }
             other => panic!("unexpected flow: {other:?}"),
         }
@@ -9996,7 +10043,8 @@ mod tests {
             }
         }
 
-        let dead = builtin_generate_new_buffer(&mut eval, vec![Value::string("*gb-dead*")]).unwrap();
+        let dead =
+            builtin_generate_new_buffer(&mut eval, vec![Value::string("*gb-dead*")]).unwrap();
         let _ = builtin_kill_buffer(&mut eval, vec![dead.clone()]).unwrap();
         assert_eq!(
             builtin_get_buffer(&mut eval, vec![dead.clone()]).unwrap(),
@@ -10025,7 +10073,10 @@ mod tests {
         match err {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-number-of-arguments");
-                assert_eq!(sig.data, vec![Value::symbol("generate-new-buffer"), Value::Int(3)]);
+                assert_eq!(
+                    sig.data,
+                    vec![Value::symbol("generate-new-buffer"), Value::Int(3)]
+                );
             }
             other => panic!("unexpected flow: {other:?}"),
         }
@@ -10053,7 +10104,10 @@ mod tests {
         .unwrap();
         let with_keyword = builtin_generate_new_buffer_name(
             &mut eval,
-            vec![Value::string("*gnbn-opt*"), Value::Keyword("ignored".to_string())],
+            vec![
+                Value::string("*gnbn-opt*"),
+                Value::Keyword("ignored".to_string()),
+            ],
         )
         .unwrap();
         let with_string = builtin_generate_new_buffer_name(
@@ -10070,7 +10124,10 @@ mod tests {
 
         let err = builtin_generate_new_buffer_name(
             &mut eval,
-            vec![Value::string("*gnbn-opt*"), Value::list(vec![Value::Int(1)])],
+            vec![
+                Value::string("*gnbn-opt*"),
+                Value::list(vec![Value::Int(1)]),
+            ],
         )
         .expect_err("generate-new-buffer-name should reject non string/symbol optional arg");
         match err {
@@ -10106,11 +10163,9 @@ mod tests {
     fn buffer_undo_designators_match_deleted_and_missing_buffer_semantics() {
         let mut eval = super::super::eval::Evaluator::new();
 
-        let enable_missing_name = builtin_buffer_enable_undo(
-            &mut eval,
-            vec![Value::string("*undo-enable-missing*")],
-        )
-        .expect_err("buffer-enable-undo missing string should signal");
+        let enable_missing_name =
+            builtin_buffer_enable_undo(&mut eval, vec![Value::string("*undo-enable-missing*")])
+                .expect_err("buffer-enable-undo missing string should signal");
         match enable_missing_name {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "error");
@@ -10122,11 +10177,9 @@ mod tests {
             other => panic!("unexpected flow: {other:?}"),
         }
 
-        let disable_missing_name = builtin_buffer_disable_undo(
-            &mut eval,
-            vec![Value::string("*undo-disable-missing*")],
-        )
-        .expect_err("buffer-disable-undo missing string should signal wrong-type-argument");
+        let disable_missing_name =
+            builtin_buffer_disable_undo(&mut eval, vec![Value::string("*undo-disable-missing*")])
+                .expect_err("buffer-disable-undo missing string should signal wrong-type-argument");
         match disable_missing_name {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-type-argument");
@@ -10135,20 +10188,16 @@ mod tests {
             other => panic!("unexpected flow: {other:?}"),
         }
 
-        let dead_for_enable = builtin_generate_new_buffer(
-            &mut eval,
-            vec![Value::string("*undo-enable-deleted*")],
-        )
-        .unwrap();
+        let dead_for_enable =
+            builtin_generate_new_buffer(&mut eval, vec![Value::string("*undo-enable-deleted*")])
+                .unwrap();
         let _ = builtin_kill_buffer(&mut eval, vec![dead_for_enable.clone()]).unwrap();
         let enable_deleted = builtin_buffer_enable_undo(&mut eval, vec![dead_for_enable]).unwrap();
         assert_eq!(enable_deleted, Value::Nil);
 
-        let dead_for_disable = builtin_generate_new_buffer(
-            &mut eval,
-            vec![Value::string("*undo-disable-deleted*")],
-        )
-        .unwrap();
+        let dead_for_disable =
+            builtin_generate_new_buffer(&mut eval, vec![Value::string("*undo-disable-deleted*")])
+                .unwrap();
         let _ = builtin_kill_buffer(&mut eval, vec![dead_for_disable.clone()]).unwrap();
         let disable_deleted = builtin_buffer_disable_undo(&mut eval, vec![dead_for_disable])
             .expect_err("buffer-disable-undo should reject deleted buffer objects");
@@ -10180,8 +10229,11 @@ mod tests {
             .expect("other-buffer missing name");
         assert!(matches!(from_missing_name, Value::Buffer(_)));
 
-        let err = builtin_other_buffer(&mut eval, vec![Value::Nil, Value::Nil, Value::Nil, Value::Nil])
-            .expect_err("other-buffer should reject more than three args");
+        let err = builtin_other_buffer(
+            &mut eval,
+            vec![Value::Nil, Value::Nil, Value::Nil, Value::Nil],
+        )
+        .expect_err("other-buffer should reject more than three args");
         match err {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-number-of-arguments");
@@ -10194,7 +10246,10 @@ mod tests {
     #[test]
     fn featurep_accepts_optional_subfeature_arg() {
         let mut eval = super::super::eval::Evaluator::new();
-        eval.set_variable("features", Value::list(vec![Value::symbol("vm-featurep-present")]));
+        eval.set_variable(
+            "features",
+            Value::list(vec![Value::symbol("vm-featurep-present")]),
+        );
         eval.obarray_mut().put_property(
             "vm-featurep-present",
             "subfeatures",
@@ -10213,14 +10268,20 @@ mod tests {
 
         let with_sub = builtin_featurep(
             &mut eval,
-            vec![Value::symbol("vm-featurep-present"), Value::symbol("vm-sub")],
+            vec![
+                Value::symbol("vm-featurep-present"),
+                Value::symbol("vm-sub"),
+            ],
         )
         .unwrap();
         assert_eq!(with_sub, Value::True);
 
         let with_other = builtin_featurep(
             &mut eval,
-            vec![Value::symbol("vm-featurep-present"), Value::symbol("vm-other")],
+            vec![
+                Value::symbol("vm-featurep-present"),
+                Value::symbol("vm-other"),
+            ],
         )
         .unwrap();
         assert_eq!(with_other, Value::Nil);
@@ -10229,13 +10290,19 @@ mod tests {
     #[test]
     fn featurep_subfeatures_property_must_be_list() {
         let mut eval = super::super::eval::Evaluator::new();
-        eval.set_variable("features", Value::list(vec![Value::symbol("vm-featurep-present")]));
+        eval.set_variable(
+            "features",
+            Value::list(vec![Value::symbol("vm-featurep-present")]),
+        );
         eval.obarray_mut()
             .put_property("vm-featurep-present", "subfeatures", Value::Int(1));
 
         let err = builtin_featurep(
             &mut eval,
-            vec![Value::symbol("vm-featurep-present"), Value::symbol("vm-sub")],
+            vec![
+                Value::symbol("vm-featurep-present"),
+                Value::symbol("vm-sub"),
+            ],
         )
         .expect_err("featurep should signal listp when subfeatures is not a list");
         match err {
@@ -10723,7 +10790,12 @@ mod tests {
 
         let string_match_p_over_arity = builtin_string_match_p_eval(
             &mut eval,
-            vec![Value::string("a"), Value::string("a"), Value::Int(0), Value::Nil],
+            vec![
+                Value::string("a"),
+                Value::string("a"),
+                Value::Int(0),
+                Value::Nil,
+            ],
         );
         assert!(matches!(
             string_match_p_over_arity,
@@ -11084,16 +11156,18 @@ mod tests {
                 .expect("symbol-function should resolve x-display-color-p alias");
         assert_eq!(x_display_color, Value::symbol("display-color-p"));
 
-        let window_height = builtin_symbol_function(&mut eval, vec![Value::symbol("window-height")])
-            .expect("symbol-function should resolve window-height alias");
+        let window_height =
+            builtin_symbol_function(&mut eval, vec![Value::symbol("window-height")])
+                .expect("symbol-function should resolve window-height alias");
         assert_eq!(window_height, Value::symbol("window-total-height"));
 
         let window_width = builtin_symbol_function(&mut eval, vec![Value::symbol("window-width")])
             .expect("symbol-function should resolve window-width alias");
         assert_eq!(window_width, Value::symbol("window-body-width"));
 
-        let count_matches = builtin_symbol_function(&mut eval, vec![Value::symbol("count-matches")])
-            .expect("symbol-function should resolve count-matches alias");
+        let count_matches =
+            builtin_symbol_function(&mut eval, vec![Value::symbol("count-matches")])
+                .expect("symbol-function should resolve count-matches alias");
         assert_eq!(count_matches, Value::symbol("how-many"));
 
         let replace_rectangle =
@@ -11105,16 +11179,19 @@ mod tests {
             .expect("symbol-function should resolve wholenump alias");
         assert_eq!(wholenump, Value::symbol("natnump"));
 
-        let subr_native = builtin_symbol_function(&mut eval, vec![Value::symbol("subr-native-elisp-p")])
-            .expect("symbol-function should resolve subr-native-elisp-p alias");
+        let subr_native =
+            builtin_symbol_function(&mut eval, vec![Value::symbol("subr-native-elisp-p")])
+                .expect("symbol-function should resolve subr-native-elisp-p alias");
         assert_eq!(subr_native, Value::symbol("native-comp-function-p"));
 
-        let name_last = builtin_symbol_function(&mut eval, vec![Value::symbol("name-last-kbd-macro")])
-            .expect("symbol-function should resolve name-last-kbd-macro alias");
+        let name_last =
+            builtin_symbol_function(&mut eval, vec![Value::symbol("name-last-kbd-macro")])
+                .expect("symbol-function should resolve name-last-kbd-macro alias");
         assert_eq!(name_last, Value::symbol("kmacro-name-last-macro"));
 
-        let subr_primitive = builtin_symbol_function(&mut eval, vec![Value::symbol("subr-primitive-p")])
-            .expect("symbol-function should resolve subr-primitive-p wrapper");
+        let subr_primitive =
+            builtin_symbol_function(&mut eval, vec![Value::symbol("subr-primitive-p")])
+                .expect("symbol-function should resolve subr-primitive-p wrapper");
         assert!(matches!(subr_primitive, Value::Lambda(_)));
 
         let bookmark_delete =
