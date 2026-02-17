@@ -480,7 +480,25 @@ pub(crate) fn builtin_clear_image_cache(args: Vec<Value>) -> EvalResult {
         ));
     }
 
-    if args.is_empty() || args[0].is_nil() {
+    if args.len() == 2 {
+        let animation_cache = &args[1];
+        if !animation_cache.is_nil() && !animation_cache.is_cons() {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("listp"), animation_cache.clone()],
+            ));
+        }
+        // When animation-cache is non-nil, Emacs does not validate `filter`.
+    }
+
+    if args.is_empty() {
+        return Err(signal(
+            "error",
+            vec![Value::string("Window system frame should be used")],
+        ));
+    }
+
+    if args[0].is_nil() {
         return Err(signal(
             "error",
             vec![Value::string("Window system frame should be used")],
@@ -1069,14 +1087,27 @@ mod tests {
     }
 
     #[test]
-    fn clear_image_cache_too_many_args() {
+    fn clear_image_cache_animation_cache_non_list() {
         let result = builtin_clear_image_cache(vec![Value::True, Value::True]);
-        assert!(result.is_ok());
+        assert!(matches!(
+            result,
+            Err(Flow::Signal(sig))
+                if sig.symbol == "wrong-type-argument"
+                && sig.data.first() == Some(&Value::symbol("listp"))
+        ));
     }
 
     #[test]
     fn clear_image_cache_nil_second_arg_but_valid_filter() {
         let result = builtin_clear_image_cache(vec![Value::True, Value::Nil]);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_nil());
+    }
+
+    #[test]
+    fn clear_image_cache_with_animation_cache_list() {
+        let cache_arg = Value::list(vec![Value::symbol("foo"), Value::symbol("bar")]);
+        let result = builtin_clear_image_cache(vec![Value::True, cache_arg]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
     }
