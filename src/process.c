@@ -5891,7 +5891,14 @@ wait_reading_process_output (intmax_t time_limit, int nsecs, int read_kbd,
 	  if (xerrno == EINTR)
 	    no_avail = 1;
 	  else if (xerrno == EBADF)
-	    emacs_abort ();
+	    {
+	      /* In Neomacs, third-party libraries (GStreamer, WebKit) run on
+		 background threads and may close file descriptors that were
+		 valid when xg_select built its fd set.  This is an expected
+		 race condition, not a fatal error.  Treat it like EINTR so
+		 the loop retries with a fresh fd set from xg_select.  */
+	      no_avail = 1;
+	    }
 	  else
 	    report_file_errno ("Failed select", Qnil, xerrno);
 	}
@@ -8724,13 +8731,22 @@ init_process_emacs (int sockfd)
 #endif
 
 #ifdef HAVE_SETRLIMIT
-  /* Don't allocate more than FD_SETSIZE file descriptors for Emacs itself.  */
+  /* Don't allocate more than FD_SETSIZE file descriptors for Emacs itself.
+     Neomacs: the render thread (wgpu, GStreamer VA-API, WebKit) opens many
+     fds for DMA-BUF buffers, GPU device handles, and sockets.  These never
+     touch pselect(), so raise the limit to 8192 instead of FD_SETSIZE.  */
   if (getrlimit (RLIMIT_NOFILE, &nofile_limit) != 0)
     nofile_limit.rlim_cur = 0;
   else if (FD_SETSIZE < nofile_limit.rlim_cur)
     {
       struct rlimit rlim = nofile_limit;
+#ifdef HAVE_NEOMACS
+      rlim_t target = 8192;
+      rlim.rlim_cur = nofile_limit.rlim_max < target
+	? nofile_limit.rlim_max : target;
+#else
       rlim.rlim_cur = FD_SETSIZE;
+#endif
       if (setrlimit (RLIMIT_NOFILE, &rlim) != 0)
 	nofile_limit.rlim_cur = 0;
     }

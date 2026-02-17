@@ -309,6 +309,13 @@ The future of text editing is here.  It's called Neomacs.
   (showcase--cancel-timers)
   (showcase--cleanup-child-frames)
   (delete-other-windows)
+  ;; Stop all video pipelines and close webkit views (release fds)
+  (when (fboundp 'neomacs-video-stop-all)
+    (let ((inhibit-message t))
+      (ignore-errors (neomacs-video-stop-all))))
+  (when (fboundp 'neomacs-webkit-close-all)
+    (let ((inhibit-message t))
+      (ignore-errors (neomacs-webkit-close-all))))
   ;; Cursor effects
   (when (fboundp 'neomacs-set-cursor-glow) (neomacs-set-cursor-glow nil))
   (when (fboundp 'neomacs-set-cursor-pulse) (neomacs-set-cursor-pulse nil))

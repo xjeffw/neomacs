@@ -514,22 +514,14 @@ impl WpeWebView {
             // Pump GLib main context to process WebKit events (including buffer-rendered signal)
             // This is critical - without this, WebKit's internal events won't be dispatched
             //
-            // IMPORTANT: WPEViewHeadless attaches its frame source to g_main_context_get_thread_default(),
-            // so we need to iterate that context. If no thread-default is set, it falls back to default.
+            // IMPORTANT: WPEViewHeadless attaches its frame source to g_main_context_get_thread_default().
+            // Do NOT fall back to g_main_context_default() — the Emacs main
+            // thread dispatches that via xg_select(), and iterating it here
+            // races with pselect() causing EBADF crashes.
             let thread_ctx = plat::g_main_context_get_thread_default();
-            let ctx = if thread_ctx.is_null() {
-                plat::g_main_context_default()
-            } else {
-                thread_ctx
-            };
-            while plat::g_main_context_iteration(ctx, 0) != 0 {
-                // Process all pending events
+            if !thread_ctx.is_null() {
+                while plat::g_main_context_iteration(thread_ctx, 0) != 0 {}
             }
-            // NOTE: Do NOT iterate g_main_context_default() here.
-            // The Emacs main thread already dispatches the default context
-            // via xg_select(). Dispatching it from the render thread races
-            // with pselect() and causes EBADF crashes when GLib closes FDs
-            // that are still in the main thread's select set.
 
             // Update title
             let title_ptr = wk::webkit_web_view_get_title(self.web_view);

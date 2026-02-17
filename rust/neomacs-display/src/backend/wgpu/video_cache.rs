@@ -496,6 +496,49 @@ impl VideoCache {
 
             // Fall back to CPU copy if DMA-BUF import failed or not available
             if !dmabuf_imported && !frame.data.is_empty() {
+                // If the existing texture was a zero-copy DMA-BUF import, it
+                // lacks COPY_DST usage and cannot be written to.  Recreate a
+                // CPU-writable texture in that case.
+                let needs_cpu_texture = match video.texture {
+                    Some(ref t) => !t.usage().contains(wgpu::TextureUsages::COPY_DST),
+                    None => true,
+                };
+                if needs_cpu_texture {
+                    let texture = device.create_texture(&wgpu::TextureDescriptor {
+                        label: Some("Video Frame Texture"),
+                        size: wgpu::Extent3d {
+                            width: frame.width,
+                            height: frame.height,
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                        usage: wgpu::TextureUsages::TEXTURE_BINDING
+                            | wgpu::TextureUsages::COPY_DST,
+                        view_formats: &[],
+                    });
+                    let texture_view =
+                        texture.create_view(&wgpu::TextureViewDescriptor::default());
+                    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some("Video CPU Fallback Bind Group"),
+                        layout: bind_group_layout,
+                        entries: &[
+                            wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: wgpu::BindingResource::TextureView(&texture_view),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 1,
+                                resource: wgpu::BindingResource::Sampler(sampler),
+                            },
+                        ],
+                    });
+                    video.texture = Some(texture);
+                    video.texture_view = Some(texture_view);
+                    video.bind_group = Some(bind_group);
+                }
                 if let Some(ref texture) = video.texture {
                     queue.write_texture(
                         wgpu::ImageCopyTexture {

@@ -1564,22 +1564,14 @@ impl RenderApp {
     #[cfg(all(feature = "wpe-webkit", wpe_platform_available))]
     fn pump_glib(&mut self) {
         unsafe {
-            // WPEViewHeadless attaches to thread-default context
+            // WPEViewHeadless attaches to thread-default context.
+            // Do NOT fall back to g_main_context_default() — the Emacs main
+            // thread dispatches that via xg_select(), and iterating it here
+            // races with pselect() causing EBADF crashes.
             let thread_ctx = plat::g_main_context_get_thread_default();
-            let ctx = if thread_ctx.is_null() {
-                plat::g_main_context_default()
-            } else {
-                thread_ctx
-            };
-
-            // Non-blocking iteration - process all pending events
-            while plat::g_main_context_iteration(ctx, 0) != 0 {}
-
-            // NOTE: Do NOT iterate g_main_context_default() here.
-            // The Emacs main thread already dispatches the default context
-            // via xg_select(). Dispatching it from the render thread races
-            // with pselect() and causes EBADF crashes when GLib closes FDs
-            // that are still in the main thread's select set.
+            if !thread_ctx.is_null() {
+                while plat::g_main_context_iteration(thread_ctx, 0) != 0 {}
+            }
         }
 
         // Update all webkit views and send state change events
