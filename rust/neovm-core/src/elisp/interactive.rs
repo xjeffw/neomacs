@@ -189,6 +189,7 @@ fn expect_optional_command_keys_vector(keys: Option<&Value>) -> Result<(), Flow>
 /// interactive spec.
 pub(crate) fn builtin_call_interactively(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("call-interactively", &args, 1)?;
+    expect_max_args("call-interactively", &args, 3)?;
     expect_optional_command_keys_vector(args.get(2))?;
 
     let func_val = &args[0];
@@ -717,6 +718,7 @@ fn resolve_command_target(eval: &Evaluator, designator: &Value) -> Option<(Strin
 /// Execute CMD as an editor command.
 pub(crate) fn builtin_command_execute(eval: &mut Evaluator, args: Vec<Value>) -> EvalResult {
     expect_min_args("command-execute", &args, 1)?;
+    expect_max_args("command-execute", &args, 4)?;
     expect_optional_command_keys_vector(args.get(2))?;
 
     let cmd = &args[0];
@@ -3731,6 +3733,26 @@ mod tests {
     }
 
     #[test]
+    fn command_execute_rejects_too_many_arguments() {
+        let mut ev = Evaluator::new();
+        let result = builtin_command_execute(
+            &mut ev,
+            vec![
+                Value::symbol("ignore"),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        )
+        .expect_err("command-execute should reject too many arguments");
+        match result {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("unexpected flow: {other:?}"),
+        }
+    }
+
+    #[test]
     fn command_execute_builtin_eval_expression_reads_stdin_in_batch() {
         let mut ev = Evaluator::new();
         let result = builtin_command_execute(&mut ev, vec![Value::symbol("eval-expression")])
@@ -3806,6 +3828,25 @@ mod tests {
         )
         .expect("call-interactively should accept vector keys argument");
         assert!(result.is_nil());
+    }
+
+    #[test]
+    fn call_interactively_rejects_too_many_arguments() {
+        let mut ev = Evaluator::new();
+        let result = builtin_call_interactively(
+            &mut ev,
+            vec![
+                Value::symbol("ignore"),
+                Value::Nil,
+                Value::Nil,
+                Value::Nil,
+            ],
+        )
+        .expect_err("call-interactively should reject too many arguments");
+        match result {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("unexpected flow: {other:?}"),
+        }
     }
 
     #[test]
