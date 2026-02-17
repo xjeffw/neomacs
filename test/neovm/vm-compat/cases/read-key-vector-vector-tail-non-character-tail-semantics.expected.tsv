@@ -1,0 +1,1 @@
+1	(let ((unread-command-events (list [foo] 1.0))) (progn (read-key "") unread-command-events))	OK (1.0)

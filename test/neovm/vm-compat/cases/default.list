@@ -90,6 +90,7 @@ cases/read-key-vector-symbol-tail-semantics
 cases/read-key-symbol-vector-tail-semantics
 cases/read-key-vector-vector-tail-semantics
 cases/read-key-vector-vector-tail-non-char-semantics
+cases/read-key-vector-vector-tail-non-character-tail-semantics
 cases/read-key-sequence-non-character-tail-semantics
 cases/read-key-sequence-symbol-tail-semantics
 cases/read-key-sequence-symbol-vector-tail-semantics
