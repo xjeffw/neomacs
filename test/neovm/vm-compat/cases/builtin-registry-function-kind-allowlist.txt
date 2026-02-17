@@ -1,4 +1,3 @@
 # One builtin name per line.
-# Intentional function-kind mismatches.
-# Kept for compatibility intentionally unsupported in NeoVM.
-subr-primitive-p
+# Intentionally allowlistable function-kind mismatches.
+# Kept empty for now; add entries only when intentional policy drift exists.

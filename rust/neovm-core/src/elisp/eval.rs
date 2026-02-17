@@ -186,15 +186,13 @@ impl Evaluator {
         // GNU Emacs exposes this helper as a Lisp wrapper, not a primitive.
         obarray.set_symbol_function(
             "subr-primitive-p",
-            Value::Lambda(std::sync::Arc::new(LambdaData {
-                params: LambdaParams::simple(vec!["object".to_string()]),
-                body: vec![Expr::List(vec![
+            Value::ByteCode(Arc::new(Compiler::new(false).compile_lambda(
+                &LambdaParams::simple(vec!["object".to_string()]),
+                &[Expr::List(vec![
                     Expr::Symbol("subrp".to_string()),
                     Expr::Symbol("object".to_string()),
                 ])],
-                env: None,
-                docstring: Some("Return non-nil if OBJECT is a primitive callable.".to_string()),
-            })),
+            ))),
         );
         // Bookmark command wrappers are startup autoloads in GNU Emacs.
         let mut seed_autoload = |name: &str, file: &str, doc: &str| {
