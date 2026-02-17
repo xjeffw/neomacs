@@ -10883,6 +10883,25 @@ mod tests {
     }
 
     #[test]
+    fn looking_at_p_preserves_match_data() {
+        use crate::elisp::eval::Evaluator;
+
+        let mut eval = Evaluator::new();
+        {
+            let buffer = eval.buffers.current_buffer_mut().expect("scratch buffer");
+            buffer.insert("abc");
+            buffer.goto_char(0);
+        }
+
+        let baseline = Value::list(vec![Value::Int(1), Value::Int(2)]);
+        builtin_set_match_data_eval(&mut eval, vec![baseline.clone()]).expect("seed baseline");
+        let _ = builtin_looking_at_p(&mut eval, vec![Value::string("z")])
+            .expect("looking-at-p handles non-match");
+        let observed = builtin_match_data_eval(&mut eval, vec![]).expect("read match-data");
+        assert_eq!(observed, baseline);
+    }
+
+    #[test]
     fn looking_at_p_respects_case_fold_search() {
         use crate::elisp::eval::Evaluator;
 
