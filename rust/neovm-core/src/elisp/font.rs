@@ -328,16 +328,6 @@ fn font_spec_put(vec_elems: &mut Vec<Value>, prop: &Value, val: &Value) {
     vec_elems.push(val.clone());
 }
 
-/// Normalize a property name to a Keyword value.  If the user passes a symbol
-/// like `family`, convert to `:family` keyword for consistent storage.
-fn normalize_prop_key(val: &Value) -> Value {
-    match val {
-        Value::Keyword(_) => val.clone(),
-        Value::Symbol(s) => Value::Keyword(s.clone()),
-        _ => val.clone(),
-    }
-}
-
 // ===========================================================================
 // Font builtins (pure)
 // ===========================================================================
@@ -358,20 +348,53 @@ pub(crate) fn builtin_fontp(args: Vec<Value>) -> EvalResult {
 ///
 /// Returns a vector `[:font-spec :family "Monospace" :weight normal :size 12]`.
 pub(crate) fn builtin_font_spec(args: Vec<Value>) -> EvalResult {
-    // Args should come in keyword-value pairs.
-    if args.len() % 2 != 0 {
-        return Err(signal(
-            "error",
-            vec![Value::string("font-spec requires keyword-value pairs")],
-        ));
-    }
     let mut elems: Vec<Value> = Vec::with_capacity(1 + args.len());
     elems.push(Value::Keyword(FONT_SPEC_TAG.to_string()));
-    for pair in args.chunks(2) {
-        let key = normalize_prop_key(&pair[0]);
-        elems.push(key);
-        elems.push(pair[1].clone());
+
+    for pair_index in (0..args.len()).step_by(2) {
+        let key = &args[pair_index];
+        let value = args.get(pair_index + 1);
+
+        let Some(value) = value else {
+            if matches!(key, Value::Keyword(_) | Value::Symbol(_) | Value::Nil) {
+                let key_name = match key {
+                    Value::Keyword(k) => format!(":{}", k),
+                    Value::Symbol(s) => s.clone(),
+                    Value::Nil => "nil".to_string(),
+                    _ => "nil".to_string(),
+                };
+                return Err(signal(
+                    "error",
+                    vec![Value::string(format!("No value for key ‘{}’", key_name))],
+                ));
+            }
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), key.clone()],
+            ));
+        };
+
+        if matches!(key, Value::Nil) {
+            return Err(signal(
+                "error",
+                vec![
+                    Value::string("invalid font property"),
+                    Value::list(vec![Value::cons(Value::keyword("type"), value.clone())]),
+                ],
+            ));
+        }
+
+        if !matches!(key, Value::Keyword(_) | Value::Symbol(_)) {
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("symbolp"), key.clone()],
+            ));
+        }
+
+        elems.push(key.clone());
+        elems.push(value.clone());
     }
+
     Ok(Value::vector(elems))
 }
 

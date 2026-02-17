@@ -3,3 +3,6 @@
 (condition-case err (thread-join '(thread . 0)) (error err))
 (condition-case err (thread-join (cons 'thread 0)) (error err))
 (condition-case err (thread-join nil) (error err))
+(condition-case err (thread-join (current-thread)) (error err))
+(condition-case err (thread-join 'thread) (error err))
+(condition-case err (thread-join '(thread)) (error err))

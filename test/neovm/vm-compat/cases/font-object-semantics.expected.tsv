@@ -16,3 +16,8 @@
 16	(font-xlfd-name (font-spec :family "x") t)	OK "-*-x-*"
 17	(condition-case err (font-xlfd-name nil) (error (car err)))	OK wrong-type-argument
 18	(font-xlfd-name (font-spec :family "x") nil nil)	OK "-*-x-*-*-*-*-*-*-*-*-*-*-*-*"
+19	(condition-case err (font-spec 1) (error (car err)))	OK wrong-type-argument
+20	(condition-case err (font-spec :size 12 :size) (error (car err)))	OK error
+21	(condition-case err (font-spec nil) (error (car err)))	OK error
+22	(condition-case err (font-spec nil 12) (error (car err)))	OK error
+23	(let ((s (font-spec 'weight 'bold))) (font-get s 'weight))	OK bold

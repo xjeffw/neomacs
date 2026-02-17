@@ -33,3 +33,18 @@
     (font-xlfd-name nil)
   (error (car err)))
 (font-xlfd-name (font-spec :family "x") nil nil)
+
+(condition-case err
+    (font-spec 1)
+  (error (car err)))
+(condition-case err
+    (font-spec :size 12 :size)
+  (error (car err)))
+(condition-case err
+    (font-spec nil)
+  (error (car err)))
+(condition-case err
+    (font-spec nil 12)
+  (error (car err)))
+(let ((s (font-spec 'weight 'bold)))
+  (font-get s 'weight))

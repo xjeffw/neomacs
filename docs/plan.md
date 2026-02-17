@@ -8,8 +8,8 @@ Last updated: 2026-02-17
 2. [x] Add `thread-join` nil-handle argument error-path lock-in (`cases/thread-join-error-paths`).
 3. [x] Re-gate `check-all-neovm` and keep `stub-budget` in `compat-progress` output.
 4. [x] Continue `xdisp`/display no-op surface audit with one behavior lock-in per commit (`move-point-visually`, `invisible-p` edge cases).
-5. [ ] Expand thread concurrency matrix coverage for argument errors and join edge-cases.
-6. [ ] Land next `font`/`font-lock` behavior lock-in slice with oracle-backed `font-spec` checks.
+5. [x] Expand thread concurrency matrix coverage for argument errors and join edge-cases.
+6. [x] Land next `font`/`font-lock` behavior lock-in slice with oracle-backed `font-spec` checks.
 7. [ ] Expand input queue edge cases for `read-key`/`read-event` mixed payload tails.
 8. [ ] Add negative path cases for `terminal-parameter` argument validation and storage behavior.
 9. [ ] Tighten `indent` semantics around arity and read-only mutation boundaries in interactive buffer-mode.
@@ -55,6 +55,12 @@ Last updated: 2026-02-17
   - Added `move-point-visually` and `invisible-p` edge-case behavior.
   - Added lock-ins in `cases/xdisp-stub-edges-semantics`.
   - Verified with `make -C test/neovm/vm-compat check-one-neovm CASE=cases/xdisp-stub-edges-semantics` and full `check-all-neovm`.
+- Completed thread concurrency slice:
+  - Extended `cases/thread-join-error-paths` with current-thread and non-canonical thread-handle errors.
+  - Verified with `make -C test/neovm/vm-compat check-one-neovm CASE=cases/thread-join-error-paths`.
+- Completed font behavior lock-in slice:
+  - Added `font-spec` edge-coverage in `cases/font-object-semantics`.
+  - Verified with `make -C test/neovm/vm-compat check-one-neovm CASE=cases/font-object-semantics`.
 - Keep builtin dispatch surface and registry in lock-step for `fboundp`/introspection parity.
 - Run targeted vm-compat checks after each behavior-affecting slice.
 - Keep recurring full-corpus `check-all-neovm` gates after each compatibility batch.

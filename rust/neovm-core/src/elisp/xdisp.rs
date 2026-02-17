@@ -624,8 +624,9 @@ mod tests {
         let result = builtin_pos_visible_in_window_p(vec![Value::Int(1)]).unwrap();
         assert!(result.is_nil());
 
-        let result = builtin_pos_visible_in_window_p(vec![Value::Int(100), Value::symbol("window")])
-            .unwrap_err();
+        let result =
+            builtin_pos_visible_in_window_p(vec![Value::Int(100), Value::symbol("window")])
+                .unwrap_err();
         match result {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-type-argument");
@@ -634,7 +635,8 @@ mod tests {
             other => panic!("expected wrong-type-argument, got {:?}", other),
         }
 
-        let result = builtin_pos_visible_in_window_p(vec![Value::symbol("left"), Value::Int(1)]).unwrap_err();
+        let result = builtin_pos_visible_in_window_p(vec![Value::symbol("left"), Value::Int(1)])
+            .unwrap_err();
         match result {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-type-argument");
@@ -652,8 +654,9 @@ mod tests {
             other => panic!("expected wrong-type-argument, got {:?}", other),
         }
 
-        let result = builtin_pos_visible_in_window_p(vec![Value::Int(1), Value::Nil, Value::Int(1)])
-            .unwrap();
+        let result =
+            builtin_pos_visible_in_window_p(vec![Value::Int(1), Value::Nil, Value::Int(1)])
+                .unwrap();
         assert!(result.is_nil());
     }
 
@@ -668,9 +671,11 @@ mod tests {
             other => panic!("expected wrong-type-argument, got {:?}", other),
         }
 
-        let err =
-            builtin_pos_visible_in_window_p_eval(&mut eval, vec![Value::symbol("left"), Value::Int(1)])
-                .unwrap_err();
+        let err = builtin_pos_visible_in_window_p_eval(
+            &mut eval,
+            vec![Value::symbol("left"), Value::Int(1)],
+        )
+        .unwrap_err();
         match err {
             Flow::Signal(sig) => {
                 assert_eq!(sig.symbol, "wrong-type-argument");
