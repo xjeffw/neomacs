@@ -55,6 +55,16 @@ fn expect_integer_or_marker(arg: &Value) -> Result<(), Flow> {
     }
 }
 
+fn expect_fixnum_arg(name: &str, arg: &Value) -> Result<(), Flow> {
+    match arg {
+        Value::Int(_) | Value::Char(_) => Ok(()),
+        other => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol(name), other.clone()],
+        )),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Pure builtins
 // ---------------------------------------------------------------------------
@@ -195,16 +205,13 @@ pub(crate) fn builtin_move_point_visually(args: Vec<Value>) -> EvalResult {
 /// (lookup-image-map MAP X Y) -> symbol or nil
 ///
 /// Lookup an image map at coordinates. Stub implementation
-/// always returns nil.
+/// returns nil while preserving arity validation.
 pub(crate) fn builtin_lookup_image_map(args: Vec<Value>) -> EvalResult {
     expect_args("lookup-image-map", &args, 3)?;
-    if !args[1].is_nil() {
-        expect_integer_or_marker(&args[1])?;
+    if !args[0].is_nil() {
+        expect_fixnum_arg("fixnump", &args[1])?;
+        expect_fixnum_arg("fixnump", &args[2])?;
     }
-    if !args[2].is_nil() {
-        expect_integer_or_marker(&args[2])?;
-    }
-    // Stub: return nil
     Ok(Value::Nil)
 }
 
@@ -564,14 +571,31 @@ mod tests {
         assert!(result.is_nil());
 
         let err = builtin_lookup_image_map(vec![
-            Value::symbol("map"),
-            Value::symbol("x"),
-            Value::Int(20),
+            Value::symbol("image"),
+            Value::string("x"),
+            Value::symbol("y"),
         ])
         .unwrap_err();
         match err {
             Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
             other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
+
+        let err =
+            builtin_lookup_image_map(vec![Value::symbol("image"), Value::Int(1), Value::symbol("y")])
+                .unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
+
+        let result = builtin_lookup_image_map(vec![Value::Nil, Value::Int(1), Value::string("y")]).unwrap();
+        assert!(result.is_nil());
+
+        let err = builtin_lookup_image_map(vec![]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected wrong-number-of-arguments, got {:?}", other),
         }
     }
 
