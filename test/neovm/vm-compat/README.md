@@ -86,6 +86,14 @@ cd test/neovm/vm-compat
 make compat-progress
 ```
 
+List explicit comment-annotated function stubs in the Rust Elisp modules
+for quick daily progress tracking:
+
+```bash
+cd test/neovm/vm-compat
+make compat-stub-index
+```
+
 Run any case list file directly (avoids passing very long `CASES=...` values):
 
 ```bash
