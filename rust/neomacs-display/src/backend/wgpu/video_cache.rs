@@ -4,7 +4,9 @@
 //! falling back to CPU decode + copy otherwise.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::thread;
 #[cfg(target_os = "linux")]
 use std::os::unix::io::RawFd;
@@ -106,14 +108,15 @@ pub struct CachedVideo {
     pub bind_group: Option<wgpu::BindGroup>,
     /// Frame count
     pub frame_count: u64,
-    /// Loop count (-1 = infinite)
-    pub loop_count: i32,
+    /// Loop count (-1 = infinite), shared with decode thread
+    pub loop_count: Arc<AtomicI32>,
 }
 
 /// Request to load a video
 struct LoadRequest {
     id: u32,
     path: String,
+    loop_count: Arc<AtomicI32>,
 }
 
 /// Video pipeline with frame extraction
@@ -208,6 +211,7 @@ impl VideoCache {
         self.next_id += 1;
 
         // Create placeholder entry
+        let loop_count = Arc::new(AtomicI32::new(0));
         self.videos.insert(id, CachedVideo {
             id,
             width: 0,
@@ -217,13 +221,14 @@ impl VideoCache {
             texture_view: None,
             bind_group: None,
             frame_count: 0,
-            loop_count: 0,
+            loop_count: Arc::clone(&loop_count),
         });
 
         // Send load request
         let _ = self.load_tx.send(LoadRequest {
             id,
             path: path.to_string(),
+            loop_count,
         });
 
         log::info!("VideoCache: queued video {} for loading: {}", id, path);
@@ -271,8 +276,8 @@ impl VideoCache {
 
     /// Set loop count (-1 for infinite)
     pub fn set_loop(&mut self, id: u32, count: i32) {
-        if let Some(video) = self.videos.get_mut(&id) {
-            video.loop_count = count;
+        if let Some(video) = self.videos.get(&id) {
+            video.loop_count.store(count, Ordering::Relaxed);
         }
     }
 
@@ -682,9 +687,10 @@ impl VideoCache {
         while let Ok(request) = rx.recv() {
             log::info!("Decoder thread: dispatching video {}: {}", request.id, request.path);
             let tx_clone = tx.clone();
+            let loop_count = request.loop_count;
             // Spawn a dedicated thread per video so multiple videos load/play concurrently
             thread::spawn(move || {
-                Self::decode_single_video(request.id, &request.path, tx_clone);
+                Self::decode_single_video(request.id, &request.path, tx_clone, loop_count);
             });
         }
 
@@ -696,6 +702,7 @@ impl VideoCache {
         video_id: u32,
         raw_path: &str,
         tx: mpsc::Sender<DecodedFrame>,
+        loop_count: Arc<AtomicI32>,
     ) {
         log::info!("Video thread: loading video {}: {}", video_id, raw_path);
 
@@ -781,6 +788,7 @@ impl VideoCache {
         let appsink_clone = appsink.clone();
         let pipeline_weak = pipeline.downgrade();
         let tx_puller = tx.clone();
+        let loop_count_puller = Arc::clone(&loop_count);
         thread::spawn(move || {
             log::info!("Frame puller thread started for video {}", video_id);
 
@@ -845,6 +853,29 @@ impl VideoCache {
                     None => {
                         timeout_count += 1;
                         if appsink_clone.is_eos() {
+                            let lc = loop_count_puller.load(Ordering::Relaxed);
+                            if lc == -1 || lc > 0 {
+                                // Seek back to start for looping
+                                if let Some(pipeline) = pipeline_weak.upgrade() {
+                                    if let Err(e) = pipeline.seek_simple(
+                                        gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
+                                        gst::ClockTime::ZERO,
+                                    ) {
+                                        log::error!("Video {} seek failed: {}", video_id, e);
+                                        break;
+                                    }
+                                } else {
+                                    log::error!("Video {} pipeline dropped during loop seek", video_id);
+                                    break;
+                                }
+                                if lc > 0 {
+                                    loop_count_puller.fetch_sub(1, Ordering::Relaxed);
+                                }
+                                log::info!("Video {} looping (remaining={})", video_id,
+                                    if lc == -1 { "infinite".to_string() } else { (lc - 1).to_string() });
+                                timeout_count = 0;
+                                continue;
+                            }
                             log::info!("Video {} reached EOS after {} frames", video_id, frame_count);
                             break;
                         }
@@ -870,8 +901,13 @@ impl VideoCache {
         for msg in bus.iter_timed(gst::ClockTime::NONE) {
             match msg.view() {
                 gst::MessageView::Eos(..) => {
-                    log::debug!("Video {} bus: end of stream", video_id);
-                    break;
+                    let lc = loop_count.load(Ordering::Relaxed);
+                    if lc == 0 {
+                        log::debug!("Video {} bus: end of stream (no loop)", video_id);
+                        break;
+                    }
+                    // Frame puller will handle seek, just continue waiting
+                    log::debug!("Video {} bus: EOS but looping (count={})", video_id, lc);
                 }
                 gst::MessageView::Error(err) => {
                     log::error!(

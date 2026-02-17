@@ -427,6 +427,10 @@ pub struct DisplayPropFFI {
     pub height_factor: f32,
     /// Video ID (type=9)
     pub video_id: u32,
+    /// Video loop count: 0=none, -1=infinite, >0=N times (type=9)
+    pub video_loop_count: i32,
+    /// Video autoplay: 1=auto-start on first render, 0=manual (type=9)
+    pub video_autoplay: i32,
     /// WebKit view ID (type=10)
     pub webkit_id: u32,
     /// Number of face runs in display string (type=1)

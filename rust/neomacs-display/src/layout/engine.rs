@@ -1783,6 +1783,8 @@ impl LayoutEngine {
                         frame_glyphs.add_video(
                             display_prop.video_id,
                             gx, gy, vid_w, vid_h,
+                            display_prop.video_loop_count,
+                            display_prop.video_autoplay != 0,
                         );
                         let vid_cols = (vid_w / char_w).ceil() as i32;
                         col += vid_cols;

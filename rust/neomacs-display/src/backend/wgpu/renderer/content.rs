@@ -716,7 +716,7 @@ impl WgpuRenderer {
             #[cfg(feature = "video")]
             {
                 for glyph in &frame.glyphs {
-                    if let FrameGlyph::Video { video_id, x, y, width, height } = glyph {
+                    if let FrameGlyph::Video { video_id, x, y, width, height, .. } = glyph {
                         if let Some(cached) = self.video_cache.get(*video_id) {
                             if let Some(ref bind_group) = cached.bind_group {
                                 let vx = *x + offset_x;

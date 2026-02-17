@@ -3402,6 +3402,8 @@ struct DisplayPropFFI {
   uint32_t fringe_bg;     /* fringe face background color (type=6,7) */
   float height_factor;    /* font height multiplier (0.0=default, >0=scale) */
   uint32_t video_id;      /* video ID (type=9) */
+  int32_t video_loop_count;  /* video loop count: 0=none, -1=infinite, >0=N times (type=9) */
+  int32_t video_autoplay;    /* 1=autoplay on first render, 0=manual start (type=9) */
   uint32_t webkit_id;     /* webkit view ID (type=10) */
   int display_nruns;      /* number of face runs in display string (type=1) */
 };
@@ -4000,6 +4002,10 @@ neomacs_layout_check_display_prop (void *buffer_ptr, void *window_ptr,
               out->video_id = (uint32_t) XFIXNUM (id_val);
               out->image_width = FIXNUMP (w_val) ? (int) XFIXNUM (w_val) : 640;
               out->image_height = FIXNUMP (h_val) ? (int) XFIXNUM (h_val) : 360;
+              Lisp_Object loop_val = Fplist_get (plist, QCloop_count, Qnil);
+              out->video_loop_count = FIXNUMP (loop_val) ? (int32_t) XFIXNUM (loop_val) : 0;
+              Lisp_Object autoplay_val = Fplist_get (plist, QCautoplay, Qnil);
+              out->video_autoplay = !NILP (autoplay_val) ? 1 : 0;
             }
           set_buffer_internal_1 (old);
           return 0;
@@ -16810,6 +16816,8 @@ syms_of_neomacsterm (void)
   DEFSYM (Qneomacs, "neomacs");
   /* Qvideo and Qwebkit are defined in xdisp.c for use in VIDEOP/WEBKITP */
   DEFSYM (QCid, ":id");
+  DEFSYM (QCloop_count, ":loop-count");
+  DEFSYM (QCautoplay, ":autoplay");
 
   /* Cursor animation style symbols */
   DEFSYM (Qexponential, "exponential");

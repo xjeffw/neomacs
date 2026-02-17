@@ -30,6 +30,8 @@ pub unsafe extern "C" fn neomacs_display_add_video_glyph(
         current_y as f32,
         pixel_width as f32,
         pixel_height as f32,
+        0,
+        false,
     );
     display.current_row_x += pixel_width;
 }

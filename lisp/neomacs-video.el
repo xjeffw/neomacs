@@ -76,9 +76,12 @@ Returns the video ID on success, nil on failure."
   (clrhash neomacs-video--players)
   (message "All videos stopped"))
 
-(defun neomacs-video-insert (file &optional width height)
+(defun neomacs-video-insert (file &optional width height loop-count autoplay)
   "Insert video FILE at point with optional WIDTH and HEIGHT.
 WIDTH and HEIGHT default to 640x360 if not specified.
+LOOP-COUNT controls looping: nil or 0 means no loop, -1 means infinite,
+positive N means loop N additional times.
+AUTOPLAY if non-nil starts playback automatically.
 Returns the video ID on success.  Point is left after the video."
   (interactive "fVideo file: ")
   (let* ((uri (if (string-match-p "^[a-z]+://" file)
@@ -95,11 +98,22 @@ Returns the video ID on success.  Point is left after the video."
       (let ((start (point)))
         (insert " ")
         (put-text-property start (point) 'display
-                           `(video :id ,video-id :width ,w :height ,h))
+                           `(video :id ,video-id :width ,w :height ,h
+                                   ,@(when loop-count (list :loop-count loop-count))
+                                   ,@(when autoplay (list :autoplay t))))
         (put-text-property start (point) 'neomacs-video-id video-id))
+      ;; If autoplay, also start playback immediately
+      ;; (the display property autoplay handles re-renders; this handles first time)
+      (when autoplay (neomacs-video-play video-id))
       ;; Point is now AFTER the video, so subsequent inserts go after it
       (message "Inserted video %d" video-id)
       video-id)))
+
+(defun neomacs-video-insert-loop (file &optional width height)
+  "Insert video FILE with infinite looping and autoplay.
+WIDTH and HEIGHT default to 640x360 if not specified."
+  (interactive "fVideo file: ")
+  (neomacs-video-insert file width height -1 t))
 
 (defun neomacs-video-at-point ()
   "Get the video ID at point, or nil if none."

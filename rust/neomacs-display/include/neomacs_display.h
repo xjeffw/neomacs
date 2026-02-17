@@ -770,6 +770,14 @@ typedef struct DisplayPropFFI {
    */
   uint32_t videoId;
   /**
+   * Video loop count: 0=none, -1=infinite, >0=N times (type=9)
+   */
+  int32_t videoLoopCount;
+  /**
+   * Video autoplay: 1=auto-start on first render, 0=manual (type=9)
+   */
+  int32_t videoAutoplay;
+  /**
    * WebKit view ID (type=10)
    */
   uint32_t webkitId;

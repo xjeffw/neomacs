@@ -2043,10 +2043,26 @@ impl WgpuRenderer {
                 }
             }
 
+            // Apply video loop_count and autoplay before rendering
+            #[cfg(feature = "video")]
+            for glyph in &frame_glyphs.glyphs {
+                if let FrameGlyph::Video { video_id, loop_count, autoplay, .. } = glyph {
+                    if *loop_count != 0 {
+                        self.video_cache.set_loop(*video_id, *loop_count);
+                    }
+                    if *autoplay {
+                        let state = self.video_cache.get_state(*video_id);
+                        if matches!(state, Some(super::super::VideoState::Stopped) | Some(super::super::VideoState::Loading)) {
+                            self.video_cache.play(*video_id);
+                        }
+                    }
+                }
+            }
+
             // Draw inline videos
             #[cfg(feature = "video")]
             for glyph in &frame_glyphs.glyphs {
-                if let FrameGlyph::Video { video_id, x, y, width, height } = glyph {
+                if let FrameGlyph::Video { video_id, x, y, width, height, .. } = glyph {
                     // Clip to mode-line boundary if needed
                     let (clipped_height, tex_v_max) = if let Some(oy) = overlay_y {
                         if *y + *height > oy {

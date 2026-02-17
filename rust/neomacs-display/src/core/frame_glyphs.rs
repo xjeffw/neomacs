@@ -127,6 +127,8 @@ pub enum FrameGlyph {
         y: f32,
         width: f32,
         height: f32,
+        loop_count: i32,
+        autoplay: bool,
     },
 
     /// WebKit glyph (inline in buffer)
@@ -624,8 +626,8 @@ impl FrameGlyphBuffer {
     }
 
     /// Add a video glyph
-    pub fn add_video(&mut self, video_id: u32, x: f32, y: f32, width: f32, height: f32) {
-        self.glyphs.push(FrameGlyph::Video { video_id, x, y, width, height });
+    pub fn add_video(&mut self, video_id: u32, x: f32, y: f32, width: f32, height: f32, loop_count: i32, autoplay: bool) {
+        self.glyphs.push(FrameGlyph::Video { video_id, x, y, width, height, loop_count, autoplay });
     }
 
     /// Add a webkit glyph
@@ -1549,7 +1551,7 @@ mod tests {
     #[test]
     fn add_video_appends_video_glyph() {
         let mut buf = FrameGlyphBuffer::new();
-        buf.add_video(7, 0.0, 0.0, 640.0, 480.0);
+        buf.add_video(7, 0.0, 0.0, 640.0, 480.0, 0, false);
 
         match &buf.glyphs[0] {
             FrameGlyph::Video { video_id, .. } => assert_eq!(*video_id, 7),
