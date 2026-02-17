@@ -28,6 +28,15 @@ Last updated: 2026-02-17
 
 ## Doing
 
+- Completed input queue-edge lock-in slice for list-event tails and queue-empty behavior:
+  - Added `cases/read-event-empty-queue-semantics`.
+  - Added `cases/read-event-list-tail-semantics`,
+    `cases/read-key-sequence-list-tail-semantics`, and
+    `cases/read-key-sequence-vector-list-tail-semantics`.
+  - Wired all new cases into `cases/default.list`.
+  - Verified with targeted `check-neovm` runs and full
+    `make -C test/neovm/vm-compat check-all-neovm`.
+
 - Completed this slice: `read-batch-error` queue-edge behavior.
   - Updated `rust/neovm-core/src/elisp/reader.rs` so batch-mode `read-number`,
     `read-string`, `read-from-minibuffer`, `read-passwd`, and `completing-read`
@@ -163,23 +172,14 @@ Last updated: 2026-02-17
 - Keep `display-tty-x-helper` edge-lock-ins aligned with oracle for `x-open-connection`/`x-close-connection` type errors and nil/`1` paths.
 
 ## Next
-1. Completed: added `read-char` non-character numeric-edge lock-in (`1.0`) for queue-tail truncation parity.
-2. Completed: added `read-key` non-character numeric-edge queue-tail check (`1.0`) for parity.
-3. Completed: added `read-key-sequence` non-character numeric-edge queue-tail check (`1.0`) for parity.
-4. Completed: added `read-key-sequence-vector` non-character numeric-edge queue-tail check (`1.0`) for parity.
-5. Completed: added `read-char-exclusive` non-character numeric skip + tail-advance check (`1.0`) for parity.
-6. Completed: added `read-event` non-character numeric tail-edge check (`1.0`) for parity.
-7. Completed: added `read-char` non-character vector-tail (`[1 2]`) check for parity.
-8. Expand queue-edge coverage for remaining prompt/input builtins (`read-key-sequence*`, `read-event`) against non-character and stale queue payloads.
-9. Keep input-event queue edge cases for `read-char`/`read-key`/`read-key-sequence` aligned against oracle corpus (`invalid-event` and queue-empty paths).
-10. Keep `check-all-neovm` as a recurring post-slice gate to catch regressions early.
-4. Land the next evaluator-backed stub replacement after the `set-window-buffer` max-arity parity slice (prefer high-impact buffer/window lifecycle helper paths).
-4. Continue expanding oracle corpora for remaining high-risk stub areas (search/input/minibuffer/display/font edge paths) and keep list/alist primitive semantics locked in.
-5. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
-6. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with the new parser semantics where needed.
-7. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
-8. Current registry status is `fboundp`/function-cell: 0 drifts, `function-kind`: 0 drifts.
-9. Resolve the last startup wrapper-shape drift (`neovm-precompile-file`) with an explicit extension-vs-oracle policy and lock-in corpus note.
+1. Expand remaining non-blocking input queue-edge coverage for prompt/input builtins, focused on invalid-event and stale-tail payload patterns.
+2. Expand `recent-keys` capture beyond `read*` consumers to eventual command-loop event publication.
+3. Land the next evaluator-backed stub replacement (high-impact buffer/window lifecycle helper path).
+4. Continue expanding oracle corpora for high-risk stub areas (search/input/minibuffer/display/font edge paths) with small isolated commits.
+5. Expand `kbd` edge corpus around uncommon modifier composition and align non-`kbd` key-description consumers with updated parser semantics.
+6. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
+7. Keep `check-all-neovm` as a recurring post-slice gate; current registry status remains 0 drifts for `fboundp`, `function-cell`, and `function-kind`.
+8. Resolve startup wrapper-shape policy note for `neovm-precompile-file` with explicit extension-vs-oracle documentation.
 
 ## Done
 
