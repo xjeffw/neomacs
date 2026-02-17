@@ -6,6 +6,9 @@
     (x-open-connection "")
   (error (car err)))
 (condition-case err
+    (x-open-connection 1)
+  (error (car err)))
+(condition-case err
     (x-open-connection "" nil nil nil)
   (error (car err)))
 
