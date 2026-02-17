@@ -682,6 +682,21 @@ mod tests {
     }
 
     #[test]
+    fn read_event_consumes_non_character_event_and_preserves_tail() {
+        let mut ev = Evaluator::new();
+        ev.obarray.set_symbol_value(
+            "unread-command-events",
+            Value::list(vec![Value::symbol("foo"), Value::Int(97)]),
+        );
+        let result = builtin_read_event(&mut ev, vec![]).unwrap();
+        assert_eq!(result, Value::symbol("foo"));
+        assert_eq!(
+            ev.obarray.symbol_value("unread-command-events"),
+            Some(&Value::list(vec![Value::Int(97)]))
+        );
+    }
+
+    #[test]
     fn read_event_rejects_more_than_three_args() {
         let mut ev = Evaluator::new();
         let result = builtin_read_event(
