@@ -703,14 +703,15 @@ pub(crate) fn builtin_read(eval: &mut super::eval::Evaluator, args: Vec<Value>) 
 }
 
 // ---------------------------------------------------------------------------
-// 5. read-from-minibuffer (stub)
+// 5. read-from-minibuffer
 // ---------------------------------------------------------------------------
 
 /// `(read-from-minibuffer PROMPT ...)`
 ///
-/// Batch-mode behavior: signal `end-of-file` (no interactive input available).
+/// In batch/non-interactive mode, consume a pending `unread-command-events`
+/// character event when available; otherwise signal `end-of-file`.
 pub(crate) fn builtin_read_from_minibuffer(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-from-minibuffer", &args, 1)?;
@@ -719,28 +720,12 @@ pub(crate) fn builtin_read_from_minibuffer(
     if let Some(initial) = args.get(1) {
         expect_initial_input_stringish(initial)?;
     }
-    Err(signal(
-        "end-of-file",
-        vec![Value::string("Error reading from stdin")],
-    ))
-}
-
-// ---------------------------------------------------------------------------
-// 6. read-string (stub)
-// ---------------------------------------------------------------------------
-
-/// `(read-string PROMPT ...)`
-///
-/// Batch-mode behavior: signal `end-of-file`.
-pub(crate) fn builtin_read_string(
-    _eval: &mut super::eval::Evaluator,
-    args: Vec<Value>,
-) -> EvalResult {
-    expect_min_args("read-string", &args, 1)?;
-    expect_max_args("read-string", &args, 5)?;
-    let _prompt = expect_string(&args[0])?;
-    if let Some(initial) = args.get(1) {
-        expect_initial_input_stringish(initial)?;
+    if let Some(event) = eval.peek_unread_command_event() {
+        if let Some(ch) = event_to_char(&event) {
+            let _ = eval.pop_unread_command_event();
+            return Ok(Value::string(ch.to_string()));
+        }
+        return Err(non_character_input_event_error());
     }
     Err(signal(
         "end-of-file",
@@ -749,14 +734,46 @@ pub(crate) fn builtin_read_string(
 }
 
 // ---------------------------------------------------------------------------
-// 7. read-number (stub)
+// 6. read-string
+// ---------------------------------------------------------------------------
+
+/// `(read-string PROMPT ...)`
+///
+/// In batch/non-interactive mode, consume a pending `unread-command-events`
+/// character event when available; otherwise signal `end-of-file`.
+pub(crate) fn builtin_read_string(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
+    expect_min_args("read-string", &args, 1)?;
+    expect_max_args("read-string", &args, 5)?;
+    let _prompt = expect_string(&args[0])?;
+    if let Some(initial) = args.get(1) {
+        expect_initial_input_stringish(initial)?;
+    }
+    if let Some(event) = eval.peek_unread_command_event() {
+        if let Some(ch) = event_to_char(&event) {
+            let _ = eval.pop_unread_command_event();
+            return Ok(Value::string(ch.to_string()));
+        }
+        return Err(non_character_input_event_error());
+    }
+    Err(signal(
+        "end-of-file",
+        vec![Value::string("Error reading from stdin")],
+    ))
+}
+
+// ---------------------------------------------------------------------------
+// 7. read-number
 // ---------------------------------------------------------------------------
 
 /// `(read-number PROMPT &optional DEFAULT)`
 ///
-/// Stub: returns DEFAULT if provided, otherwise 0.
+/// In batch mode, consume a pending numeric/readable event when available;
+/// otherwise signal `end-of-file`.
 pub(crate) fn builtin_read_number(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-number", &args, 1)?;
@@ -767,6 +784,29 @@ pub(crate) fn builtin_read_number(
             let _ = expect_number(default)?;
         }
     }
+    if let Some(event) = eval.peek_unread_command_event() {
+        let _ = eval.pop_unread_command_event();
+        if let Value::Int(n) = event {
+            return Ok(Value::Int(n));
+        }
+        if let Value::Float(f) = event {
+            return Ok(Value::Float(f));
+        }
+        if let Some(ch) = event_to_char(&event) {
+            let token = ch.to_string();
+            if let Ok(n) = token.parse::<i64>() {
+                return Ok(Value::Int(n));
+            }
+            if let Ok(f) = token.parse::<f64>() {
+                return Ok(Value::Float(f));
+            }
+            return Err(signal(
+                "wrong-type-argument",
+                vec![Value::symbol("numberp"), Value::string(token)],
+            ));
+        }
+        return Err(non_character_input_event_error());
+    }
     Err(signal(
         "end-of-file",
         vec![Value::string("Error reading from stdin")],
@@ -774,19 +814,27 @@ pub(crate) fn builtin_read_number(
 }
 
 // ---------------------------------------------------------------------------
-// 8. read-passwd (stub)
+// 8. read-passwd
 // ---------------------------------------------------------------------------
 
 /// `(read-passwd PROMPT &optional CONFIRM DEFAULT)`
 ///
-/// Batch-mode behavior: signal `end-of-file`.
+/// In batch/non-interactive mode, consume a pending `unread-command-events`
+/// character event when available; otherwise signal `end-of-file`.
 pub(crate) fn builtin_read_passwd(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("read-passwd", &args, 1)?;
     expect_max_args("read-passwd", &args, 3)?;
     let _prompt = expect_string(&args[0])?;
+    if let Some(event) = eval.peek_unread_command_event() {
+        if let Some(ch) = event_to_char(&event) {
+            let _ = eval.pop_unread_command_event();
+            return Ok(Value::string(ch.to_string()));
+        }
+        return Err(non_character_input_event_error());
+    }
     Err(signal(
         "end-of-file",
         vec![Value::string("Error reading from stdin")],
@@ -794,14 +842,15 @@ pub(crate) fn builtin_read_passwd(
 }
 
 // ---------------------------------------------------------------------------
-// 9. completing-read (stub)
+// 9. completing-read
 // ---------------------------------------------------------------------------
 
 /// `(completing-read PROMPT COLLECTION ...)`
 ///
-/// Batch-mode behavior: signal `end-of-file`.
+/// In batch/non-interactive mode, consume a pending `unread-command-events`
+/// character event when available; otherwise signal `end-of-file`.
 pub(crate) fn builtin_completing_read(
-    _eval: &mut super::eval::Evaluator,
+    eval: &mut super::eval::Evaluator,
     args: Vec<Value>,
 ) -> EvalResult {
     expect_min_args("completing-read", &args, 2)?;
@@ -809,6 +858,13 @@ pub(crate) fn builtin_completing_read(
     let _prompt = expect_string(&args[0])?;
     if let Some(initial) = args.get(4) {
         expect_completing_read_initial_input(initial)?;
+    }
+    if let Some(event) = eval.peek_unread_command_event() {
+        if let Some(ch) = event_to_char(&event) {
+            let _ = eval.pop_unread_command_event();
+            return Ok(Value::string(ch.to_string()));
+        }
+        return Err(non_character_input_event_error());
     }
     Err(signal(
         "end-of-file",
@@ -963,13 +1019,15 @@ pub(crate) fn builtin_waiting_for_user_input_p(args: Vec<Value>) -> EvalResult {
 }
 
 // ---------------------------------------------------------------------------
-// 15. y-or-n-p (stub)
+// 15. y-or-n-p
 // ---------------------------------------------------------------------------
 
-/// `(y-or-n-p PROMPT)`
-///
-/// Batch-mode behavior: signal `end-of-file`.
-pub(crate) fn builtin_y_or_n_p(args: Vec<Value>) -> EvalResult {
+/// `(y-or-n-p PROMPT)` consumes a character reply from
+/// `unread-command-events` or signals EOF when no input is available.
+pub(crate) fn builtin_y_or_n_p(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
     expect_args("y-or-n-p", &args, 1)?;
     match &args[0] {
         Value::Str(_) | Value::Vector(_) | Value::Nil => {}
@@ -980,26 +1038,58 @@ pub(crate) fn builtin_y_or_n_p(args: Vec<Value>) -> EvalResult {
             ))
         }
     }
-    Err(signal(
-        "end-of-file",
-        vec![Value::string("Error reading from stdin")],
-    ))
+    let event = match eval.peek_unread_command_event() {
+        Some(ev) => ev,
+        None => {
+            return Err(signal(
+                "end-of-file",
+                vec![Value::string("Error reading from stdin")],
+            ))
+        }
+    };
+    let _ = eval.pop_unread_command_event();
+    match event_to_char(&event) {
+        Some('y') | Some('Y') => Ok(Value::True),
+        Some('n') | Some('N') => Ok(Value::Nil),
+        Some(_) => Err(signal("error", vec![Value::string("Invalid y-or-n-p response")])),
+        None => Err(non_character_input_event_error()),
+    }
 }
 
 // ---------------------------------------------------------------------------
-// 16. yes-or-no-p (stub)
+// 16. yes-or-no-p
 // ---------------------------------------------------------------------------
 
-/// `(yes-or-no-p PROMPT)`
-///
-/// Batch-mode behavior: signal `end-of-file`.
-pub(crate) fn builtin_yes_or_no_p(args: Vec<Value>) -> EvalResult {
+/// `(yes-or-no-p PROMPT)` consumes a character reply from
+/// `unread-command-events` or signals EOF when no input is available.
+pub(crate) fn builtin_yes_or_no_p(
+    eval: &mut super::eval::Evaluator,
+    args: Vec<Value>,
+) -> EvalResult {
     expect_args("yes-or-no-p", &args, 1)?;
-    let _prompt = expect_string(&args[0])?;
-    Err(signal(
-        "end-of-file",
-        vec![Value::string("Error reading from stdin")],
-    ))
+    if let Value::Str(_) | Value::Nil = args[0] {
+    } else {
+        return Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("stringp"), args[0].clone()],
+        ));
+    }
+    let event = match eval.peek_unread_command_event() {
+        Some(ev) => ev,
+        None => {
+            return Err(signal(
+                "end-of-file",
+                vec![Value::string("Error reading from stdin")],
+            ))
+        }
+    };
+    let _ = eval.pop_unread_command_event();
+    match event_to_char(&event) {
+        Some('y') | Some('Y') => Ok(Value::True),
+        Some('n') | Some('N') => Ok(Value::Nil),
+        Some(_) => Err(signal("error", vec![Value::string("Invalid yes-or-no-p response")])),
+        None => Err(non_character_input_event_error()),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1794,19 +1884,22 @@ mod tests {
 
     #[test]
     fn y_or_n_p_signals_end_of_file() {
-        let result = builtin_y_or_n_p(vec![Value::string("Continue? ")]);
+        let mut ev = Evaluator::new();
+        let result = builtin_y_or_n_p(&mut ev, vec![Value::string("Continue? ")]);
         assert!(result.is_err());
     }
 
     #[test]
     fn y_or_n_p_rejects_non_sequence_prompt() {
-        let result = builtin_y_or_n_p(vec![Value::Int(123)]);
+        let mut ev = Evaluator::new();
+        let result = builtin_y_or_n_p(&mut ev, vec![Value::Int(123)]);
         assert!(result.is_err());
     }
 
     #[test]
     fn y_or_n_p_rejects_extra_arg() {
-        let result = builtin_y_or_n_p(vec![Value::string("Continue? "), Value::Nil]);
+        let mut ev = Evaluator::new();
+        let result = builtin_y_or_n_p(&mut ev, vec![Value::string("Continue? "), Value::Nil]);
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"
@@ -1815,10 +1908,12 @@ mod tests {
 
     #[test]
     fn y_or_n_p_accepts_nil_and_vector_prompts() {
-        let nil_prompt = builtin_y_or_n_p(vec![Value::Nil]);
+        let mut ev_nil = Evaluator::new();
+        let nil_prompt = builtin_y_or_n_p(&mut ev_nil, vec![Value::Nil]);
         assert!(nil_prompt.is_err());
 
-        let vector_prompt = builtin_y_or_n_p(vec![Value::vector(vec![
+        let mut ev_vec = Evaluator::new();
+        let vector_prompt = builtin_y_or_n_p(&mut ev_vec, vec![Value::vector(vec![
             Value::Int(121),
             Value::Int(47),
             Value::Int(110),
@@ -1828,7 +1923,8 @@ mod tests {
 
     #[test]
     fn y_or_n_p_rejects_list_prompt() {
-        let result = builtin_y_or_n_p(vec![Value::list(vec![
+        let mut ev = Evaluator::new();
+        let result = builtin_y_or_n_p(&mut ev, vec![Value::list(vec![
             Value::Int(121),
             Value::Int(47),
             Value::Int(110),
@@ -1841,19 +1937,22 @@ mod tests {
 
     #[test]
     fn yes_or_no_p_signals_end_of_file() {
-        let result = builtin_yes_or_no_p(vec![Value::string("Confirm? ")]);
+        let mut ev = Evaluator::new();
+        let result = builtin_yes_or_no_p(&mut ev, vec![Value::string("Confirm? ")]);
         assert!(result.is_err());
     }
 
     #[test]
     fn yes_or_no_p_rejects_non_string_prompt() {
-        let result = builtin_yes_or_no_p(vec![Value::Int(123)]);
+        let mut ev = Evaluator::new();
+        let result = builtin_yes_or_no_p(&mut ev, vec![Value::Int(123)]);
         assert!(result.is_err());
     }
 
     #[test]
     fn yes_or_no_p_rejects_extra_arg() {
-        let result = builtin_yes_or_no_p(vec![Value::string("Confirm? "), Value::Nil]);
+        let mut ev = Evaluator::new();
+        let result = builtin_yes_or_no_p(&mut ev, vec![Value::string("Confirm? "), Value::Nil]);
         assert!(matches!(
             result,
             Err(Flow::Signal(sig)) if sig.symbol == "wrong-number-of-arguments"

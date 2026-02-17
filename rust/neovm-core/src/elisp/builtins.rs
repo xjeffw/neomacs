@@ -8642,8 +8642,8 @@ pub(crate) fn dispatch_builtin(
         }
         "locale-info" => super::misc::builtin_locale_info(args),
         // Reader/printer (pure)
-        "y-or-n-p" => super::reader::builtin_y_or_n_p(args),
-        "yes-or-no-p" => super::reader::builtin_yes_or_no_p(args),
+        "y-or-n-p" => super::reader::builtin_y_or_n_p(eval, args),
+        "yes-or-no-p" => super::reader::builtin_yes_or_no_p(eval, args),
 
         // Char-table / bool-vector (pure)
         "make-char-table" => super::chartable::builtin_make_char_table(args),
