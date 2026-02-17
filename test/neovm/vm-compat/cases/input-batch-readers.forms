@@ -39,6 +39,7 @@
 (condition-case err (read-char-exclusive 123 nil 0) (error (car err)))
 (condition-case err (progn (setq unread-command-events (list 97)) (read-key 123)) (error (car err)))
 (condition-case err (progn (setq unread-command-events (list 'foo)) (read-char nil nil 0)) (error (car err)))
+(condition-case err (progn (setq unread-command-events (list 'foo 97)) (cons (read-char) unread-command-events)) (error (list (car err) unread-command-events)))
 (condition-case err (progn (setq unread-command-events (list 'foo)) (read-event nil nil 0)) (error (car err)))
 (condition-case err (progn (setq unread-command-events (list 'foo 97)) (cons (read-event "") unread-command-events)) (error (list (car err) unread-command-events)))
 (condition-case err (progn (setq unread-command-events (list 'foo 97)) (read-char-exclusive nil nil 0)) (error (car err)))
