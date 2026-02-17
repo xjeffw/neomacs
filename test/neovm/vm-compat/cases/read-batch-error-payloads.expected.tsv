@@ -35,3 +35,7 @@
 35	(condition-case err (progn (setq unread-command-events '((1 2))) (read-file-name "f")) (error (list (car err) unread-command-events)))	OK (end-of-file ((1 2)))
 36	(condition-case err (progn (setq unread-command-events '(97)) (read-directory-name "d")) (error (list (car err) unread-command-events)))	OK (end-of-file (97))
 37	(condition-case err (progn (setq unread-command-events '(foo)) (read-buffer "")) (error (list (car err) unread-command-events)))	OK (end-of-file (foo))
+38	(condition-case err (progn (setq unread-command-events '(97)) (read-command "foo")) (error (list (car err) unread-command-events)))	OK (end-of-file (97))
+39	(condition-case err (progn (setq unread-command-events '((mouse-1))) (read-command "foo")) (error (list (car err) unread-command-events)))	OK (end-of-file ((mouse-1)))
+40	(condition-case err (progn (setq unread-command-events '(97)) (read-variable "var")) (error (list (car err) unread-command-events)))	OK (end-of-file (97))
+41	(condition-case err (progn (setq unread-command-events '((1 2))) (read-variable "var")) (error (list (car err) unread-command-events)))	OK (end-of-file ((1 2)))
