@@ -40,6 +40,8 @@
 (tool-bar-height (selected-frame))
 (condition-case err (tool-bar-height "x") (error err))
 (condition-case err (tool-bar-height nil nil nil) (error (car err)))
+(condition-case err (tool-bar-height 1) (error err))
+(condition-case err (tool-bar-height 1 t t) (error (car err)))
 
 (fboundp 'tab-bar-height)
 (tab-bar-height)
@@ -47,10 +49,13 @@
 (tab-bar-height (selected-frame))
 (condition-case err (tab-bar-height "x") (error err))
 (condition-case err (tab-bar-height nil nil nil) (error (car err)))
+(condition-case err (tab-bar-height 1) (error err))
+(condition-case err (tab-bar-height 1 t t) (error (car err)))
 
 (fboundp 'line-number-display-width)
 (line-number-display-width)
 (line-number-display-width t)
+(line-number-display-width 'x)
 (condition-case err (line-number-display-width nil nil) (error (car err)))
 
 (fboundp 'long-line-optimizations-p)

@@ -34,16 +34,21 @@
 34	(tool-bar-height (selected-frame))	OK 0
 35	(condition-case err (tool-bar-height "x") (error err))	OK (wrong-type-argument framep "x")
 36	(condition-case err (tool-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
-37	(fboundp 'tab-bar-height)	OK t
-38	(tab-bar-height)	OK 0
-39	(tab-bar-height nil t)	OK 0
-40	(tab-bar-height (selected-frame))	OK 0
-41	(condition-case err (tab-bar-height "x") (error err))	OK (wrong-type-argument framep "x")
-42	(condition-case err (tab-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
-43	(fboundp 'line-number-display-width)	OK t
-44	(line-number-display-width)	OK 0
-45	(line-number-display-width t)	OK 0
-46	(condition-case err (line-number-display-width nil nil) (error (car err)))	OK wrong-number-of-arguments
-47	(fboundp 'long-line-optimizations-p)	OK t
-48	(long-line-optimizations-p)	OK nil
-49	(condition-case err (long-line-optimizations-p 1) (error (car err)))	OK wrong-number-of-arguments
+37	(condition-case err (tool-bar-height 1) (error err))	OK (wrong-type-argument framep 1)
+38	(condition-case err (tool-bar-height 1 t t) (error (car err)))	OK wrong-number-of-arguments
+39	(fboundp 'tab-bar-height)	OK t
+40	(tab-bar-height)	OK 0
+41	(tab-bar-height nil t)	OK 0
+42	(tab-bar-height (selected-frame))	OK 0
+43	(condition-case err (tab-bar-height "x") (error err))	OK (wrong-type-argument framep "x")
+44	(condition-case err (tab-bar-height nil nil nil) (error (car err)))	OK wrong-number-of-arguments
+45	(condition-case err (tab-bar-height 1) (error err))	OK (wrong-type-argument framep 1)
+46	(condition-case err (tab-bar-height 1 t t) (error (car err)))	OK wrong-number-of-arguments
+47	(fboundp 'line-number-display-width)	OK t
+48	(line-number-display-width)	OK 0
+49	(line-number-display-width t)	OK 0
+50	(line-number-display-width 'x)	OK 0
+51	(condition-case err (line-number-display-width nil nil) (error (car err)))	OK wrong-number-of-arguments
+52	(fboundp 'long-line-optimizations-p)	OK t
+53	(long-line-optimizations-p)	OK nil
+54	(condition-case err (long-line-optimizations-p 1) (error (car err)))	OK wrong-number-of-arguments
