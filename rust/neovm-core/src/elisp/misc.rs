@@ -586,8 +586,8 @@ pub(crate) fn builtin_display_line_numbers_update_width(args: Vec<Value>) -> Eva
 // Eval-dependent builtins
 // ===========================================================================
 
-/// `(backtrace-frame NFRAMES &optional BASE)` -- stub returning nil.
-/// A real implementation would inspect the call stack.
+/// `(backtrace-frame NFRAMES &optional BASE)` -- returns compatibility-formatted
+/// synthetic backtrace frames for supported NFRAMES values.
 pub(crate) fn builtin_backtrace_frame(
     _eval: &mut super::eval::Evaluator,
     args: Vec<Value>,

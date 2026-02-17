@@ -1799,7 +1799,8 @@ pub(crate) fn builtin_face_id(args: Vec<Value>) -> EvalResult {
     ))
 }
 
-/// `(face-font FACE &optional FRAME CHARACTER)` -- stub, return nil.
+/// `(face-font FACE &optional FRAME CHARACTER)` -- returns nil for batch
+/// compatibility when the face exists.
 pub(crate) fn builtin_face_font(args: Vec<Value>) -> EvalResult {
     expect_min_args("face-font", &args, 1)?;
     expect_max_args("face-font", &args, 3)?;

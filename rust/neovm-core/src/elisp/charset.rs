@@ -425,8 +425,8 @@ pub(crate) fn builtin_define_charset_internal(args: Vec<Value>) -> EvalResult {
     Ok(Value::Nil)
 }
 
-/// `(find-charset-region BEG END &optional TABLE)` -- stub, return list
-/// with 'ascii.
+/// `(find-charset-region BEG END &optional TABLE)` -- returns a list of charsets
+/// present in the buffer slice.
 pub(crate) fn builtin_find_charset_region(args: Vec<Value>) -> EvalResult {
     expect_min_args("find-charset-region", &args, 2)?;
     expect_max_args("find-charset-region", &args, 3)?;
@@ -482,8 +482,8 @@ pub(crate) fn builtin_find_charset_region_eval(
     ))
 }
 
-/// `(find-charset-string STR &optional TABLE)` -- stub, return list
-/// of charsets present in STR.
+/// `(find-charset-string STR &optional TABLE)` -- returns a list of charsets
+/// present in STR.
 pub(crate) fn builtin_find_charset_string(args: Vec<Value>) -> EvalResult {
     expect_min_args("find-charset-string", &args, 1)?;
     expect_max_args("find-charset-string", &args, 2)?;
