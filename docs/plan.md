@@ -201,6 +201,10 @@ Last updated: 2026-02-17
 - Keep newly landed `set-window-buffer` max-arity parity stable while expanding remaining window/buffer lifecycle drifts.
 - Keep newly landed window missing-buffer/designator parity slice stable while expanding remaining window lifecycle/helper drifts.
 - Keep window stale-reference behavior lock-in stable after `kill-buffer` now rewires dead windows and evaluator printing for buffer ids is now name-aware in nested forms.
+- Completed stale-window object parity slice:
+  - Updated `windowp` to keep deleted windows as valid stale window objects while `window-live-p` reports `nil`.
+  - Updated `window-buffer` to return `nil` for deleted window handles instead of signaling `wrong-type-argument`.
+  - Added `cases/window-stale-object-semantics` and validated with targeted checks plus full `check-all-neovm`.
 - Keep `display-tty-x-helper` edge-lock-ins aligned with oracle for `x-open-connection`/`x-close-connection` type errors and nil/`1` paths.
 
 ## Next
