@@ -75,13 +75,13 @@ check-all-neovm:
 		echo "== $$case =="; \
 		$(MAKE) --no-print-directory check-neovm FORMS="$$case.forms" EXPECTED="$$case.expected.tsv"; \
 	done
+	$(MAKE) --no-print-directory check-stub-budget
 
 check-all-neovm-strict:
 	@set -e; \
 	$(MAKE) --no-print-directory check-all-neovm; \
 	$(MAKE) --no-print-directory check-builtin-registry-all; \
 	$(MAKE) --no-print-directory check-oracle-default-path; \
-	$(MAKE) --no-print-directory check-stub-budget; \
 	echo "strict neovm compatibility checks passed"
 
 check-all-neovm-only:
