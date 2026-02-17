@@ -9,3 +9,5 @@
 (register-code-conversion-map 1 [10 0 0])
 (register-code-conversion-map 'foo [10 0 0])
 (register-code-conversion-map 'foo [1 2 3])
+(register-ccl-program 'foo [10 0 0] nil)
+(register-code-conversion-map 'foo [10 0 0] nil)

@@ -420,4 +420,32 @@ mod tests {
             Value::Int(0)
         );
     }
+
+    #[test]
+    fn register_ccl_program_rejects_over_arity() {
+        let err = builtin_register_ccl_program(vec![
+            Value::symbol("foo"),
+            Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
+            Value::Nil,
+        ])
+        .expect_err("over-arity should signal");
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn register_code_conversion_map_rejects_over_arity() {
+        let err = builtin_register_code_conversion_map(vec![
+            Value::symbol("foo"),
+            Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
+            Value::Nil,
+        ])
+        .expect_err("over-arity should signal");
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-number-of-arguments"),
+            other => panic!("expected wrong-number-of-arguments signal, got {other:?}"),
+        }
+    }
 }

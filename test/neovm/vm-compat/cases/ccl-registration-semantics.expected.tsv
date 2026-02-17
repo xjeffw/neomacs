@@ -9,3 +9,5 @@
 9	(register-code-conversion-map 1 [10 0 0])	ERR (wrong-type-argument (symbolp 1))
 10	(register-code-conversion-map 'foo [10 0 0])	OK 0
 11	(register-code-conversion-map 'foo [1 2 3])	OK 0
+12	(register-ccl-program 'foo [10 0 0] nil)	ERR (wrong-number-of-arguments (register-ccl-program 3))
+13	(register-code-conversion-map 'foo [10 0 0] nil)	ERR (wrong-number-of-arguments (register-code-conversion-map 3))
