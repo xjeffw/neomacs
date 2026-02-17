@@ -976,7 +976,7 @@ mod tests {
     }
 
     #[test]
-    fn define_charset_internal_exact_arity_returns_nil_stub() {
+    fn define_charset_internal_exact_arity_returns_nil() {
         let mut args = vec![Value::Nil; 17];
         args[1] = Value::string("dimension");
         args[2] = Value::vector(vec![Value::Int(0), Value::Int(1)]);
@@ -1007,7 +1007,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn find_charset_region_stub() {
+    fn find_charset_region_ascii_default() {
         let r = builtin_find_charset_region(vec![Value::Int(1), Value::Int(100)]).unwrap();
         let items = list_to_vec(&r).unwrap();
         assert_eq!(items.len(), 1);
