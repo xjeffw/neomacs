@@ -20,8 +20,19 @@ fi
 tmp_all="$(mktemp)"
 tmp_core="$(mktemp)"
 tmp_tracker="$(mktemp)"
+tmp_forms_basenames="$(mktemp)"
+tmp_expected_basenames="$(mktemp)"
+tmp_expected_only="$(mktemp)"
+tmp_forms_only="$(mktemp)"
 cleanup() {
-  rm -f "$tmp_all" "$tmp_core" "$tmp_tracker"
+  rm -f \
+    "$tmp_all" \
+    "$tmp_core" \
+    "$tmp_tracker" \
+    "$tmp_forms_basenames" \
+    "$tmp_expected_basenames" \
+    "$tmp_expected_only" \
+    "$tmp_forms_only"
 }
 trap cleanup EXIT
 
@@ -64,6 +75,24 @@ printf '  total .forms artifacts: %s\n' "$forms_count"
 printf '  total expected artifacts: %s\n' "$expected_count"
 if [[ "$expected_count" -ne "$forms_count" ]]; then
   printf '  corpus artifact delta (expected - forms): %+d\n' "$((expected_count - forms_count))"
+  while IFS= read -r path; do
+    printf '%s\n' "$(basename "$path" .forms)"
+  done < <(find "$script_dir/cases" -name '*.forms') \
+    | sort -u > "$tmp_forms_basenames"
+  while IFS= read -r path; do
+    printf '%s\n' "$(basename "$path" .expected.tsv)"
+  done < <(find "$script_dir/cases" -name '*.expected.tsv') \
+    | sort -u > "$tmp_expected_basenames"
+  comm -23 "$tmp_expected_basenames" "$tmp_forms_basenames" > "$tmp_expected_only"
+  comm -13 "$tmp_expected_basenames" "$tmp_forms_basenames" > "$tmp_forms_only"
+  if [[ -s "$tmp_expected_only" ]]; then
+    echo "  expected-only artifacts:"
+    sed 's/^/    /' "$tmp_expected_only"
+  fi
+  if [[ -s "$tmp_forms_only" ]]; then
+    echo "  forms-only artifacts:"
+    sed 's/^/    /' "$tmp_forms_only"
+  fi
 fi
 
 printf 'builtin registry:\n'
