@@ -342,7 +342,10 @@ pub(crate) fn builtin_set_match_data(args: Vec<Value>) -> EvalResult {
     if args.len() > 2 {
         return Err(signal(
             "wrong-number-of-arguments",
-            vec![Value::symbol("set-match-data"), Value::Int(args.len() as i64)],
+            vec![
+                Value::symbol("set-match-data"),
+                Value::Int(args.len() as i64),
+            ],
         ));
     }
 
@@ -415,7 +418,10 @@ pub(crate) fn builtin_replace_regexp_in_string(args: Vec<Value>) -> EvalResult {
     builtin_replace_regexp_in_string_with_case_fold(args, true)
 }
 
-fn builtin_replace_regexp_in_string_with_case_fold(args: Vec<Value>, case_fold: bool) -> EvalResult {
+fn builtin_replace_regexp_in_string_with_case_fold(
+    args: Vec<Value>,
+    case_fold: bool,
+) -> EvalResult {
     expect_range_args("replace-regexp-in-string", &args, 3, 7)?;
     let pattern = expect_string(&args[0])?;
     let rep = expect_string(&args[1])?;
@@ -637,12 +643,9 @@ mod tests {
 
     #[test]
     fn string_match_start_nil_and_negative() {
-        let with_nil = builtin_string_match(vec![
-            Value::string("a"),
-            Value::string("ba"),
-            Value::Nil,
-        ])
-        .unwrap();
+        let with_nil =
+            builtin_string_match(vec![Value::string("a"), Value::string("ba"), Value::Nil])
+                .unwrap();
         assert_int(with_nil, 1);
 
         let with_negative = builtin_string_match(vec![
@@ -653,16 +656,13 @@ mod tests {
         .unwrap();
         assert_int(with_negative, 1);
 
-        let out_of_range = builtin_string_match(vec![
-            Value::string("a"),
-            Value::string("ba"),
-            Value::Int(3),
-        ]);
+        let out_of_range =
+            builtin_string_match(vec![Value::string("a"), Value::string("ba"), Value::Int(3)]);
         assert!(out_of_range.is_err());
     }
 
     #[test]
-    fn looking_at_stub() {
+    fn looking_at_default_at_point() {
         let result = builtin_looking_at(vec![Value::string("foo")]);
         assert_nil(result.unwrap());
     }

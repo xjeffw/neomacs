@@ -510,7 +510,9 @@ pub(crate) fn builtin_image_type(args: Vec<Value>) -> EvalResult {
         let rendered = super::print::print_value(source);
         return Err(signal(
             "error",
-            vec![Value::string(format!("Invalid image file name `{rendered}`"))],
+            vec![Value::string(format!(
+                "Invalid image file name `{rendered}`"
+            ))],
         ));
     }
 
@@ -525,9 +527,12 @@ pub(crate) fn builtin_image_type(args: Vec<Value>) -> EvalResult {
         }
     } else {
         let rendered = super::print::print_value(&explicit_type);
-        let sym_name = explicit_type
-            .as_symbol_name()
-            .ok_or_else(|| signal("error", vec![Value::string(format!("Invalid image type `{rendered}`"))]))?;
+        let sym_name = explicit_type.as_symbol_name().ok_or_else(|| {
+            signal(
+                "error",
+                vec![Value::string(format!("Invalid image type `{rendered}`"))],
+            )
+        })?;
         normalize_image_type_name(sym_name).map(str::to_string)
     };
 
@@ -536,10 +541,7 @@ pub(crate) fn builtin_image_type(args: Vec<Value>) -> EvalResult {
     }
     let mut resolved = resolved.unwrap();
 
-    if resolved != "image-convert"
-        && resolved != "neomacs"
-        && !is_supported_image_type(&resolved)
-    {
+    if resolved != "image-convert" && resolved != "neomacs" && !is_supported_image_type(&resolved) {
         resolved = "neomacs".to_string();
     }
 
@@ -809,7 +811,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn put_image_stub() {
+    fn put_image_requires_image_and_point() {
         let spec =
             builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
@@ -876,7 +878,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn insert_image_stub() {
+    fn insert_image_without_position_returns_true() {
         let spec =
             builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
@@ -929,7 +931,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn remove_images_stub() {
+    fn remove_images_no_error_for_default_args() {
         let result = builtin_remove_images(vec![Value::Int(1), Value::Int(100)]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_nil());
@@ -986,7 +988,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn image_flush_stub() {
+    fn image_flush_rejects_non_window_frame() {
         let spec =
             builtin_create_image(vec![Value::string("test.png"), Value::symbol("png")]).unwrap();
 
