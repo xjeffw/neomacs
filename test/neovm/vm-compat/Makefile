@@ -24,7 +24,7 @@ ERT_ALLOWLIST ?= cases/ert-allowlist-smoke.txt
 ERT_EXPECTED ?= cases/ert-allowlist-smoke.expected.tsv
 ERT_LOAD_FILES ?= cases/ert-allowlist-fixtures/smoke-tests.el
 
-.PHONY: oracle neovm record check compare check-neovm record-all check-all check-all-neovm check-all-neovm-only check-all-neovm-strict check-legacy-elc-neovm check-introspection-neovm check-thread-neovm check-runner-feature-stamp check-builtin-registry-all check-builtin-registry-fboundp check-builtin-registry-function-cell check-builtin-registry-function-kind check-builtin-registry-commandp check-builtin-registry-extension-policy check-oracle-default-path check-case-line-filter list-cases record-list check-list check-neovm-list check-one-neovm validate-case-lists ert-oracle record-ert-allowlist check-ert-allowlist bench-load-cache compat-progress compat-stub-index compat-stub-index-json check-stub-budget
+.PHONY: oracle neovm record check compare check-neovm record-all check-all check-all-neovm check-all-neovm-only check-all-neovm-strict check-legacy-elc-neovm check-introspection-neovm check-thread-neovm check-runner-feature-stamp check-builtin-registry-all check-builtin-registry-fboundp check-builtin-registry-function-cell check-builtin-registry-function-kind check-builtin-registry-commandp check-builtin-registry-extension-policy check-oracle-default-path check-case-line-filter list-cases record-list check-list check-neovm-list check-one-neovm validate-case-lists ert-oracle record-ert-allowlist check-ert-allowlist bench-load-cache compat-progress compat-stub-index compat-stub-index-json check-stub-budget show-function-kind-drifts
 
 oracle:
 	./run-oracle.sh $(FORMS)
@@ -144,6 +144,9 @@ check-builtin-registry-function-cell:
 
 check-builtin-registry-function-kind:
 	./check-builtin-registry-function-kind.sh
+
+show-function-kind-drifts:
+	@SHOW_ALLOWLISTED_DRIFTS=1 $(MAKE) --no-print-directory check-builtin-registry-function-kind
 
 check-builtin-registry-commandp:
 	./check-builtin-registry-commandp.sh
