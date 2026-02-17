@@ -6,3 +6,6 @@
   (condition-case err
       (read-char-exclusive nil nil 0)
     (error unread-command-events)))
+(let ((unread-command-events (list 'foo 97)))
+  (read-char-exclusive nil nil 0)
+  unread-command-events)
