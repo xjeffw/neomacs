@@ -113,10 +113,22 @@ pub(crate) fn builtin_format_mode_line_eval(
 /// numeric positions are not invisible by default.
 pub(crate) fn builtin_invisible_p(args: Vec<Value>) -> EvalResult {
     expect_args("invisible-p", &args, 1)?;
-    Ok(Value::bool(matches!(
-        &args[0],
-        Value::Symbol(_) | Value::True
-    )))
+    match &args[0] {
+        Value::Int(v) => {
+            if *v == 0 {
+                Err(signal("args-out-of-range", vec![Value::Int(*v)]))
+            } else if *v < 0 {
+                Ok(Value::symbol("t"))
+            } else {
+                Ok(Value::Nil)
+            }
+        }
+        Value::Symbol(_) | Value::True => Ok(Value::symbol("t")),
+        _ => Err(signal(
+            "wrong-type-argument",
+            vec![Value::symbol("integer-or-marker-p"), args[0].clone()],
+        )),
+    }
 }
 
 /// (line-pixel-height) -> integer
@@ -226,7 +238,9 @@ pub(crate) fn builtin_move_point_visually(args: Vec<Value>) -> EvalResult {
     expect_args("move-point-visually", &args, 1)?;
     match &args[0] {
         Value::Int(v) => {
-            if *v > 0 {
+            if *v > 1 {
+                Err(signal("end-of-buffer", vec![]))
+            } else if *v > 0 {
                 Ok(Value::symbol("end-of-buffer"))
             } else {
                 Ok(Value::symbol("beginning-of-buffer"))
@@ -505,11 +519,25 @@ mod tests {
 
     #[test]
     fn test_invisible_p() {
+        let err = builtin_invisible_p(vec![Value::Int(0)]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "args-out-of-range"),
+            other => panic!("expected args-out-of-range, got {:?}", other),
+        }
         let result = builtin_invisible_p(vec![Value::Int(1)]).unwrap();
         assert!(result.is_nil());
 
         let result = builtin_invisible_p(vec![Value::symbol("invisible")]).unwrap();
         assert!(result.is_truthy());
+
+        let result = builtin_invisible_p(vec![Value::Int(-1)]).unwrap();
+        assert!(result.is_truthy());
+
+        let err = builtin_invisible_p(vec![Value::string("x")]).unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
     }
 
     #[test]
@@ -660,6 +688,12 @@ mod tests {
 
         let result = builtin_move_point_visually(vec![Value::Int(-1)]).unwrap();
         assert_eq!(result, Value::symbol("beginning-of-buffer"));
+
+        let result = builtin_move_point_visually(vec![Value::Int(2)]);
+        match result {
+            Err(Flow::Signal(sig)) => assert_eq!(sig.symbol, "end-of-buffer"),
+            other => panic!("expected end-of-buffer, got {:?}", other),
+        }
 
         let result = builtin_move_point_visually(vec![Value::Char('a')]).unwrap();
         assert_eq!(result, Value::symbol("end-of-buffer"));
