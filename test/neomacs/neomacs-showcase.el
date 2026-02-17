@@ -455,21 +455,18 @@ The future of text editing is here.  It's called Neomacs.
     (let ((inhibit-read-only t))
       (erase-buffer)
       (insert "\n\n")
-      ;; Marker for typing NEOMACS at the top
+      ;; Logo + NEOMACS on same line
       (insert "  ")
-      (let ((marker (point-marker)))
-        (set-marker-insertion-type marker t)
+      (when (and showcase--logo-path (file-exists-p showcase--logo-path))
+        (condition-case nil
+            (let ((img (create-image showcase--logo-path nil nil
+                                     :max-width 128 :max-height 128)))
+              (when img (insert-image img "[logo]")))
+          (error nil))
+        (insert " "))
+      ;; Save position for NEOMACS typing (after logo)
+      (let ((neomacs-pos (point)))
         (insert "\n\n")
-        ;; Logo
-        (insert "  ")
-        (when (and showcase--logo-path (file-exists-p showcase--logo-path))
-          (condition-case nil
-              (let ((img (create-image showcase--logo-path nil nil
-                                       :max-width 128 :max-height 128)))
-                (when img (insert-image img "[logo]")))
-            (error nil))
-          (insert "\n"))
-        (insert "\n")
         ;; Subtitle content
         (let ((start (point)))
           (insert "    Rust-powered GPU rendering. Aiming for multi-threaded Elisp.\n")
@@ -485,7 +482,7 @@ The future of text editing is here.  It's called Neomacs.
           (put-text-property start (point) 'face
                              '(:height 1.5 :foreground "#FF6633" :weight bold)))
         (insert "\n")
-        ;; GitHub avatar + link on same line
+        ;; GitHub avatar
         (insert "    ")
         (let ((avatar-path "/tmp/eval-exec-avatar.jpg"))
           (if (file-exists-p avatar-path)
@@ -495,41 +492,45 @@ The future of text editing is here.  It's called Neomacs.
                     (if img
                         (progn
                           (insert-image img "[avatar]")
-                          (insert " "))
+                          (insert "\n"))
                       (showcase--log "  title avatar: create-image returned nil")))
                 (error (showcase--log "  title avatar error: %S" err)))
             (showcase--log "  title avatar: file not found at %s" avatar-path)))
+        ;; GitHub link below avatar
         (let ((start (point)))
-          (insert "https://github.com/eval-exec/neomacs\n")
+          (insert "    https://github.com/eval-exec/neomacs\n")
           (put-text-property start (point) 'face
                              '(:height 1.2 :foreground "#4D99FF")))
         (goto-char (point-min))
-        ;; Type NEOMACS letter by letter with round box face
-        (let* ((text "NEOMACS")
-               (delay 0.0)
-               (face '(:height 9.0 :foreground "#9966FF" :weight bold
-                       :box (:line-width (2 . 2) :color "#9966FF" :corner-radius 20)))
-               (len (length text)))
-          (dotimes (i len)
-            (let ((ch (aref text i))
-                  (m marker)
-                  (d delay))
-              (showcase--schedule d
-                (lambda ()
-                  (switch-to-buffer buf)
-                  (let ((inhibit-read-only t))
-                    (goto-char m)
-                    (insert (propertize (char-to-string ch) 'face face))
-                    (redisplay t)))))
-            (setq delay (+ delay 0.2)))
-          ;; After typing, move cursor to "E"
-          (showcase--schedule delay
-            (lambda ()
-              (switch-to-buffer buf)
-              (goto-char (point-min))
-              (when (search-forward "NEOMACS" nil t)
-                (goto-char (+ (match-beginning 0) 1)))
-              (redisplay t)))))))
+        ;; Create marker NOW, after all content is inserted
+        (let ((marker (copy-marker neomacs-pos)))
+          (set-marker-insertion-type marker t)
+          ;; Type NEOMACS letter by letter with round box face
+          (let* ((text "NEOMACS")
+                 (delay 0.0)
+                 (face '(:height 9.0 :foreground "#9966FF" :weight bold
+                         :box (:line-width (2 . 2) :color "#9966FF" :corner-radius 20)))
+                 (len (length text)))
+            (dotimes (i len)
+              (let ((ch (aref text i))
+                    (m marker)
+                    (d delay))
+                (showcase--schedule d
+                  (lambda ()
+                    (switch-to-buffer buf)
+                    (let ((inhibit-read-only t))
+                      (goto-char m)
+                      (insert (propertize (char-to-string ch) 'face face))
+                      (redisplay t)))))
+              (setq delay (+ delay 0.2)))
+            ;; After typing, move cursor to "E"
+            (showcase--schedule delay
+              (lambda ()
+                (switch-to-buffer buf)
+                (goto-char (point-min))
+                (when (search-forward "NEOMACS" nil t)
+                  (goto-char (+ (match-beginning 0) 1)))
+                (redisplay t))))))))
   ;; Breathing border (purple, slow)
   (when (fboundp 'neomacs-set-breathing-border)
     (neomacs-set-breathing-border t "#9966FF" 5 40 4000)))
@@ -1231,21 +1232,18 @@ The future of text editing is here.  It's called Neomacs.
     (let ((inhibit-read-only t))
       (erase-buffer)
       (insert "\n\n")
-      ;; Marker for typing NEOMACS at the top
+      ;; Logo + NEOMACS on same line
       (insert "  ")
-      (let ((marker (point-marker)))
-        (set-marker-insertion-type marker t)
+      (when (and showcase--logo-path (file-exists-p showcase--logo-path))
+        (condition-case err
+            (let ((img (create-image showcase--logo-path nil nil
+                                     :max-width 128 :max-height 128)))
+              (when img (insert-image img "[logo]")))
+          (error (showcase--log "  finale logo error: %S" err)))
+        (insert " "))
+      ;; Save position for NEOMACS typing (after logo)
+      (let ((neomacs-pos (point)))
         (insert "\n\n")
-        ;; Logo
-        (insert "  ")
-        (when (and showcase--logo-path (file-exists-p showcase--logo-path))
-          (condition-case err
-              (let ((img (create-image showcase--logo-path nil nil
-                                       :max-width 128 :max-height 128)))
-                (when img (insert-image img "[logo]")))
-            (error (showcase--log "  finale logo error: %S" err)))
-          (insert "\n"))
-        (insert "\n")
         ;; Subtitle content
         (let ((start (point)))
           (insert "    Rust-powered GPU rendering. Aiming for multi-threaded Elisp.\n")
@@ -1280,32 +1278,35 @@ The future of text editing is here.  It's called Neomacs.
           (put-text-property start (point) 'face
                              '(:height 1.2 :foreground "#4D99FF")))
         (goto-char (point-min))
-        ;; Type NEOMACS letter by letter with round box face
-        (let* ((text "NEOMACS")
-               (delay 0.0)
-               (face '(:height 9.0 :foreground "#9966FF" :weight bold
-                       :box (:line-width (2 . 2) :color "#9966FF" :corner-radius 20)))
-               (len (length text)))
-          (dotimes (i len)
-            (let ((ch (aref text i))
-                  (m marker)
-                  (d delay))
-              (showcase--schedule d
-                (lambda ()
-                  (switch-to-buffer buf)
-                  (let ((inhibit-read-only t))
-                    (goto-char m)
-                    (insert (propertize (char-to-string ch) 'face face))
-                    (redisplay t)))))
-            (setq delay (+ delay 0.2)))
-          ;; After typing, move cursor to "E"
-          (showcase--schedule delay
-            (lambda ()
-              (switch-to-buffer buf)
-              (goto-char (point-min))
-              (when (search-forward "NEOMACS" nil t)
-                (goto-char (+ (match-beginning 0) 1)))
-              (redisplay t)))))))
+        ;; Create marker NOW, after all content is inserted
+        (let ((marker (copy-marker neomacs-pos)))
+          (set-marker-insertion-type marker t)
+          ;; Type NEOMACS letter by letter with round box face
+          (let* ((text "NEOMACS")
+                 (delay 0.0)
+                 (face '(:height 9.0 :foreground "#9966FF" :weight bold
+                         :box (:line-width (2 . 2) :color "#9966FF" :corner-radius 20)))
+                 (len (length text)))
+            (dotimes (i len)
+              (let ((ch (aref text i))
+                    (m marker)
+                    (d delay))
+                (showcase--schedule d
+                  (lambda ()
+                    (switch-to-buffer buf)
+                    (let ((inhibit-read-only t))
+                      (goto-char m)
+                      (insert (propertize (char-to-string ch) 'face face))
+                      (redisplay t)))))
+              (setq delay (+ delay 0.2)))
+            ;; After typing, move cursor to "E"
+            (showcase--schedule delay
+              (lambda ()
+                (switch-to-buffer buf)
+                (goto-char (point-min))
+                (when (search-forward "NEOMACS" nil t)
+                  (goto-char (+ (match-beginning 0) 1)))
+                (redisplay t))))))))
 
   ;; Stack the prettiest effects
   (when (fboundp 'neomacs-set-aurora)
