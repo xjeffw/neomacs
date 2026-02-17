@@ -53,6 +53,26 @@ emit_json() {
   printf '}\n'
 }
 
+for arg in "$@"; do
+  case "$arg" in
+    --json)
+      FORMAT="json"
+      ;;
+    --text)
+      FORMAT="text"
+      ;;
+    --help|-h)
+      echo "Usage: $0 [--json|--text]"
+      exit 0
+      ;;
+    *)
+      echo "unknown argument: $arg" >&2
+      echo "Usage: $0 [--json|--text]" >&2
+      exit 2
+      ;;
+  esac
+done
+
 if [ "${FORMAT}" = "text" ]; then
   echo "NeoVM explicit function stub index"
   echo "================================="

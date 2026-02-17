@@ -122,7 +122,7 @@ compat-stub-index:
 	@./compat-stub-index.sh
 
 compat-stub-index-json:
-	STUB_INDEX_FORMAT=json ./compat-stub-index.sh
+	./compat-stub-index.sh --json
 
 check-builtin-registry-all:
 	@set -e; \
