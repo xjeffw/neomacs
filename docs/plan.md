@@ -66,6 +66,8 @@ Last updated: 2026-02-17
 - Keep newly landed read-core helper primitive `subr-arity` parity stable while expanding remaining minibuffer/input drifts.
 - Keep newly landed input-mode helper primitive `subr-arity` parity stable while expanding remaining input/runtime drifts.
 - Keep newly landed charset/json/libxml/display helper primitive `subr-arity` parity stable while expanding remaining arity drifts.
+- Added explicit stub-marker governance:
+  - `test/neovm/vm-compat/check-stub-budget.sh` + `check-stub-budget` target plus CI gate enforce explicit function-stub markers.
 - Keep newly landed symbol-function alias-wrapper startup parity stable while expanding remaining non-subr introspection drifts.
 - Keep newly landed autoload object error-kind parity stable while expanding remaining non-symbol callable error-path drifts.
 - Keep newly landed filesystem-create helper primitive `subr-arity` parity stable while expanding remaining filesystem helper drifts.
