@@ -209,6 +209,9 @@ Last updated: 2026-02-17
   - Updated `fit-window-to-buffer` to return `nil` in batch mode for valid designators.
   - Updated invalid/stale designator handling to signal generic `error`, matching Oracle behavior.
   - Added `cases/fit-window-to-buffer-designator-semantics` and validated with targeted checks plus full `check-all-neovm`.
+- Completed split/delete window designator error-kind parity slice:
+  - Updated `split-window`, `delete-window`, and `delete-other-windows` to signal generic `error` for invalid window designators, matching Oracle behavior.
+  - Added `cases/split-delete-window-designator-error-semantics` and validated with targeted checks plus full `check-all-neovm`.
 - Keep `display-tty-x-helper` edge-lock-ins aligned with oracle for `x-open-connection`/`x-close-connection` type errors and nil/`1` paths.
 
 ## Next
