@@ -276,42 +276,17 @@ fn parse_concatenated_time_delay_spec(spec: &str) -> Option<f64> {
         return None;
     }
 
-    let mut split = 0;
-    let mut seen_number = false;
-    for (idx, ch) in spec.char_indices() {
-        if idx == 0 && (ch == '+' || ch == '-') {
-            split = idx + ch.len_utf8();
+    for split in (1..=spec.len()).filter(|idx| spec.is_char_boundary(*idx)) {
+        let (number_part, unit_part) = spec.split_at(split);
+        if unit_part.is_empty() {
             continue;
         }
 
-        if !seen_number {
-            if ch.is_ascii_digit() || ch == '.' {
-                seen_number = true;
-                split = idx + ch.len_utf8();
-                continue;
+        if let Ok(delay) = number_part.parse::<f64>() {
+            if let Some(multiplier) = parse_time_unit_factor(unit_part) {
+                return Some(delay * multiplier);
             }
-            return None;
         }
-
-        if ch.is_ascii_digit() || ch == '.' {
-            split = idx + ch.len_utf8();
-            continue;
-        }
-        split = idx;
-        break;
-    }
-
-    if split == 0 || split >= spec.len() {
-        return None;
-    }
-
-    let (number_part, unit_part) = spec.split_at(split);
-    if unit_part.is_empty() {
-        return None;
-    }
-
-    if let Ok(delay) = number_part.parse::<f64>() {
-        return parse_time_unit_factor(unit_part).map(|multiplier| delay * multiplier);
     }
 
     None
@@ -339,6 +314,13 @@ fn parse_run_at_time_delay(value: &Value) -> Result<f64, Flow> {
             }
 
             let tokens: Vec<&str> = spec.split_whitespace().collect();
+            if tokens.len() > 1 {
+                let merged = tokens.join("");
+                if let Some(delay) = parse_concatenated_time_delay_spec(&merged) {
+                    return Ok(delay);
+                }
+            }
+
             if tokens.len() == 2 {
                 if tokens[0] == "+" || tokens[0] == "-" {
                     let token = format!("{}{}", tokens[0], tokens[1]);
@@ -1010,6 +992,42 @@ mod tests {
             43_200.0
         );
         assert_eq!(
+            parse_run_at_time_delay(&Value::string("1 2 min"))
+                .expect("1 2 min should parse"),
+            720.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("+ 1 5 sec"))
+                .expect("+ 1 5 sec should parse"),
+            15.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("1e3sec")).expect("1e3sec should parse"),
+            1_000.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("1e3 sec")).expect("1e3 sec should parse"),
+            1_000.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("2e1 min")).expect("2e1 min should parse"),
+            1_200.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("2e1min")).expect("2e1min should parse"),
+            1_200.0
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("1 .5sec"))
+                .expect("1 .5sec should parse"),
+            1.5
+        );
+        assert_eq!(
+            parse_run_at_time_delay(&Value::string("1 .5 sec"))
+                .expect("1 .5 sec should parse"),
+            1.5
+        );
+        assert_eq!(
             parse_run_at_time_delay(&Value::string(" \t+ 2 day \t"))
                 .expect("whitespace + 2 day should parse"),
             172_800.0
@@ -1039,6 +1057,10 @@ mod tests {
         assert!(matches!(parse_run_at_time_delay(&Value::string("-")), Err(_)));
         assert!(matches!(parse_run_at_time_delay(&Value::string("+ 2")), Err(_)));
         assert!(matches!(parse_run_at_time_delay(&Value::string("- 2")), Err(_)));
+        assert!(matches!(
+            parse_run_at_time_delay(&Value::string("+ 1 5")),
+            Err(_)
+        ));
     }
 
     #[test]
