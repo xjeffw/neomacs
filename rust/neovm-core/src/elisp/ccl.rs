@@ -2,7 +2,7 @@
 //!
 //! CCL is a low-level bytecode language for efficient character/text conversion.
 //! This implementation provides stubs for basic CCL operations:
-//! - `ccl-program-p` — check if object is a CCL program (always returns nil)
+//! - `ccl-program-p` — basic predicate for vector-shaped CCL program headers
 //! - `ccl-execute` — execute CCL program on status vector (stub, returns nil)
 //! - `ccl-execute-on-string` — execute CCL program on string (stub, returns string unchanged)
 //! - `register-ccl-program` — register a CCL program (stub, returns nil)
@@ -13,6 +13,34 @@
 
 use super::error::{signal, EvalResult, Flow};
 use super::value::*;
+
+fn is_integer(value: &Value) -> bool {
+    matches!(value, Value::Int(_))
+}
+
+fn is_valid_ccl_program(program: &Value) -> bool {
+    let Value::Vector(program) = program else {
+        return false;
+    };
+
+    let program = program.lock().expect("poisoned ccl program vector");
+    if program.len() < 3 {
+        return false;
+    }
+
+    let [first, second, third] = [
+        &program[0],
+        &program[1],
+        &program[2],
+    ];
+
+    let first = first.as_int();
+    if first.is_none() || first.is_some_and(|n| n < 0) {
+        return false;
+    }
+
+    is_integer(second) && is_integer(third)
+}
 
 // ---------------------------------------------------------------------------
 // Argument helpers
@@ -56,20 +84,20 @@ fn expect_max_args(name: &str, args: &[Value], max: usize) -> Result<(), Flow> {
 // ---------------------------------------------------------------------------
 
 /// (ccl-program-p OBJECT) -> nil
-/// Returns nil since we don't support CCL programs.
+/// This accepts program objects that match the minimum CCL header shape used by Emacs.
 pub(crate) fn builtin_ccl_program_p(args: Vec<Value>) -> EvalResult {
     expect_args("ccl-program-p", &args, 1)?;
-    // We don't have a CCL program type, so always return nil
-    Ok(Value::Nil)
+    Ok(Value::bool(is_valid_ccl_program(&args[0])))
 }
 
 /// (ccl-execute CCL-PROGRAM STATUS) -> nil
 /// Stub: doesn't actually execute CCL bytecode.
 pub(crate) fn builtin_ccl_execute(args: Vec<Value>) -> EvalResult {
     expect_args("ccl-execute", &args, 2)?;
-    // Argument validation: CCL-PROGRAM should be a CCL program (we have none)
-    // STATUS should be a vector (we don't validate, just accept anything)
-    // Since we don't support CCL programs, this is a no-op that returns nil
+    if !args[1].is_vector() {
+        return Err(signal("wrong-type-argument", vec![Value::symbol("vectorp"), args[1].clone()]));
+    }
+
     Ok(Value::Nil)
 }
 
@@ -78,6 +106,10 @@ pub(crate) fn builtin_ccl_execute(args: Vec<Value>) -> EvalResult {
 pub(crate) fn builtin_ccl_execute_on_string(args: Vec<Value>) -> EvalResult {
     expect_min_args("ccl-execute-on-string", &args, 3)?;
     expect_max_args("ccl-execute-on-string", &args, 5)?;
+    if !args[1].is_vector() {
+        return Err(signal("wrong-type-argument", vec![Value::symbol("vectorp"), args[1].clone()]));
+    }
+
     // Arguments:
     //   0: CCL-PROGRAM (we don't use)
     //   1: STATUS vector (we don't use)
@@ -88,7 +120,6 @@ pub(crate) fn builtin_ccl_execute_on_string(args: Vec<Value>) -> EvalResult {
     // Extract and return the string argument unchanged
     match &args[2] {
         Value::Str(s) => Ok(Value::Str(s.clone())),
-        Value::Nil => Ok(Value::Nil), // Allow nil as empty string
         other => {
             // Type error: STRING must be a string or nil
             Err(signal(
@@ -126,10 +157,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn ccl_programp_validates_shape_and_type() {
+        let program = Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]);
+        let invalid_program = Value::vector(vec![Value::Int(0), Value::Int(0)]);
+        let invalid_negative = Value::vector(vec![Value::Int(-1), Value::Int(0), Value::Int(0)]);
+        assert_eq!(builtin_ccl_program_p(vec![program]).expect("valid program"), Value::True);
+        assert_eq!(builtin_ccl_program_p(vec![invalid_program]).expect("invalid program"), Value::Nil);
+        assert_eq!(builtin_ccl_program_p(vec![invalid_negative]).expect("invalid program"), Value::Nil);
+    }
+
+    #[test]
     fn ccl_execute_on_string_returns_string_payload() {
         let out = builtin_ccl_execute_on_string(vec![
-            Value::Nil,
-            Value::Nil,
+            Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
+            Value::vector(vec![Value::Int(0), Value::Int(0), Value::Int(0), Value::Int(0)]),
             Value::string("abc"),
         ])
         .expect("string payload should be returned");
@@ -137,15 +178,26 @@ mod tests {
     }
 
     #[test]
-    fn ccl_execute_on_string_accepts_nil_payload() {
-        let out = builtin_ccl_execute_on_string(vec![Value::Nil, Value::Nil, Value::Nil])
-            .expect("nil payload should be accepted");
-        assert_eq!(out, Value::Nil);
+    fn ccl_execute_on_string_rejects_non_vector_status() {
+        let err = builtin_ccl_execute_on_string(vec![
+            Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
+            Value::Int(1),
+            Value::string("abc"),
+        ])
+        .expect_err("status must be a vector");
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument signal, got {other:?}"),
+        }
     }
 
     #[test]
     fn ccl_execute_on_string_rejects_non_string_payload() {
-        let err = builtin_ccl_execute_on_string(vec![Value::Nil, Value::Nil, Value::Int(1)])
+        let err = builtin_ccl_execute_on_string(vec![
+            Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
+            Value::vector(vec![Value::Int(0), Value::Int(0), Value::Int(0), Value::Int(0)]),
+            Value::Int(1),
+        ])
             .expect_err("non-string payload must be rejected");
         match err {
             Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
@@ -156,8 +208,8 @@ mod tests {
     #[test]
     fn ccl_execute_on_string_rejects_over_arity() {
         let err = builtin_ccl_execute_on_string(vec![
-            Value::Nil,
-            Value::Nil,
+            Value::vector(vec![Value::Int(10), Value::Int(0), Value::Int(0)]),
+            Value::vector(vec![Value::Int(0), Value::Int(0), Value::Int(0), Value::Int(0)]),
             Value::string("abc"),
             Value::Nil,
             Value::Nil,
