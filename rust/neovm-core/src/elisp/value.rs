@@ -459,7 +459,6 @@ pub fn eq_value(left: &Value, right: &Value) -> bool {
         (Value::Int(a), Value::Int(b)) => a == b,
         (Value::Int(a), Value::Char(b)) => *a == *b as i64,
         (Value::Char(a), Value::Int(b)) => *a as i64 == *b,
-        (Value::Float(a), Value::Float(b)) => a.to_bits() == b.to_bits(),
         (Value::Char(a), Value::Char(b)) => a == b,
         (Value::Symbol(a), Value::Symbol(b)) => a == b,
         (Value::Keyword(a), Value::Keyword(b)) => a == b,
@@ -479,7 +478,10 @@ pub fn eq_value(left: &Value, right: &Value) -> bool {
 
 /// `eql` — like `eq` but also value-equality for numbers of same type.
 pub fn eql_value(left: &Value, right: &Value) -> bool {
-    eq_value(left, right)
+    match (left, right) {
+        (Value::Float(a), Value::Float(b)) => a.to_bits() == b.to_bits(),
+        _ => eq_value(left, right),
+    }
 }
 
 /// `equal` — structural comparison.

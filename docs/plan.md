@@ -11,7 +11,7 @@ Last updated: 2026-02-17
 5. [x] Expand thread concurrency matrix coverage for argument errors and join edge-cases.
 6. [x] Land next `font`/`font-lock` behavior lock-in slice with oracle-backed `font-spec` checks.
 7. [x] Expand input queue edge cases for `read-key`/`read-event` mixed payload tails.
-8. [ ] Add negative path cases for `terminal-parameter` argument validation and storage behavior.
+8. [x] Add negative path cases for `terminal-parameter` argument validation and storage behavior.
 9. [ ] Tighten `indent` semantics around arity and read-only mutation boundaries in interactive buffer-mode.
 10. [ ] Sweep remaining display compatibility notes and convert stub wording to explicit behavior.
 11. [ ] Add focused `make` target for `check-stub-budget` in CI dry-run dashboards.
