@@ -23,7 +23,7 @@ Last updated: 2026-02-17
 17. [ ] Expand `seq`/`alist` matrix for improper argument paths while preserving existing arity lock-ins.
 18. [ ] Add regression case for `backtrace-frame` documentation introspection with stale function-cell handles.
 19. [ ] Expand `image` stubs with validated `t`/`nil` behavior for optional args.
-20. [ ] Add periodic `make compat-progress` output diff check in PR review templates.
+20. [x] Add periodic `make compat-progress` output diff check in PR review templates.
 
 ## Doing
 
