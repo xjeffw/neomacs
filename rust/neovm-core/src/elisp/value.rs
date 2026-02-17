@@ -97,6 +97,8 @@ pub struct LispHashTable {
     pub test: HashTableTest,
     pub size: i64,
     pub weakness: Option<HashTableWeakness>,
+    pub rehash_size: f64,
+    pub rehash_threshold: f64,
     pub data: HashMap<HashKey, Value>,
 }
 
@@ -133,18 +135,22 @@ pub enum HashKey {
 
 impl LispHashTable {
     pub fn new(test: HashTableTest) -> Self {
-        Self::new_with_options(test, 0, None)
+        Self::new_with_options(test, 0, None, 1.5, 0.8125)
     }
 
     pub fn new_with_options(
         test: HashTableTest,
         size: i64,
         weakness: Option<HashTableWeakness>,
+        rehash_size: f64,
+        rehash_threshold: f64,
     ) -> Self {
         Self {
             test,
             size,
             weakness,
+            rehash_size,
+            rehash_threshold,
             data: HashMap::with_capacity(size.max(0) as usize),
         }
     }
@@ -209,9 +215,15 @@ impl Value {
         test: HashTableTest,
         size: i64,
         weakness: Option<HashTableWeakness>,
+        rehash_size: f64,
+        rehash_threshold: f64,
     ) -> Self {
         Value::HashTable(Arc::new(Mutex::new(LispHashTable::new_with_options(
-            test, size, weakness,
+            test,
+            size,
+            weakness,
+            rehash_size,
+            rehash_threshold,
         ))))
     }
 

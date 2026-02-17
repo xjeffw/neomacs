@@ -113,11 +113,14 @@ pub(crate) fn builtin_hash_table_size(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// (hash-table-rehash-size TABLE) -> float (stub: 1.5)
+/// (hash-table-rehash-size TABLE) -> float
 pub(crate) fn builtin_hash_table_rehash_size(args: Vec<Value>) -> EvalResult {
     expect_args("hash-table-rehash-size", &args, 1)?;
     match &args[0] {
-        Value::HashTable(_) => Ok(Value::Float(1.5)),
+        Value::HashTable(ht) => {
+            let table = ht.lock().expect("poisoned");
+            Ok(Value::Float(table.rehash_size))
+        }
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("hash-table-p"), other.clone()],
@@ -125,11 +128,14 @@ pub(crate) fn builtin_hash_table_rehash_size(args: Vec<Value>) -> EvalResult {
     }
 }
 
-/// (hash-table-rehash-threshold TABLE) -> float (stub: 0.8125)
+/// (hash-table-rehash-threshold TABLE) -> float
 pub(crate) fn builtin_hash_table_rehash_threshold(args: Vec<Value>) -> EvalResult {
     expect_args("hash-table-rehash-threshold", &args, 1)?;
     match &args[0] {
-        Value::HashTable(_) => Ok(Value::Float(0.8125)),
+        Value::HashTable(ht) => {
+            let table = ht.lock().expect("poisoned");
+            Ok(Value::Float(table.rehash_threshold))
+        }
         other => Err(signal(
             "wrong-type-argument",
             vec![Value::symbol("hash-table-p"), other.clone()],
@@ -279,6 +285,7 @@ pub(crate) fn builtin_unintern(eval: &mut super::eval::Evaluator, args: Vec<Valu
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::elisp::builtins::builtin_make_hash_table;
 
     #[test]
     fn hash_table_keys_values_basics() {
@@ -313,5 +320,47 @@ mod tests {
         assert!(builtin_hash_table_values(vec![]).is_err());
         assert!(builtin_hash_table_keys(vec![Value::Nil]).is_err());
         assert!(builtin_hash_table_values(vec![Value::Nil]).is_err());
+    }
+
+    #[test]
+    fn hash_table_rehash_defaults() {
+        let table = builtin_make_hash_table(vec![]).unwrap();
+        let size = builtin_hash_table_rehash_size(vec![table.clone()]).unwrap();
+        let threshold = builtin_hash_table_rehash_threshold(vec![table]).unwrap();
+
+        assert_eq!(size, Value::Float(1.5));
+        assert_eq!(threshold, Value::Float(0.8125));
+    }
+
+    #[test]
+    fn hash_table_rehash_custom_values_and_validation() {
+        let table = builtin_make_hash_table(vec![
+            Value::keyword(":rehash-size"),
+            Value::Float(2.0),
+            Value::keyword(":rehash-threshold"),
+            Value::Float(0.9),
+        ])
+        .unwrap();
+
+        let size = builtin_hash_table_rehash_size(vec![table.clone()]).unwrap();
+        let threshold = builtin_hash_table_rehash_threshold(vec![table]).unwrap();
+
+        assert_eq!(size, Value::Float(2.0));
+        assert_eq!(threshold, Value::Float(0.9));
+
+        assert!(
+            builtin_make_hash_table(vec![Value::keyword(":rehash-size"), Value::string("x")])
+                .is_err()
+        );
+        assert!(builtin_make_hash_table(vec![
+            Value::keyword(":rehash-threshold"),
+            Value::string("x")
+        ])
+        .is_err());
+        assert!(builtin_make_hash_table(vec![
+            Value::keyword(":rehash-threshold"),
+            Value::Float(1.5)
+        ])
+        .is_err());
     }
 }
