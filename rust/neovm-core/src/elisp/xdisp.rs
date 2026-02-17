@@ -198,6 +198,12 @@ pub(crate) fn builtin_move_point_visually(args: Vec<Value>) -> EvalResult {
 /// always returns nil.
 pub(crate) fn builtin_lookup_image_map(args: Vec<Value>) -> EvalResult {
     expect_args("lookup-image-map", &args, 3)?;
+    if !args[1].is_nil() {
+        expect_integer_or_marker(&args[1])?;
+    }
+    if !args[2].is_nil() {
+        expect_integer_or_marker(&args[2])?;
+    }
     // Stub: return nil
     Ok(Value::Nil)
 }
@@ -556,6 +562,14 @@ mod tests {
             builtin_lookup_image_map(vec![Value::symbol("map"), Value::Int(10), Value::Int(20)])
                 .unwrap();
         assert!(result.is_nil());
+
+        let err =
+            builtin_lookup_image_map(vec![Value::symbol("map"), Value::symbol("x"), Value::Int(20)])
+                .unwrap_err();
+        match err {
+            Flow::Signal(sig) => assert_eq!(sig.symbol, "wrong-type-argument"),
+            other => panic!("expected wrong-type-argument, got {:?}", other),
+        }
     }
 
     #[test]
