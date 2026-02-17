@@ -224,6 +224,7 @@ Last updated: 2026-02-17
 6. Keep Rust backend behind compile-time switch and preserve Emacs C core as default backend.
 7. Keep `check-all-neovm` as a recurring post-slice gate; current registry status remains 0 drifts for `fboundp`, `function-cell`, and `function-kind`.
 8. Resolve startup wrapper-shape policy note for `neovm-precompile-file` with explicit extension-vs-oracle documentation.
+9. Continue logging incremental slices and automation notes in `docs/ongoing-tasks.md` so the auto-explorer status stays visible.
 
 ## Done
 
