@@ -1198,6 +1198,23 @@ If the parameters specify a display, that display is used.  */)
   adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
 		     0, true, Qx_create_frame_2);
 
+  /* Process position parameters (left, top) for child frames.
+     We cannot use gui_figure_window_size() here because it would
+     override the frame dimensions (width/height params were already
+     consumed above).  Instead, extract position directly.  */
+  {
+    Lisp_Object left_param = gui_display_get_arg (dpyinfo, parms, Qleft,
+						  "left", "Left",
+						  RES_TYPE_NUMBER);
+    Lisp_Object top_param = gui_display_get_arg (dpyinfo, parms, Qtop,
+						 "top", "Top",
+						 RES_TYPE_NUMBER);
+    if (FIXNUMP (left_param))
+      f->left_pos = XFIXNUM (left_param);
+    if (FIXNUMP (top_param))
+      f->top_pos = XFIXNUM (top_param);
+  }
+
   /* Process fullscreen parameter */
   gui_default_parameter (f, parms, Qfullscreen, Qnil,
 			 "fullscreen", "Fullscreen", RES_TYPE_SYMBOL);

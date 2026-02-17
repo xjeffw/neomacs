@@ -803,8 +803,11 @@ neomacs_update_begin (struct frame *f)
         float parent_x = (float) f->left_pos;
         float parent_y = (float) f->top_pos;
         int z_order = f->z_order;
+        /* Use FRAME_INTERNAL_BORDER_WIDTH which handles the fallback:
+           child_frame_border_width >= 0 → use it,
+           child_frame_border_width == -1 → use internal_border_width.  */
         float border_width = parent
-          ? (float) FRAME_CHILD_FRAME_BORDER_WIDTH (f)
+          ? (float) FRAME_INTERNAL_BORDER_WIDTH (f)
           : 0.0f;
 
         /* Get child-frame-border face background color */
@@ -8543,9 +8546,19 @@ neomacs_set_frame_offset (struct frame *f, int xoff, int yoff,
       f->win_gravity = NorthWestGravity;
     }
 
-  struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
-  if (dpyinfo && dpyinfo->display_handle)
-    neomacs_display_set_position (dpyinfo->display_handle, xoff, yoff);
+  if (FRAME_PARENT_FRAME (f))
+    {
+      /* Child frames are composited within the parent's window.
+         Don't move the OS window; just mark for redisplay so the
+         render thread picks up the new left_pos/top_pos.  */
+      SET_FRAME_GARBAGED (f);
+    }
+  else
+    {
+      struct neomacs_display_info *dpyinfo = FRAME_NEOMACS_DISPLAY_INFO (f);
+      if (dpyinfo && dpyinfo->display_handle)
+        neomacs_display_set_position (dpyinfo->display_handle, xoff, yoff);
+    }
 }
 
 /* Delete/destroy a frame.  */
