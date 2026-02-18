@@ -3540,7 +3540,13 @@ FRAME 0 means change the face on all frames, and change the default
 		}
 	      else if (EQ (k, QCborder_style))
 		{
-		  if (!FIXNUMP (v) || XFIXNUM (v) < 0 || XFIXNUM (v) > 10)
+		  if (!(SYMBOLP (v)
+			&& (EQ (v, Qsolid) || EQ (v, Qrainbow)
+			    || EQ (v, Qanimated_rainbow) || EQ (v, Qgradient)
+			    || EQ (v, Qglow) || EQ (v, Qneon)
+			    || EQ (v, Qdashed_border) || EQ (v, Qcomet)
+			    || EQ (v, Qiridescent) || EQ (v, Qfire)
+			    || EQ (v, Qheartbeat))))
 		    break;
 		}
 	      else if (EQ (k, QCborder_speed))
@@ -6519,8 +6525,20 @@ realize_gui_face (struct face_cache *cache, Lisp_Object attrs[LFACE_VECTOR_SIZE]
 	    }
 	  else if (EQ (keyword, QCborder_style))
 	    {
-	      if (FIXNUMP (value) && XFIXNUM (value) >= 0)
-		face->box_border_style = XFIXNUM (value);
+	      if (SYMBOLP (value))
+		{
+		  if (EQ (value, Qsolid))               face->box_border_style = 0;
+		  else if (EQ (value, Qrainbow))         face->box_border_style = 1;
+		  else if (EQ (value, Qanimated_rainbow)) face->box_border_style = 2;
+		  else if (EQ (value, Qgradient))        face->box_border_style = 3;
+		  else if (EQ (value, Qglow))            face->box_border_style = 4;
+		  else if (EQ (value, Qneon))            face->box_border_style = 5;
+		  else if (EQ (value, Qdashed_border))   face->box_border_style = 6;
+		  else if (EQ (value, Qcomet))           face->box_border_style = 7;
+		  else if (EQ (value, Qiridescent))      face->box_border_style = 8;
+		  else if (EQ (value, Qfire))            face->box_border_style = 9;
+		  else if (EQ (value, Qheartbeat))       face->box_border_style = 10;
+		}
 	    }
 	  else if (EQ (keyword, QCborder_speed))
 	    {
@@ -7564,6 +7582,17 @@ syms_of_xfaces (void)
   DEFSYM (QCborder_style, ":border-style");
   DEFSYM (QCborder_speed, ":border-speed");
   DEFSYM (QCcolor2, ":color2");
+  DEFSYM (Qsolid, "solid");
+  DEFSYM (Qrainbow, "rainbow");
+  DEFSYM (Qanimated_rainbow, "animated-rainbow");
+  DEFSYM (Qgradient, "gradient");
+  DEFSYM (Qglow, "glow");
+  DEFSYM (Qneon, "neon");
+  DEFSYM (Qdashed_border, "dashed");
+  DEFSYM (Qcomet, "comet");
+  DEFSYM (Qiridescent, "iridescent");
+  DEFSYM (Qfire, "fire");
+  DEFSYM (Qheartbeat, "heartbeat");
   DEFSYM (QCposition, ":position");
   DEFSYM (Qline, "line");
   DEFSYM (Qwave, "wave");
